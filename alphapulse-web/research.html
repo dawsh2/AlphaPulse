@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research - AlphaPulse</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #007acc;
+            background: #007acc;
+            height: 32px;
+            border-bottom: 1px solid #005a9e;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+        }
+        
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+            margin-right: 12px;
+        }
+        
+        .mobile-sidebar-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+            margin-right: 12px;
+        }
+        
+        @media screen and (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .mobile-sidebar-btn {
+                display: none; /* Hide the header folder button since we have floating one */
+            }
+            
+            .mobile-sidebar-toggle {
+                display: block;
+            }
+        }
+
+        .logo {
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            margin-right: 20px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            transition: background 0.2s;
+            font-size: 12px;
+        }
+
+        .nav a:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .nav a.active {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .login-link {
+            color: white;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            transition: background 0.2s;
+            font-size: 12px;
+            margin-left: auto;
+            cursor: pointer;
+        }
+        
+        .login-link:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            height: calc(100vh - 32px);
+            overflow: hidden;
+        }
+
+        .sidebar {
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 12px 16px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #cccccc;
+        }
+
+        .sidebar-section {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #cccccc;
+            transition: background 0.2s;
+            border-bottom: 1px solid #2d2d30;
+        }
+
+        .sidebar-item:hover {
+            background: #2a2a2a;
+        }
+
+        .sidebar-item.active {
+            background: #094771;
+            color: white;
+        }
+
+        .sidebar-icon {
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .sidebar-meta {
+            font-size: 10px;
+            color: #858585;
+            margin-top: 2px;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+        }
+
+        .notebook-tabs {
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            align-items: center;
+            height: 35px;
+            padding: 0 8px;
+            gap: 4px;
+        }
+
+        .notebook-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-bottom: none;
+            border-radius: 3px 3px 0 0;
+            font-size: 12px;
+            cursor: pointer;
+            color: #cccccc;
+            transition: all 0.2s;
+        }
+
+        .notebook-tab.active {
+            background: #1e1e1e;
+            border-color: #007acc;
+            color: white;
+        }
+
+        .tab-close {
+            font-size: 16px;
+            color: #858585;
+            cursor: pointer;
+            padding: 0 4px;
+            transition: color 0.2s;
+        }
+
+        .tab-close:hover {
+            color: #f48771;
+        }
+
+        .btn-small {
+            background: #3e3e42;
+            border: none;
+            color: #cccccc;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .btn-small:hover {
+            background: #4e4e52;
+        }
+
+        .notebook-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0;
+            background: #1e1e1e;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .cell {
+            border-bottom: 1px solid #2d2d30;
+            transition: all 0.2s;
+        }
+
+        .cell:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .cell.active {
+            border-left: 3px solid #007acc;
+            background: rgba(0, 122, 204, 0.05);
+        }
+
+        .cell.config {
+            border-left: 3px solid #dcdcaa;
+            background: rgba(220, 220, 170, 0.05);
+        }
+
+        .cell.config.active {
+            border-left: 3px solid #dcdcaa;
+            background: rgba(220, 220, 170, 0.1);
+        }
+
+        .cell.code {
+            border-left: 3px solid #4ec9b0;
+        }
+
+        .cell.code.active {
+            border-left: 3px solid #4ec9b0;
+            background: rgba(78, 201, 176, 0.05);
+        }
+
+        .cell.markdown {
+            border-left: 3px solid #569cd6;
+        }
+
+        .cell.markdown.active {
+            border-left: 3px solid #569cd6;
+            background: rgba(86, 156, 214, 0.05);
+        }
+
+        .cell-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: #252526;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 11px;
+        }
+
+        .cell-type {
+            color: #569cd6;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .cell-actions {
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .cell:hover .cell-actions {
+            opacity: 1;
+        }
+
+        .cell-action {
+            background: none;
+            border: none;
+            color: #858585;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .cell-action:hover {
+            background: rgba(255,255,255,0.1);
+            color: #cccccc;
+        }
+
+        .cell-content {
+            padding: 16px;
+        }
+
+        .markdown-content {
+            color: #cccccc;
+            line-height: 1.6;
+        }
+
+        .markdown-content h1 {
+            color: #4ec9b0;
+            margin-bottom: 16px;
+            font-size: 24px;
+        }
+
+        .markdown-content h2 {
+            color: #4ec9b0;
+            margin: 20px 0 12px 0;
+            font-size: 18px;
+        }
+
+        .markdown-content h3 {
+            color: #dcdcaa;
+            margin: 16px 0 8px 0;
+            font-size: 16px;
+        }
+
+        .markdown-content p {
+            margin-bottom: 12px;
+        }
+
+        .markdown-content ul {
+            margin: 8px 0 8px 20px;
+        }
+
+        .markdown-content li {
+            margin-bottom: 4px;
+        }
+
+        .markdown-content code {
+            background: #2d2d30;
+            color: #4ec9b0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+        }
+
+        .code-editor {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 12px;
+            min-height: 100px;
+            position: relative;
+        }
+
+        .code-input {
+            width: 100%;
+            height: 100px;
+            background: transparent;
+            border: none;
+            outline: none;
+            resize: vertical;
+            padding: 12px;
+            color: #d4d4d4;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: 1.5;
+        }
+        
+        /* Prevent zoom on iOS when focusing inputs */
+        @media screen and (max-width: 768px) {
+            .code-input {
+                font-size: 16px !important;
+            }
+            
+            .markdown-content[contenteditable] {
+                font-size: 16px !important;
+            }
+        }
+
+        .code-output {
+            background: #252526;
+            border-top: 1px solid #3e3e42;
+            padding: 12px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 11px;
+            color: #cccccc;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .run-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #007acc;
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            font-size: 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .run-button:hover {
+            background: #1a86d1;
+        }
+
+        .analysis-snippets {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+
+        .snippets-header {
+            padding: 8px 12px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 11px;
+            font-weight: 600;
+            color: #cccccc;
+            text-transform: uppercase;
+        }
+
+        .snippet-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #3e3e42;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 12px;
+        }
+
+        .snippet-item:hover {
+            background: #2a2a2a;
+        }
+
+        .snippet-item:last-child {
+            border-bottom: none;
+        }
+
+        .snippet-title {
+            color: #cccccc;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .snippet-desc {
+            color: #858585;
+            font-size: 10px;
+        }
+        
+        .nav.mobile-hidden {
+            display: none;
+        }
+        
+        .mobile-sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 40px;
+            right: 10px;
+            z-index: 997;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+        
+        .mobile-sidebar-toggle:hover {
+            background: #1a86d1;
+            transform: scale(1.05);
+        }
+        
+        /* Mobile Responsive Design - continued */
+        @media screen and (max-width: 768px) {
+            
+            .header {
+                height: auto;
+                min-height: 32px;
+                padding: 8px 12px;
+                flex-wrap: wrap;
+                position: relative;
+                padding-top: env(safe-area-inset-top, 8px);
+            }
+            
+            .nav {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: #007acc;
+                flex-direction: column;
+                gap: 0;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                z-index: 1000;
+            }
+            
+            .nav a {
+                padding: 12px 16px;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                font-size: 14px;
+            }
+            
+            .nav a:last-child {
+                border-bottom: none;
+            }
+            
+            .logo {
+                font-size: 13px;
+                margin-right: 15px;
+            }
+            
+            .main-container {
+                grid-template-columns: 1fr !important;
+                position: relative;
+            }
+            
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 32px;
+                height: calc(100vh - 32px);
+                width: 280px;
+                z-index: 999;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.mobile-visible {
+                transform: translateX(0);
+            }
+            
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 998;
+            }
+            
+            .sidebar-overlay.active {
+                display: block;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+            
+            .container {
+                height: calc(100vh - 32px);
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .main-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            
+            .notebook-tabs {
+                flex-shrink: 0;
+            }
+            
+            .notebook-content {
+                flex: 1;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            .header {
+                padding: 6px 8px;
+                padding-top: env(safe-area-inset-top, 6px);
+            }
+            
+            .logo {
+                font-size: 12px;
+                margin-right: 10px;
+            }
+            
+            .nav a {
+                font-size: 12px;
+                padding: 10px 16px;
+            }
+            
+            .sidebar {
+                width: 250px;
+            }
+            
+            .cell {
+                margin: 8px;
+            }
+            
+            .cell-content {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="mobile-menu-btn" onclick="toggleMobileNav()">☰</button>
+        <button class="mobile-sidebar-btn" onclick="toggleMobileSidebar()">📁</button>
+        <a href="index.html" class="logo">AlphaPulse</a>
+        <div class="nav" id="nav">
+            <a href="develop.html">Develop</a>
+            <a href="replay.html">Replay</a>
+            <a href="research.html" class="active">Research</a>
+            <a href="deploy.html">Deploy</a>
+        </div>
+        <a href="#" class="login-link" onclick="return false;">login</a>
+    </div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileSidebar()"></div>
+    
+    <div class="main-container">
+        <button class="mobile-sidebar-toggle" onclick="toggleMobileSidebar()">📁</button>
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">Recent Notebooks</div>
+            <div class="sidebar-section">
+                <div class="sidebar-item active" onclick="loadNotebook('strategy_analysis')">
+                    <span class="sidebar-icon">📊</span>
+                    <div>
+                        <div>strategy_analysis.ipynb</div>
+                        <div class="sidebar-meta">2 hours ago</div>
+                    </div>
+                </div>
+                <div class="sidebar-item" onclick="loadNotebook('momentum_study')">
+                    <span class="sidebar-icon">📈</span>
+                    <div>
+                        <div>momentum_study.ipynb</div>
+                        <div class="sidebar-meta">1 day ago</div>
+                    </div>
+                </div>
+                <div class="sidebar-item" onclick="loadNotebook('regime_analysis')">
+                    <span class="sidebar-icon">🌊</span>
+                    <div>
+                        <div>regime_analysis.ipynb</div>
+                        <div class="sidebar-meta">3 days ago</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-header">Templates</div>
+            <div class="sidebar-section">
+                <div class="sidebar-item" onclick="createFromTemplate('performance')">
+                    <span class="sidebar-icon">⚡</span>
+                    <div>
+                        <div>Performance Analysis</div>
+                        <div class="sidebar-meta">Standard metrics</div>
+                    </div>
+                </div>
+                <div class="sidebar-item" onclick="createFromTemplate('comparison')">
+                    <span class="sidebar-icon">🔀</span>
+                    <div>
+                        <div>Strategy Comparison</div>
+                        <div class="sidebar-meta">Head-to-head</div>
+                    </div>
+                </div>
+                <div class="sidebar-item" onclick="createFromTemplate('walkforward')">
+                    <span class="sidebar-icon">📊</span>
+                    <div>
+                        <div>Walk-Forward Analysis</div>
+                        <div class="sidebar-meta">Out-of-sample</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="notebook-tabs">
+                <div class="notebook-tab active">
+                    strategy_analysis.ipynb
+                    <span class="tab-close">×</span>
+                </div>
+                <button class="btn-small" onclick="newNotebook()">+</button>
+            </div>
+
+        <div class="notebook-content">
+            <!-- Analysis Snippets -->
+            <div class="cell config">
+                <div class="cell-header">
+                    <span class="cell-type">SNIPPETS</span>
+                    <div class="cell-actions">
+                        <button class="cell-action">Refresh</button>
+                    </div>
+                </div>
+                <div class="cell-content">
+                    <div class="analysis-snippets">
+                        <div class="snippets-header">Quick Analysis</div>
+                        <div class="snippet-item" onclick="insertSnippet('strategy_comparison')">
+                            <div class="snippet-title">Strategy Comparison</div>
+                            <div class="snippet-desc">Compare multiple strategies head-to-head</div>
+                        </div>
+                        <div class="snippet-item" onclick="insertSnippet('performance_analysis')">
+                            <div class="snippet-title">Performance Analysis</div>
+                            <div class="snippet-desc">Standard performance metrics and visualizations</div>
+                        </div>
+                        <div class="snippet-item" onclick="insertSnippet('regime_analysis')">
+                            <div class="snippet-title">Regime Analysis</div>
+                            <div class="snippet-desc">Performance by market regime</div>
+                        </div>
+                        <div class="snippet-item" onclick="insertSnippet('walkforward_validation')">
+                            <div class="snippet-title">Walk-Forward Validation</div>
+                            <div class="snippet-desc">Out-of-sample validation framework</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Markdown Cell -->
+            <div class="cell active">
+                <div class="cell-header">
+                    <span class="cell-type">MARKDOWN</span>
+                    <div class="cell-actions">
+                        <button class="cell-action">Edit</button>
+                        <button class="cell-action">Delete</button>
+                    </div>
+                </div>
+                <div class="cell-content">
+                    <div class="markdown-content">
+                        <h1>Strategy Analysis Notebook</h1>
+                        <p>This notebook demonstrates the <strong>analysis-first</strong> approach to quantitative research:</p>
+                        <ul>
+                            <li><strong>Configs are ephemeral queries</strong> to generate data</li>
+                            <li><strong>Traces are permanent truth</strong> stored by content hash</li>
+                            <li><strong>Registry connects everything</strong> in a queryable knowledge graph</li>
+                        </ul>
+                        <h2>Quick Start</h2>
+                        <p>Use the snippets above to add common analysis patterns, or write your own queries using the analysis library.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Code Cell -->
+            <div class="cell">
+                <div class="cell-header">
+                    <span class="cell-type">CODE</span>
+                    <div class="cell-actions">
+                        <button class="cell-action">Run</button>
+                        <button class="cell-action">Delete</button>
+                    </div>
+                </div>
+                <div class="cell-content">
+                    <div class="code-editor">
+                        <textarea class="code-input" placeholder="# Load the analysis library
+from analysis_library import *
+
+# Query strategies from registry
+strategies = query_strategies()\\
+    .filter(strategy_type='momentum')\\
+    .filter(min_sharpe=1.0)\\
+    .load()
+
+print(f'Found {len(strategies)} momentum strategies')
+strategies.head()"></textarea>
+                        <button class="run-button" onclick="runCell(this)">▶ Run</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Code Cell with Output -->
+            <div class="cell">
+                <div class="cell-header">
+                    <span class="cell-type">CODE</span>
+                    <div class="cell-actions">
+                        <button class="cell-action">Run</button>
+                        <button class="cell-action">Delete</button>
+                    </div>
+                </div>
+                <div class="cell-content">
+                    <div class="code-editor">
+                        <textarea class="code-input"># Quick performance analysis
+analysis = analyze_strategies(strategies)\\
+    .performance_metrics()\\
+    .drawdown_analysis()\\
+    .compare_to_benchmark('SPY')\\
+    .generate_report()
+
+analysis.summary()</textarea>
+                        <button class="run-button" onclick="runCell(this)">▶ Run</button>
+                        <div class="code-output">Found 12 momentum strategies
+
+Performance Summary:
+- Average Sharpe: 1.34
+- Best Strategy: momentum_v3 (Sharpe: 1.87)
+- Max Drawdown: -12.3%
+- Correlation to SPY: 0.67
+
+Analysis complete. Use analysis.plot() to visualize results.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Blank Cell for New Text Entry -->
+            <div class="cell new-cell">
+                <div class="cell-header">
+                    <span class="cell-type">NEW CELL</span>
+                    <div class="cell-actions">
+                        <button class="cell-action" onclick="convertToCode(this)">Code</button>
+                        <button class="cell-action" onclick="convertToMarkdown(this)">Markdown</button>
+                    </div>
+                </div>
+                <div class="cell-content">
+                    <div style="padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 50px)); text-align: center; color: #858585;">
+                        <p style="margin-bottom: 10px;">Click to add a new cell</p>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button class="btn-small" onclick="addNewCell('code', this)" style="background: #4ec9b0; color: white;">+ Code</button>
+                            <button class="btn-small" onclick="addNewCell('markdown', this)" style="background: #569cd6; color: white;">+ Markdown</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function newNotebook() {
+            console.log('Creating new notebook...');
+        }
+
+        function runCell(button) {
+            const cell = button.closest('.cell');
+            const textarea = cell.querySelector('.code-input');
+            const code = textarea.value;
+            
+            // Mock execution
+            let output = cell.querySelector('.code-output');
+            if (!output) {
+                output = document.createElement('div');
+                output.className = 'code-output';
+                cell.querySelector('.code-editor').appendChild(output);
+            }
+            
+            output.textContent = `Executing:\n${code}\n\n# This would connect to your ADMF-PC backend\n# Results would appear here...`;
+        }
+
+        function insertSnippet(type) {
+            const snippets = {
+                'strategy_comparison': `# Strategy Comparison Analysis
+strategies = query_strategies()\\
+    .filter(strategy_type=['momentum', 'mean_reversion'])\\
+    .load()
+
+comparison = compare_strategies(strategies)\\
+    .performance_metrics()\\
+    .correlation_analysis()\\
+    .plot_equity_curves()
+
+comparison.summary()`,
+
+                'performance_analysis': `# Performance Analysis Template
+strategy_hash = 'sig_abc123'  # Replace with your strategy
+
+analysis = analyze_strategy(strategy_hash)\\
+    .performance_metrics()\\
+    .drawdown_analysis()\\
+    .trade_analysis()\\
+    .risk_metrics()\\
+    .plot_all()
+
+analysis.report()`,
+
+                'regime_analysis': `# Regime Analysis
+strategies = query_strategies()\\
+    .filter(min_trades=50)\\
+    .load()
+
+regime_analysis = analyze_by_regime(strategies)\\
+    .classify_regimes(['bull', 'bear', 'sideways'])\\
+    .performance_by_regime()\\
+    .plot_regime_performance()
+
+regime_analysis.summary()`,
+
+                'walkforward_validation': `# Walk-Forward Validation
+strategy_config = {
+    'strategy_type': 'momentum',
+    'parameters': {'period': [10, 15, 20, 25]}
+}
+
+validation = walkforward_validation(strategy_config)\\
+    .training_window('6M')\\
+    .step_size('1M')\\
+    .run()
+
+validation.plot_out_of_sample_performance()`
+            };
+
+            // Find the last code cell and add new cell after it
+            const cells = document.querySelectorAll('.cell');
+            const lastCell = cells[cells.length - 1];
+            
+            const newCell = document.createElement('div');
+            newCell.className = 'cell';
+            newCell.innerHTML = `
+                <div class="cell-header">
+                    <span class="cell-type">CODE</span>
+                    <div class="cell-actions">
+                        <button class="cell-action" onclick="runCell(this.parentElement.parentElement.parentElement.querySelector('.run-button'))">Run</button>
+                        <button class="cell-action" onclick="this.closest('.cell').remove()">Delete</button>
+                    </div>
+                </div>
+                <div class="cell-content">
+                    <div class="code-editor">
+                        <textarea class="code-input">${snippets[type]}</textarea>
+                        <button class="run-button" onclick="runCell(this)">▶ Run</button>
+                    </div>
+                </div>
+            `;
+            
+            lastCell.insertAdjacentElement('afterend', newCell);
+            
+            // Focus the new cell
+            newCell.querySelector('.code-input').focus();
+        }
+
+        // Handle cell selection
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.cell')) {
+                document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('active'));
+                e.target.closest('.cell').classList.add('active');
+            }
+        });
+        
+        // Mobile navigation functionality
+        function toggleMobileNav() {
+            const nav = document.getElementById('nav');
+            nav.classList.toggle('mobile-hidden');
+        }
+
+        // Initialize mobile nav state
+        function initMobileNav() {
+            const nav = document.getElementById('nav');
+            if (window.innerWidth <= 768) {
+                nav.classList.add('mobile-hidden');
+            } else {
+                nav.classList.remove('mobile-hidden');
+            }
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            initMobileNav();
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            initMobileNav();
+        });
+
+        window.addEventListener('load', function() {
+            initMobileNav();
+        });
+        
+        // Mobile sidebar functionality
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.toggle('mobile-visible');
+            overlay.classList.toggle('active');
+        }
+        
+        // Function to add new cell
+        function addNewCell(type, button) {
+            const newCellDiv = button.closest('.new-cell');
+            
+            const newCell = document.createElement('div');
+            newCell.className = 'cell ' + (type === 'code' ? 'code' : 'markdown');
+            
+            if (type === 'code') {
+                newCell.innerHTML = `
+                    <div class="cell-header">
+                        <span class="cell-type">CODE</span>
+                        <div class="cell-actions">
+                            <button class="cell-action" onclick="runCell(this.parentElement.parentElement.parentElement.querySelector('.run-button'))">Run</button>
+                            <button class="cell-action" onclick="this.closest('.cell').remove()">Delete</button>
+                        </div>
+                    </div>
+                    <div class="cell-content">
+                        <div class="code-editor">
+                            <textarea class="code-input" placeholder="# Enter your code here"></textarea>
+                            <button class="run-button" onclick="runCell(this)">▶ Run</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                newCell.innerHTML = `
+                    <div class="cell-header">
+                        <span class="cell-type">MARKDOWN</span>
+                        <div class="cell-actions">
+                            <button class="cell-action" onclick="editMarkdown(this)">Edit</button>
+                            <button class="cell-action" onclick="this.closest('.cell').remove()">Delete</button>
+                        </div>
+                    </div>
+                    <div class="cell-content">
+                        <div class="markdown-content" contenteditable="true" style="min-height: 50px; cursor: text;">
+                            <p>Enter your markdown text here...</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Insert new cell before the "new cell" placeholder
+            newCellDiv.insertAdjacentElement('beforebegin', newCell);
+            
+            // Focus the new cell
+            if (type === 'code') {
+                newCell.querySelector('.code-input').focus();
+            } else {
+                const markdownContent = newCell.querySelector('.markdown-content');
+                markdownContent.focus();
+                // Select all text for easy replacement
+                const range = document.createRange();
+                range.selectNodeContents(markdownContent);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+            
+            // Mark as active
+            document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('active'));
+            newCell.classList.add('active');
+        }
+        
+        // Function to edit markdown
+        function editMarkdown(button) {
+            const cell = button.closest('.cell');
+            const content = cell.querySelector('.markdown-content');
+            content.contentEditable = true;
+            content.focus();
+        }
+    </script>
+</body>
+</html>

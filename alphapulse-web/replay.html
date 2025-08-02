@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Replay - AlphaPulse</title>
+    <link rel="stylesheet" href="mobile-utils.css">
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        /* Layout */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: -webkit-fill-available;
+        }
+        
+        /* Header */
+        .header {
+            background: var(--accent-primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            min-height: 44px;
+            padding-top: env(safe-area-inset-top, 0);
+        }
+        
+        .nav-toggle {
+            font-size: 20px;
+            padding: 8px;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .logo {
+            font-weight: 600;
+            font-size: 16px;
+            text-decoration: none;
+            color: white;
+            margin-right: auto;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .header-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .header-btn:active {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* Main Container */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Chart Container */
+        .chart-container {
+            flex: 1;
+            position: relative;
+            background: var(--bg-secondary);
+            min-height: 300px;
+        }
+        
+        #chart {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        
+        /* Chart Overlay Info */
+        .chart-info {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(37, 37, 38, 0.9);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        .strategy-name {
+            font-weight: 600;
+            color: var(--accent-success);
+            margin-bottom: 4px;
+        }
+        
+        .price-info {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        /* Control Panel */
+        .control-panel {
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-color);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        /* Playback Controls */
+        .playback-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .play-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .play-btn:active {
+            transform: scale(0.9);
+        }
+        
+        .play-btn.playing {
+            background: var(--accent-danger);
+        }
+        
+        .control-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .control-btn:active {
+            background: var(--bg-primary);
+        }
+        
+        /* Timeline */
+        .timeline-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .timeline {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-secondary);
+            border-radius: 3px;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .timeline-progress {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: var(--accent-primary);
+            border-radius: 3px;
+            transition: width 0.1s;
+        }
+        
+        .timeline-handle {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            background: white;
+            border: 2px solid var(--accent-primary);
+            border-radius: 50%;
+            cursor: grab;
+        }
+        
+        .timeline-handle:active {
+            cursor: grabbing;
+        }
+        
+        .time-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            min-width: 45px;
+            text-align: center;
+        }
+        
+        /* Speed Control */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .speed-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .speed-btn {
+            padding: 4px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        .speed-btn.active {
+            background: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+        }
+        
+        /* Info Panel */
+        .info-panel {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 12px;
+            display: none;
+        }
+        
+        .info-panel.open {
+            display: block;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .info-item {
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+        
+        .info-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        
+        .info-value {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+        
+        .info-value.positive {
+            color: var(--accent-success);
+        }
+        
+        .info-value.negative {
+            color: var(--accent-danger);
+        }
+        
+        /* Strategy Selector (Bottom Sheet) */
+        .strategy-selector {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            border-radius: 12px 12px 0 0;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            max-height: 60vh;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .strategy-selector.open {
+            transform: translateY(0);
+        }
+        
+        .sheet-handle {
+            padding: 12px;
+            cursor: pointer;
+            text-align: center;
+        }
+        
+        .sheet-handle-bar {
+            width: 40px;
+            height: 4px;
+            background: var(--text-secondary);
+            border-radius: 2px;
+            margin: 0 auto;
+        }
+        
+        .strategy-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 12px 12px;
+        }
+        
+        .strategy-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .strategy-item:active {
+            background: var(--bg-primary);
+        }
+        
+        .strategy-item.active {
+            background: var(--accent-primary);
+            color: white;
+        }
+        
+        .strategy-icon {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+        
+        .strategy-details {
+            flex: 1;
+        }
+        
+        .strategy-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .strategy-meta {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        
+        .strategy-stats {
+            text-align: right;
+            font-size: 11px;
+        }
+        
+        .strategy-return {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        /* Mobile Specific */
+        @media (min-width: 768px) {
+            .nav-toggle {
+                display: none;
+            }
+            
+            .control-panel {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+            
+            .playback-controls {
+                flex: 0 0 auto;
+            }
+            
+            .timeline-container {
+                flex: 1;
+                max-width: 500px;
+            }
+            
+            .speed-control {
+                flex: 0 0 auto;
+            }
+            
+            .info-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        
+        /* Loading State */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <span class="nav-toggle" onclick="goHome()">←</span>
+            <a href="index.html" class="logo">AlphaPulse</a>
+            <div class="header-actions">
+                <button class="header-btn" onclick="selectStrategy()">Strategy</button>
+                <button class="header-btn" onclick="toggleInfo()">Info</button>
+            </div>
+        </header>
+        
+        <div class="main-container">
+            <div class="chart-container">
+                <div id="chart"></div>
+                <div class="chart-info">
+                    <div class="strategy-name" id="strategyName">Momentum Strategy</div>
+                    <div class="price-info">
+                        <span id="currentPrice">$423.45</span>
+                        <span id="currentTime">2024-01-15 10:30</span>
+                    </div>
+                </div>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    Loading market data...
+                </div>
+            </div>
+            
+            <div class="control-panel">
+                <div class="playback-controls">
+                    <button class="control-btn" onclick="skipBackward()">⏮</button>
+                    <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+                    <button class="control-btn" onclick="skipForward()">⏭</button>
+                </div>
+                
+                <div class="timeline-container">
+                    <span class="time-label" id="currentTimeLabel">0:00</span>
+                    <div class="timeline" id="timeline" onclick="seekTimeline(event)">
+                        <div class="timeline-progress" id="timelineProgress"></div>
+                        <div class="timeline-handle" id="timelineHandle" style="left: 0%"></div>
+                    </div>
+                    <span class="time-label" id="totalTimeLabel">52:00</span>
+                </div>
+                
+                <div class="speed-control">
+                    <span class="speed-label">Speed:</span>
+                    <button class="speed-btn" onclick="setSpeed(0.5)">0.5x</button>
+                    <button class="speed-btn active" onclick="setSpeed(1)">1x</button>
+                    <button class="speed-btn" onclick="setSpeed(2)">2x</button>
+                    <button class="speed-btn" onclick="setSpeed(5)">5x</button>
+                </div>
+            </div>
+            
+            <div class="info-panel" id="infoPanel">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Total Return</div>
+                        <div class="info-value positive" id="totalReturn">+12.45%</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Win Rate</div>
+                        <div class="info-value" id="winRate">58.3%</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Positions</div>
+                        <div class="info-value" id="positions">3</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Max Drawdown</div>
+                        <div class="info-value negative" id="maxDrawdown">-8.2%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="strategy-selector" id="strategySelector">
+            <div class="sheet-handle" onclick="closeStrategySelector()">
+                <div class="sheet-handle-bar"></div>
+            </div>
+            <div class="strategy-list">
+                <div class="strategy-item active" onclick="loadStrategy('momentum')">
+                    <span class="strategy-icon">📈</span>
+                    <div class="strategy-details">
+                        <div class="strategy-title">Momentum Strategy</div>
+                        <div class="strategy-meta">20-day lookback • 2% threshold</div>
+                    </div>
+                    <div class="strategy-stats">
+                        <div class="strategy-return positive">+12.45%</div>
+                        <div class="strategy-meta">YTD</div>
+                    </div>
+                </div>
+                
+                <div class="strategy-item" onclick="loadStrategy('meanreversion')">
+                    <span class="strategy-icon">📊</span>
+                    <div class="strategy-details">
+                        <div class="strategy-title">Mean Reversion</div>
+                        <div class="strategy-meta">Bollinger Bands • 2σ</div>
+                    </div>
+                    <div class="strategy-stats">
+                        <div class="strategy-return positive">+8.32%</div>
+                        <div class="strategy-meta">YTD</div>
+                    </div>
+                </div>
+                
+                <div class="strategy-item" onclick="loadStrategy('pairs')">
+                    <span class="strategy-icon">🔄</span>
+                    <div class="strategy-details">
+                        <div class="strategy-title">Pairs Trading</div>
+                        <div class="strategy-meta">SPY/QQQ • Z-score 2.0</div>
+                    </div>
+                    <div class="strategy-stats">
+                        <div class="strategy-return positive">+6.78%</div>
+                        <div class="strategy-meta">YTD</div>
+                    </div>
+                </div>
+                
+                <div class="strategy-item" onclick="loadStrategy('ml')">
+                    <span class="strategy-icon">🤖</span>
+                    <div class="strategy-details">
+                        <div class="strategy-title">ML Ensemble</div>
+                        <div class="strategy-meta">Random Forest • 50 features</div>
+                    </div>
+                    <div class="strategy-stats">
+                        <div class="strategy-return negative">-2.14%</div>
+                        <div class="strategy-meta">YTD</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="mobile-components.js"></script>
+    <script>
+        // Chart setup
+        let chart;
+        let candleSeries;
+        let volumeSeries;
+        let markerSeries;
+        let currentBar = 0;
+        let isPlaying = false;
+        let playbackSpeed = 1;
+        let playbackInterval;
+        
+        // Mock data
+        const generateMockData = () => {
+            const data = [];
+            const basePrice = 420;
+            const now = new Date();
+            
+            for (let i = 0; i < 390; i++) { // 390 minutes in trading day
+                const time = new Date(now.getTime() - (390 - i) * 60000);
+                const random = Math.random();
+                const trend = Math.sin(i / 50) * 5;
+                const noise = (random - 0.5) * 2;
+                
+                const open = basePrice + trend + noise + (i > 0 ? data[i-1].close - basePrice : 0) * 0.3;
+                const close = open + (Math.random() - 0.5) * 1;
+                const high = Math.max(open, close) + Math.random() * 0.5;
+                const low = Math.min(open, close) - Math.random() * 0.5;
+                const volume = Math.floor(1000000 + Math.random() * 2000000);
+                
+                data.push({
+                    time: Math.floor(time.getTime() / 1000),
+                    open,
+                    high,
+                    low,
+                    close,
+                    volume,
+                    signal: i % 50 === 0 ? (Math.random() > 0.5 ? 'buy' : 'sell') : null
+                });
+            }
+            
+            return data;
+        };
+        
+        let marketData = generateMockData();
+        
+        // Initialize chart
+        function initChart() {
+            const chartElement = document.getElementById('chart');
+            
+            chart = LightweightCharts.createChart(chartElement, {
+                width: chartElement.clientWidth,
+                height: chartElement.clientHeight,
+                layout: {
+                    background: { color: '#1e1e1e' },
+                    textColor: '#d4d4d4',
+                },
+                grid: {
+                    vertLines: { color: '#2d2d30' },
+                    horzLines: { color: '#2d2d30' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                rightPriceScale: {
+                    borderColor: '#3e3e42',
+                },
+                timeScale: {
+                    borderColor: '#3e3e42',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+            });
+            
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#4ec9b0',
+                downColor: '#f48771',
+                borderUpColor: '#4ec9b0',
+                borderDownColor: '#f48771',
+                wickUpColor: '#4ec9b0',
+                wickDownColor: '#f48771',
+            });
+            
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+            
+            // Start with first 50 bars
+            updateChart(50);
+        }
+        
+        // Update chart data
+        function updateChart(bars) {
+            const visibleData = marketData.slice(0, bars);
+            candleSeries.setData(visibleData);
+            
+            // Add markers for signals
+            const markers = visibleData
+                .filter(d => d.signal)
+                .map(d => ({
+                    time: d.time,
+                    position: d.signal === 'buy' ? 'belowBar' : 'aboveBar',
+                    color: d.signal === 'buy' ? '#4ec9b0' : '#f48771',
+                    shape: d.signal === 'buy' ? 'arrowUp' : 'arrowDown',
+                    text: d.signal.toUpperCase()
+                }));
+            
+            candleSeries.setMarkers(markers);
+            
+            // Update current price display
+            const lastBar = visibleData[visibleData.length - 1];
+            if (lastBar) {
+                document.getElementById('currentPrice').textContent = `$${lastBar.close.toFixed(2)}`;
+                document.getElementById('currentTime').textContent = 
+                    new Date(lastBar.time * 1000).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+            }
+            
+            // Update timeline
+            updateTimeline(bars);
+        }
+        
+        // Playback controls
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            const playBtn = document.getElementById('playBtn');
+            
+            if (isPlaying) {
+                playBtn.textContent = '⏸';
+                playBtn.classList.add('playing');
+                startPlayback();
+            } else {
+                playBtn.textContent = '▶';
+                playBtn.classList.remove('playing');
+                stopPlayback();
+            }
+        }
+        
+        function startPlayback() {
+            playbackInterval = setInterval(() => {
+                if (currentBar < marketData.length) {
+                    currentBar += 1;
+                    updateChart(currentBar);
+                } else {
+                    // Reached end
+                    togglePlay();
+                    currentBar = marketData.length;
+                }
+            }, 100 / playbackSpeed);
+        }
+        
+        function stopPlayback() {
+            if (playbackInterval) {
+                clearInterval(playbackInterval);
+                playbackInterval = null;
+            }
+        }
+        
+        function skipBackward() {
+            currentBar = Math.max(1, currentBar - 50);
+            updateChart(currentBar);
+        }
+        
+        function skipForward() {
+            currentBar = Math.min(marketData.length, currentBar + 50);
+            updateChart(currentBar);
+        }
+        
+        function setSpeed(speed) {
+            playbackSpeed = speed;
+            
+            // Update button states
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Restart playback if playing
+            if (isPlaying) {
+                stopPlayback();
+                startPlayback();
+            }
+        }
+        
+        // Timeline controls
+        function updateTimeline(bars) {
+            const progress = (bars / marketData.length) * 100;
+            document.getElementById('timelineProgress').style.width = progress + '%';
+            document.getElementById('timelineHandle').style.left = progress + '%';
+            
+            // Update time labels
+            const currentMinutes = Math.floor(bars / 60);
+            const totalMinutes = Math.floor(marketData.length / 60);
+            
+            document.getElementById('currentTimeLabel').textContent = 
+                `${Math.floor(currentMinutes / 60)}:${(currentMinutes % 60).toString().padStart(2, '0')}`;
+            document.getElementById('totalTimeLabel').textContent = 
+                `${Math.floor(totalMinutes / 60)}:${(totalMinutes % 60).toString().padStart(2, '0')}`;
+            
+            currentBar = bars;
+        }
+        
+        function seekTimeline(event) {
+            const timeline = document.getElementById('timeline');
+            const rect = timeline.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+            const bars = Math.floor((percentage / 100) * marketData.length);
+            
+            currentBar = bars;
+            updateChart(bars);
+        }
+        
+        // UI Controls
+        function goHome() {
+            window.location.href = 'index.html';
+        }
+        
+        function toggleInfo() {
+            const infoPanel = document.getElementById('infoPanel');
+            infoPanel.classList.toggle('open');
+        }
+        
+        function selectStrategy() {
+            document.getElementById('strategySelector').classList.add('open');
+        }
+        
+        function closeStrategySelector() {
+            document.getElementById('strategySelector').classList.remove('open');
+        }
+        
+        function loadStrategy(strategyId) {
+            // Update active state
+            document.querySelectorAll('.strategy-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            
+            // Update strategy name
+            const strategyNames = {
+                'momentum': 'Momentum Strategy',
+                'meanreversion': 'Mean Reversion',
+                'pairs': 'Pairs Trading',
+                'ml': 'ML Ensemble'
+            };
+            document.getElementById('strategyName').textContent = strategyNames[strategyId];
+            
+            // Generate new data for the strategy
+            marketData = generateMockData();
+            currentBar = 50;
+            updateChart(currentBar);
+            
+            // Close selector
+            closeStrategySelector();
+            
+            // Update stats
+            updateStats();
+        }
+        
+        function updateStats() {
+            // Mock stats update
+            const stats = {
+                totalReturn: (Math.random() * 20 - 5).toFixed(2),
+                winRate: (50 + Math.random() * 20).toFixed(1),
+                positions: Math.floor(Math.random() * 5) + 1,
+                maxDrawdown: -(Math.random() * 15).toFixed(1)
+            };
+            
+            const returnEl = document.getElementById('totalReturn');
+            returnEl.textContent = stats.totalReturn > 0 ? `+${stats.totalReturn}%` : `${stats.totalReturn}%`;
+            returnEl.className = stats.totalReturn > 0 ? 'info-value positive' : 'info-value negative';
+            
+            document.getElementById('winRate').textContent = `${stats.winRate}%`;
+            document.getElementById('positions').textContent = stats.positions;
+            document.getElementById('maxDrawdown').textContent = `${stats.maxDrawdown}%`;
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (chart) {
+                chart.applyOptions({
+                    width: document.getElementById('chart').clientWidth,
+                    height: document.getElementById('chart').clientHeight
+                });
+            }
+        });
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initChart();
+            updateStats();
+            
+            // Set initial timeline
+            currentBar = 50;
+            updateTimeline(currentBar);
+        });
+    </script>
+</body>
+</html>

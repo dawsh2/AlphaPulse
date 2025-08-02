@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#007acc" id="theme-color">
+    <title>AlphaPulse</title>
+    <link rel="stylesheet" href="mobile-utils.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13px;
+            margin: 0;
+            padding: 0;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            height: -webkit-fill-available;
+            min-height: -webkit-fill-available;
+            overflow: hidden;
+        }
+        
+        html {
+            height: -webkit-fill-available;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-rows: 32px 1fr;
+            height: 100vh;
+        }
+
+        .header {
+            background-color: #007acc;
+            height: 32px;
+            border-bottom: 1px solid #005a9e;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+        }
+        
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+            margin-right: 12px;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .logo {
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            margin-right: 20px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            transition: all 0.3s ease;
+        }
+        
+        .nav.mobile-hidden {
+            display: none;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            transition: background 0.2s;
+            font-size: 12px;
+        }
+
+        .nav a:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .nav a.active {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .login-link {
+            color: white;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            transition: background 0.2s;
+            font-size: 12px;
+            margin-left: auto;
+            cursor: pointer;
+        }
+        
+        .login-link:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .content-wrapper {
+            display: grid;
+            grid-template-columns: 1fr;
+            height: calc(100vh - 32px);
+            background: #252526;
+            transition: grid-template-columns 0.3s ease;
+        }
+
+        .content-wrapper.split {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .main {
+            overflow-y: auto;
+            padding: 20px;
+            max-width: 700px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .content-wrapper.split .main {
+            max-width: none;
+            margin: 0;
+            border-right: 1px solid #3e3e42;
+        }
+
+        .item {
+            margin-bottom: 20px;
+            line-height: 1.5;
+            padding: 16px;
+            background: rgba(37, 37, 38, 0.5);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .item:hover {
+            background: rgba(37, 37, 38, 0.8);
+            border-color: #3e3e42;
+            transform: translateX(4px);
+        }
+
+        .item.active {
+            background: rgba(9, 71, 113, 0.3);
+            border-color: #007acc;
+        }
+
+        .item-line {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .rank {
+            color: #4ec9b0;
+            font-size: 14px;
+            font-weight: 600;
+            width: 25px;
+            text-align: right;
+            margin-right: 12px;
+        }
+
+        .vote {
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 10px solid #3e3e42;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: all 0.2s;
+            transform: scale(0.9);
+        }
+        
+        .vote:hover {
+            border-bottom-color: #4ec9b0;
+            transform: scale(1.1) translateY(-2px);
+        }
+
+        .title {
+            color: #4ec9b0;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 15px;
+            transition: color 0.2s;
+        }
+
+        .title:visited {
+            color: #858585;
+        }
+        
+        .title:hover {
+            color: #6edcc0;
+            text-decoration: none;
+        }
+
+        .domain {
+            color: #666666;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+
+        .subtext {
+            color: #969696;
+            font-size: 11px;
+            margin-left: 32px;
+            margin-top: 4px;
+        }
+
+        .subtext a {
+            color: #969696;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        
+        .subtext a:hover {
+            color: #4ec9b0;
+        }
+
+        .comment-preview {
+            color: #969696;
+            font-size: 12px;
+            margin-left: 32px;
+            margin-top: 8px;
+            font-style: normal;
+            padding: 12px;
+            background: rgba(62, 62, 66, 0.3);
+            border-left: 3px solid #3e3e42;
+            border-radius: 4px;
+            line-height: 1.5;
+            transition: all 0.2s;
+        }
+        
+        .item:hover .comment-preview {
+            background: rgba(62, 62, 66, 0.5);
+            border-left-color: #4ec9b0;
+        }
+
+        /* Comments Panel */
+        .comments-panel {
+            display: none;
+            overflow-y: auto;
+            padding: 20px;
+            background: #1e1e1e;
+        }
+
+        .content-wrapper.split .comments-panel {
+            display: block;
+        }
+
+        .comments-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .comments-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #cccccc;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #858585;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: #cccccc;
+        }
+
+        .thread-info {
+            background: rgba(37, 37, 38, 0.5);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .thread-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #4ec9b0;
+            margin-bottom: 8px;
+        }
+
+        .thread-meta {
+            color: #969696;
+            font-size: 12px;
+        }
+
+        .comment {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: rgba(37, 37, 38, 0.3);
+            border-radius: 8px;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .comment:hover {
+            background: rgba(37, 37, 38, 0.5);
+            border-color: #3e3e42;
+        }
+
+        .comment-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: #858585;
+        }
+
+        .comment-author {
+            color: #569cd6;
+            font-weight: 500;
+        }
+
+        .comment-score {
+            color: #4ec9b0;
+        }
+
+        .comment-text {
+            color: #cccccc;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .comment-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+        }
+
+        .comment-actions a {
+            color: #858585;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .comment-actions a:hover {
+            color: #4ec9b0;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding: 20px;
+            border-top: 1px solid #3e3e42;
+            text-align: center;
+            font-size: 11px;
+            color: #858585;
+        }
+
+        .footer a {
+            color: #858585;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+            color: #4ec9b0;
+        }
+        /* Mobile Responsive Design */
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .header {
+                height: auto;
+                min-height: 32px;
+                padding: 8px 12px;
+                padding-top: env(safe-area-inset-top, 8px);
+                flex-wrap: wrap;
+                position: relative;
+            }
+            
+            .nav {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: #007acc;
+                flex-direction: column;
+                gap: 0;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                z-index: 1000;
+            }
+            
+            .nav a {
+                padding: 12px 16px;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                font-size: 14px;
+            }
+            
+            .nav a:last-child {
+                border-bottom: none;
+            }
+            
+            .logo {
+                font-size: 13px;
+                margin-right: 15px;
+            }
+            
+            .content-wrapper.split {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            
+            .main {
+                padding: 15px;
+                max-width: none;
+            }
+            
+            .content-wrapper.split .main {
+                border-right: none;
+                border-bottom: 1px solid #3e3e42;
+            }
+            
+            .comments-panel {
+                max-height: 40vh;
+                padding: 15px;
+            }
+            
+            .item {
+                padding: 12px;
+                margin-bottom: 15px;
+            }
+            
+            .item:hover {
+                transform: none;
+            }
+            
+            .rank {
+                font-size: 12px;
+                width: 20px;
+                margin-right: 8px;
+            }
+            
+            .comment-preview {
+                padding: 8px;
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 6px 8px;
+                padding-top: env(safe-area-inset-top, 6px);
+            }
+            
+            .logo {
+                font-size: 12px;
+                margin-right: 10px;
+            }
+            
+            .main {
+                padding: 12px;
+            }
+            
+            .item {
+                padding: 10px;
+                margin-bottom: 12px;
+            }
+            
+            .rank {
+                font-size: 11px;
+                width: 18px;
+                margin-right: 6px;
+            }
+            
+            .comment-preview {
+                padding: 6px;
+                font-size: 11px;
+            }
+            
+            .comments-panel {
+                padding: 12px;
+                max-height: 50vh;
+            }
+            
+            .close-btn {
+                font-size: 18px;
+                padding: 2px 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <div class="header-content">
+                <button class="mobile-menu-btn" onclick="toggleMobileNav()">☰</button>
+                <a href="index.html" class="logo">AlphaPulse</a>
+                <div class="nav" id="nav">
+                    <a href="develop.html">Develop</a>
+                    <a href="replay.html">Replay</a>
+                    <a href="research.html">Research</a>
+                    <a href="deploy.html">Deploy</a>
+                </div>
+                <a href="#" class="login-link" onclick="return false;">login</a>
+            </div>
+        </div>
+
+        <div class="content-wrapper" id="contentWrapper">
+            <div class="main">
+                <div class="item" onclick="openThread(1, 'Multi-Armed Bandits for Dynamic Portfolio Allocation', 'arxiv.org', '147 points', 'alphapulse', '3 hours ago', 23)">
+                    <div class="item-line">
+                        <span class="rank">1.</span>
+                        <span class="vote"></span>
+                        <a href="#" class="title" onclick="event.stopPropagation()">Multi-Armed Bandits for Dynamic Portfolio Allocation</a>
+                        <span class="domain" style="color: #ce9178;">(arxiv.org)</span>
+                    </div>
+                    <div class="subtext">
+                        <span style="color: #4ec9b0; font-weight: 500;">147 points</span> by <a href="#" style="color: #569cd6;">alphapulse</a> 3 hours ago | <a href="#">23 comments</a>
+                    </div>
+                </div>
+
+                <div class="item" onclick="openThread(2, 'Why Your Backtests Are Lying to You (And How to Fix It)', 'alphapulse.org', '89 points', 'quantdev', '5 hours ago', 31)">
+                    <div class="item-line">
+                        <span class="rank">2.</span>
+                        <span class="vote"></span>
+                        <a href="#" class="title" onclick="event.stopPropagation()">Why Your Backtests Are Lying to You (And How to Fix It)</a>
+                        <span class="domain" style="color: #f9c74f;">(alphapulse.org)</span>
+                    </div>
+                    <div class="subtext">
+                        <span style="color: #4ec9b0; font-weight: 500;">89 points</span> by <a href="#" style="color: #569cd6;">quantdev</a> 5 hours ago | <a href="#">31 comments</a>
+                    </div>
+                </div>
+
+                <div class="item" onclick="openThread(3, 'Attention Is All You Need for Price Prediction? A Critical Analysis', 'papers.ssrn.com', '156 points', 'mltrader', '6 hours ago', 45)">
+                    <div class="item-line">
+                        <span class="rank">3.</span>
+                        <span class="vote"></span>
+                        <a href="#" class="title" onclick="event.stopPropagation()">Attention Is All You Need for Price Prediction? A Critical Analysis</a>
+                        <span class="domain" style="color: #dcdcaa;">(papers.ssrn.com)</span>
+                    </div>
+                    <div class="subtext">
+                        <span style="color: #4ec9b0; font-weight: 500;">156 points</span> by <a href="#" style="color: #569cd6;">mltrader</a> 6 hours ago | <a href="#">45 comments</a>
+                    </div>
+                </div>
+
+                <div class="item" onclick="openThread(4, 'Show AP: Open source market data pipeline with 1ms latency', 'github.com', '67 points', 'fastdata', '7 hours ago', 18)">
+                    <div class="item-line">
+                        <span class="rank">4.</span>
+                        <span class="vote"></span>
+                        <a href="#" class="title" onclick="event.stopPropagation()">Show AP: Open source market data pipeline with 1ms latency</a>
+                        <span class="domain" style="color: #569cd6;">(github.com)</span>
+                    </div>
+                    <div class="subtext">
+                        <span style="color: #4ec9b0; font-weight: 500;">67 points</span> by <a href="#" style="color: #569cd6;">fastdata</a> 7 hours ago | <a href="#">18 comments</a>
+                    </div>
+                </div>
+
+                <div class="item" onclick="openThread(5, 'Alternative Data Is Dead. Long Live Alternative Data.', 'institutionalinvestor.com', '234 points', 'altdataguy', '8 hours ago', 89)">
+                    <div class="item-line">
+                        <span class="rank">5.</span>
+                        <span class="vote"></span>
+                        <a href="#" class="title" onclick="event.stopPropagation()">Alternative Data Is Dead. Long Live Alternative Data.</a>
+                        <span class="domain" style="color: #c586c0;">(institutionalinvestor.com)</span>
+                    </div>
+                    <div class="subtext">
+                        <span style="color: #4ec9b0; font-weight: 500;">234 points</span> by <a href="#" style="color: #569cd6;">altdataguy</a> 8 hours ago | <a href="#">89 comments</a>
+                    </div>
+                </div>
+
+                <div class="item" onclick="openThread(6, 'Ask AP: Best practices for factor model implementation?', 'alphapulse.org', '42 points', 'newquant', '9 hours ago', 27)">
+                    <div class="item-line">
+                        <span class="rank">6.</span>
+                        <span class="vote"></span>
+                        <a href="#" class="title" onclick="event.stopPropagation()">Ask AP: Best practices for factor model implementation?</a>
+                        <span class="domain" style="color: #f9c74f;">(alphapulse.org)</span>
+                    </div>
+                    <div class="subtext">
+                        <span style="color: #4ec9b0; font-weight: 500;">42 points</span> by <a href="#" style="color: #569cd6;">newquant</a> 9 hours ago | <a href="#">27 comments</a>
+                    </div>
+                </div>
+
+                <div class="item" onclick="openThread(7, 'Hidden Markov Models for Regime Detection: A Practical Guide', 'quantstart.com', '78 points', 'regimetrader', '10 hours ago', 15)">
+                    <div class="item-line">
+                        <span class="rank">7.</span>
+                        <span class="vote"></span>
+                        <a href="#" class="title" onclick="event.stopPropagation()">Hidden Markov Models for Regime Detection: A Practical Guide</a>
+                        <span class="domain" style="color: #b5cea8;">(quantstart.com)</span>
+                    </div>
+                    <div class="subtext">
+                        <span style="color: #4ec9b0; font-weight: 500;">78 points</span> by <a href="#" style="color: #569cd6;">regimetrader</a> 10 hours ago | <a href="#">15 comments</a>
+                    </div>
+                </div>
+
+                <div class="item" onclick="openThread(8, 'Crypto Market Making: What TradFi Gets Wrong', 'medium.com', '123 points', 'defibuilder', '12 hours ago', 52)">
+                    <div class="item-line">
+                        <span class="rank">8.</span>
+                        <span class="vote"></span>
+                        <a href="#" class="title" onclick="event.stopPropagation()">Crypto Market Making: What TradFi Gets Wrong</a>
+                        <span class="domain" style="color: #9cdcfe;">(medium.com)</span>
+                    </div>
+                    <div class="subtext">
+                        <span style="color: #4ec9b0; font-weight: 500;">123 points</span> by <a href="#" style="color: #569cd6;">defibuilder</a> 12 hours ago | <a href="#">52 comments</a>
+                    </div>
+                </div>
+
+                <div class="item" onclick="openThread(9, 'Why I Stopped Using Sharpe Ratio (And What I Use Instead)', 'riskfolio-lib.readthedocs.io', '91 points', 'riskmanager', '14 hours ago', 38)">
+                    <div class="item-line">
+                        <span class="rank">9.</span>
+                        <span class="vote"></span>
+                        <a href="#" class="title" onclick="event.stopPropagation()">Why I Stopped Using Sharpe Ratio (And What I Use Instead)</a>
+                        <span class="domain" style="color: #ce9178;">(riskfolio-lib.readthedocs.io)</span>
+                    </div>
+                    <div class="subtext">
+                        <span style="color: #4ec9b0; font-weight: 500;">91 points</span> by <a href="#" style="color: #569cd6;">riskmanager</a> 14 hours ago | <a href="#">38 comments</a>
+                    </div>
+                </div>
+
+                <div class="item" onclick="openThread(10, 'Show AP: Backtesting framework that doesn\'t suck', 'alphapulse.org', '156 points', 'backtestbuilder', '16 hours ago', 47)">
+                    <div class="item-line">
+                        <span class="rank">10.</span>
+                        <span class="vote"></span>
+                        <a href="#" class="title" onclick="event.stopPropagation()">Show AP: Backtesting framework that doesn't suck</a>
+                        <span class="domain" style="color: #f9c74f;">(alphapulse.org)</span>
+                    </div>
+                    <div class="subtext">
+                        <span style="color: #4ec9b0; font-weight: 500;">156 points</span> by <a href="#" style="color: #569cd6;">backtestbuilder</a> 16 hours ago | <a href="#">47 comments</a>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px; margin-bottom: 30px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 20px));">
+                    <a href="#more" style="color: #4ec9b0; text-decoration: none; font-size: 16px; font-weight: 500; transition: color 0.2s; padding: 12px 24px; display: inline-block; border: 1px solid #4ec9b0; border-radius: 4px;" 
+                       onmouseover="this.style.color='#6edcc0'; this.style.borderColor='#6edcc0'" 
+                       onmouseout="this.style.color='#4ec9b0'; this.style.borderColor='#4ec9b0'">More</a>
+                </div>
+            </div>
+
+            <div class="comments-panel" id="commentsPanel">
+                <!-- Comments will be dynamically loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentThread = null;
+
+        function openThread(id, title, domain, points, author, time, commentCount) {
+            // On mobile, open link directly instead of splitscreen
+            if (window.innerWidth <= 768) {
+                // For now, just show an alert or navigate to a page
+                window.location.href = '#thread-' + id;
+                return;
+            }
+            
+            // Update active state
+            document.querySelectorAll('.item').forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            
+            // Show split view
+            document.getElementById('contentWrapper').classList.add('split');
+            
+            // Generate mock comments
+            const comments = generateMockComments(id);
+            
+            // Update comments panel
+            const commentsPanel = document.getElementById('commentsPanel');
+            commentsPanel.innerHTML = `
+                <div class="comments-header">
+                    <div class="comments-title">Comments</div>
+                    <button class="close-btn" onclick="closeComments()">×</button>
+                </div>
+                
+                <div class="thread-info">
+                    <div class="thread-title">${title}</div>
+                    <div class="thread-meta">
+                        ${points} by ${author} ${time} | ${commentCount} comments | ${domain}
+                    </div>
+                </div>
+                
+                ${comments.map(comment => `
+                    <div class="comment">
+                        <div class="comment-header">
+                            <span class="comment-author">${comment.author}</span>
+                            <span class="comment-score">${comment.score} points</span>
+                            <span>${comment.time}</span>
+                        </div>
+                        <div class="comment-text">${comment.text}</div>
+                        <div class="comment-actions">
+                            <a href="#">reply</a>
+                            <a href="#">upvote</a>
+                            <a href="#">flag</a>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+            
+            currentThread = id;
+        }
+
+        function closeComments() {
+            document.getElementById('contentWrapper').classList.remove('split');
+            document.querySelectorAll('.item').forEach(item => item.classList.remove('active'));
+            currentThread = null;
+        }
+
+        function generateMockComments(threadId) {
+            const comments = [
+                {
+                    author: "quant_researcher",
+                    score: 42,
+                    time: "2 hours ago",
+                    text: "This is a really interesting approach. I've been working on something similar but using reinforcement learning instead of traditional optimization. The key insight here is that portfolio allocation is inherently a sequential decision problem."
+                },
+                {
+                    author: "ml_practitioner",
+                    score: 28,
+                    time: "1 hour ago",
+                    text: "Have you considered the computational complexity? Running this in real-time for a universe of 500+ stocks seems challenging. We tried something similar and had to resort to approximations that hurt performance."
+                },
+                {
+                    author: "riskmanager2024",
+                    score: 15,
+                    time: "45 minutes ago",
+                    text: "The risk metrics look good on paper but I'm concerned about tail events. How does this perform during market crashes? The 2020 COVID crash would be a good test case."
+                },
+                {
+                    author: "academic_trader",
+                    score: 8,
+                    time: "30 minutes ago",
+                    text: "This reminds me of Gârleanu and Pedersen's work on dynamic trading with predictable returns. Have you looked at incorporating transaction costs into the optimization?"
+                },
+                {
+                    author: "crypto_algo",
+                    score: 12,
+                    time: "20 minutes ago",
+                    text: "Would love to see this applied to crypto markets. The 24/7 nature and higher volatility might actually make the exploration-exploitation tradeoff more pronounced."
+                }
+            ];
+            
+            // Vary comments slightly based on thread
+            return comments.map((comment, i) => ({
+                ...comment,
+                score: comment.score + threadId * 3 + i,
+                text: comment.text + ` [Thread ${threadId} specific insight]`
+            }));
+        }
+
+
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && currentThread) {
+                closeComments();
+            }
+        });
+        
+        // Mobile navigation functionality
+        function toggleMobileNav() {
+            const nav = document.getElementById('nav');
+            nav.classList.toggle('mobile-hidden');
+        }
+
+        // Initialize mobile nav state
+        function initMobileNav() {
+            const nav = document.getElementById('nav');
+            if (window.innerWidth <= 768) {
+                nav.classList.add('mobile-hidden');
+            } else {
+                nav.classList.remove('mobile-hidden');
+            }
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            initMobileNav();
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            initMobileNav();
+        });
+
+        window.addEventListener('load', function() {
+            initMobileNav();
+        });
+    </script>
+    <script src="mobile-components.js"></script>
+</body>
+</html>

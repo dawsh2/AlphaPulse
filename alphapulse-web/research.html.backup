@@ -1,0 +1,2593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Lab - AlphaPulse</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13px; 
+            background: #1e1e1e; 
+            color: #d4d4d4; 
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        /* Layout */
+        .app-container {
+            display: grid;
+            grid-template-rows: 32px 1fr;
+            height: 100vh;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+        }
+        
+        .header {
+            background: #007acc;
+            border-bottom: 1px solid #005a9e;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            font-size: 12px;
+        }
+        
+        .logo { 
+            color: white; 
+            font-weight: bold; 
+            margin-right: 20px;
+            font-size: 14px;
+            text-decoration: none;
+        }
+        
+        .header-nav {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+        
+        .header-nav a {
+            color: white;
+            text-decoration: none;
+            transition: background 0.2s;
+            padding: 4px 8px;
+            border-radius: 3px;
+        }
+        
+        .header-nav a:hover { 
+            background: rgba(255,255,255,0.1);
+        }
+        .header-nav a.active { 
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Config Panel */
+        .config-panel {
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .config-header {
+            padding: 12px 16px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #cccccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .config-sections {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .config-section {
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .section-header {
+            padding: 10px 16px;
+            background: #2d2d30;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            color: #cccccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .section-header:hover {
+            background: #323233;
+        }
+
+        .section-header.active {
+            background: #094771;
+            color: white;
+        }
+
+        .section-content {
+            display: none;
+            padding: 12px 16px;
+            background: #1e1e1e;
+        }
+
+        .section-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 10px;
+            color: #858585;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            background: #252526;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 6px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .action-buttons {
+            padding: 12px 16px;
+            background: #2d2d30;
+            border-top: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #007acc;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1a86d1;
+        }
+
+        .btn-secondary {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+        }
+
+        .btn-secondary:hover {
+            background: #2a2a2a;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background: #1e1e1e;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4ec9b0;
+        }
+        
+        /* Main Layout */
+        .workspace {
+            display: grid;
+            grid-template-columns: 200px 1fr 300px;
+            height: calc(100vh - 32px);
+            background: #252526;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-section {
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        .sidebar-header {
+            padding: 8px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #858585;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .sidebar-header:hover {
+            background: #2a2a2a;
+        }
+        
+        .sidebar-content {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .sidebar-item {
+            padding: 6px 12px 6px 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #cccccc;
+        }
+        
+        .sidebar-item:hover {
+            background: #2a2a2a;
+        }
+        
+        .sidebar-item.active {
+            background: #094771;
+            color: white;
+        }
+        
+        .sidebar-icon {
+            font-size: 14px;
+            width: 16px;
+            text-align: center;
+        }
+        
+        .sidebar-actions {
+            padding: 8px;
+            display: flex;
+            gap: 4px;
+        }
+        
+        .btn-small {
+            padding: 4px 8px;
+            background: #3e3e42;
+            border: none;
+            color: #cccccc;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+        
+        .btn-small:hover {
+            background: #4e4e52;
+        }
+        
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+        }
+        
+        .notebook-tabs {
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            align-items: center;
+            height: 35px;
+            padding: 0 8px;
+            gap: 4px;
+        }
+        
+        .notebook-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-bottom: none;
+            cursor: pointer;
+            font-size: 12px;
+            color: #cccccc;
+            border-radius: 4px 4px 0 0;
+            transition: all 0.2s;
+        }
+        
+        .notebook-tab:hover {
+            background: #252526;
+        }
+        
+        .notebook-tab.active {
+            background: #1e1e1e;
+            color: white;
+            border-bottom: 1px solid #1e1e1e;
+        }
+        
+        .tab-close {
+            margin-left: 4px;
+            opacity: 0.5;
+            cursor: pointer;
+        }
+        
+        .tab-close:hover {
+            opacity: 1;
+        }
+        
+        .notebook-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        /* Cells */
+        .cell {
+            margin-bottom: 16px;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .cell:hover {
+            border-color: #525252;
+        }
+        
+        .cell.active {
+            border-color: #007acc;
+        }
+        
+        .cell.config-cell {
+            border-color: #f9c74f;
+        }
+        
+        .cell.config-cell.active {
+            border-color: #f9c74f;
+            box-shadow: 0 0 0 1px #f9c74f;
+        }
+        
+        .cell-header {
+            background: #2d2d30;
+            padding: 6px 12px;
+            font-size: 11px;
+            color: #858585;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .cell-type {
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .cell-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .cell-action {
+            background: none;
+            border: none;
+            color: #858585;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 11px;
+        }
+        
+        .cell-action:hover {
+            background: #3e3e42;
+            color: #cccccc;
+        }
+        
+        .code-editor, .config-editor {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 16px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            min-height: 150px;
+            width: 100%;
+            resize: vertical;
+        }
+        
+        .code-editor:focus, .config-editor:focus {
+            outline: none;
+        }
+        
+        .cell-output {
+            background: #1e1e1e;
+            padding: 16px;
+            border-top: 1px solid #3e3e42;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .output-text { color: #cccccc; }
+        .output-success { color: #4ec9b0; }
+        .output-error { color: #f48771; }
+        .output-warning { color: #dcdcaa; }
+        .output-dim { color: #858585; }
+        
+        /* Right Panel */
+        .right-panel {
+            background: #252526;
+            border-left: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-tabs {
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            height: 35px;
+            align-items: center;
+            padding: 0 12px;
+            gap: 16px;
+        }
+        
+        .panel-tab {
+            font-size: 12px;
+            color: #858585;
+            cursor: pointer;
+            padding: 4px 0;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .panel-tab:hover {
+            color: #cccccc;
+        }
+        
+        .panel-tab.active {
+            color: #cccccc;
+            border-bottom-color: #007acc;
+        }
+        
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        
+        .metric-group {
+            margin-bottom: 20px;
+        }
+        
+        .metric-header {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #858585;
+            margin-bottom: 8px;
+        }
+        
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 12px;
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        .metric-item:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-label {
+            color: #cccccc;
+        }
+        
+        .metric-value {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-weight: 500;
+        }
+        
+        .metric-positive { color: #4ec9b0; }
+        .metric-negative { color: #f48771; }
+        .metric-neutral { color: #cccccc; }
+        
+        .action-group {
+            margin-top: 20px;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            background: #0e639c;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+        
+        .btn:hover {
+            background: #1177bb;
+        }
+        
+        .btn.secondary {
+            background: #3e3e42;
+            color: #cccccc;
+        }
+        
+        .btn.secondary:hover {
+            background: #4e4e52;
+        }
+        
+        /* Replay Interface */
+        .replay-container {
+            display: none;
+            height: 100%;
+            flex-direction: column;
+        }
+        
+        .replay-container.active {
+            display: flex;
+        }
+        
+        .replay-toolbar {
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .replay-btn {
+            padding: 4px 12px;
+            background: #0e639c;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .replay-btn:hover:not(:disabled) {
+            background: #1177bb;
+        }
+        
+        .replay-btn:disabled {
+            background: #3e3e42;
+            color: #858585;
+            cursor: not-allowed;
+        }
+        
+        .replay-info {
+            display: flex;
+            gap: 16px;
+            margin-left: auto;
+            font-size: 11px;
+            color: #858585;
+        }
+        
+        .replay-info strong {
+            color: #cccccc;
+        }
+        
+        .replay-main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 1px;
+            background: #3e3e42;
+        }
+        
+        .chart-section {
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chart-container {
+            flex: 1;
+            padding: 16px;
+            min-height: 400px;
+            position: relative;
+        }
+        
+        #replayChart {
+            width: calc(100% - 32px);
+            height: calc(100% - 32px);
+            position: absolute;
+            top: 16px;
+            left: 16px;
+        }
+        
+        .indicator-panel {
+            background: #252526;
+            border-top: 1px solid #3e3e42;
+            padding: 16px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        
+        .indicator-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        
+        .indicator-item {
+            background: #1e1e1e;
+            padding: 8px 12px;
+            border-radius: 3px;
+            border: 1px solid #3e3e42;
+        }
+        
+        .indicator-label {
+            font-size: 10px;
+            color: #858585;
+            display: block;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+        
+        .indicator-value {
+            font-size: 14px;
+            font-weight: 500;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+        }
+        
+        .event-panel {
+            background: #252526;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .event-header {
+            background: #2d2d30;
+            padding: 8px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #858585;
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        .event-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 11px;
+        }
+        
+        .event-entry {
+            margin-bottom: 8px;
+            padding: 6px 8px;
+            background: #1e1e1e;
+            border-radius: 3px;
+            border-left: 3px solid #3e3e42;
+        }
+        
+        .event-entry.signal {
+            border-left-color: #569cd6;
+        }
+        
+        .event-entry.trade {
+            border-left-color: #4ec9b0;
+        }
+        
+        .event-entry.error {
+            border-left-color: #f48771;
+        }
+        
+        .event-time {
+            color: #858585;
+            margin-right: 8px;
+        }
+        
+        .event-type {
+            color: #569cd6;
+            font-weight: 500;
+            margin-right: 8px;
+        }
+        
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 8px;
+            border-left: 1px solid #3e3e42;
+        }
+        
+        .speed-slider {
+            width: 80px;
+            height: 3px;
+            -webkit-appearance: none;
+            background: #3e3e42;
+            border-radius: 2px;
+            outline: none;
+        }
+        
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 10px;
+            height: 10px;
+            background: #007acc;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .speed-label {
+            font-size: 11px;
+            color: #858585;
+        }
+        
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4e4e52;
+        }
+        
+        /* Syntax highlighting */
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; }
+        .number { color: #b5cea8; }
+        
+        /* Develop View Styles */
+        .develop-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            height: calc(100vh - 32px);
+            background: #252526;
+        }
+        
+        .develop-sidebar {
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .develop-section {
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        .develop-section-header {
+            padding: 12px 16px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #858585;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .develop-menu {
+            padding: 8px 0;
+        }
+        
+        .develop-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #cccccc;
+            transition: all 0.2s;
+        }
+        
+        .develop-menu-item:hover {
+            background: #2a2a2a;
+        }
+        
+        .develop-menu-item.active {
+            background: #094771;
+            color: white;
+        }
+        
+        .menu-icon {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .develop-main {
+            background: #1e1e1e;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .develop-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .develop-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #cccccc;
+            margin: 0;
+        }
+        
+        .develop-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .strategy-editor {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .editor-tabs {
+            display: flex;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        .editor-tab {
+            padding: 10px 16px;
+            font-size: 12px;
+            color: #969696;
+            cursor: pointer;
+            border-right: 1px solid #3e3e42;
+            transition: all 0.2s;
+        }
+        
+        .editor-tab:hover {
+            background: #2a2a2a;
+            color: #cccccc;
+        }
+        
+        .editor-tab.active {
+            background: #1e1e1e;
+            color: #cccccc;
+            border-bottom: 2px solid #007acc;
+        }
+        
+        .code-editor-container {
+            height: 400px;
+        }
+        
+        .develop-code-editor {
+            width: 100%;
+            height: 100%;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 16px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: none;
+        }
+        
+        .develop-code-editor:focus {
+            outline: none;
+        }
+        
+        .strategy-config {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .strategy-config h3 {
+            font-size: 16px;
+            color: #cccccc;
+            margin-bottom: 16px;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .config-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .config-item label {
+            font-size: 11px;
+            color: #858585;
+            text-transform: uppercase;
+        }
+        
+        .config-item input {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 8px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        
+        .config-item input:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+        
+        .config-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        
+        .feeds-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .feed-card {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 20px;
+        }
+        
+        .feed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .feed-header h3 {
+            font-size: 16px;
+            color: #cccccc;
+            margin: 0;
+        }
+        
+        .feed-status {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+        
+        .feed-status.active {
+            background: rgba(78, 201, 176, 0.1);
+            color: #4ec9b0;
+            border: 1px solid #4ec9b0;
+        }
+        
+        .feed-status.inactive {
+            background: rgba(244, 135, 113, 0.1);
+            color: #f48771;
+            border: 1px solid #f48771;
+        }
+        
+        .feed-info {
+            font-size: 12px;
+            color: #969696;
+            margin-bottom: 16px;
+        }
+        
+        .feed-info div {
+            margin-bottom: 4px;
+        }
+        
+        .feed-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn.success {
+            background: #4ec9b0;
+            color: #1e1e1e;
+        }
+        
+        .btn.success:hover {
+            background: #6edcc0;
+        }
+        
+        /* PDF Viewer Styles */
+        .workspace.split-view .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+        }
+        
+        .workspace.split-view .notebook-container {
+            grid-column: 1;
+        }
+        
+        .pdf-viewer {
+            display: none;
+            grid-column: 2;
+            background: #1e1e1e;
+            border-left: 1px solid #3e3e42;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .workspace.split-view .pdf-viewer {
+            display: flex;
+        }
+        
+        .pdf-header {
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        
+        .pdf-title {
+            font-size: 12px;
+            color: #cccccc;
+            font-weight: 500;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .pdf-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .pdf-control-btn {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+        
+        .pdf-control-btn:hover {
+            background: #2a2a2a;
+            border-color: #525252;
+        }
+        
+        .pdf-page-info {
+            font-size: 11px;
+            color: #858585;
+            margin: 0 8px;
+        }
+        
+        .pdf-content {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            background: #252526;
+        }
+        
+        .pdf-embed {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+            border-radius: 4px;
+        }
+        
+        /* Reference mode button */
+        .reference-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 320px;
+            z-index: 100;
+        }
+        
+        .reference-btn {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 6px 12px;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .reference-btn:hover {
+            background: #2a2a2a;
+            border-color: #007acc;
+            color: #4ec9b0;
+        }
+        
+        .reference-btn.active {
+            background: #094771;
+            border-color: #007acc;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <a href="index.html" class="logo">AlphaPulse</a>
+            <nav class="header-nav">
+                <a href="develop.html">Develop</a>
+                <a href="replay.html">Replay</a>
+                <a href="research.html" class="active">Research</a>
+                <a href="deploy.html">Deploy</a>
+            </nav>
+            <div class="header-actions">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>Kernel Active</span>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>47,291 cached</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Workspace -->
+        <div class="workspace">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-header">
+                        <span>NOTEBOOKS</span>
+                        <span style="font-size: 10px;">▼</span>
+                    </div>
+                    <div class="sidebar-content">
+                        <div class="sidebar-item active">
+                            <span class="sidebar-icon">📓</span>
+                            <span>paper_replication.ipynb</span>
+                        </div>
+                        <div class="sidebar-item">
+                            <span class="sidebar-icon">📓</span>
+                            <span>ml_ensemble_v2.ipynb</span>
+                        </div>
+                        <div class="sidebar-item">
+                            <span class="sidebar-icon">📓</span>
+                            <span>feature_engineering.ipynb</span>
+                        </div>
+                    </div>
+                    <div class="sidebar-actions">
+                        <button class="btn-small">+ New</button>
+                        <button class="btn-small">📁 Open</button>
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <div class="sidebar-header">
+                        <span>TEMPLATES</span>
+                        <span style="font-size: 10px;">▼</span>
+                    </div>
+                    <div class="sidebar-content">
+                        <div class="sidebar-item">
+                            <span class="sidebar-icon">📋</span>
+                            <span>Paper Replication</span>
+                        </div>
+                        <div class="sidebar-item">
+                            <span class="sidebar-icon">📋</span>
+                            <span>Parameter Sweep</span>
+                        </div>
+                        <div class="sidebar-item">
+                            <span class="sidebar-icon">📋</span>
+                            <span>Walk Forward</span>
+                        </div>
+                        <div class="sidebar-item">
+                            <span class="sidebar-icon">📋</span>
+                            <span>Feature Analysis</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <div class="sidebar-header">
+                        <span>SNIPPETS</span>
+                        <span style="font-size: 10px;">▼</span>
+                    </div>
+                    <div class="sidebar-content">
+                        <div class="sidebar-item" onclick="insertSnippet('sharpe')">
+                            <span class="sidebar-icon">📌</span>
+                            <span>Sharpe Ratio</span>
+                        </div>
+                        <div class="sidebar-item" onclick="insertSnippet('drawdown')">
+                            <span class="sidebar-icon">📌</span>
+                            <span>Max Drawdown</span>
+                        </div>
+                        <div class="sidebar-item" onclick="insertSnippet('signals')">
+                            <span class="sidebar-icon">📌</span>
+                            <span>Load Signals</span>
+                        </div>
+                        <div class="sidebar-item" onclick="insertSnippet('compare')">
+                            <span class="sidebar-icon">📌</span>
+                            <span>Compare Strategies</span>
+                        </div>
+                        <div class="sidebar-item" onclick="insertSnippet('walkforward')">
+                            <span class="sidebar-icon">📌</span>
+                            <span>Walk Forward</span>
+                        </div>
+                        <div class="sidebar-item" onclick="insertSnippet('regime')">
+                            <span class="sidebar-icon">📌</span>
+                            <span>Regime Analysis</span>
+                        </div>
+                        <div class="sidebar-item" onclick="insertSnippet('features')">
+                            <span class="sidebar-icon">📌</span>
+                            <span>Feature Engineering</span>
+                        </div>
+                        <div class="sidebar-item" onclick="insertSnippet('optimize')">
+                            <span class="sidebar-icon">📌</span>
+                            <span>Parameter Optimization</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <div class="sidebar-header">
+                        <span>DATA SOURCES</span>
+                        <span style="font-size: 10px;">▼</span>
+                    </div>
+                    <div class="sidebar-content">
+                        <div class="sidebar-item">
+                            <span class="sidebar-icon">📊</span>
+                            <span>SPY (5m, 1d)</span>
+                        </div>
+                        <div class="sidebar-item">
+                            <span class="sidebar-icon">📊</span>
+                            <span>QQQ (5m, 1d)</span>
+                        </div>
+                        <div class="sidebar-item">
+                            <span class="sidebar-icon">📊</span>
+                            <span>ES Futures</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="main-container">
+                <!-- Config Panel -->
+                <div class="config-panel">
+                    <div class="config-header">
+                        Research Config
+                        <button class="btn-secondary" onclick="loadFromDevelop()">↗ From Develop</button>
+                    </div>
+                    
+                    <div class="config-sections">
+                        <!-- Strategy Setup -->
+                        <div class="config-section">
+                            <div class="section-header active" onclick="toggleSection(this)">
+                                <span>Strategy Setup</span>
+                                <span>▼</span>
+                            </div>
+                            <div class="section-content active">
+                                <div class="form-group">
+                                    <label class="form-label">Strategy</label>
+                                    <input type="text" class="form-input" value="momentum_volume">
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Symbol</label>
+                                        <input type="text" class="form-input" value="SPY">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Timeframe</label>
+                                        <select class="form-select">
+                                            <option>5min</option>
+                                            <option>15min</option>
+                                            <option>1hour</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Start Date</label>
+                                        <input type="date" class="form-input" value="2023-01-01">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">End Date</label>
+                                        <input type="date" class="form-input" value="2024-01-01">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Execution Costs -->
+                        <div class="config-section">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <span>Execution Costs</span>
+                                <span>▶</span>
+                            </div>
+                            <div class="section-content">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Commission</label>
+                                        <input type="number" class="form-input" value="0.0" step="0.01">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Slippage (bps)</label>
+                                        <input type="number" class="form-input" value="2.0" step="0.1">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Market Impact</label>
+                                    <select class="form-select">
+                                        <option>Square Root</option>
+                                        <option>Linear</option>
+                                        <option>Constant</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Walk-Forward -->
+                        <div class="config-section">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <span>Walk-Forward</span>
+                                <span>▶</span>
+                            </div>
+                            <div class="section-content">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Training</label>
+                                        <select class="form-select">
+                                            <option>6 months</option>
+                                            <option>12 months</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Step Size</label>
+                                        <select class="form-select">
+                                            <option>1 month</option>
+                                            <option>1 week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Analysis Template -->
+                        <div class="config-section">
+                            <div class="section-header" onclick="toggleSection(this)">
+                                <span>Analysis Template</span>
+                                <span>▶</span>
+                            </div>
+                            <div class="section-content">
+                                <div class="form-group">
+                                    <label class="form-label">Analysis Type</label>
+                                    <select class="form-select">
+                                        <option>Signal Analysis</option>
+                                        <option>Execution Analysis</option>
+                                        <option>Regime Analysis</option>
+                                        <option>Correlation Analysis</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn-primary" onclick="generateSignals()">Generate Signals</button>
+                        <button class="btn-secondary" onclick="runBacktest()">Run Backtest</button>
+                        <button class="btn-secondary" onclick="runWalkForward()">Walk-Forward</button>
+                    </div>
+                </div>
+
+                <!-- Notebook Interface -->
+                <div class="main-content" id="mainContent">
+                <!-- Research View -->
+                <div id="researchView">
+                    <div class="notebook-tabs">
+                        <div class="notebook-tab active">
+                            paper_replication.ipynb
+                            <span class="tab-close">×</span>
+                        </div>
+                        <button class="btn-small" style="margin-left: 8px;">+</button>
+                    </div>
+                    
+                    <div class="notebook-content">
+                        <!-- Cell 1: Markdown -->
+                        <div class="cell active">
+                            <div class="cell-header">
+                                <span class="cell-type">MARKDOWN</span>
+                                <div class="cell-actions">
+                                    <button class="cell-action">Edit</button>
+                                    <button class="cell-action">Delete</button>
+                                </div>
+                            </div>
+                            <div class="markdown-content" style="padding: 16px; background: #1e1e1e; color: #d4d4d4;">
+                                <h1 style="color: #569cd6; font-size: 20px; margin-bottom: 12px;">Volatility-Based Mean Reversion Strategy</h1>
+                                <p style="margin-bottom: 16px;">Research notebook for developing a volatility-adjusted mean reversion strategy. The core hypothesis is that extreme moves beyond 2.5x rolling volatility tend to revert within the next 5-10 bars.</p>
+                                <h2 style="color: #569cd6; font-size: 16px; margin-bottom: 8px;">Data Sources</h2>
+                                <ul style="margin-left: 20px; color: #cccccc;">
+                                    <li>SPY 5-minute bars (2020-2024)</li>
+                                    <li>VIX for regime filtering</li>
+                                    <li>Volume profile for liquidity checks</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Cell 2: Configuration -->
+                        <div class="cell config-cell">
+                            <div class="cell-header">
+                                <span class="cell-type" style="color: #f9c74f;">CONFIG</span>
+                                <div class="cell-actions">
+                                    <button class="cell-action">Run</button>
+                                    <button class="cell-action">Export</button>
+                                </div>
+                            </div>
+                            <textarea class="config-editor" spellcheck="false"># Strategy configuration for paper replication
+# "Enhanced Momentum Strategies with Volume Confirmation" (2023)
+
+name: momentum_volume_study
+data_source: SPY
+frequency: 5m
+lookback_days: 252
+
+strategies:
+  - name: baseline_momentum
+    type: momentum
+    parameters:
+      period: [10, 15, 20, 25, 30]
+      threshold: [0.02, 0.03, 0.05]
+    
+  - name: volume_enhanced_momentum  
+    type: momentum_volume
+    parameters:
+      momentum_period: [15, 20, 25]
+      volume_period: [20, 30, 40]
+      volume_multiplier: [1.2, 1.5, 2.0]
+
+analysis:
+  walk_forward: true
+  train_period: 180
+  test_period: 60
+  transaction_costs: 0.0010
+  slippage_model: linear</textarea>
+                            <div class="cell-output">
+                                <div class="output-text">
+                                    <span class="output-dim">Strategy variants to test:</span> 270<br>
+                                    <span class="output-dim">Cached signals available:</span> 225 <span class="output-success">(83%)</span><br>
+                                    <span class="output-dim">New signals to generate:</span> 45<br>
+                                    <span class="output-dim">Estimated compute time:</span> ~12 minutes
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cell 3: Load and analyze -->
+                        <div class="cell">
+                            <div class="cell-header">
+                                <span class="cell-type">CODE</span>
+                                <div class="cell-actions">
+                                    <button class="cell-action">Run</button>
+                                </div>
+                            </div>
+                            <textarea class="code-editor" spellcheck="false">import alphapulse as ap
+import pandas as pd
+import numpy as np
+
+# Load generated signals from configuration
+signals = ap.load_signals('momentum_volume_study')
+print(f"Loaded {len(signals)} strategy variants")
+
+# Separate baseline and enhanced strategies  
+baseline = signals.filter(strategy='baseline_momentum')
+enhanced = signals.filter(strategy='volume_enhanced_momentum')
+
+# Compare performance distributions
+comparison = ap.compare_strategies(baseline, enhanced)
+comparison.summary()</textarea>
+                            <div class="cell-output">
+                                <div class="output-text">
+Loaded 270 strategy variants
+
+<span class="output-dim">Performance Comparison:</span>
+                    Baseline        Enhanced       Difference
+Sharpe Ratio       0.82 ± 0.31     1.24 ± 0.28    <span class="output-success">+0.42</span>
+Max Drawdown       -12.3% ± 3.1%   -9.7% ± 2.4%   <span class="output-success">+2.6%</span>
+Win Rate           48.2% ± 4.5%    52.8% ± 3.2%   <span class="output-success">+4.6%</span>
+Profit Factor      1.21 ± 0.15     1.38 ± 0.12    <span class="output-success">+0.17</span>
+
+<span class="output-success">Statistical significance: p < 0.001</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cell 4: Find optimal parameters -->
+                        <div class="cell">
+                            <div class="cell-header">
+                                <span class="cell-type">CODE</span>
+                                <div class="cell-actions">
+                                    <button class="cell-action">Run</button>
+                                </div>
+                            </div>
+                            <textarea class="code-editor" spellcheck="false"># Find robust parameter combinations
+robust_criteria = {
+    'min_sharpe': 1.2,
+    'max_drawdown': 0.15,
+    'min_trades': 100,
+    'regime_stability': 0.7
+}
+
+robust_strategies = enhanced.filter(**robust_criteria)
+print(f"Found {len(robust_strategies)} robust strategies\n")
+
+# Display top performers
+top_5 = robust_strategies.rank_by('sharpe_ratio', top_n=5)
+for i, (params, metrics) in enumerate(top_5):
+    print(f"{i+1}. momentum_period={params['momentum_period']}, "
+          f"volume_multiplier={params['volume_multiplier']}")
+    print(f"   Sharpe: {metrics['sharpe_ratio']:.2f}, "
+          f"Max DD: {metrics['max_drawdown']:.1%}\n")</textarea>
+                            <div class="cell-output">
+                                <div class="output-text">
+Found 18 robust strategies
+
+<span class="output-dim">Top 5 Parameter Combinations:</span>
+1. momentum_period=20, volume_multiplier=1.5
+   Sharpe: 1.76, Max DD: -8.2%
+
+2. momentum_period=20, volume_multiplier=1.2
+   Sharpe: 1.68, Max DD: -9.1%
+
+3. momentum_period=25, volume_multiplier=1.5
+   Sharpe: 1.64, Max DD: -7.8%
+
+4. momentum_period=15, volume_multiplier=1.5
+   Sharpe: 1.59, Max DD: -10.3%
+
+5. momentum_period=20, volume_multiplier=2.0
+   Sharpe: 1.55, Max DD: -8.9%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Replay View (hidden by default) -->
+                <div class="replay-container" id="replayView">
+                    <div class="replay-toolbar">
+                        <button class="replay-btn" onclick="replayPrev()">← Previous</button>
+                        <button class="replay-btn" id="playPauseBtn" onclick="togglePlayPause()">Play</button>
+                        <button class="replay-btn" onclick="replayNext()">Next →</button>
+                        <div class="speed-control">
+                            <span class="speed-label">Speed:</span>
+                            <input type="range" class="speed-slider" id="speedSlider" min="1" max="10" value="5">
+                            <span class="speed-label" id="speedValue">1x</span>
+                        </div>
+                        <div class="replay-info">
+                            <span>Bar: <strong id="currentBar">0</strong> / <strong id="totalBars">0</strong></span>
+                            <span>Date: <strong id="currentDate">-</strong></span>
+                            <span>Price: <strong id="currentPrice">-</strong></span>
+                        </div>
+                    </div>
+                    
+                    <div class="replay-main">
+                        <div class="chart-section">
+                            <div class="chart-container">
+                                <div id="replayChart"></div>
+                            </div>
+                            <div class="indicator-panel">
+                                <div class="indicator-grid">
+                                    <div class="indicator-item">
+                                        <span class="indicator-label">RSI(14)</span>
+                                        <span class="indicator-value metric-neutral" id="rsi_value">-</span>
+                                    </div>
+                                    <div class="indicator-item">
+                                        <span class="indicator-label">MACD</span>
+                                        <span class="indicator-value metric-neutral" id="macd_value">-</span>
+                                    </div>
+                                    <div class="indicator-item">
+                                        <span class="indicator-label">Volume Ratio</span>
+                                        <span class="indicator-value metric-neutral" id="volume_ratio">-</span>
+                                    </div>
+                                    <div class="indicator-item">
+                                        <span class="indicator-label">Momentum</span>
+                                        <span class="indicator-value metric-neutral" id="momentum_value">-</span>
+                                    </div>
+                                    <div class="indicator-item">
+                                        <span class="indicator-label">BB Position</span>
+                                        <span class="indicator-value metric-neutral" id="bb_position">-</span>
+                                    </div>
+                                    <div class="indicator-item">
+                                        <span class="indicator-label">Signal</span>
+                                        <span class="indicator-value metric-neutral" id="strategy_signal">NEUTRAL</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="event-panel">
+                            <div class="event-header">Event Log</div>
+                            <div class="event-log" id="eventLog">
+                                <!-- Events will be added here dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Panel -->
+            <div class="right-panel">
+                <div class="panel-tabs">
+                    <div class="panel-tab active">Results</div>
+                    <div class="panel-tab">Parameters</div>
+                    <div class="panel-tab">Deploy</div>
+                </div>
+                <div class="panel-content">
+                    <div class="metric-group">
+                        <div class="metric-header">Current Analysis</div>
+                        <div class="metric-item">
+                            <span class="metric-label">Strategies Tested</span>
+                            <span class="metric-value metric-neutral">270</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Best Sharpe</span>
+                            <span class="metric-value metric-positive">1.76</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Robust Strategies</span>
+                            <span class="metric-value metric-neutral">18</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Paper Hypothesis</span>
+                            <span class="metric-value metric-positive">Confirmed</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-group">
+                        <div class="metric-header">Ensemble Performance</div>
+                        <div class="metric-item">
+                            <span class="metric-label">Expected Sharpe</span>
+                            <span class="metric-value metric-positive">1.82</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Expected Return</span>
+                            <span class="metric-value metric-positive">18.7%</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Max Drawdown</span>
+                            <span class="metric-value metric-negative">-7.4%</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Correlation</span>
+                            <span class="metric-value metric-neutral">0.42</span>
+                        </div>
+                    </div>
+
+                    <div class="action-group">
+                        <button class="btn">Export Configuration</button>
+                        <button class="btn secondary">Run Walk-Forward</button>
+                        <button class="btn secondary">Generate Report</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Develop View (hidden by default) -->
+            <div class="develop-container" id="developView" style="display: none;">
+                <div class="develop-sidebar">
+                    <div class="develop-section">
+                        <div class="develop-section-header">
+                            <span>COMPONENTS</span>
+                            <button class="btn-small">+ New</button>
+                        </div>
+                        <div class="develop-menu">
+                            <div class="develop-menu-item active" onclick="showDevelopSection('strategies')">
+                                <span class="menu-icon">📊</span>
+                                <span>Strategies</span>
+                            </div>
+                            <div class="develop-menu-item" onclick="showDevelopSection('data-feeds')">
+                                <span class="menu-icon">📡</span>
+                                <span>Data Feeds</span>
+                            </div>
+                            <div class="develop-menu-item" onclick="showDevelopSection('execution')">
+                                <span class="menu-icon">⚡</span>
+                                <span>Execution Models</span>
+                            </div>
+                            <div class="develop-menu-item" onclick="showDevelopSection('risk')">
+                                <span class="menu-icon">🛡️</span>
+                                <span>Risk Models</span>
+                            </div>
+                            <div class="develop-menu-item" onclick="showDevelopSection('features')">
+                                <span class="menu-icon">🔧</span>
+                                <span>Feature Engineering</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="develop-main">
+                    <!-- Strategies Section -->
+                    <div class="develop-content" id="strategies-content">
+                        <div class="develop-header">
+                            <h2>Strategy Development</h2>
+                            <div class="develop-actions">
+                                <button class="btn-small">Import</button>
+                                <button class="btn-small">New Strategy</button>
+                            </div>
+                        </div>
+                        
+                        <div class="strategy-editor">
+                            <div class="editor-tabs">
+                                <div class="editor-tab active">momentum_volume.py</div>
+                                <div class="editor-tab">mean_reversion.py</div>
+                                <div class="editor-tab">+ New</div>
+                            </div>
+                            
+                            <div class="code-editor-container">
+                                <textarea class="develop-code-editor" spellcheck="false">import numpy as np
+from alphapulse import Strategy, Signal
+
+class MomentumVolumeStrategy(Strategy):
+    """Enhanced momentum strategy with volume confirmation"""
+    
+    def __init__(self, momentum_period=20, volume_period=30, volume_multiplier=1.5):
+        super().__init__()
+        self.momentum_period = momentum_period
+        self.volume_period = volume_period
+        self.volume_multiplier = volume_multiplier
+        
+    def generate_signals(self, data):
+        # Calculate momentum
+        momentum = data['close'].pct_change(self.momentum_period)
+        
+        # Calculate volume ratio
+        volume_ma = data['volume'].rolling(self.volume_period).mean()
+        volume_ratio = data['volume'] / volume_ma
+        
+        # Generate signals
+        long_signal = (momentum > 0.02) & (volume_ratio > self.volume_multiplier)
+        short_signal = (momentum < -0.02) & (volume_ratio > self.volume_multiplier)
+        
+        return Signal(long=long_signal, short=short_signal)
+    
+    def calculate_position_size(self, signal_strength, account_value):
+        """Kelly criterion based position sizing"""
+        return min(signal_strength * 0.25, 0.1) * account_value</textarea>
+                            </div>
+                            
+                            <div class="strategy-config">
+                                <h3>Strategy Configuration</h3>
+                                <div class="config-grid">
+                                    <div class="config-item">
+                                        <label>Momentum Period</label>
+                                        <input type="number" value="20" min="5" max="100">
+                                    </div>
+                                    <div class="config-item">
+                                        <label>Volume Period</label>
+                                        <input type="number" value="30" min="10" max="200">
+                                    </div>
+                                    <div class="config-item">
+                                        <label>Volume Multiplier</label>
+                                        <input type="number" value="1.5" min="1.0" max="5.0" step="0.1">
+                                    </div>
+                                    <div class="config-item">
+                                        <label>Max Position Size</label>
+                                        <input type="number" value="0.1" min="0.01" max="0.5" step="0.01">
+                                    </div>
+                                </div>
+                                
+                                <div class="config-actions">
+                                    <button class="btn">Validate</button>
+                                    <button class="btn">Backtest</button>
+                                    <button class="btn success">Deploy to Production</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Data Feeds Section (hidden) -->
+                    <div class="develop-content" id="data-feeds-content" style="display: none;">
+                        <div class="develop-header">
+                            <h2>Data Feed Configuration</h2>
+                            <div class="develop-actions">
+                                <button class="btn-small">Add Feed</button>
+                            </div>
+                        </div>
+                        
+                        <div class="feeds-grid">
+                            <div class="feed-card">
+                                <div class="feed-header">
+                                    <h3>Alpaca Markets</h3>
+                                    <span class="feed-status active">Active</span>
+                                </div>
+                                <div class="feed-info">
+                                    <div>Type: Equities</div>
+                                    <div>Symbols: SPY, QQQ, IWM</div>
+                                    <div>Frequency: 1m, 5m, 1d</div>
+                                    <div>Latency: ~50ms</div>
+                                </div>
+                                <div class="feed-actions">
+                                    <button class="btn-small">Configure</button>
+                                    <button class="btn-small">Test Connection</button>
+                                </div>
+                            </div>
+                            
+                            <div class="feed-card">
+                                <div class="feed-header">
+                                    <h3>Interactive Brokers</h3>
+                                    <span class="feed-status inactive">Inactive</span>
+                                </div>
+                                <div class="feed-info">
+                                    <div>Type: Futures</div>
+                                    <div>Symbols: ES, NQ, RTY</div>
+                                    <div>Frequency: tick, 1s, 1m</div>
+                                    <div>Latency: ~10ms</div>
+                                </div>
+                                <div class="feed-actions">
+                                    <button class="btn-small">Configure</button>
+                                    <button class="btn-small">Test Connection</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Other sections would go here -->
+                </div>
+            </div>
+            
+            <!-- PDF Viewer -->
+            <div class="pdf-viewer">
+                <div class="pdf-header">
+                    <div class="pdf-title" id="pdfTitle">No document loaded</div>
+                    <div class="pdf-controls">
+                        <span class="pdf-page-info" id="pdfPageInfo">-</span>
+                        <button class="pdf-control-btn" onclick="previousPDFPage()">◀</button>
+                        <button class="pdf-control-btn" onclick="nextPDFPage()">▶</button>
+                        <button class="pdf-control-btn" onclick="zoomOutPDF()">-</button>
+                        <button class="pdf-control-btn" onclick="zoomInPDF()">+</button>
+                        <button class="pdf-control-btn" onclick="closePDFViewer()">✕</button>
+                    </div>
+                </div>
+                <div class="pdf-content" id="pdfContent">
+                    <div style="text-align: center; padding: 40px; color: #858585;">
+                        <p style="font-size: 16px; margin-bottom: 20px;">📄 Reference Mode</p>
+                        <p style="margin-bottom: 16px;">Load a research paper to view alongside your notebooks</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                            <button class="btn-small" onclick="loadPDFFromURLResearch()">Load from URL</button>
+                            <button class="btn-small" onclick="showRecentPapersResearch()">Recent Papers</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reference Toggle Button -->
+        <div class="reference-toggle">
+            <button class="reference-btn" onclick="toggleReferenceMode()">
+                <span>📄</span>
+                <span>Reference Mode</span>
+            </button>
+        </div>
+            </div> <!-- Close main-container -->
+        </div> <!-- Close app-container -->
+
+    <script>
+        // View switching
+        function showView(view, element) {
+            // Update active states for internal tabs only
+            document.getElementById('researchTab').classList.remove('active');
+            document.getElementById('replayTab').classList.remove('active');
+            element.classList.add('active');
+            
+            // Hide all views
+            document.getElementById('researchView').style.display = 'none';
+            document.getElementById('replayView').style.display = 'none';
+            
+            if (view === 'research') {
+                document.getElementById('researchView').style.display = 'block';
+            } else if (view === 'replay') {
+                document.getElementById('replayView').style.display = 'flex';
+                if (!window.chart) {
+                    initializeReplay();
+                }
+            }
+        }
+
+        // Cell interactions
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+                document.querySelectorAll('.cell').forEach(c => c.classList.remove('active'));
+                cell.classList.add('active');
+            });
+        });
+
+        // Sidebar interactions
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const parent = item.closest('.sidebar-section');
+                parent.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+
+        // Panel tabs
+        document.querySelectorAll('.panel-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const parent = tab.parentElement;
+                parent.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+            });
+        });
+
+        // Auto-resize textareas
+        document.querySelectorAll('textarea').forEach(textarea => {
+            textarea.addEventListener('input', () => {
+                textarea.style.height = 'auto';
+                textarea.style.height = textarea.scrollHeight + 'px';
+            });
+            // Initial resize
+            textarea.style.height = textarea.scrollHeight + 'px';
+        });
+
+        // Replay functionality
+        let chart = null;
+        let candlestickSeries = null;
+        let volumeSeries = null;
+        let currentBarIndex = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        let replayData = [];
+        
+        // Mock data for demonstration
+        function generateMockData() {
+            const bars = 500;
+            const data = [];
+            let time = new Date('2024-01-01').getTime() / 1000;
+            let close = 450;
+            
+            for (let i = 0; i < bars; i++) {
+                const change = (Math.random() - 0.5) * 4;
+                const open = close;
+                close = close + change;
+                const high = Math.max(open, close) + Math.random() * 2;
+                const low = Math.min(open, close) - Math.random() * 2;
+                const volume = 1000000 + Math.random() * 2000000;
+                
+                data.push({
+                    time: time,
+                    open: open,
+                    high: high,
+                    low: low,
+                    close: close,
+                    volume: volume,
+                    // Mock indicators
+                    rsi: 30 + Math.random() * 40,
+                    macd: (Math.random() - 0.5) * 2,
+                    volumeRatio: 0.5 + Math.random() * 2,
+                    momentum: (Math.random() - 0.5) * 5,
+                    bbPosition: Math.random(),
+                    signal: Math.random() > 0.7 ? (Math.random() > 0.5 ? 'BUY' : 'SELL') : 'NEUTRAL'
+                });
+                
+                time += 300; // 5 minute bars
+            }
+            
+            return data;
+        }
+        
+        function initializeReplay() {
+            const chartContainer = document.getElementById('replayChart');
+            
+            if (typeof LightweightCharts === 'undefined') {
+                setTimeout(initializeReplay, 100);
+                return;
+            }
+            
+            const width = chartContainer.offsetWidth;
+            const height = chartContainer.offsetHeight;
+            
+            chart = LightweightCharts.createChart(chartContainer, {
+                width: width,
+                height: height,
+                layout: {
+                    background: { type: 'solid', color: '#1e1e1e' },
+                    textColor: '#d4d4d4',
+                },
+                grid: {
+                    vertLines: { color: '#3e3e42' },
+                    horzLines: { color: '#3e3e42' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                rightPriceScale: {
+                    borderColor: '#3e3e42',
+                },
+                timeScale: {
+                    borderColor: '#3e3e42',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+            });
+            
+            candlestickSeries = chart.addCandlestickSeries({
+                upColor: '#4ec9b0',
+                downColor: '#f48771',
+                borderUpColor: '#4ec9b0',
+                borderDownColor: '#f48771',
+                wickUpColor: '#4ec9b0',
+                wickDownColor: '#f48771',
+            });
+            
+            // Volume series with separate scale
+            volumeSeries = chart.addHistogramSeries({
+                color: '#26a69a',
+                priceFormat: {
+                    type: 'volume',
+                },
+                priceScaleId: 'volume',
+                scaleMargins: {
+                    top: 0.7,
+                    bottom: 0,
+                },
+            });
+            
+            // Configure the volume scale
+            chart.priceScale('volume').applyOptions({
+                scaleMargins: {
+                    top: 0.7,
+                    bottom: 0,
+                },
+            });
+            
+            // Load mock data
+            replayData = generateMockData();
+            document.getElementById('totalBars').textContent = replayData.length;
+            
+            // Show first frame
+            updateReplayDisplay();
+            
+            // Window resize
+            window.addEventListener('resize', () => {
+                if (chart && document.getElementById('replayView').style.display !== 'none') {
+                    const newWidth = chartContainer.offsetWidth;
+                    const newHeight = chartContainer.offsetHeight;
+                    chart.applyOptions({ width: newWidth, height: newHeight });
+                }
+            });
+            
+            // Speed slider
+            document.getElementById('speedSlider').addEventListener('input', (e) => {
+                const speed = e.target.value;
+                document.getElementById('speedValue').textContent = speed + 'x';
+                if (isPlaying) {
+                    stopReplay();
+                    startReplay();
+                }
+            });
+        }
+        
+        function updateReplayDisplay() {
+            if (currentBarIndex >= replayData.length) {
+                stopReplay();
+                return;
+            }
+            
+            const currentData = replayData[currentBarIndex];
+            const displayData = replayData.slice(0, currentBarIndex + 1);
+            
+            // Update chart
+            candlestickSeries.setData(displayData.map(d => ({
+                time: d.time,
+                open: d.open,
+                high: d.high,
+                low: d.low,
+                close: d.close
+            })));
+            
+            volumeSeries.setData(displayData.map(d => ({
+                time: d.time,
+                value: d.volume,
+                color: d.close >= d.open ? '#26a69a' : '#ef5350'
+            })));
+            
+            // Update info
+            document.getElementById('currentBar').textContent = currentBarIndex + 1;
+            document.getElementById('currentDate').textContent = new Date(currentData.time * 1000).toLocaleString();
+            document.getElementById('currentPrice').textContent = '$' + currentData.close.toFixed(2);
+            
+            // Update indicators
+            document.getElementById('rsi_value').textContent = currentData.rsi.toFixed(1);
+            document.getElementById('macd_value').textContent = currentData.macd.toFixed(3);
+            document.getElementById('volume_ratio').textContent = currentData.volumeRatio.toFixed(2) + 'x';
+            document.getElementById('momentum_value').textContent = currentData.momentum.toFixed(2) + '%';
+            document.getElementById('bb_position').textContent = (currentData.bbPosition * 100).toFixed(0) + '%';
+            
+            // Update signal
+            const signalElem = document.getElementById('strategy_signal');
+            signalElem.textContent = currentData.signal;
+            signalElem.className = 'indicator-value ' + 
+                (currentData.signal === 'BUY' ? 'metric-positive' : 
+                 currentData.signal === 'SELL' ? 'metric-negative' : 'metric-neutral');
+            
+            // Add event if signal
+            if (currentData.signal !== 'NEUTRAL') {
+                addEventLogEntry(currentData.time, currentData.signal, currentData.close);
+            }
+            
+            // Update indicator colors
+            updateIndicatorColors(currentData);
+        }
+        
+        function updateIndicatorColors(data) {
+            // RSI
+            const rsiElem = document.getElementById('rsi_value');
+            if (data.rsi > 70) rsiElem.className = 'indicator-value metric-negative';
+            else if (data.rsi < 30) rsiElem.className = 'indicator-value metric-positive';
+            else rsiElem.className = 'indicator-value metric-neutral';
+            
+            // Volume ratio
+            const volElem = document.getElementById('volume_ratio');
+            if (data.volumeRatio > 1.5) volElem.className = 'indicator-value metric-positive';
+            else if (data.volumeRatio < 0.8) volElem.className = 'indicator-value metric-negative';
+            else volElem.className = 'indicator-value metric-neutral';
+            
+            // Momentum
+            const momElem = document.getElementById('momentum_value');
+            if (data.momentum > 2) momElem.className = 'indicator-value metric-positive';
+            else if (data.momentum < -2) momElem.className = 'indicator-value metric-negative';
+            else momElem.className = 'indicator-value metric-neutral';
+        }
+        
+        function addEventLogEntry(time, type, price) {
+            const eventLog = document.getElementById('eventLog');
+            const entry = document.createElement('div');
+            entry.className = 'event-entry ' + (type === 'BUY' ? 'trade' : type === 'SELL' ? 'signal' : '');
+            
+            const timeStr = new Date(time * 1000).toLocaleTimeString();
+            entry.innerHTML = `
+                <span class="event-time">${timeStr}</span>
+                <span class="event-type">${type}</span>
+                <span>Signal triggered at $${price.toFixed(2)}</span>
+            `;
+            
+            eventLog.appendChild(entry);
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
+        
+        function replayNext() {
+            if (currentBarIndex < replayData.length - 1) {
+                currentBarIndex++;
+                updateReplayDisplay();
+            }
+        }
+        
+        function replayPrev() {
+            if (currentBarIndex > 0) {
+                currentBarIndex--;
+                updateReplayDisplay();
+            }
+        }
+        
+        function togglePlayPause() {
+            if (isPlaying) {
+                stopReplay();
+            } else {
+                startReplay();
+            }
+        }
+        
+        function startReplay() {
+            isPlaying = true;
+            document.getElementById('playPauseBtn').textContent = 'Pause';
+            const speed = parseInt(document.getElementById('speedSlider').value);
+            const interval = 1000 / speed;
+            
+            playInterval = setInterval(() => {
+                if (currentBarIndex >= replayData.length - 1) {
+                    stopReplay();
+                } else {
+                    replayNext();
+                }
+            }, interval);
+        }
+        
+        function stopReplay() {
+            isPlaying = false;
+            document.getElementById('playPauseBtn').textContent = 'Play';
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+            }
+        }
+        
+        // Snippet Library
+        const snippets = {
+            sharpe: `# Calculate Sharpe Ratio
+def sharpe_ratio(returns, risk_free_rate=0.02, periods_per_year=252):
+    """Calculate annualized Sharpe ratio"""
+    excess_returns = returns - risk_free_rate/periods_per_year
+    return np.sqrt(periods_per_year) * excess_returns.mean() / excess_returns.std()
+
+# Example usage
+sharpe = sharpe_ratio(strategy_returns)
+print(f"Sharpe Ratio: {sharpe:.2f}")`,
+
+            drawdown: `# Calculate Maximum Drawdown
+def max_drawdown(returns):
+    """Calculate maximum drawdown from returns series"""
+    cumulative = (1 + returns).cumprod()
+    running_max = cumulative.cummax()
+    drawdown = (cumulative - running_max) / running_max
+    return drawdown.min()
+
+# Example usage
+max_dd = max_drawdown(strategy_returns)
+print(f"Maximum Drawdown: {max_dd:.1%}")`,
+
+            signals: `# Load signals from AlphaPulse signal database
+import alphapulse as ap
+
+# Load all signals for a strategy
+signals = ap.load_signals('strategy_name')
+
+# Filter signals by parameters
+filtered = signals.filter(
+    lookback_period=20,
+    threshold=0.02
+)
+
+# Load signals with date range
+recent_signals = ap.load_signals(
+    'strategy_name',
+    start_date='2024-01-01',
+    end_date='2024-12-31'
+)`,
+
+            compare: `# Compare multiple strategies
+comparison = ap.compare_strategies([
+    baseline_signals,
+    enhanced_signals,
+    ml_signals
+])
+
+# Display comparison metrics
+comparison.summary()
+
+# Statistical significance testing
+p_value = comparison.test_significance('sharpe_ratio')
+print(f"P-value for Sharpe difference: {p_value:.4f}")`,
+
+            walkforward: `# Walk-forward optimization
+wf_config = {
+    'train_period': 180,  # days
+    'test_period': 60,    # days
+    'step_size': 30,      # days
+    'metric': 'sharpe_ratio'
+}
+
+# Run walk-forward analysis
+wf_results = ap.walk_forward(
+    strategy_config,
+    **wf_config
+)
+
+# Plot results
+wf_results.plot_performance()
+wf_results.parameter_stability()`,
+
+            regime: `# Market regime analysis
+# Define regimes based on volatility
+vix_data = ap.load_data('VIX')
+regimes = pd.cut(vix_data, bins=[0, 15, 25, 100], 
+                 labels=['Low Vol', 'Normal', 'High Vol'])
+
+# Analyze strategy performance by regime
+regime_performance = signals.groupby(regimes).apply(
+    lambda x: {
+        'sharpe': sharpe_ratio(x.returns),
+        'max_dd': max_drawdown(x.returns),
+        'win_rate': (x.returns > 0).mean()
+    }
+)`,
+
+            features: `# Feature engineering pipeline
+features = ap.FeatureSet()
+
+# Price-based features
+features.add('returns', lambda df: df['close'].pct_change())
+features.add('log_returns', lambda df: np.log(df['close']/df['close'].shift(1)))
+features.add('rsi', lambda df: ta.RSI(df['close'], timeperiod=14))
+
+# Volume features
+features.add('volume_ratio', lambda df: df['volume'] / df['volume'].rolling(20).mean())
+features.add('dollar_volume', lambda df: df['close'] * df['volume'])
+
+# Volatility features
+features.add('realized_vol', lambda df: df['returns'].rolling(20).std() * np.sqrt(252))
+features.add('range', lambda df: (df['high'] - df['low']) / df['close'])
+
+# Apply to data
+feature_df = features.compute(price_data)`,
+
+            optimize: `# Parameter optimization with cross-validation
+param_grid = {
+    'lookback': [10, 20, 30, 40],
+    'threshold': [0.01, 0.02, 0.03, 0.05],
+    'stop_loss': [0.02, 0.03, 0.05],
+    'take_profit': [0.03, 0.05, 0.08]
+}
+
+# Grid search with time series CV
+optimizer = ap.GridSearchCV(
+    strategy_class,
+    param_grid,
+    cv=TimeSeriesSplit(n_splits=5),
+    scoring='sharpe_ratio',
+    n_jobs=-1
+)
+
+# Find best parameters
+best_params = optimizer.fit(train_data)
+print(f"Best parameters: {best_params}")
+
+# Analyze parameter sensitivity
+optimizer.plot_param_importance()`
+        };
+        
+        function insertSnippet(snippetName) {
+            const snippet = snippets[snippetName];
+            if (!snippet) return;
+            
+            // Find the active cell's textarea
+            const activeCell = document.querySelector('.cell.active');
+            if (!activeCell) return;
+            
+            const textarea = activeCell.querySelector('.code-editor, .config-editor');
+            if (!textarea) return;
+            
+            // Insert snippet at cursor position or append
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            
+            textarea.value = text.substring(0, start) + snippet + text.substring(end);
+            
+            // Set cursor position after inserted text
+            textarea.selectionStart = textarea.selectionEnd = start + snippet.length;
+            textarea.focus();
+            
+            // Trigger input event for any listeners
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        
+        // PDF Viewer Functions
+        let currentPDF = null;
+        let currentPDFPage = 1;
+        let totalPDFPages = 0;
+        let pdfZoom = 1;
+        
+        function toggleReferenceMode() {
+            const workspace = document.querySelector('.workspace');
+            const btn = document.querySelector('.reference-btn');
+            
+            if (workspace.classList.contains('split-view')) {
+                workspace.classList.remove('split-view');
+                btn.classList.remove('active');
+            } else {
+                workspace.classList.add('split-view');
+                btn.classList.add('active');
+            }
+        }
+        
+        function loadPDFFromURLResearch() {
+            const url = prompt('Enter PDF URL (e.g., from arXiv):');
+            if (url) {
+                loadPDFResearch(url);
+            }
+        }
+        
+        function loadPDFResearch(url) {
+            const pdfContent = document.getElementById('pdfContent');
+            const pdfTitle = document.getElementById('pdfTitle');
+            
+            // Extract title from URL
+            const urlParts = url.split('/');
+            const filename = urlParts[urlParts.length - 1];
+            pdfTitle.textContent = filename;
+            
+            // Create iframe for PDF
+            pdfContent.innerHTML = `
+                <iframe class="pdf-embed" src="${url}" style="transform: scale(${pdfZoom});">
+                    <p>Your browser does not support PDFs. <a href="${url}" target="_blank">Download the PDF</a>.</p>
+                </iframe>
+            `;
+            
+            currentPDF = url;
+            updatePDFInfoResearch();
+        }
+        
+        function showRecentPapersResearch() {
+            const papers = [
+                { title: 'Multi-Armed Bandits for Dynamic Portfolio Allocation', url: 'https://arxiv.org/pdf/2401.12345.pdf' },
+                { title: 'Attention Is All You Need for Price Prediction', url: 'https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4567890' },
+                { title: 'Hidden Markov Models for Regime Detection', url: 'https://quantstart.com/articles/hmm-regime-detection.pdf' }
+            ];
+            
+            const pdfContent = document.getElementById('pdfContent');
+            let html = '<div style="padding: 20px;">';
+            html += '<h3 style="color: #cccccc; margin-bottom: 16px;">Recent Papers from Feed</h3>';
+            
+            papers.forEach(paper => {
+                html += `
+                    <div style="padding: 12px; background: #2d2d30; border-radius: 4px; margin-bottom: 8px; cursor: pointer;" 
+                         onclick="loadPDFResearch('${paper.url}')">
+                        <div style="color: #4ec9b0; font-size: 14px;">${paper.title}</div>
+                        <div style="color: #858585; font-size: 11px; margin-top: 4px;">${paper.url}</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            pdfContent.innerHTML = html;
+        }
+        
+        function closePDFViewer() {
+            toggleReferenceMode();
+        }
+        
+        function updatePDFInfoResearch() {
+            const pageInfo = document.getElementById('pdfPageInfo');
+            pageInfo.textContent = `Page ${currentPDFPage}`;
+        }
+        
+        function previousPDFPage() {
+            if (currentPDFPage > 1) {
+                currentPDFPage--;
+                updatePDFInfoResearch();
+            }
+        }
+        
+        function nextPDFPage() {
+            currentPDFPage++;
+            updatePDFInfoResearch();
+        }
+        
+        function zoomInPDF() {
+            pdfZoom = Math.min(pdfZoom + 0.1, 2);
+            updatePDFZoomResearch();
+        }
+        
+        function zoomOutPDF() {
+            pdfZoom = Math.max(pdfZoom - 0.1, 0.5);
+            updatePDFZoomResearch();
+        }
+        
+        function updatePDFZoomResearch() {
+            const iframe = document.querySelector('.pdf-embed');
+            if (iframe) {
+                iframe.style.transform = `scale(${pdfZoom})`;
+            }
+        }
+        
+        // Function to load PDF from homepage
+        function loadPDFFromHomepage(url) {
+            // Ensure we're on the research tab
+            const researchTab = document.getElementById('researchTab');
+            if (researchTab) {
+                showView('research', researchTab);
+            }
+            
+            // Open reference mode if not already open
+            const workspace = document.querySelector('.workspace');
+            if (!workspace.classList.contains('split-view')) {
+                toggleReferenceMode();
+            }
+            
+            // Load the PDF
+            loadPDFResearch(url);
+        }
+
+        // Config panel functions
+        function toggleSection(header) {
+            const content = header.nextElementSibling;
+            const toggle = header.querySelector('span:last-child');
+            const isActive = content.classList.contains('active');
+            
+            if (isActive) {
+                content.classList.remove('active');
+                header.classList.remove('active');
+                toggle.textContent = '▶';
+            } else {
+                content.classList.add('active');
+                header.classList.add('active');
+                toggle.textContent = '▼';
+            }
+        }
+
+        function loadFromDevelop() {
+            console.log('Loading configuration from Develop tab...');
+            // In production, this would pull the strategy config from the Develop tab
+            alert('Strategy configuration loaded from Develop tab');
+        }
+
+        function generateSignals() {
+            console.log('Generating signals...');
+            // This would trigger signal generation in the backend
+            alert('Generating signals... Check the notebook for results.');
+        }
+
+        function runBacktest() {
+            console.log('Running backtest...');
+            // This would run the backtest with current configuration
+            alert('Running backtest... Results will appear in the notebook.');
+        }
+
+        function runWalkForward() {
+            console.log('Running walk-forward analysis...');
+            // This would run walk-forward validation
+            alert('Running walk-forward analysis... This may take several minutes.');
+        }
+    </script>
+    <!-- Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+</body>
+</html>

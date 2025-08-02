@@ -1,0 +1,434 @@
+/* Mobile-First Utility CSS for AlphaPulse */
+
+/* CSS Variables */
+:root {
+    --header-height: 44px;
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+    
+    /* Colors */
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #252526;
+    --bg-tertiary: #2d2d30;
+    --border-color: #3e3e42;
+    --text-primary: #cccccc;
+    --text-secondary: #858585;
+    --accent-primary: #007acc;
+    --accent-success: #4ec9b0;
+    --accent-warning: #dcdcaa;
+    --accent-danger: #f48771;
+    
+    /* Mobile-specific dimensions */
+    --mobile-controls-height: 56px;
+    --touch-target-min: 44px;
+    --mobile-padding: 16px;
+    --mobile-gap: 12px;
+}
+
+/* Base Mobile-First Styles */
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Allow text selection where needed */
+input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* Viewport Management */
+.mobile-viewport {
+    height: 100vh;
+    height: -webkit-fill-available;
+    min-height: -webkit-fill-available;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.mobile-safe-area {
+    padding-top: max(8px, var(--safe-area-top));
+    padding-bottom: max(8px, var(--safe-area-bottom));
+    padding-left: max(8px, var(--safe-area-left));
+    padding-right: max(8px, var(--safe-area-right));
+}
+
+/* Prevent Input Zoom on iOS */
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea,
+select {
+    font-size: 16px !important;
+}
+
+/* Touch-Friendly Targets */
+.mobile-touch-target {
+    min-height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+}
+
+/* Active States for Touch */
+.mobile-touch-target:active {
+    transform: scale(0.95);
+    opacity: 0.8;
+}
+
+/* Disable active state on disabled elements */
+.mobile-touch-target:disabled,
+.mobile-touch-target.disabled {
+    transform: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Mobile Scrolling */
+.mobile-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* Hide scrollbars on mobile */
+.mobile-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.mobile-scroll {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Overlay System */
+.mobile-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    display: none;
+    backdrop-filter: blur(4px);
+}
+
+.mobile-overlay.active {
+    display: block;
+}
+
+/* Sidebar Pattern */
+.mobile-sidebar {
+    position: fixed;
+    left: 0;
+    top: var(--header-height);
+    height: calc(100vh - var(--header-height));
+    width: 300px;
+    max-width: 85vw;
+    background: var(--bg-secondary);
+    z-index: 999;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.mobile-sidebar.mobile-visible {
+    transform: translateX(0);
+}
+
+/* Bottom Sheet Pattern */
+.mobile-bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    border-radius: 12px 12px 0 0;
+    z-index: 999;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.mobile-bottom-sheet.open {
+    transform: translateY(0);
+}
+
+.mobile-sheet-handle {
+    padding: 12px;
+    cursor: pointer;
+    text-align: center;
+    background: var(--bg-tertiary);
+    border-radius: 12px 12px 0 0;
+}
+
+.mobile-sheet-handle-bar {
+    width: 40px;
+    height: 4px;
+    background: var(--text-secondary);
+    border-radius: 2px;
+    margin: 0 auto;
+}
+
+/* Floating Action Button */
+.mobile-fab {
+    position: fixed;
+    bottom: calc(20px + var(--safe-area-bottom));
+    right: calc(20px + var(--safe-area-right));
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mobile-fab:active {
+    transform: scale(0.9);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Bottom Navigation */
+.mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(var(--mobile-controls-height) + var(--safe-area-bottom));
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: flex-start;
+    padding-bottom: var(--safe-area-bottom);
+    z-index: 100;
+}
+
+.mobile-bottom-nav-item {
+    flex: 1;
+    height: var(--mobile-controls-height);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--text-secondary);
+    font-size: 10px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.mobile-bottom-nav-item.active {
+    color: var(--accent-primary);
+}
+
+/* Mobile-Optimized Form Elements */
+.mobile-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 16px;
+    transition: border-color 0.2s;
+}
+
+.mobile-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.mobile-button {
+    min-height: var(--touch-target-min);
+    padding: 0 24px;
+    background: var(--accent-primary);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mobile-button:active {
+    transform: scale(0.95);
+}
+
+.mobile-button.secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.mobile-button.danger {
+    background: var(--accent-danger);
+}
+
+/* Mobile Cards */
+.mobile-card {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: var(--mobile-padding);
+    margin-bottom: var(--mobile-gap);
+    border: 1px solid var(--border-color);
+}
+
+/* Mobile List Items */
+.mobile-list-item {
+    display: flex;
+    align-items: center;
+    padding: var(--mobile-padding);
+    border-bottom: 1px solid var(--border-color);
+    min-height: var(--touch-target-min);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.mobile-list-item:active {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Responsive Utilities */
+.mobile-only {
+    display: block !important;
+}
+
+.desktop-only {
+    display: none !important;
+}
+
+/* Tablet and up */
+@media (min-width: 768px) {
+    .mobile-only {
+        display: none !important;
+    }
+    
+    .desktop-only {
+        display: block !important;
+    }
+    
+    /* Remove mobile-specific constraints on larger screens */
+    .mobile-sidebar {
+        position: relative;
+        transform: none;
+        width: auto;
+        height: auto;
+        box-shadow: none;
+        border-right: 1px solid var(--border-color);
+    }
+    
+    .mobile-overlay {
+        display: none !important;
+    }
+    
+    .mobile-bottom-sheet {
+        position: relative;
+        transform: none;
+        max-height: none;
+        border-radius: 0;
+        border-top: none;
+    }
+    
+    .mobile-fab {
+        display: none;
+    }
+    
+    .mobile-bottom-nav {
+        display: none;
+    }
+}
+
+/* Utility Classes */
+.mobile-text-center { text-align: center; }
+.mobile-text-left { text-align: left; }
+.mobile-text-right { text-align: right; }
+
+.mobile-flex { display: flex; }
+.mobile-flex-column { flex-direction: column; }
+.mobile-flex-center { align-items: center; justify-content: center; }
+.mobile-gap-sm { gap: 8px; }
+.mobile-gap { gap: var(--mobile-gap); }
+.mobile-gap-lg { gap: 20px; }
+
+.mobile-p-0 { padding: 0; }
+.mobile-p-sm { padding: 8px; }
+.mobile-p { padding: var(--mobile-padding); }
+.mobile-p-lg { padding: 20px; }
+
+.mobile-m-0 { margin: 0; }
+.mobile-m-sm { margin: 8px; }
+.mobile-m { margin: var(--mobile-gap); }
+.mobile-m-lg { margin: 20px; }
+
+/* Prevent horizontal scroll */
+.mobile-no-overflow {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+/* Loading States */
+.mobile-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: var(--text-secondary);
+}
+
+.mobile-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: mobile-spin 0.8s linear infinite;
+}
+
+@keyframes mobile-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Animations */
+.mobile-fade-in {
+    animation: mobileFadeIn 0.3s ease;
+}
+
+@keyframes mobileFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.mobile-slide-up {
+    animation: mobileSlideUp 0.3s ease;
+}
+
+@keyframes mobileSlideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
