@@ -1,0 +1,20 @@
+.appContainer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg-primary);
+  transition: background-color var(--transition-base);
+}
+
+.mainContent {
+  flex: 1;
+  padding-top: var(--header-height);
+  width: 100%;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    padding-top: var(--mobile-header-height);
+  }
+}

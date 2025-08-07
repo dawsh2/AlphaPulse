@@ -1,0 +1,4242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0969da" id="theme-color">
+    <title>Explore - AlphaPulse</title>
+    
+    <!-- Shared styles with Full Stack Open design -->
+    <link rel="stylesheet" href="shared.css">
+    
+    <!-- Prism for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    
+    <!-- Marked for markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Page-specific styles -->
+    <style>
+        /* Layout */
+        .explore-container {
+            min-height: calc(100vh - var(--header-height));
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Snippets Sidebar */
+        .snippets-sidebar {
+            width: 320px;
+            background: var(--color-bg-secondary);
+            border-right: 1px solid var(--color-border-primary);
+            display: flex;
+            flex-direction: column;
+            transition: all var(--transition-base);
+            position: relative;
+        }
+        
+        .sidebar-header {
+            padding: var(--space-4);
+            background: var(--color-bg-tertiary);
+            border-bottom: 1px solid var(--color-border-primary);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3);
+        }
+        
+        .sidebar-tabs {
+            display: flex;
+            gap: var(--space-1);
+        }
+        
+        .sidebar-tab {
+            flex: 1;
+            padding: var(--space-2) var(--space-3);
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-primary);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            color: var(--color-text-secondary);
+        }
+        
+        .sidebar-tab.active {
+            background: var(--color-accent-primary);
+            color: white;
+            border-color: var(--color-accent-primary);
+        }
+        
+        .sidebar-tab:hover:not(.active) {
+            background: var(--color-bg-secondary);
+        }
+        
+        .sidebar-title {
+            font-weight: var(--font-weight-semibold);
+            font-size: var(--font-size-sm);
+            text-transform: uppercase;
+            letter-spacing: var(--letter-spacing-wide);
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-3);
+        }
+        
+        .snippet-search {
+            width: 100%;
+            padding: var(--space-2) var(--space-3);
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-primary);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            color: var(--color-text-primary);
+        }
+        
+        .snippet-search:focus {
+            outline: none;
+            border-color: var(--color-accent-primary);
+            box-shadow: 0 0 0 3px var(--color-focus-ring);
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-2) 0;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .snippet-category,
+        .template-category {
+            margin-bottom: var(--space-4);
+        }
+        
+        .category-header {
+            padding: var(--space-2) var(--space-4);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+            text-transform: uppercase;
+            letter-spacing: var(--letter-spacing-wide);
+            color: var(--color-text-tertiary);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            cursor: pointer;
+        }
+        
+        .category-arrow {
+            font-size: 10px;
+            transition: transform var(--transition-fast);
+        }
+        
+        .category-header.collapsed .category-arrow {
+            transform: rotate(-90deg);
+        }
+        
+        .category-header.collapsed + .snippet-list,
+        .category-header.collapsed + .template-list,
+        .category-header.collapsed + .notebook-list {
+            display: none;
+        }
+        
+        .snippet-list,
+        .template-list {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .snippet-item,
+        .template-item {
+            padding: var(--space-3) var(--space-4);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border-left: 3px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .snippet-item:hover,
+        .template-item:hover {
+            background: var(--color-bg-tertiary);
+            border-left-color: var(--color-accent-primary);
+        }
+        
+        .template-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-1);
+        }
+        
+        .template-name {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            color: var(--color-text-primary);
+        }
+        
+        .template-desc {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-tertiary);
+            line-height: var(--line-height-tight);
+        }
+        
+        /* Notebook Browser */
+        .notebook-browser {
+            padding: var(--space-2) 0;
+        }
+        
+        .browser-header {
+            padding: 0 var(--space-4) var(--space-3) var(--space-4);
+        }
+        
+        .notebook-category {
+            margin-bottom: var(--space-4);
+        }
+        
+        .notebook-list {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .notebook-item {
+            padding: var(--space-3) var(--space-4);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border-left: 3px solid transparent;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
+        }
+        
+        .notebook-item:hover {
+            background: var(--color-bg-tertiary);
+            border-left-color: var(--color-accent-primary);
+        }
+        
+        .notebook-item.shared {
+            border-left-color: var(--color-success-emphasis);
+        }
+        
+        .notebook-name {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            color: var(--color-text-primary);
+        }
+        
+        .notebook-meta {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-tertiary);
+        }
+        
+        .strategy-folder {
+            padding: var(--space-2) var(--space-4);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            transition: all var(--transition-fast);
+        }
+        
+        .strategy-folder:hover {
+            background: var(--color-bg-tertiary);
+        }
+        
+        .folder-icon {
+            font-size: var(--font-size-sm);
+        }
+        
+        .notebook-count {
+            margin-left: auto;
+            font-size: var(--font-size-xs);
+            color: var(--color-text-tertiary);
+            background: var(--color-bg-primary);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+        }
+        
+        .snippet-name {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-primary);
+        }
+        
+        .snippet-shortcut {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xs);
+            color: var(--color-text-tertiary);
+            background: var(--color-bg-primary);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+        }
+        
+        /* Notebook Container */
+        .notebook-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--color-bg-primary);
+            overflow: hidden;
+        }
+        
+        .notebook-header {
+            background: var(--color-bg-secondary);
+            border-bottom: 1px solid var(--color-border-primary);
+            padding: var(--space-3) var(--space-4);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .notebook-title-input {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-text-primary);
+            background: transparent;
+            border: 1px solid transparent;
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-md);
+            transition: all var(--transition-fast);
+        }
+        
+        .notebook-title-input:hover {
+            background: var(--color-bg-tertiary);
+        }
+        
+        .notebook-title-input:focus {
+            background: var(--color-bg-primary);
+            border-color: var(--color-accent-primary);
+            outline: none;
+        }
+        
+        .notebook-actions {
+            display: flex;
+            gap: var(--space-2);
+        }
+        
+        /* Notebook Content */
+        .notebook-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-6) var(--space-8) var(--space-6) var(--space-6);
+            max-width: none;
+            width: 100%;
+        }
+        
+        /* Cells */
+        .cell {
+            margin-bottom: var(--space-4);
+            border-radius: var(--radius-lg);
+            border: 1px solid transparent;
+            transition: all var(--transition-fast);
+            position: relative;
+        }
+        
+        .cell:hover {
+            border-color: var(--color-border-primary);
+        }
+        
+        .cell.active {
+            border-color: var(--color-accent-primary);
+            box-shadow: 0 0 0 1px var(--color-accent-primary);
+        }
+        
+        .cell-toolbar {
+            position: absolute;
+            top: var(--space-2);
+            right: var(--space-2);
+            display: none;
+            gap: var(--space-1);
+        }
+        
+        .cell:hover .cell-toolbar,
+        .cell.active .cell-toolbar {
+            display: flex;
+        }
+        
+        .cell-btn {
+            padding: var(--space-1);
+            font-size: var(--font-size-xs);
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-border-primary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            color: var(--color-text-secondary);
+            transition: all var(--transition-fast);
+        }
+        
+        .cell-btn:hover {
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-primary);
+        }
+        
+        /* Code Cell */
+        .code-cell {
+            background: var(--color-bg-code);
+            border: 1px solid var(--color-border-primary);
+        }
+        
+        .code-input {
+            padding: var(--space-4);
+            position: relative;
+        }
+        
+        .code-editor {
+            position: relative;
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            line-height: var(--line-height-relaxed);
+        }
+        
+        .code-textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 0;
+            margin: 0;
+            background: transparent;
+            color: var(--color-text-primary);
+            border: none;
+            outline: none;
+            resize: vertical;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: inherit;
+            white-space: pre;
+            overflow: auto;
+        }
+        
+        /* Compact Monaco for notebooks */
+        .monaco-cell-editor {
+            width: 100%;
+            height: auto;
+            min-height: 60px;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+        
+        /* Hide Monaco decorations for cleaner look */
+        .monaco-cell-editor .monaco-editor {
+            background: transparent !important;
+        }
+        
+        .monaco-cell-editor .monaco-editor .margin {
+            background: transparent !important;
+        }
+        
+        .monaco-cell-editor .monaco-scrollable-element > .scrollbar {
+            display: none !important;
+        }
+        
+        .monaco-cell-editor .monaco-editor .scroll-decoration {
+            display: none !important;
+        }
+        
+        /* Autocomplete Popup */
+        .autocomplete-popup {
+            position: absolute;
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-primary);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .autocomplete-popup.show {
+            display: block;
+        }
+        
+        .autocomplete-item {
+            padding: var(--space-2) var(--space-3);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: var(--font-size-sm);
+        }
+        
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: var(--color-bg-secondary);
+        }
+        
+        .autocomplete-name {
+            font-family: var(--font-family-mono);
+            color: var(--color-text-primary);
+        }
+        
+        .autocomplete-type {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-tertiary);
+            background: var(--color-bg-tertiary);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+        }
+        
+        .code-output {
+            background: var(--color-bg-primary);
+            border-top: 1px solid var(--color-border-primary);
+            padding: var(--space-3) var(--space-4);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .output-plot {
+            padding: var(--space-4);
+            background: white;
+            border-radius: var(--radius-md);
+            margin: var(--space-3) 0;
+        }
+        
+        /* Markdown Cell */
+        .markdown-cell {
+            padding: var(--space-4);
+        }
+        
+        .markdown-preview h1 {
+            font-size: var(--font-size-2xl);
+            margin-bottom: var(--space-4);
+        }
+        
+        .markdown-preview h2 {
+            font-size: var(--font-size-xl);
+            margin-top: var(--space-6);
+            margin-bottom: var(--space-3);
+        }
+        
+        .markdown-preview p {
+            margin-bottom: var(--space-3);
+            line-height: var(--line-height-relaxed);
+        }
+        
+        .markdown-preview code {
+            background: var(--color-bg-code);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9em;
+        }
+        
+        /* Add Cell Button */
+        .add-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-3);
+            padding: var(--space-3);
+            margin: var(--space-4) 0;
+            border: 2px dashed var(--color-border-primary);
+            border-radius: var(--radius-lg);
+            background: var(--color-bg-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .add-cell:hover {
+            border-color: var(--color-accent-primary);
+            background: var(--color-bg-tertiary);
+        }
+        
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            .research-container {
+                height: calc(100vh - var(--mobile-header-height));
+            }
+            
+            .snippets-sidebar {
+                position: fixed;
+                left: 0;
+                top: var(--mobile-header-height);
+                height: calc(100vh - var(--mobile-header-height));
+                z-index: 200;
+                transform: translateX(-100%);
+                width: 85vw;
+                max-width: 320px;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+            }
+            
+            .snippets-sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .sidebar-tabs {
+                flex-wrap: wrap;
+                gap: var(--space-1);
+            }
+            
+            .sidebar-tab {
+                font-size: var(--font-size-xs);
+                padding: var(--space-1) var(--space-2);
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .notebook-content {
+                padding: var(--space-4) var(--space-6);
+            }
+        }
+
+        /* Strategy Catalogue Styles */
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: var(--space-4);
+            padding: var(--space-4);
+        }
+
+        
+        /* Reset button styles for strategy cards */
+        .strategy-card {
+            /* Reset button defaults */
+            border: none;
+            outline: none;
+            background: none;
+            font: inherit;
+            color: inherit;
+            cursor: pointer;
+            
+            /* Apply AlphaPulse button styles */
+            font-family: var(--font-family-sans);
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-lg);
+            box-shadow: -3px 5px var(--color-text-primary);
+            transition: all var(--transition-fast);
+            padding: var(--space-4);
+            text-align: left;
+            position: relative;
+            margin-bottom: 5px;
+            margin-right: 5px;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+
+        .strategy-card:hover {
+            border-color: var(--color-border-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .strategy-card.featured {
+            border-color: var(--color-primary);
+            background: linear-gradient(135deg, var(--color-bg-primary) 0%, rgba(255, 204, 0, 0.05) 100%);
+        }
+
+        .strategy-badge {
+            position: absolute;
+            top: var(--space-2);
+            right: var(--space-2);
+            background: var(--color-primary);
+            color: var(--color-bg-primary);
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-xs);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+        }
+
+        .strategy-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            margin-bottom: var(--space-3);
+        }
+
+        .strategy-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--color-bg-secondary);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .strategy-info h3 {
+            margin: 0 0 var(--space-1) 0;
+            font-size: var(--font-size-md);
+            font-weight: var(--font-weight-semibold);
+        }
+
+        .strategy-type {
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-xs);
+        }
+
+        .strategy-description {
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-sm);
+            line-height: 1.5;
+            margin-bottom: var(--space-3);
+        }
+
+        .strategy-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-2);
+            margin-bottom: var(--space-3);
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
+        }
+
+        .metric-label {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-secondary);
+        }
+
+        .metric-value {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+        }
+
+        .metric-value.positive {
+            color: var(--color-success);
+        }
+
+        .metric-value.negative {
+            color: var(--color-danger);
+        }
+
+        .strategy-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            margin-bottom: var(--space-3);
+        }
+
+        .strategy-tag {
+            background: var(--color-bg-secondary);
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-xs);
+            font-size: var(--font-size-xs);
+            color: var(--color-text-secondary);
+        }
+
+        .strategy-actions {
+            display: flex;
+            gap: var(--space-2);
+            margin-top: auto;
+        }
+
+        .strategy-action {
+            flex: 1;
+            padding: var(--space-2);
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-border-primary);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-xs);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .strategy-action:hover {
+            background: var(--color-bg-tertiary);
+            border-color: var(--color-border-hover);
+        }
+
+        .strategy-action.primary {
+            background: var(--color-primary);
+            color: var(--color-bg-primary);
+            border-color: var(--color-primary);
+        }
+
+        .strategy-action.primary:hover {
+            background: var(--color-primary-hover);
+            border-color: var(--color-primary-hover);
+        }
+
+        .catalogue-filters {
+            display: flex;
+            gap: var(--space-3);
+            padding: var(--space-4);
+            border-bottom: 1px solid var(--color-border-primary);
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .filter-label {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+
+        .filter-select {
+            padding: var(--space-2);
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-primary);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-sm);
+        }
+
+
+        /* Strategy Catalogue - Card Button Style */
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: var(--space-4);
+            padding: var(--space-4);
+        }
+
+        .strategy-card {
+            background: var(--color-bg-primary);
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-5);
+            transition: all var(--transition-base);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 280px;
+        }
+
+        .strategy-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* Color coding by strategy type */
+        .strategy-card[data-type="trend"] {
+            border-color: var(--color-success);
+            background: linear-gradient(135deg, var(--color-bg-primary) 0%, rgba(16, 185, 129, 0.05) 100%);
+        }
+
+        .strategy-card[data-type="meanreversion"] {
+            border-color: var(--color-accent-primary);
+            background: linear-gradient(135deg, var(--color-bg-primary) 0%, rgba(59, 130, 246, 0.05) 100%);
+        }
+
+        .strategy-card[data-type="marketmaking"] {
+            border-color: var(--color-warning);
+            background: linear-gradient(135deg, var(--color-bg-primary) 0%, rgba(245, 158, 11, 0.05) 100%);
+        }
+
+        .strategy-card[data-type="ml"] {
+            border-color: var(--color-danger);
+            background: linear-gradient(135deg, var(--color-bg-primary) 0%, rgba(239, 68, 68, 0.05) 100%);
+        }
+
+        .strategy-card[data-type="execution"] {
+            border-color: var(--color-text-secondary);
+            background: linear-gradient(135deg, var(--color-bg-primary) 0%, rgba(107, 114, 128, 0.05) 100%);
+        }
+
+        /* Complexity badge */
+        .complexity-badge {
+            position: absolute;
+            top: var(--space-3);
+            right: var(--space-3);
+            padding: var(--space-1) var(--space-3);
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+            text-transform: uppercase;
+            letter-spacing: var(--letter-spacing-wide);
+        }
+
+        .complexity-badge[data-level="beginner"] {
+            background: var(--color-success-emphasis);
+            color: white;
+        }
+
+        .complexity-badge[data-level="intermediate"] {
+            background: var(--color-warning);
+            color: var(--color-text-primary);
+        }
+
+        .complexity-badge[data-level="advanced"] {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .strategy-icon-large {
+            font-size: 48px;
+            margin-bottom: var(--space-3);
+            opacity: 0.8;
+        }
+
+        .strategy-name {
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-bold);
+            margin-bottom: var(--space-2);
+            color: var(--color-text-primary);
+        }
+
+        .strategy-type-label {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-3);
+            text-transform: capitalize;
+        }
+
+        .strategy-description {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            line-height: var(--line-height-relaxed);
+            margin-bottom: var(--space-4);
+            flex-grow: 1;
+        }
+
+        .strategy-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-3);
+            padding-top: var(--space-3);
+            border-top: 1px solid var(--color-border-secondary);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-primary);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: var(--letter-spacing-wide);
+        }
+
+        /* Quick action buttons */
+        .strategy-actions {
+            position: absolute;
+            bottom: var(--space-3);
+            right: var(--space-3);
+            display: flex;
+            gap: var(--space-2);
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .strategy-card:hover .strategy-actions {
+            opacity: 1;
+        }
+
+        .quick-action {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .quick-action:hover {
+            background: var(--color-bg-secondary);
+            transform: scale(1.1);
+        }
+
+        /* Filter pills */
+        .catalogue-filters {
+            display: flex;
+            gap: var(--space-3);
+            padding: var(--space-4);
+            border-bottom: 1px solid var(--color-border-primary);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-pills {
+            display: flex;
+            gap: var(--space-2);
+        }
+
+        .filter-pill {
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-full);
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-border-primary);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .filter-pill:hover {
+            background: var(--color-bg-tertiary);
+        }
+
+        .filter-pill.active {
+            background: var(--color-accent-primary);
+            color: white;
+            border-color: var(--color-accent-primary);
+        }
+
+
+        /* Strategy Card Styles */
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--space-6);
+            padding: var(--space-4);
+        }
+        
+        .strategy-section {
+            margin-bottom: var(--space-8);
+        }
+        
+        .section-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-4);
+            text-align: center;
+            color: var(--color-text-secondary);
+        }
+        
+        /* AlphaPulse Style Strategy Cards */
+        .strategy-card {
+            font-family: var(--font-family-sans);
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-lg);
+            box-shadow: -3px 5px var(--color-text-primary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            padding: var(--space-4);
+            text-align: left;
+            position: relative;
+            margin-bottom: 5px;
+            margin-right: 5px;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .strategy-card:hover {
+            background: var(--color-text-primary);
+            color: var(--color-bg-primary);
+            transform: translate(2px, -2px);
+            box-shadow: -5px 7px var(--color-text-primary);
+        }
+        
+        .strategy-card:hover .strategy-title,
+        .strategy-card:hover .strategy-description,
+        .strategy-card:hover .tag {
+            color: var(--color-bg-primary) !important;
+        }
+        
+        .strategy-card:hover .tag {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: var(--color-bg-primary);
+        }
+        
+        .strategy-card:active {
+            transform: translate(-1px, 2px);
+            box-shadow: -2px 3px var(--color-text-primary);
+        }
+        
+        .strategy-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-2);
+            line-height: 1.2;
+            transition: color var(--transition-fast);
+        }
+        
+        .strategy-description {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            line-height: 1.4;
+            margin-bottom: var(--space-3);
+            flex-grow: 1;
+            transition: color var(--transition-fast);
+        }
+        
+        .strategy-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-1);
+            margin-top: auto;
+        }
+        
+        .tag {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+            padding: 2px var(--space-2);
+            background: var(--color-bg-secondary);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all var(--transition-fast);
+        }
+        
+        /* Strategy Card Colors */
+        .color-blue {
+            background: #89CDF1 !important;
+            border-color: #5BA7D1 !important;
+            color: #1a1a1a !important;
+        }
+        
+        .color-blue:hover {
+            background: #1a1a1a !important;
+            color: #89CDF1 !important;
+        }
+        
+        .color-blue .strategy-description {
+            color: #2a2a2a !important;
+        }
+        
+        .color-orange {
+            background: #FF9500 !important;
+            border-color: #CC7700 !important;
+            color: #1a1a1a !important;
+        }
+        
+        .color-orange:hover {
+            background: #1a1a1a !important;
+            color: #FF9500 !important;
+        }
+        
+        .color-orange .strategy-description {
+            color: #2a2a2a !important;
+        }
+        
+        .color-green {
+            background: #4CAF50 !important;
+            border-color: #388E3C !important;
+            color: #1a1a1a !important;
+        }
+        
+        .color-green:hover {
+            background: #1a1a1a !important;
+            color: #4CAF50 !important;
+        }
+        
+        .color-green .strategy-description {
+            color: #2a2a2a !important;
+        }
+        
+        .color-purple {
+            background: #9C27B0 !important;
+            border-color: #7B1FA2 !important;
+            color: #ffffff !important;
+        }
+        
+        .color-purple:hover {
+            background: #ffffff !important;
+            color: #9C27B0 !important;
+        }
+        
+        .color-purple .strategy-description {
+            color: #e0e0e0 !important;
+        }
+        
+        .color-red {
+            background: #F44336 !important;
+            border-color: #D32F2F !important;
+            color: #ffffff !important;
+        }
+        
+        .color-red:hover {
+            background: #ffffff !important;
+            color: #F44336 !important;
+        }
+        
+        .color-red .strategy-description {
+            color: #ffcdd2 !important;
+        }
+        
+        .color-teal {
+            background: #009688 !important;
+            border-color: #00695C !important;
+            color: #ffffff !important;
+        }
+        
+        .color-teal:hover {
+            background: #ffffff !important;
+            color: #009688 !important;
+        }
+        
+        .color-teal .strategy-description {
+            color: #b2dfdb !important;
+        }
+        
+        .color-indigo {
+            background: #3F51B5 !important;
+            border-color: #303F9F !important;
+            color: #ffffff !important;
+        }
+        
+        .color-indigo:hover {
+            background: #ffffff !important;
+            color: #3F51B5 !important;
+        }
+        
+        .color-indigo .strategy-description {
+            color: #c5cae9 !important;
+        }
+        
+        .color-pink {
+            background: #E91E63 !important;
+            border-color: #C2185B !important;
+            color: #ffffff !important;
+        }
+        
+        .color-pink:hover {
+            background: #ffffff !important;
+            color: #E91E63 !important;
+        }
+        
+        .color-pink .strategy-description {
+            color: #f8bbd9 !important;
+        }
+        
+        .color-cyan {
+            background: #00BCD4 !important;
+            border-color: #0097A7 !important;
+            color: #1a1a1a !important;
+        }
+        
+        .color-cyan:hover {
+            background: #1a1a1a !important;
+            color: #00BCD4 !important;
+        }
+        
+        .color-cyan .strategy-description {
+            color: #2a2a2a !important;
+        }
+        
+        /* Coming Soon Overlay */
+        .coming-soon::after {
+            content: 'Coming Soon';
+            position: absolute;
+            top: var(--space-2);
+            right: var(--space-2);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+            padding: var(--space-1) var(--space-2);
+            background: #ffd700;
+            color: #333;
+            border: 2px solid #333;
+            border-radius: var(--radius-md);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            z-index: 10;
+        }
+        
+        .coming-soon {
+            opacity: 0.8;
+        }
+        
+        /* Search bar for catalogue */
+        .catalogue-search {
+            max-width: 500px;
+            margin: 0 auto var(--space-6) auto;
+            padding: 0 var(--space-4);
+        }
+        
+        .catalogue-search input {
+            width: 100%;
+            padding: var(--space-3) var(--space-4);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-md);
+            color: var(--color-text-primary);
+            box-shadow: -3px 5px var(--color-text-primary);
+            transition: all var(--transition-fast);
+        }
+        
+        .catalogue-search input:focus {
+            outline: none;
+            transform: translate(2px, -2px);
+            box-shadow: -5px 7px var(--color-text-primary);
+        }
+
+
+        /* Strategy Card Hover Effects */
+        .strategy-card:hover {
+            transform: translate(2px, -2px) !important;
+            box-shadow: -5px 7px currentColor !important;
+        }
+        
+        .strategy-card:active {
+            transform: translate(-1px, 2px) !important;
+            box-shadow: -2px 3px currentColor !important;
+        }
+        
+        /* Color-specific hover states */
+        .color-blue:hover {
+            background: #1a1a1a !important;
+            color: #89CDF1 !important;
+            border-color: #5BA7D1 !important;
+        }
+        
+        .color-blue:hover .strategy-title,
+        .color-blue:hover .strategy-description,
+        .color-blue:hover .tag {
+            color: #89CDF1 !important;
+        }
+        
+        .color-orange:hover {
+            background: #1a1a1a !important;
+            color: #FF9500 !important;
+            border-color: #CC7700 !important;
+        }
+        
+        .color-orange:hover .strategy-title,
+        .color-orange:hover .strategy-description,
+        .color-orange:hover .tag {
+            color: #FF9500 !important;
+        }
+        
+        .color-green:hover {
+            background: #1a1a1a !important;
+            color: #4CAF50 !important;
+            border-color: #388E3C !important;
+        }
+        
+        .color-green:hover .strategy-title,
+        .color-green:hover .strategy-description,
+        .color-green:hover .tag {
+            color: #4CAF50 !important;
+        }
+        
+        .color-purple:hover {
+            background: #ffffff !important;
+            color: #9C27B0 !important;
+            border-color: #7B1FA2 !important;
+        }
+        
+        .color-purple:hover .strategy-title,
+        .color-purple:hover .strategy-description,
+        .color-purple:hover .tag {
+            color: #9C27B0 !important;
+        }
+        
+        .color-red:hover {
+            background: #ffffff !important;
+            color: #F44336 !important;
+            border-color: #D32F2F !important;
+        }
+        
+        .color-red:hover .strategy-title,
+        .color-red:hover .strategy-description,
+        .color-red:hover .tag {
+            color: #F44336 !important;
+        }
+        
+        .color-teal:hover {
+            background: #ffffff !important;
+            color: #009688 !important;
+            border-color: #00695C !important;
+        }
+        
+        .color-teal:hover .strategy-title,
+        .color-teal:hover .strategy-description,
+        .color-teal:hover .tag {
+            color: #009688 !important;
+        }
+        
+        .color-indigo:hover {
+            background: #ffffff !important;
+            color: #3F51B5 !important;
+            border-color: #303F9F !important;
+        }
+        
+        .color-indigo:hover .strategy-title,
+        .color-indigo:hover .strategy-description,
+        .color-indigo:hover .tag {
+            color: #3F51B5 !important;
+        }
+        
+        .color-pink:hover {
+            background: #ffffff !important;
+            color: #E91E63 !important;
+            border-color: #C2185B !important;
+        }
+        
+        .color-pink:hover .strategy-title,
+        .color-pink:hover .strategy-description,
+        .color-pink:hover .tag {
+            color: #E91E63 !important;
+        }
+        
+        .color-cyan:hover {
+            background: #1a1a1a !important;
+            color: #00BCD4 !important;
+            border-color: #0097A7 !important;
+        }
+        
+        .color-cyan:hover .strategy-title,
+        .color-cyan:hover .strategy-description,
+        .color-cyan:hover .tag {
+            color: #00BCD4 !important;
+        }
+
+
+        /* Catalogue Styles */
+        .catalogue-container {
+            flex: 1;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-8) var(--space-6);
+            overflow-y: auto;
+        }
+        
+        .catalogue-header {
+            text-align: center;
+            margin-bottom: var(--space-8);
+        }
+        
+        .catalogue-title {
+            font-size: var(--font-size-4xl);
+            font-weight: var(--font-weight-bold);
+            margin-bottom: var(--space-2);
+            text-align: center;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .catalogue-subtitle {
+            font-size: var(--font-size-lg);
+            color: var(--color-text-secondary);
+            text-align: center;
+        }
+        
+        .catalogue-search {
+            max-width: 600px;
+            margin: 0 auto var(--space-8) auto;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: var(--space-3) var(--space-4);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            background: var(--color-bg-primary);
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-md);
+            color: var(--color-text-primary);
+            outline: none;
+            transition: all var(--transition-fast);
+        }
+        
+        .search-input:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+        }
+        
+        .strategy-section {
+            margin-bottom: var(--space-12);
+        }
+        
+        .section-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-6);
+            text-align: center;
+            color: var(--color-text-secondary);
+            text-transform: lowercase;
+        }
+        
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: var(--space-4);
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .strategy-card {
+            aspect-ratio: 1;
+            background: var(--color-bg-secondary);
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            padding: var(--space-4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+        }
+        
+        .strategy-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: var(--color-primary);
+        }
+        
+        .strategy-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-2);
+        }
+        
+        .strategy-description {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+        
+        /* Color variants */
+        .color-blue {
+            background: rgba(9, 105, 218, 0.1);
+            border-color: rgba(9, 105, 218, 0.3);
+        }
+        
+        .color-orange {
+            background: rgba(255, 149, 0, 0.1);
+            border-color: rgba(255, 149, 0, 0.3);
+        }
+        
+        .color-green {
+            background: rgba(26, 127, 55, 0.1);
+            border-color: rgba(26, 127, 55, 0.3);
+        }
+        
+        .color-purple {
+            background: rgba(130, 80, 223, 0.1);
+            border-color: rgba(130, 80, 223, 0.3);
+        }
+        
+        .color-red {
+            background: rgba(207, 34, 46, 0.1);
+            border-color: rgba(207, 34, 46, 0.3);
+        }
+        
+        .color-teal {
+            background: rgba(0, 150, 136, 0.1);
+            border-color: rgba(0, 150, 136, 0.3);
+        }
+        
+        .color-indigo {
+            background: rgba(63, 81, 181, 0.1);
+            border-color: rgba(63, 81, 181, 0.3);
+        }
+        
+        .color-pink {
+            background: rgba(233, 30, 99, 0.1);
+            border-color: rgba(233, 30, 99, 0.3);
+        }
+        
+        .coming-soon {
+            opacity: 0.6;
+        }
+        
+        .coming-soon::after {
+            content: 'Soon';
+            position: absolute;
+            top: var(--space-2);
+            right: var(--space-2);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-bold);
+            padding: 2px var(--space-2);
+            background: var(--color-warning);
+            color: white;
+            border-radius: var(--radius-sm);
+            text-transform: uppercase;
+        }
+
+        /* Builder Button */
+        .builder-button {
+            width: 44px;
+            height: 44px;
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-md);
+            background: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-bold);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .builder-button:hover {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+        
+        /* Strategy Builder Modal */
+        .builder-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: var(--space-4);
+            overflow-y: auto;
+        }
+        
+        .builder-modal.active {
+            display: flex;
+        }
+        
+        .builder-container {
+            background: var(--color-bg-primary);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 1200px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .builder-header {
+            padding: var(--space-6);
+            border-bottom: 1px solid var(--color-border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .builder-title {
+            font-size: var(--font-size-2xl);
+            font-weight: var(--font-weight-bold);
+        }
+        
+        .builder-close {
+            width: 36px;
+            height: 36px;
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-md);
+            background: transparent;
+            color: var(--color-text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--font-size-xl);
+            transition: all var(--transition-fast);
+        }
+        
+        .builder-close:hover {
+            background: var(--color-danger);
+            color: white;
+            border-color: var(--color-danger);
+        }
+        
+        .builder-content {
+            padding: var(--space-6);
+        }
+        
+        /* Progress Steps */
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--space-8);
+            padding: 0 var(--space-8);
+        }
+        
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            flex: 1;
+            position: relative;
+        }
+        
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 60%;
+            right: -40%;
+            height: 2px;
+            background: var(--color-border-primary);
+        }
+        
+        .step.active .step-circle {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+        
+        .step.completed .step-circle {
+            background: var(--color-success);
+            color: white;
+            border-color: var(--color-success);
+        }
+        
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--color-border-primary);
+            background: var(--color-bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-2);
+        }
+        
+        .step-label {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+        
+        /* Builder Form */
+        .builder-form {
+            display: grid;
+            gap: var(--space-6);
+        }
+        
+        .form-section {
+            background: var(--color-bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+        }
+        
+        .form-section-title {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-4);
+        }
+        
+        .indicator-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: var(--space-3);
+        }
+        
+        .indicator-option {
+            padding: var(--space-3);
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-md);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .indicator-option:hover {
+            border-color: var(--color-primary);
+            background: var(--color-bg-primary);
+        }
+        
+        .indicator-option.selected {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header will be injected by layout.js -->
+        
+        <div class="explore-container">
+            
+            
+            <!-- Notebook Container -->
+            <!-- Catalogue Container -->
+            <div class="catalogue-container" style="flex: 1; overflow-y: auto; padding: var(--space-6); background: var(--color-bg-primary);">
+                <div class="catalogue-header">
+                    <h1 class="catalogue-title">Strategy Catalogue</h1>
+                    
+                </div>
+                
+                <div class="catalogue-search" style="max-width: 500px; margin: 0 auto var(--space-6) auto;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input 
+                            type="text" 
+                            placeholder="search strategies..." 
+                            id="strategySearchInput"
+                            onkeyup="searchStrategies()"
+                            style="flex: 1; padding: var(--space-3) var(--space-4); font-family: var(--font-family-mono); font-size: var(--font-size-base); background: var(--color-bg-primary); border: 3px solid var(--color-text-primary); border-radius: var(--radius-md); color: var(--color-text-primary); box-shadow: -3px 5px var(--color-text-primary); transition: all var(--transition-fast);"
+                            onfocus="this.style.transform='translate(2px, -2px)'; this.style.boxShadow='-5px 7px var(--color-text-primary)';"
+                            onblur="this.style.transform=''; this.style.boxShadow='-3px 5px var(--color-text-primary)';"
+                        />
+                        <button onclick="openStrategyBuilder()" style="width: 44px; height: 44px; padding: 0; font-family: var(--font-family-mono); font-size: 24px; font-weight: bold; background: var(--color-bg-primary); border: 3px solid var(--color-text-primary); border-radius: var(--radius-md); color: var(--color-text-primary); box-shadow: -3px 5px var(--color-text-primary); cursor: pointer; transition: all var(--transition-fast);" onmouseover="this.style.background='var(--color-text-primary)'; this.style.color='var(--color-bg-primary)'; this.style.transform='translate(2px, -2px)'; this.style.boxShadow='-5px 7px var(--color-text-primary)';" onmouseout="this.style.background='var(--color-bg-primary)'; this.style.color='var(--color-text-primary)'; this.style.transform=''; this.style.boxShadow='-3px 5px var(--color-text-primary)';">+</button>
+                    </div>
+                </div>
+                
+                <section class="strategy-section" style="margin-bottom: var(--space-8);">
+                    <h2 class="section-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-4); text-align: center; color: var(--color-text-secondary);">core strategies</h2>
+                    <div class="strategy-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
+                        
+                        <button class="strategy-card color-blue" onclick="selectStrategy('ema-cross')" style="font-family: var(--font-family-sans); background: #89CDF1; border: 3px solid #5BA7D1; color: #1a1a1a; border-radius: var(--radius-lg); box-shadow: -3px 5px #5BA7D1; cursor: pointer; transition: all var(--transition-fast); padding: var(--space-4); text-align: left; position: relative; margin-bottom: 5px; margin-right: 5px; min-height: 140px; display: flex; flex-direction: column; width: 100%;">
+                            <h3 class="strategy-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-2); line-height: 1.2;">EMA Cross</h3>
+                            <p class="strategy-description" style="font-size: var(--font-size-sm); color: #2a2a2a; line-height: 1.4; margin-bottom: var(--space-3); flex-grow: 1;">Classic trend-following strategy using exponential moving average crossovers.</p>
+                            <div class="strategy-tags" style="display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: auto;">
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.3); color: #1a1a1a; border: 1px solid #5BA7D1; border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">trend following</span>
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.3); color: #1a1a1a; border: 1px solid #5BA7D1; border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">beginner</span>
+                            </div>
+                        </button>
+                        
+                        <button class="strategy-card color-orange" onclick="selectStrategy('mean-reversion')" style="font-family: var(--font-family-sans); background: #FF9500; border: 3px solid #CC7700; color: #1a1a1a; border-radius: var(--radius-lg); box-shadow: -3px 5px #CC7700; cursor: pointer; transition: all var(--transition-fast); padding: var(--space-4); text-align: left; position: relative; margin-bottom: 5px; margin-right: 5px; min-height: 140px; display: flex; flex-direction: column; width: 100%;">
+                            <h3 class="strategy-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-2); line-height: 1.2;">Mean Reversion</h3>
+                            <p class="strategy-description" style="font-size: var(--font-size-sm); color: #2a2a2a; line-height: 1.4; margin-bottom: var(--space-3); flex-grow: 1;">Statistical arbitrage strategy that profits from temporary price dislocations.</p>
+                            <div class="strategy-tags" style="display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: auto;">
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.3); color: #1a1a1a; border: 1px solid #CC7700; border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">statistical arb</span>
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.3); color: #1a1a1a; border: 1px solid #CC7700; border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">intermediate</span>
+                            </div>
+                        </button>
+                        
+                        <button class="strategy-card color-green" onclick="selectStrategy('momentum')" style="font-family: var(--font-family-sans); background: #4CAF50; border: 3px solid #388E3C; color: #1a1a1a; border-radius: var(--radius-lg); box-shadow: -3px 5px #388E3C; cursor: pointer; transition: all var(--transition-fast); padding: var(--space-4); text-align: left; position: relative; margin-bottom: 5px; margin-right: 5px; min-height: 140px; display: flex; flex-direction: column; width: 100%;">
+                            <h3 class="strategy-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-2); line-height: 1.2;">Momentum</h3>
+                            <p class="strategy-description" style="font-size: var(--font-size-sm); color: #2a2a2a; line-height: 1.4; margin-bottom: var(--space-3); flex-grow: 1;">Trend-following strategies that capitalize on price continuations.</p>
+                            <div class="strategy-tags" style="display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: auto;">
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.3); color: #1a1a1a; border: 1px solid #388E3C; border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">trend</span>
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.3); color: #1a1a1a; border: 1px solid #388E3C; border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">beginner</span>
+                            </div>
+                        </button>
+                        
+                    </div>
+                </section>
+                
+                <section class="strategy-section" style="margin-bottom: var(--space-8);">
+                    <h2 class="section-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-4); text-align: center; color: var(--color-text-secondary);">statistical & factor models</h2>
+                    <div class="strategy-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
+                        
+                        <button class="strategy-card color-purple" onclick="selectStrategy('pairs-trading')" style="font-family: var(--font-family-sans); background: #9C27B0; border: 3px solid #7B1FA2; color: #ffffff; border-radius: var(--radius-lg); box-shadow: -3px 5px #7B1FA2; cursor: pointer; transition: all var(--transition-fast); padding: var(--space-4); text-align: left; position: relative; margin-bottom: 5px; margin-right: 5px; min-height: 140px; display: flex; flex-direction: column; width: 100%;">
+                            <h3 class="strategy-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-2); line-height: 1.2;">Pairs Trading</h3>
+                            <p class="strategy-description" style="font-size: var(--font-size-sm); color: #e0e0e0; line-height: 1.4; margin-bottom: var(--space-3); flex-grow: 1;">Long-short strategies exploiting divergences between correlated assets.</p>
+                            <div class="strategy-tags" style="display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: auto;">
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">market neutral</span>
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">intermediate</span>
+                            </div>
+                        </button>
+                        
+                        <button class="strategy-card color-red" onclick="selectStrategy('volatility')" style="font-family: var(--font-family-sans); background: #F44336; border: 3px solid #D32F2F; color: #ffffff; border-radius: var(--radius-lg); box-shadow: -3px 5px #D32F2F; cursor: pointer; transition: all var(--transition-fast); padding: var(--space-4); text-align: left; position: relative; margin-bottom: 5px; margin-right: 5px; min-height: 140px; display: flex; flex-direction: column; width: 100%;">
+                            <h3 class="strategy-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-2); line-height: 1.2;">Volatility Trading</h3>
+                            <p class="strategy-description" style="font-size: var(--font-size-sm); color: #ffcdd2; line-height: 1.4; margin-bottom: var(--space-3); flex-grow: 1;">Advanced strategies focused on volatility surface dynamics and options.</p>
+                            <div class="strategy-tags" style="display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: auto;">
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">options</span>
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">expert</span>
+                            </div>
+                        </button>
+                        
+                        <button class="strategy-card color-teal coming-soon" onclick="selectStrategy('statistical-arb')" style="font-family: var(--font-family-sans); background: #009688; border: 3px solid #00695C; color: #ffffff; border-radius: var(--radius-lg); box-shadow: -3px 5px #00695C; cursor: pointer; transition: all var(--transition-fast); padding: var(--space-4); text-align: left; position: relative; margin-bottom: 5px; margin-right: 5px; min-height: 140px; display: flex; flex-direction: column; width: 100%; opacity: 0.8;">
+                            <h3 class="strategy-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-2); line-height: 1.2;">Statistical Arbitrage</h3>
+                            <p class="strategy-description" style="font-size: var(--font-size-sm); color: #b2dfdb; line-height: 1.4; margin-bottom: var(--space-3); flex-grow: 1;">Multi-asset statistical models using factor decomposition and PCA.</p>
+                            <div class="strategy-tags" style="display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: auto;">
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">factor models</span>
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">advanced</span>
+                            </div>
+                            <span style="position: absolute; top: var(--space-2); right: var(--space-2); font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); padding: var(--space-1) var(--space-2); background: #ffd700; color: #333; border: 2px solid #333; border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">Coming Soon</span>
+                        </button>
+                        
+                    </div>
+                </section>
+                
+                <section class="strategy-section" style="margin-bottom: var(--space-8);">
+                    <h2 class="section-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-4); text-align: center; color: var(--color-text-secondary);">machine learning & portfolio</h2>
+                    <div class="strategy-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
+                        
+                        <button class="strategy-card color-indigo" onclick="selectStrategy('ml-predictive')" style="font-family: var(--font-family-sans); background: #3F51B5; border: 3px solid #303F9F; color: #ffffff; border-radius: var(--radius-lg); box-shadow: -3px 5px #303F9F; cursor: pointer; transition: all var(--transition-fast); padding: var(--space-4); text-align: left; position: relative; margin-bottom: 5px; margin-right: 5px; min-height: 140px; display: flex; flex-direction: column; width: 100%;">
+                            <h3 class="strategy-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-2); line-height: 1.2;">ML Predictive Models</h3>
+                            <p class="strategy-description" style="font-size: var(--font-size-sm); color: #c5cae9; line-height: 1.4; margin-bottom: var(--space-3); flex-grow: 1;">Ensemble models and deep learning for alpha generation.</p>
+                            <div class="strategy-tags" style="display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: auto;">
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">deep learning</span>
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">expert</span>
+                            </div>
+                        </button>
+                        
+                        <button class="strategy-card color-pink coming-soon" onclick="selectStrategy('sentiment')" style="font-family: var(--font-family-sans); background: #E91E63; border: 3px solid #C2185B; color: #ffffff; border-radius: var(--radius-lg); box-shadow: -3px 5px #C2185B; cursor: pointer; transition: all var(--transition-fast); padding: var(--space-4); text-align: left; position: relative; margin-bottom: 5px; margin-right: 5px; min-height: 140px; display: flex; flex-direction: column; width: 100%; opacity: 0.8;">
+                            <h3 class="strategy-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-2); line-height: 1.2;">Sentiment Analysis</h3>
+                            <p class="strategy-description" style="font-size: var(--font-size-sm); color: #f8bbd9; line-height: 1.4; margin-bottom: var(--space-3); flex-grow: 1;">NLP-driven strategies using news and social media signals.</p>
+                            <div class="strategy-tags" style="display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: auto;">
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">nlp</span>
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.2); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">advanced</span>
+                            </div>
+                            <span style="position: absolute; top: var(--space-2); right: var(--space-2); font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); padding: var(--space-1) var(--space-2); background: #ffd700; color: #333; border: 2px solid #333; border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">Coming Soon</span>
+                        </button>
+                        
+                        <button class="strategy-card color-cyan" onclick="selectStrategy('custom')" style="font-family: var(--font-family-sans); background: #00BCD4; border: 3px solid #0097A7; color: #1a1a1a; border-radius: var(--radius-lg); box-shadow: -3px 5px #0097A7; cursor: pointer; transition: all var(--transition-fast); padding: var(--space-4); text-align: left; position: relative; margin-bottom: 5px; margin-right: 5px; min-height: 140px; display: flex; flex-direction: column; width: 100%;">
+                            <h3 class="strategy-title" style="font-family: var(--font-family-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-2); line-height: 1.2;">Custom Strategy Builder</h3>
+                            <p class="strategy-description" style="font-size: var(--font-size-sm); color: #2a2a2a; line-height: 1.4; margin-bottom: var(--space-3); flex-grow: 1;">Visual drag-and-drop interface for building custom strategies.</p>
+                            <div class="strategy-tags" style="display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: auto;">
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.3); color: #1a1a1a; border: 1px solid #0097A7; border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">visual builder</span>
+                                <span class="tag" style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: 2px var(--space-2); background: rgba(255,255,255,0.3); color: #1a1a1a; border: 1px solid #0097A7; border-radius: var(--radius-md); text-transform: uppercase; letter-spacing: 0.05em;">all levels</span>
+                            </div>
+                        </button>
+                        
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Layout Manager -->
+    <script src="layout.js"></script>
+    
+    <!-- Monaco Editor for code cells -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    
+    <!-- Marked.js for Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script>
+        
+        // Define switchTab at the beginning to ensure it's available
+        window.switchTab = function(tabName, element) {
+            try {
+                console.log('Switching to tab:', tabName);
+                
+                // Update tab buttons
+                document.querySelectorAll('.sidebar-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                if (element) element.classList.add('active');
+                
+                // Update tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                const targetTab = document.getElementById(tabName + 'Tab');
+                if (targetTab) {
+                    targetTab.classList.add('active');
+                    console.log('Tab switched successfully to:', tabName);
+                    
+                    // Special handling for catalogue tab
+                    if (tabName === 'catalogue') {
+                        setTimeout(() => {
+                            if (typeof loadStrategyCatalogue === 'function') {
+                                loadStrategyCatalogue();
+                            }
+                        }, 100);
+                    }
+                } else {
+                    console.error('Tab not found:', tabName + 'Tab');
+                }
+            } catch (error) {
+                console.error('Error switching tab:', error);
+            }
+        };
+
+// Snippet definitions
+        const snippets = {
+            load_strategy: `# Load strategy signals from registry
+signals = admf.load_signals(
+    strategy_type='momentum',
+    min_sharpe=1.0,
+    date_range='2024-01-01:'
+)
+print(f"Loaded {len(signals)} strategies")`,
+            
+            load_execution: `# Load execution trace
+executions = admf.load_executions(
+    signal_hash='sig_a7f8d9e6',
+    include_fills=True
+)`,
+            
+            query_registry: `# Query the registry for untested parameters
+untested = admf.query("""
+    SELECT DISTINCT period, std_dev 
+    FROM parameter_grid 
+    WHERE NOT EXISTS (
+        SELECT 1 FROM signals 
+        WHERE signals.parameters = parameter_grid.parameters
+    )
+""")`,
+            
+            sharpe_ratio: `# Calculate Sharpe ratio
+sharpe = calculate_sharpe_ratio(returns, risk_free_rate=0.02)
+print(f"Sharpe Ratio: {sharpe:.2f}")`,
+            
+            max_drawdown: `# Calculate maximum drawdown
+mdd, mdd_duration = calculate_max_drawdown(equity_curve)
+print(f"Max Drawdown: {mdd:.1%}")
+print(f"Duration: {mdd_duration} days")`,
+            
+            win_rate: `# Win/Loss analysis
+trades = extract_trades(signals, executions)
+win_rate = (trades['pnl'] > 0).mean()
+avg_win = trades[trades['pnl'] > 0]['pnl'].mean()
+avg_loss = trades[trades['pnl'] < 0]['pnl'].mean()
+
+print(f"Win Rate: {win_rate:.1%}")
+print(f"Avg Win: \${avg_win:.2f}")
+print(f"Avg Loss: \${avg_loss:.2f}")
+print(f"Win/Loss Ratio: {abs(avg_win/avg_loss):.2f}")`,
+            
+            performance_table: `# Generate performance summary table
+metrics = performance_table(signals)
+metrics.style.format({
+    'sharpe': '{:.2f}',
+    'max_dd': '{:.1%}',
+    'win_rate': '{:.1%}',
+    'total_return': '{:+.1%}'
+}).background_gradient(cmap='RdYlGn', subset=['sharpe', 'total_return'])`,
+            
+            equity_curve: `# Plot equity curves
+fig = plot_equity_curves(
+    signals, 
+    benchmark='SPY',
+    title='Strategy Performance Comparison'
+)
+fig.show()`,
+            
+            drawdown_plot: `# Plot drawdown analysis
+fig = plot_drawdown_analysis(
+    equity_curve,
+    title='Underwater Plot',
+    show_recovery_time=True
+)
+fig.show()`,
+            
+            heatmap: `# Parameter sensitivity heatmap
+fig = parameter_heatmap(
+    signals,
+    x_param='period',
+    y_param='std_dev',
+    metric='sharpe_ratio',
+    title='Parameter Sensitivity Analysis'
+)
+fig.show()`,
+            
+            compare_strategies: `# Compare multiple strategies
+comparison = compare_strategies(
+    ['sig_a7f8d9e6', 'sig_b8g9e0f7', 'sig_c9h0f1g8'],
+    metrics=['sharpe', 'max_dd', 'win_rate', 'total_return']
+)
+comparison.plot(kind='bar', figsize=(10, 6))`,
+            
+            correlation_matrix: `# Strategy correlation analysis
+corr_matrix = calculate_correlation_matrix(signals)
+sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0)
+plt.title('Strategy Return Correlations')`,
+            
+            regime_analysis: `# Analyze performance by market regime
+regimes = classify_market_regimes(market_data)
+regime_perf = performance_by_regime(signals, regimes)
+
+regime_perf.plot(kind='bar', stacked=True)
+plt.title('Performance by Market Regime')
+plt.ylabel('Average Daily Return (%)')`,
+            
+            parameter_sweep: `# Analyze parameter sweep results
+sweep_results = analyze_parameter_sweep(
+    signals,
+    parameters=['period', 'std_dev'],
+    metric='sharpe_ratio'
+)
+
+# Find optimal parameters
+optimal = sweep_results.idxmax()
+print(f"Optimal parameters: {optimal}")
+print(f"Best Sharpe: {sweep_results.max():.2f}")`,
+            
+            config_to_notebook: `# Generate notebook from ADMF config file
+config_path = input("Enter config file path: ")
+notebook = admf.generate_notebook_from_config(
+    config_path=config_path,
+    include_execution=True,
+    auto_run_analysis=True
+)
+print(f"Generated notebook: {notebook.title}")
+print(f"Cells created: {len(notebook.cells)}")`
+        };
+        
+        // Autocomplete suggestions
+        const autocompleteSuggestions = [
+            { name: 'admf.load_signals', type: 'function' },
+            { name: 'admf.load_executions', type: 'function' },
+            { name: 'admf.query', type: 'function' },
+            { name: 'performance_table', type: 'function' },
+            { name: 'calculate_sharpe_ratio', type: 'function' },
+            { name: 'calculate_max_drawdown', type: 'function' },
+            { name: 'plot_equity_curves', type: 'function' },
+            { name: 'plot_drawdown_analysis', type: 'function' },
+            { name: 'parameter_heatmap', type: 'function' },
+            { name: 'compare_strategies', type: 'function' },
+            { name: 'signals', type: 'variable' },
+            { name: 'executions', type: 'variable' },
+            { name: 'metrics', type: 'variable' }
+        ];
+        
+        let activeCell = null;
+        let cellCounter = 5;
+        let monacoEditors = new Map();
+        let monacoLoaded = false;
+        
+        // Notebook templates
+        const notebookTemplates = {
+            strategy_comparison: {
+                title: 'Strategy Comparison Analysis',
+                cells: [
+                    {
+                        type: 'markdown',
+                        content: '# Strategy Comparison Analysis\n\nComparing multiple strategies across key performance metrics and risk characteristics.'
+                    },
+                    {
+                        type: 'code',
+                        content: `import admf\nfrom analysis_lib import *\n\n# Load strategies to compare\nstrategies = admf.load_signals(['momentum', 'mean_reversion'], min_sharpe=1.0)\nprint(f"Loaded {len(strategies)} strategies for comparison")`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Performance comparison table\ncomparison = compare_strategies(\n    strategies,\n    metrics=['sharpe', 'max_dd', 'win_rate', 'total_return', 'calmar']\n)\ncomparison`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Equity curves comparison\nfig = plot_equity_curves(\n    strategies,\n    benchmark='SPY',\n    title='Strategy Performance Comparison'\n)\nfig.show()`
+                    }
+                ]
+            },
+            
+            performance_summary: {
+                title: 'Complete Performance Analysis',
+                cells: [
+                    {
+                        type: 'markdown',
+                        content: '# Performance Summary Report\n\nComprehensive analysis of strategy performance including returns, risk metrics, and trade statistics.'
+                    },
+                    {
+                        type: 'code',
+                        content: `import admf\nfrom analysis_lib import *\n\n# Load strategy data\nsignals = admf.load_signals(strategy_hash='sig_a7f8d9e6')\nexecutions = admf.load_executions(signal_hash='sig_a7f8d9e6')\nprint(f"Analysis period: {signals.index.min()} to {signals.index.max()}")`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Core performance metrics\nmetrics = calculate_performance_metrics(signals, executions)\nmetrics_df = pd.DataFrame([metrics])\nmetrics_df.T.round(3)`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Trade analysis\ntrades = extract_trades(signals, executions)\ntrade_stats = analyze_trades(trades)\nprint(f"Total trades: {len(trades)}")\nprint(f"Win rate: {trade_stats['win_rate']:.1%}")\nprint(f"Profit factor: {trade_stats['profit_factor']:.2f}")`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Visualizations\nfig = create_performance_dashboard(signals, executions, trades)\nfig.show()`
+                    }
+                ]
+            },
+            
+            parameter_sweep: {
+                title: 'Parameter Sweep Analysis',
+                cells: [
+                    {
+                        type: 'markdown',
+                        content: '# Parameter Optimization Analysis\n\nAnalyzing the results of parameter sweeps to identify optimal configurations and understand parameter sensitivity.'
+                    },
+                    {
+                        type: 'code',
+                        content: `import admf\nfrom analysis_lib import *\n\n# Load sweep results\nsweep_results = admf.load_signals(strategy_type='bollinger_bands')\nprint(f"Loaded {len(sweep_results)} parameter combinations")`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Parameter sensitivity heatmap\nfig = parameter_heatmap(\n    sweep_results,\n    x_param='period',\n    y_param='std_dev',\n    metric='sharpe_ratio',\n    title='Sharpe Ratio Parameter Sensitivity'\n)\nfig.show()`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Find optimal parameters\noptimal = sweep_results.loc[sweep_results['sharpe_ratio'].idxmax()]\nprint(f"Best Sharpe: {optimal['sharpe_ratio']:.2f}")\nprint(f"Optimal parameters: period={optimal['period']}, std_dev={optimal['std_dev']}")`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Stability analysis\nstability = analyze_parameter_stability(sweep_results)\nplot_stability_analysis(stability)`
+                    }
+                ]
+            },
+            
+            regime_analysis: {
+                title: 'Market Regime Analysis',
+                cells: [
+                    {
+                        type: 'markdown',
+                        content: '# Market Regime Performance Analysis\n\nAnalyzing strategy performance across different market conditions and regimes.'
+                    },
+                    {
+                        type: 'code',
+                        content: `import admf\nfrom analysis_lib import *\n\n# Load data and classify regimes\nstrategies = admf.load_signals(min_sharpe=1.0)\nmarket_data = admf.load_market_data('SPY')\nregimes = classify_market_regimes(market_data, method='volatility_trend')\nprint(f"Identified {len(regimes.unique())} market regimes")`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Performance by regime\nregime_perf = performance_by_regime(strategies, regimes)\nregime_perf.plot(kind='bar', figsize=(12, 6))\nplt.title('Strategy Performance by Market Regime')\nplt.ylabel('Sharpe Ratio')`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Regime transition analysis\ntransitions = analyze_regime_transitions(strategies, regimes)\nplot_regime_transitions(transitions)`
+                    }
+                ]
+            },
+            
+            config_analysis: {
+                title: 'Config-Generated Analysis Notebook',
+                cells: [
+                    {
+                        type: 'markdown',
+                        content: '# Analysis from Configuration File\n\nThis notebook was automatically generated from an ADMF config file. The system parsed the config, identified strategy parameters, and created corresponding analysis cells.'
+                    },
+                    {
+                        type: 'code',
+                        content: `import admf\nfrom analysis_lib import *\nimport yaml\n\n# Load and parse config file\nconfig_path = input("Enter path to ADMF config file: ")\nwith open(config_path, 'r') as f:\n    config = yaml.safe_load(f)\n\nprint(f"Config: {config['name']}")\nprint(f"Symbols: {config['symbols']}")\nprint(f"Timeframe: {config['timeframe']}")\nprint(f"Strategy type: {list(config['strategy'].keys())[0]}")`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Load signals generated from this config\n# The backend automatically generates signals for any missing parameter combinations\nconfig_hash = admf.compute_config_hash(config)\nsignals = admf.load_signals_by_config_hash(config_hash)\n\nif len(signals) == 0:\n    print("No signals found. Running config to generate signals...")\n    # Trigger signal generation\n    signals = admf.run_config(config_path, signal_only=True)\n    \nprint(f"Loaded {len(signals)} signal traces from config")`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Analyze parameter sweep results (if config has parameter ranges)\nif any(isinstance(v, list) for strategy in config['strategy'].values() for v in strategy.values()):\n    print("Parameter sweep detected. Analyzing sensitivity...")\n    \n    # Extract parameter combinations\n    param_combos = admf.extract_parameter_combinations(config)\n    print(f"Parameter combinations: {len(param_combos)}")\n    \n    # Performance heatmap for 2D sweeps\n    if len(param_combos.columns) == 2:\n        fig = parameter_heatmap(\n            signals, \n            x_param=param_combos.columns[0],\n            y_param=param_combos.columns[1],\n            metric='sharpe_ratio'\n        )\n        fig.show()\nelse:\n    print("Single parameter set detected. Running basic performance analysis...")`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Standard performance analysis\nmetrics = performance_table(signals)\nprint("\nPerformance Summary:")\nprint(metrics.describe())\n\n# Best performing configuration\nbest_config = metrics.loc[metrics['sharpe_ratio'].idxmax()]\nprint(f"\nBest performing config:")\nprint(f"Sharpe: {best_config['sharpe_ratio']:.2f}")\nprint(f"Max DD: {best_config['max_drawdown']:.1%}")\nprint(f"Parameters: {best_config['parameters']}")`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Generate execution analysis if executions exist\nexecutions = admf.load_executions_by_config_hash(config_hash)\n\nif len(executions) > 0:\n    print(f"Found {len(executions)} execution traces")\n    \n    # Trade analysis\n    trades = extract_trades(signals, executions)\n    trade_stats = analyze_trades(trades)\n    \n    print(f"Total trades: {len(trades)}")\n    print(f"Win rate: {trade_stats['win_rate']:.1%}")\n    print(f"Profit factor: {trade_stats['profit_factor']:.2f}")\n    \n    # Plot equity curve\n    fig = plot_equity_curves(signals, executions=executions)\n    fig.show()\nelse:\n    print("No execution traces found. This is signal-only analysis.")`
+                    },
+                    {
+                        type: 'markdown',
+                        content: '## Config-to-Production Workflow\n\nOnce you are satisfied with the analysis results:\n\n1. **Save best parameters** to production config\n2. **Create deployment notebook** from production template\n3. **Set up monitoring** for live performance tracking\n\nThis config-driven workflow ensures seamless transition from research to production.'
+                    }
+                ]
+            }
+        };
+        
+        // Initialize Monaco for research page
+        function initMonaco() {
+            require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+            require(['vs/editor/editor.main'], function() {
+                monacoLoaded = true;
+                
+                // Register ADMF custom language features
+                monaco.languages.registerCompletionItemProvider('python', {
+                    provideCompletionItems: (model, position) => {
+                        const suggestions = [
+                            {
+                                label: 'admf.load_signals',
+                                kind: monaco.languages.CompletionItemKind.Function,
+                                insertText: 'admf.load_signals(${1:strategy_type}, ${2:min_sharpe=1.0})',
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                documentation: 'Load strategy signals from registry'
+                            },
+                            {
+                                label: 'performance_table',
+                                kind: monaco.languages.CompletionItemKind.Function,
+                                insertText: 'performance_table(${1:signals})',
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                documentation: 'Generate performance metrics table'
+                            },
+                            {
+                                label: 'plot_equity_curves',
+                                kind: monaco.languages.CompletionItemKind.Function,
+                                insertText: 'plot_equity_curves(${1:signals}, benchmark="${2:SPY}")',
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                documentation: 'Plot strategy equity curves'
+                            }
+                        ];
+                        return { suggestions };
+                    }
+                });
+                
+                // Initialize existing code cells with Monaco
+                initializeExistingCells();
+                
+                console.log('Monaco loaded for research page');
+            });
+        }
+        
+        // Initialize existing cells with Monaco
+        function initializeExistingCells() {
+            document.querySelectorAll('.code-cell').forEach(cell => {
+                const textarea = cell.querySelector('.code-textarea');
+                if (textarea && !cell.querySelector('.monaco-cell-editor')) {
+                    createCompactMonacoForCell(cell, textarea.value);
+                }
+            });
+        }
+        
+        // Create compact Monaco editor for a cell
+        function createCompactMonacoForCell(cell, initialValue = '') {
+            const cellId = cell.id;
+            const codeInput = cell.querySelector('.code-input');
+            const textarea = cell.querySelector('.code-textarea');
+            
+            // Hide textarea
+            if (textarea) {
+                textarea.style.display = 'none';
+            }
+            
+            // Create Monaco container
+            const monacoContainer = document.createElement('div');
+            monacoContainer.className = 'monaco-cell-editor';
+            monacoContainer.id = `monaco-${cellId}`;
+            
+            codeInput.appendChild(monacoContainer);
+            
+            // Calculate optimal height based on content
+            const lineCount = (initialValue.match(/\n/g) || []).length + 1;
+            const minHeight = Math.max(60, Math.min(200, lineCount * 19 + 10));
+            monacoContainer.style.height = `${minHeight}px`;
+            
+            // Create Monaco editor with minimal UI
+            const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'vs-dark' : 'vs';
+            const editor = monaco.editor.create(monacoContainer, {
+                value: initialValue,
+                language: 'python',
+                theme: theme,
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 13,
+                fontFamily: "'IBM Plex Mono', 'SF Mono', Monaco, Consolas, monospace",
+                lineNumbers: 'off',
+                glyphMargin: false,
+                folding: false,
+                lineDecorationsWidth: 0,
+                lineNumbersMinChars: 0,
+                renderLineHighlight: 'none',
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                contextmenu: false,
+                quickSuggestions: true,
+                suggestOnTriggerCharacters: true,
+                parameterHints: { enabled: true },
+                hover: { enabled: true },
+                bracketPairColorization: { enabled: true },
+                scrollbar: {
+                    vertical: 'hidden',
+                    horizontal: 'hidden',
+                    alwaysConsumeMouseWheel: false
+                },
+                overviewRulerLanes: 0,
+                hideCursorInOverviewRuler: true,
+                overviewRulerBorder: false
+            });
+            
+            // Store editor reference
+            monacoEditors.set(cellId, editor);
+            
+            // Auto-resize based on content
+            editor.onDidChangeModelContent(() => {
+                const model = editor.getModel();
+                if (model) {
+                    const lineCount = model.getLineCount();
+                    const newHeight = Math.max(60, Math.min(300, lineCount * 19 + 10));
+                    monacoContainer.style.height = `${newHeight}px`;
+                    editor.layout();
+                    
+                    // Update textarea for compatibility
+                    if (textarea) {
+                        textarea.value = editor.getValue();
+                    }
+                }
+            });
+            
+            // Initial layout
+            setTimeout(() => editor.layout(), 100);
+            
+            return editor;
+        }
+        
+        // Load NT tutorials from backend
+        async function loadNTTutorials() {
+            try {
+                const response = await fetch('http://localhost:5001/api/nautilus/tutorials');
+                const data = await response.json();
+                
+                if (data.tutorials) {
+                    // Clear notebooks list
+                    const notebooksList = document.getElementById('notebooksList');
+                    notebooksList.innerHTML = '';
+                    
+                    // Add NT tutorials to the list
+                    data.tutorials.forEach(tutorial => {
+                        const notebookItem = document.createElement('div');
+                        notebookItem.className = 'snippet-item';
+                        notebookItem.onclick = () => loadNTNotebook(tutorial.path);
+                        notebookItem.innerHTML = `
+                            <div class="snippet-header">
+                                <h3>${tutorial.name.replace(/_/g, ' ').replace('.ipynb', '')}</h3>
+                                <button class="btn btn-sm">Open</button>
+                            </div>
+                            <p class="snippet-description">NautilusTrader Tutorial</p>
+                        `;
+                        notebooksList.appendChild(notebookItem);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading NT tutorials:', error);
+            }
+        }
+        
+        // Helper functions for loading notebooks
+        function resetNotebook() {
+            // Clear all cells except the first one
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, index) => {
+                if (index > 0) {
+                    cell.remove();
+                }
+            });
+            
+            // Clear the first cell
+            const firstTextarea = document.querySelector('.code-textarea');
+            if (firstTextarea) {
+                firstTextarea.value = '';
+            }
+        }
+        
+        function addCodeCell(content = '') {
+            addCell();
+            const cells = document.querySelectorAll('.cell');
+            const lastCell = cells[cells.length - 1];
+            const textarea = lastCell.querySelector('.code-textarea');
+            if (textarea) {
+                textarea.value = content;
+            }
+        }
+        
+        function addMarkdownCell(content = '') {
+            addCell();
+            const cells = document.querySelectorAll('.cell');
+            const lastCell = cells[cells.length - 1];
+            
+            // Convert to markdown cell
+            const cellType = lastCell.querySelector('.cell-type');
+            if (cellType) {
+                cellType.textContent = 'md';
+                lastCell.classList.add('markdown-cell');
+            }
+            
+            const textarea = lastCell.querySelector('.code-textarea');
+            if (textarea) {
+                textarea.value = content;
+                // Render markdown
+                const output = lastCell.querySelector('.cell-output');
+                if (output) {
+                    output.innerHTML = marked.parse(content);
+                    output.style.display = 'block';
+                }
+            }
+        }
+        
+        // Load specific NT notebook
+        async function loadNTNotebook(path) {
+            addOutput(`Loading tutorial: ${path}`, 'info');
+            
+            try {
+                const response = await fetch(`http://localhost:5001/api/nautilus/notebook/${encodeURIComponent(path)}`);
+                const data = await response.json();
+                
+                if (data.cells) {
+                    // Clear existing cells and load notebook
+                    resetNotebook();
+                    
+                    // Add cells from the notebook
+                    data.cells.forEach(cell => {
+                        if (cell.cell_type === 'code') {
+                            const source = Array.isArray(cell.source) ? cell.source.join('') : cell.source;
+                            addCodeCell(source);
+                        } else if (cell.cell_type === 'markdown') {
+                            const source = Array.isArray(cell.source) ? cell.source.join('') : cell.source;
+                            addMarkdownCell(source);
+                        }
+                    });
+                    
+                    addOutput(`Loaded tutorial: ${path.split('/').pop()}`, 'success');
+                } else {
+                    addOutput('Error: Invalid notebook format', 'error');
+                }
+            } catch (error) {
+                addOutput(`Error loading notebook: ${error.message}`, 'error');
+            }
+        }
+        
+        // Initialize
+        function init() {
+            console.log('Initializing research page...');
+            
+            // Add mobile menu button
+            addMobileMenuButton();
+            
+            // Set active cell
+            activeCell = document.getElementById('cell-1');
+            
+            // Initialize Monaco
+            initMonaco();
+            
+            // Load NT tutorials
+            loadNTTutorials();
+            
+            // Check if notebook was passed from index.html
+            const openWithNotebook = sessionStorage.getItem('openWithNotebook');
+            const notebookTitle = sessionStorage.getItem('notebookTitle');
+            const notebookType = sessionStorage.getItem('notebookType');
+            
+            if (openWithNotebook === 'true' && notebookType === 'options-flow') {
+                console.log('Opening notebook from index.html:', notebookTitle);
+                
+                // Switch to notebooks tab
+                const notebooksTabBtn = document.querySelector('[onclick*="notebooks"]');
+                if (notebooksTabBtn) {
+                    switchTab('notebooks', notebooksTabBtn);
+                }
+                
+                // Load the Options Flow Scanner notebook
+                loadOptionsFlowNotebook();
+                
+                // Clear sessionStorage
+                sessionStorage.removeItem('openWithNotebook');
+                sessionStorage.removeItem('notebookTitle');
+                sessionStorage.removeItem('notebookType');
+            }
+            
+            // Verify tab content exists
+            const tabs = ['snippetsTab', 'templatesTab', 'notebooksTab', 'catalogueTab'];
+            tabs.forEach(tabId => {
+                const tab = document.getElementById(tabId);
+                if (tab) {
+                    console.log('Found tab:', tabId);
+                } else {
+                    console.error('Missing tab:', tabId);
+                }
+            });
+            
+            // Test that functions are defined
+            if (typeof switchTab === 'function') {
+                console.log('switchTab function is defined');
+            } else {
+                console.error('switchTab function is NOT defined');
+            }
+            
+            if (typeof toggleCategory === 'function') {
+                console.log('toggleCategory function is defined');
+            } else {
+                console.error('toggleCategory function is NOT defined');
+            }
+            
+            console.log('Research page initialized');
+        }
+        
+        // Add mobile menu button
+        function addMobileMenuButton() {
+            if (window.innerWidth <= 768) {
+                const header = document.querySelector('.header-content');
+                if (header && !document.getElementById('sidebar-toggle')) {
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.id = 'sidebar-toggle';
+                    toggleBtn.className = 'btn btn-ghost btn-sm';
+                    toggleBtn.textContent = 'Research';
+                    toggleBtn.onclick = toggleSidebar;
+                    
+                    const nav = header.querySelector('.nav-actions');
+                    if (nav) {
+                        nav.insertBefore(toggleBtn, nav.firstChild);
+                    }
+                }
+            }
+        }
+        
+        // Toggle sidebar (mobile only)
+        function toggleSidebar() {
+            const sidebar = document.getElementById('snippetsSidebar');
+            sidebar.classList.toggle('open');
+        }
+        
+        // Switch between sidebar tabs
+        function switchTab(tabName, element) {
+            try {
+                console.log('Switching to tab:', tabName);
+                
+                // Update tab buttons
+                document.querySelectorAll('.sidebar-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                element.classList.add('active');
+                
+                // Update tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                const targetTab = document.getElementById(tabName + 'Tab');
+                if (targetTab) {
+                    targetTab.classList.add('active');
+                    console.log('Tab switched successfully to:', tabName);
+                    
+                    // Special handling for catalogue tab
+                    if (tabName === 'catalogue' && typeof loadStrategyCatalogue === 'function') {
+                        loadStrategyCatalogue();
+                    }
+                } else {
+                    console.error('Tab not found:', tabName + 'Tab');
+                }
+            } catch (error) {
+                console.error('Error switching tab:', error);
+            }
+        }
+
+        // Enhanced Strategy Catalogue
+        function loadStrategyCatalogue() {
+            const strategies = [
+                {
+                    id: 'ema_cross',
+                    name: 'EMA Cross',
+                    type: 'trend',
+                    complexity: 'beginner',
+                    icon: '📈',
+                    description: 'Classic exponential moving average crossover strategy. Simple yet effective in trending markets.',
+                    stats: {
+                        'Win Rate': '45%',
+                        'Sharpe': '1.35',
+                        'Avg Trade': '+0.8%',
+                        'Frequency': '15/mo'
+                    }
+                },
+                {
+                    id: 'market_maker',
+                    name: 'Market Maker',
+                    type: 'marketmaking',
+                    complexity: 'advanced',
+                    icon: '💹',
+                    description: 'Provides liquidity by maintaining bid/ask quotes. Profits from spread capture.',
+                    stats: {
+                        'Fill Rate': '82%',
+                        'Daily Vol': '$1.2M',
+                        'Spread': '0.05%',
+                        'Sharpe': '2.1'
+                    }
+                },
+                {
+                    id: 'bollinger_bands',
+                    name: 'Bollinger Bands',
+                    type: 'meanreversion',
+                    complexity: 'beginner',
+                    icon: '📊',
+                    description: 'Mean reversion strategy using dynamic bands to identify overbought/oversold conditions.',
+                    stats: {
+                        'Win Rate': '62%',
+                        'Sharpe': '1.8',
+                        'Avg Trade': '+0.5%',
+                        'Hold Time': '2.5 days'
+                    }
+                },
+                {
+                    id: 'ml_predictor',
+                    name: 'ML Price Predictor',
+                    type: 'ml',
+                    complexity: 'advanced',
+                    icon: '🤖',
+                    description: 'Machine learning model using multiple features to predict short-term price movements.',
+                    stats: {
+                        'Accuracy': '68%',
+                        'Sharpe': '2.5',
+                        'Signals': '150/day',
+                        'Win Rate': '58%'
+                    }
+                },
+                {
+                    id: 'twap_exec',
+                    name: 'TWAP Execution',
+                    type: 'execution',
+                    complexity: 'intermediate',
+                    icon: '⏱️',
+                    description: 'Time-weighted average price algorithm for optimal execution of large orders.',
+                    stats: {
+                        'Slippage': '-0.02%',
+                        'Complete': '99.8%',
+                        'Avg Size': '$500K',
+                        'Impact': 'Minimal'
+                    }
+                },
+                {
+                    id: 'pairs_trading',
+                    name: 'Statistical Arbitrage',
+                    type: 'meanreversion',
+                    complexity: 'intermediate',
+                    icon: '⚖️',
+                    description: 'Exploits price relationships between correlated assets using cointegration.',
+                    stats: {
+                        'Win Rate': '71%',
+                        'Sharpe': '2.2',
+                        'Correlation': '0.85',
+                        'Frequency': '40/mo'
+                    }
+                }
+            ];
+            
+            const grid = document.getElementById('strategyGrid');
+            if (!grid) return;
+            
+            // Create the new filter UI
+            const catalogueTab = document.getElementById('catalogueTab');
+            if (catalogueTab && !document.getElementById('catalogueFilters')) {
+                const filtersHtml = `
+                    <div class="catalogue-filters" id="catalogueFilters">
+                        <span style="font-weight: var(--font-weight-semibold);">Type:</span>
+                        <div class="filter-pills" data-filter="type">
+                            <div class="filter-pill active" data-value="all">All</div>
+                            <div class="filter-pill" data-value="trend">Trend</div>
+                            <div class="filter-pill" data-value="meanreversion">Mean Reversion</div>
+                            <div class="filter-pill" data-value="marketmaking">Market Making</div>
+                            <div class="filter-pill" data-value="ml">Machine Learning</div>
+                            <div class="filter-pill" data-value="execution">Execution</div>
+                        </div>
+                        
+                        <span style="font-weight: var(--font-weight-semibold); margin-left: var(--space-4);">Level:</span>
+                        <div class="filter-pills" data-filter="complexity">
+                            <div class="filter-pill active" data-value="all">All</div>
+                            <div class="filter-pill" data-value="beginner">Beginner</div>
+                            <div class="filter-pill" data-value="intermediate">Intermediate</div>
+                            <div class="filter-pill" data-value="advanced">Advanced</div>
+                        </div>
+                    </div>
+                `;
+                catalogueTab.innerHTML = filtersHtml + catalogueTab.innerHTML;
+                
+                // Add filter handlers
+                document.querySelectorAll('.filter-pill').forEach(pill => {
+                    pill.addEventListener('click', function() {
+                        const filterGroup = this.parentElement;
+                        filterGroup.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+                        this.classList.add('active');
+                        
+                        const filterType = filterGroup.getAttribute('data-filter');
+                        const filterValue = this.getAttribute('data-value');
+                        filterStrategies(filterType, filterValue);
+                    });
+                });
+            }
+            
+            // Create strategy cards
+            grid.innerHTML = strategies.map(strategy => createEnhancedStrategyCard(strategy)).join('');
+        }
+        
+        function createEnhancedStrategyCard(strategy) {
+            const statsHtml = Object.entries(strategy.stats).map(([label, value]) => `
+                <div class="stat-item">
+                    <span class="stat-value">${value}</span>
+                    <span class="stat-label">${label}</span>
+                </div>
+            `).join('');
+            
+            const typeLabel = strategy.type.replace('meanreversion', 'mean reversion')
+                                          .replace('marketmaking', 'market making')
+                                          .replace('ml', 'machine learning');
+            
+            return `
+                <div class="strategy-card" 
+                     data-type="${strategy.type}" 
+                     data-complexity="${strategy.complexity}"
+                     onclick="openStrategy('${strategy.id}')">
+                    
+                    <div class="complexity-badge" data-level="${strategy.complexity}">
+                        ${strategy.complexity}
+                    </div>
+                    
+                    <div class="strategy-icon-large">${strategy.icon}</div>
+                    <h3 class="strategy-name">${strategy.name}</h3>
+                    <div class="strategy-type-label">${typeLabel}</div>
+                    
+                    <p class="strategy-description">${strategy.description}</p>
+                    
+                    <div class="strategy-stats">
+                        ${statsHtml}
+                    </div>
+                    
+                    <div class="strategy-actions">
+                        <div class="quick-action" onclick="event.stopPropagation(); viewStrategyCode('${strategy.id}')" title="View Code">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M5.854 4.854a.5.5 0 1 0-.708-.708l-3.5 3.5a.5.5 0 0 0 0 .708l3.5 3.5a.5.5 0 0 0 .708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 0 1 .708-.708l3.5 3.5a.5.5 0 0 1 0 .708l-3.5 3.5a.5.5 0 0 1-.708-.708L13.293 8l-3.147-3.146z"/>
+                            </svg>
+                        </div>
+                        <div class="quick-action" onclick="event.stopPropagation(); backtestStrategy('${strategy.id}')" title="Backtest">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M11.251.068a.5.5 0 0 1 .227.58L9.677 6.5H13a.5.5 0 0 1 .364.843l-8 8.5a.5.5 0 0 1-.842-.49L6.323 9.5H3a.5.5 0 0 1-.364-.843l8-8.5a.5.5 0 0 1 .615-.09z"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function filterStrategies(filterType, value) {
+            const cards = document.querySelectorAll('.strategy-card');
+            cards.forEach(card => {
+                if (value === 'all') {
+                    card.style.display = 'block';
+                } else {
+                    const cardValue = card.getAttribute(`data-${filterType}`);
+                    card.style.display = cardValue === value ? 'block' : 'none';
+                }
+            });
+        }
+        
+        function openStrategy(strategyId) {
+            console.log('Opening strategy:', strategyId);
+            // Navigate to strategy details or open in editor
+            alert(`Opening ${strategyId} strategy...`);
+        }
+        
+        function viewStrategyCode(strategyId) {
+            console.log('Viewing code for:', strategyId);
+            window.open(`/develop#strategy=${strategyId}`, '_blank');
+        }
+        
+        function backtestStrategy(strategyId) {
+            console.log('Backtesting:', strategyId);
+            alert(`Starting backtest for ${strategyId}...`);
+        }
+
+
+        // Strategy Catalogue Functions
+        function loadStrategyCatalogue() {
+            const strategies = [
+                {
+                    id: 'ema_cross',
+                    name: 'EMA Cross',
+                    type: 'trend',
+                    complexity: 'beginner',
+                    icon: '📈',
+                    description: 'Classic exponential moving average crossover strategy. Enters long when fast EMA crosses above slow EMA.',
+                    metrics: {
+                        'Avg Return': '+12.5%',
+                        'Win Rate': '45%',
+                        'Max Drawdown': '-8.2%',
+                        'Sharpe Ratio': '1.35'
+                    },
+                    tags: ['Simple', 'All Markets', 'Low Frequency'],
+                    featured: true
+                },
+                {
+                    id: 'market_maker',
+                    name: 'Market Maker',
+                    type: 'marketmaking',
+                    complexity: 'advanced',
+                    icon: '💹',
+                    description: 'Provides liquidity by placing limit orders on both sides of the order book.',
+                    metrics: {
+                        'Daily Volume': '$1.2M',
+                        'Spread Capture': '72%',
+                        'Inventory Risk': 'Medium',
+                        'Sharpe Ratio': '2.1'
+                    },
+                    tags: ['Complex', 'High Frequency', 'Crypto']
+                },
+                {
+                    id: 'orderbook_imbalance',
+                    name: 'Order Book Imbalance',
+                    type: 'ml',
+                    complexity: 'intermediate',
+                    icon: '📊',
+                    description: 'Analyzes order book depth to predict short-term price movements.',
+                    metrics: {
+                        'Signals/Day': '150+',
+                        'Accuracy': '68%',
+                        'Avg Hold Time': '3.5 min',
+                        'Profit Factor': '1.8'
+                    },
+                    tags: ['ML Enhanced', 'Real-time', 'Futures']
+                },
+                {
+                    id: 'volatility_market_maker',
+                    name: 'Volatility Market Maker',
+                    type: 'marketmaking',
+                    complexity: 'advanced',
+                    icon: '🎯',
+                    description: 'Adjusts spread dynamically based on market volatility.',
+                    metrics: {
+                        'Avg Spread': '0.05%',
+                        'Fill Rate': '82%',
+                        'Vol Adjusted SR': '3.2',
+                        'Max Position': '$50k'
+                    },
+                    tags: ['Adaptive', 'Risk Managed', 'Options']
+                }
+            ];
+            
+            const grid = document.getElementById('strategyGrid');
+            grid.innerHTML = strategies.map(strategy => createStrategyCard(strategy)).join('');
+        }
+        
+        function createStrategyCard(strategy) {
+            const metricsHtml = Object.entries(strategy.metrics).map(([label, value]) => {
+                const isPositive = value.includes('+') || (value.includes('%') && !value.includes('-'));
+                const isNegative = value.includes('-');
+                const valueClass = isPositive ? 'positive' : isNegative ? 'negative' : '';
+                
+                return `
+                    <div class="metric-item">
+                        <span class="metric-label">${label}</span>
+                        <span class="metric-value ${valueClass}">${value}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            const tagsHtml = strategy.tags.map(tag => 
+                `<span class="strategy-tag">${tag}</span>`
+            ).join('');
+            
+            return `
+                <div class="strategy-card ${strategy.featured ? 'featured' : ''}" 
+                     data-type="${strategy.type}" 
+                     data-complexity="${strategy.complexity}">
+                    ${strategy.featured ? '<div class="strategy-badge">Featured</div>' : ''}
+                    <div class="strategy-header">
+                        <div class="strategy-icon">${strategy.icon}</div>
+                        <div class="strategy-info">
+                            <h3>${strategy.name}</h3>
+                            <div class="strategy-type">${strategy.type.charAt(0).toUpperCase() + strategy.type.slice(1)}</div>
+                        </div>
+                    </div>
+                    <div class="strategy-description">${strategy.description}</div>
+                    <div class="strategy-metrics">${metricsHtml}</div>
+                    <div class="strategy-tags">${tagsHtml}</div>
+                    <div class="strategy-actions">
+                        <button class="strategy-action" onclick="viewStrategy('${strategy.id}')">View Code</button>
+                        <button class="strategy-action primary" onclick="backtest('${strategy.id}')">Backtest</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function filterStrategies(filterType, value) {
+            const cards = document.querySelectorAll('.strategy-card');
+            
+            cards.forEach(card => {
+                if (value === 'all') {
+                    card.style.display = 'block';
+                } else {
+                    const cardValue = card.getAttribute(`data-${filterType}`);
+                    card.style.display = cardValue === value ? 'block' : 'none';
+                }
+            });
+        }
+
+        function sortStrategies(sortBy) {
+            const grid = document.getElementById('strategyGrid');
+            const cards = Array.from(grid.children);
+            
+            cards.sort((a, b) => {
+                switch(sortBy) {
+                    case 'name':
+                        const nameA = a.querySelector('h3').textContent;
+                        const nameB = b.querySelector('h3').textContent;
+                        return nameA.localeCompare(nameB);
+                    
+                    case 'performance':
+                        const perfA = parseFloat(a.querySelector('.metric-value').textContent.replace(/[^0-9.-]/g, ''));
+                        const perfB = parseFloat(b.querySelector('.metric-value').textContent.replace(/[^0-9.-]/g, ''));
+                        return perfB - perfA;
+                    
+                    default:
+                        return 0;
+                }
+            });
+            
+            cards.forEach(card => grid.appendChild(card));
+        }
+
+        function viewStrategy(strategyName) {
+            console.log('Viewing strategy:', strategyName);
+            window.open(`/develop#strategy=${strategyName}`, '_blank');
+        }
+
+        function backtest(strategyName) {
+            console.log('Backtesting strategy:', strategyName);
+            alert(`Loading ${strategyName} into backtesting environment...`);
+        }
+                
+        // Toggle category collapse
+        function toggleCategory(header) {
+            try {
+                header.classList.toggle('collapsed');
+                console.log('Toggled category:', header.querySelector('span:nth-child(2)').textContent);
+                console.log('Is collapsed:', header.classList.contains('collapsed'));
+            } catch (error) {
+                console.error('Error toggling category:', error);
+            }
+        }
+        
+        // Filter content (snippets or templates)
+        function filterContent(event) {
+            const searchTerm = event.target.value.toLowerCase();
+            const activeTab = document.querySelector('.tab-content.active');
+            
+            if (activeTab.id === 'snippetsTab') {
+                const items = activeTab.querySelectorAll('.snippet-item');
+                items.forEach(item => {
+                    const name = item.querySelector('.snippet-name').textContent.toLowerCase();
+                    const shortcut = item.querySelector('.snippet-shortcut')?.textContent.toLowerCase() || '';
+                    const visible = name.includes(searchTerm) || shortcut.includes(searchTerm);
+                    item.style.display = visible ? 'flex' : 'none';
+                });
+            } else {
+                const items = activeTab.querySelectorAll('.template-item');
+                items.forEach(item => {
+                    const name = item.querySelector('.template-name').textContent.toLowerCase();
+                    const desc = item.querySelector('.template-desc').textContent.toLowerCase();
+                    const visible = name.includes(searchTerm) || desc.includes(searchTerm);
+                    item.style.display = visible ? 'flex' : 'none';
+                });
+            }
+        }
+        
+        // Insert snippet
+        function insertSnippet(snippetName) {
+            if (!activeCell) return;
+            
+            const textarea = activeCell.querySelector('.code-textarea');
+            if (!textarea) return;
+            
+            const snippet = snippets[snippetName];
+            if (!snippet) return;
+            
+            // Insert at cursor position
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            
+            textarea.value = text.substring(0, start) + snippet + text.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + snippet.length;
+            textarea.focus();
+            
+            // Close sidebar on mobile
+            if (window.innerWidth <= 768) {
+                toggleSidebar();
+            }
+        }
+        
+        // Handle keyboard shortcuts
+        function handleKeyDown(event, textarea) {
+            const cell = textarea.closest('.cell');
+            
+            // Tab for autocomplete
+            if (event.key === 'Tab') {
+                event.preventDefault();
+                showAutocomplete(textarea);
+            }
+            
+            // Ctrl/Cmd + Enter to run cell
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                event.preventDefault();
+                runCell(cell.querySelector('.cell-btn'));
+            }
+            
+            // Shift + Enter to run and advance
+            if (event.shiftKey && event.key === 'Enter') {
+                event.preventDefault();
+                runCell(cell.querySelector('.cell-btn'));
+                // Focus next cell or create new one
+                const nextCell = cell.nextElementSibling;
+                if (nextCell && nextCell.classList.contains('cell')) {
+                    selectCell(nextCell);
+                } else {
+                    addCell();
+                }
+            }
+        }
+        
+        // Handle input for autocomplete
+        function handleInput(event, textarea) {
+            const cell = textarea.closest('.cell');
+            const popup = cell.querySelector('.autocomplete-popup');
+            
+            // Simple autocomplete trigger on '.'
+            if (textarea.value.endsWith('.')) {
+                showAutocomplete(textarea);
+            } else {
+                popup.classList.remove('show');
+            }
+        }
+        
+        // Show autocomplete
+        function showAutocomplete(textarea) {
+            const cell = textarea.closest('.cell');
+            const popup = cell.querySelector('.autocomplete-popup');
+            
+            // Clear and populate suggestions
+            popup.innerHTML = '';
+            autocompleteSuggestions.forEach(suggestion => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.innerHTML = `
+                    <span class="autocomplete-name">${suggestion.name}</span>
+                    <span class="autocomplete-type">${suggestion.type}</span>
+                `;
+                item.onclick = () => {
+                    insertAutocomplete(textarea, suggestion.name);
+                    popup.classList.remove('show');
+                };
+                popup.appendChild(item);
+            });
+            
+            // Position and show
+            const rect = textarea.getBoundingClientRect();
+            const cellRect = cell.getBoundingClientRect();
+            popup.style.top = (rect.bottom - cellRect.top) + 'px';
+            popup.style.left = '20px';
+            popup.classList.add('show');
+        }
+        
+        // Insert autocomplete suggestion
+        function insertAutocomplete(textarea, suggestion) {
+            const text = textarea.value;
+            const lastDot = text.lastIndexOf('.');
+            
+            if (lastDot !== -1) {
+                // Replace after the dot
+                textarea.value = text.substring(0, lastDot + 1) + suggestion.split('.').pop();
+            } else {
+                // Just append
+                textarea.value = text + suggestion;
+            }
+            
+            textarea.focus();
+        }
+        
+        // Select cell
+        function selectCell(cell) {
+            // Remove active from all cells
+            document.querySelectorAll('.cell').forEach(c => c.classList.remove('active'));
+            
+            // Set active
+            cell.classList.add('active');
+            activeCell = cell;
+            
+            // Focus textarea if code cell
+            const textarea = cell.querySelector('.code-textarea');
+            if (textarea) {
+                textarea.focus();
+            }
+        }
+        
+        // Run cell
+        function runCell(btn) {
+            const cell = btn.closest('.cell');
+            
+            if (cell.classList.contains('code-cell')) {
+                const textarea = cell.querySelector('.code-textarea');
+                const code = textarea.value;
+                
+                // Check if output div exists
+                let output = cell.querySelector('.code-output');
+                if (!output) {
+                    output = document.createElement('div');
+                    output.className = 'code-output';
+                    cell.appendChild(output);
+                }
+                
+                // Simulate execution based on content
+                if (code.includes('plot_equity_curves') || (code.includes('plot') && code.includes('fig.show()'))) {
+                    // Keep existing visual output if present
+                    if (!output.querySelector('.output-plot')) {
+                        output.innerHTML = '<div class="output-plot">[Interactive chart would render here]</div>';
+                    }
+                } else if (code.includes('plt.scatter') || code.includes('Risk-return')) {
+                    // Keep existing visual output if present  
+                    if (!output.querySelector('.output-plot')) {
+                        output.innerHTML = '<div class="output-plot">[Scatter plot would render here]</div>';
+                    }
+                } else if (code.includes('performance_table') && code.includes('.head()')) {
+                    // Keep existing table output if present
+                    if (!output.querySelector('.output-table')) {
+                        output.innerHTML = `<pre>   strategy_hash  sharpe  max_dd  win_rate  total_return
+0  sig_a7f8d9e6    2.34   -8.2%     68%       +34.5%
+1  sig_b8g9e0f7    2.12   -9.4%     64%       +28.3%
+2  sig_c9h0f1g8    1.87  -11.2%     59%       +22.1%</pre>`;
+                    }
+                } else if (code.includes('print')) {
+                    // Extract print statements
+                    const printMatch = code.match(/print\(.*?\)/g);
+                    if (printMatch) {
+                        output.textContent = 'Executing...\n' + printMatch.join('\n').replace(/print\(["']?|["']?\)/g, '');
+                    }
+                } else {
+                    output.textContent = 'Cell executed successfully';
+                }
+            }
+        }
+        
+        // Delete cell
+        function deleteCell(btn) {
+            if (confirm('Delete this cell?')) {
+                btn.closest('.cell').remove();
+            }
+        }
+        
+        // Add cell
+        function addCell() {
+            const type = document.getElementById('cellTypeSelect').value;
+            const container = document.getElementById('notebookContent');
+            const addCellBtn = container.querySelector('.add-cell');
+            
+            const newCell = document.createElement('div');
+            const cellId = `cell-${cellCounter++}`;
+            newCell.className = `cell ${type}-cell`;
+            newCell.id = cellId;
+            newCell.onclick = function(e) { 
+                if (e.target === this || e.target.classList.contains('code-input')) {
+                    selectCell(this); 
+                }
+            };
+            
+            if (type === 'code') {
+                newCell.innerHTML = `
+                    <div class="cell-toolbar">
+                        <button class="cell-btn" onclick="runCell(this)">▶</button>
+                        <button class="cell-btn" onclick="deleteCell(this)">✕</button>
+                    </div>
+                    <div class="code-input">
+                        <div class="code-editor">
+                            <textarea class="code-textarea" onkeydown="handleKeyDown(event, this)" oninput="handleInput(event, this)" style="display: none;"># Type code here</textarea>
+                        </div>
+                        <div class="autocomplete-popup" id="autocomplete-${cellCounter}"></div>
+                    </div>
+                `;
+                
+                // Add to DOM first
+                container.insertBefore(newCell, addCellBtn);
+                
+                // Create compact Monaco editor for the new cell if Monaco is loaded
+                if (monacoLoaded) {
+                    setTimeout(() => {
+                        createCompactMonacoForCell(newCell, '# Type code here');
+                    }, 100);
+                }
+            } else {
+                newCell.innerHTML = `
+                    <div class="cell-toolbar">
+                        <button class="cell-btn" onclick="runCell(this)">▶</button>
+                        <button class="cell-btn" onclick="deleteCell(this)">✕</button>
+                    </div>
+                    <div class="markdown-preview">
+                        <p>New markdown cell</p>
+                    </div>
+                `;
+            }
+            
+            if (type !== 'code') {
+                container.insertBefore(newCell, addCellBtn);
+            }
+            selectCell(newCell);
+        }
+        
+        // Run all cells
+        function runAllCells() {
+            document.querySelectorAll('.cell').forEach(cell => {
+                const runBtn = cell.querySelector('.cell-btn');
+                if (runBtn) {
+                    runCell(runBtn);
+                }
+            });
+        }
+        
+        // Clear outputs
+        function clearOutputs() {
+            document.querySelectorAll('.code-output').forEach(output => {
+                output.remove();
+            });
+        }
+        
+        // Export notebook
+        function exportNotebook() {
+            alert('Notebook exported to strategy_analysis.ipynb');
+        }
+        
+        // Save notebook
+        function saveNotebook() {
+            const saveBtn = event.target;
+            saveBtn.textContent = 'Saving...';
+            setTimeout(() => {
+                saveBtn.textContent = 'Saved';
+                setTimeout(() => {
+                    saveBtn.textContent = 'Save';
+                }, 2000);
+            }, 500);
+        }
+        
+        // Load notebook template
+        function loadTemplate(templateName, customTemplate = null) {
+            const template = customTemplate || notebookTemplates[templateName];
+            if (!template) return;
+            
+            // Confirm if notebook has content
+            const existingCells = document.querySelectorAll('.cell');
+            if (existingCells.length > 0) {
+                if (!confirm('This will replace the current notebook. Continue?')) {
+                    return;
+                }
+            }
+            
+            // Update title
+            document.querySelector('.notebook-title-input').value = template.title;
+            
+            // Clear existing content
+            const container = document.getElementById('notebookContent');
+            container.innerHTML = '';
+            
+            // Add template cells
+            template.cells.forEach((cellData, index) => {
+                const cellId = `cell-${index + 1}`;
+                const newCell = document.createElement('div');
+                newCell.className = `cell ${cellData.type}-cell`;
+                newCell.id = cellId;
+                newCell.onclick = function(e) { 
+                    if (e.target === this || e.target.classList.contains('code-input')) {
+                        selectCell(this); 
+                    }
+                };
+                
+                if (cellData.type === 'code') {
+                    newCell.innerHTML = `
+                        <div class="cell-toolbar">
+                            <button class="cell-btn" onclick="runCell(this)">▶</button>
+                            <button class="cell-btn" onclick="deleteCell(this)">✕</button>
+                        </div>
+                        <div class="code-input">
+                            <div class="code-editor">
+                                <textarea class="code-textarea" onkeydown="handleKeyDown(event, this)" oninput="handleInput(event, this)">${cellData.content}</textarea>
+                            </div>
+                            <div class="autocomplete-popup" id="autocomplete-${index + 1}"></div>
+                        </div>
+                    `;
+                } else {
+                    newCell.innerHTML = `
+                        <div class="cell-toolbar">
+                            <button class="cell-btn" onclick="runCell(this)">▶</button>
+                            <button class="cell-btn" onclick="deleteCell(this)">✕</button>
+                        </div>
+                        <div class="markdown-preview">
+                            ${marked.parse(cellData.content)}
+                        </div>
+                    `;
+                }
+                
+                container.appendChild(newCell);
+            });
+            
+            // Add the "Add Cell" button
+            const addCellBtn = document.createElement('div');
+            addCellBtn.className = 'add-cell';
+            addCellBtn.onclick = addCell;
+            addCellBtn.innerHTML = `
+                <span>+ Add Cell</span>
+                <select id="cellTypeSelect" class="form-input" style="width: auto; padding: var(--space-1) var(--space-2); font-size: var(--font-size-sm);">
+                    <option value="code">Code</option>
+                    <option value="markdown">Markdown</option>
+                </select>
+            `;
+            container.appendChild(addCellBtn);
+            
+            // Update cell counter
+            cellCounter = template.cells.length + 1;
+            
+            // Select first cell
+            const firstCell = container.querySelector('.cell');
+            if (firstCell) {
+                selectCell(firstCell);
+            }
+            
+            // Close sidebar on mobile
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('snippetsSidebar');
+                sidebar.classList.remove('open');
+            }
+        }
+        
+        // Generate notebook from config
+        function generateFromConfig() {
+            const configPath = prompt('Enter path to ADMF config file:', 'configs/my_strategy.yaml');
+            if (configPath) {
+                // Load the config analysis template
+                loadTemplate('config_analysis');
+                
+                // Update title with config name
+                const configName = configPath.split('/').pop().replace('.yaml', '').replace('.yml', '');
+                document.querySelector('.notebook-title-input').value = `Analysis: ${configName}`;
+                
+                // Auto-fill the first code cell with the config path
+                const firstCodeCell = document.querySelector('.code-cell .code-textarea');
+                if (firstCodeCell) {
+                    firstCodeCell.value = firstCodeCell.value.replace(
+                        'config_path = input("Enter path to ADMF config file: ")',
+                        `config_path = "${configPath}"`
+                    );
+                }
+                
+                // Close sidebar on mobile
+                if (window.innerWidth <= 768) {
+                    const sidebar = document.getElementById('snippetsSidebar');
+                    sidebar.classList.remove('open');
+                }
+            }
+        }
+        
+        // Load Options Flow Scanner notebook
+        function loadOptionsFlowNotebook() {
+            // Clear existing content without confirmation
+            const container = document.getElementById('notebookContent');
+            container.innerHTML = '';
+            
+            // Set title
+            document.querySelector('.notebook-title-input').value = 'Options Flow Scanner';
+            
+            const notebookContent = {
+                title: 'Options Flow Scanner',
+                cells: [
+                    {
+                        type: 'markdown',
+                        content: '# Options Flow Scanner\n\nReal-time scanner for unusual options activity and large block trades.'
+                    },
+                    {
+                        type: 'code',
+                        content: `import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+
+# Configuration for options flow scanner
+FLOW_THRESHOLD = 1000000  # $1M minimum
+VOLUME_RATIO = 5.0       # 5x average volume
+IV_PERCENTILE = 90       # High IV percentile`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Scan for unusual options activity
+def scan_options_flow(symbol_list):
+    orders = []
+    
+    for symbol in symbol_list:
+        options = get_options_chain(symbol)
+        
+        for option in options:
+            if (option.volume > option.avg_volume * VOLUME_RATIO and
+                option.premium * option.volume > FLOW_THRESHOLD):
+                
+                orders.append({
+                    'symbol': symbol,
+                    'strike': option.strike,
+                    'expiry': option.expiry,
+                    'type': option.type,
+                    'volume': option.volume,
+                    'premium': option.premium,
+                    'flow': option.premium * option.volume
+                })
+    
+    return pd.DataFrame(orders).sort_values('flow', ascending=False)`
+                    },
+                    {
+                        type: 'code',
+                        content: `# Run the scanner
+top_symbols = ['SPY', 'QQQ', 'AAPL', 'TSLA', 'NVDA', 'AMD', 'MSFT', 'AMZN', 'META', 'GOOGL']
+unusual_flows = scan_options_flow(top_symbols)
+print(f"Found {len(unusual_flows)} unusual options flows")`,
+                        output: `Found 47 unusual options flows
+
+Top 5 flows:
+TSLA 300C 12/15 - Volume: 25,432 - Flow: $12.7M
+NVDA 500C 01/19 - Volume: 18,221 - Flow: $9.1M  
+SPY 430P 12/08 - Volume: 45,123 - Flow: $8.9M
+AAPL 185C 12/15 - Volume: 22,145 - Flow: $6.6M
+QQQ 380C 12/22 - Volume: 15,432 - Flow: $5.4M`
+                    },
+                    {
+                        type: 'markdown',
+                        content: '## Flow Analysis\n\nThe scanner identified significant bullish activity in tech names, particularly TSLA and NVDA with large call volumes. SPY puts suggest hedging activity.'
+                    },
+                    {
+                        type: 'code',
+                        content: `# Visualize options flow by sector
+import matplotlib.pyplot as plt
+
+sector_flows = unusual_flows.groupby('sector')['flow'].sum()
+plt.figure(figsize=(10, 6))
+sector_flows.plot(kind='bar', color='#4ec9b0')
+plt.title('Options Flow by Sector')
+plt.ylabel('Total Flow ($M)')
+plt.xlabel('Sector')
+plt.xticks(rotation=45)
+plt.show()`,
+                        output: '[Bar chart showing Technology sector with highest flow at $45M, followed by Consumer Discretionary at $23M]'
+                    }
+                ]
+            };
+            
+            // Add cells directly
+            let cellCounter = 1;
+            notebookContent.cells.forEach((cellData) => {
+                const cellId = `cell-${cellCounter++}`;
+                const cellElement = createCellElement(cellData.type, cellId, cellData.content);
+                container.appendChild(cellElement);
+                
+                // Add output if exists
+                if (cellData.output) {
+                    const outputDiv = document.createElement('div');
+                    outputDiv.className = 'code-output';
+                    outputDiv.innerHTML = `<pre>${cellData.output}</pre>`;
+                    cellElement.appendChild(outputDiv);
+                }
+                
+                // Initialize Monaco for code cells
+                if (cellData.type === 'code' && monacoLoaded) {
+                    setTimeout(() => initMonacoForCell(cellId, cellData.content), 100);
+                }
+            });
+            
+            // Add the "Add Cell" button
+            const addCellBtn = document.createElement('div');
+            addCellBtn.className = 'add-cell';
+            addCellBtn.onclick = addCell;
+            addCellBtn.innerHTML = '<span>+</span> Add Cell';
+            container.appendChild(addCellBtn);
+        }
+        
+        // Helper function to create cell element
+        function createCellElement(type, cellId, content = '') {
+            const cellElement = document.createElement('div');
+            cellElement.className = `cell ${type}-cell`;
+            cellElement.id = cellId;
+            cellElement.onclick = function(e) { 
+                if (e.target === this || e.target.classList.contains('code-input')) {
+                    selectCell(this); 
+                }
+            };
+            
+            if (type === 'markdown') {
+                cellElement.innerHTML = `
+                    <div class="cell-toolbar">
+                        <button class="cell-btn" onclick="runCell(this)">▶</button>
+                        <button class="cell-btn" onclick="deleteCell(this)">✕</button>
+                    </div>
+                    <div class="markdown-content">${marked.parse(content)}</div>
+                    <textarea class="markdown-input" style="display: none;">${content}</textarea>
+                `;
+            } else if (type === 'code') {
+                cellElement.innerHTML = `
+                    <div class="cell-toolbar">
+                        <button class="cell-btn" onclick="runCell(this)">▶</button>
+                        <button class="cell-btn" onclick="deleteCell(this)">✕</button>
+                    </div>
+                    <div class="code-input">
+                        <div class="line-numbers"></div>
+                        <div class="monaco-cell-container" id="monaco-${cellId}"></div>
+                        <textarea class="code-textarea" style="display: none;">${content}</textarea>
+                    </div>
+                `;
+            }
+            
+            return cellElement;
+        }
+        
+        // Create new notebook
+        function createNewNotebook() {
+            const title = prompt('Enter notebook name:', 'Untitled Notebook');
+            if (title) {
+                // Clear current notebook
+                const container = document.getElementById('notebookContent');
+                container.innerHTML = '';
+                
+                // Set title
+                document.querySelector('.notebook-title-input').value = title;
+                
+                // Add initial markdown cell
+                const initialCell = document.createElement('div');
+                initialCell.className = 'cell markdown-cell';
+                initialCell.id = 'cell-1';
+                initialCell.onclick = function(e) { 
+                    if (e.target === this || e.target.classList.contains('code-input')) {
+                        selectCell(this); 
+                    }
+                };
+                initialCell.innerHTML = `
+                    <div class="cell-toolbar">
+                        <button class="cell-btn" onclick="runCell(this)">▶</button>
+                        <button class="cell-btn" onclick="deleteCell(this)">✕</button>
+                    </div>
+                    <div class="markdown-preview">
+                        <h1>${title}</h1>
+                        <p>New analysis notebook. Click + Add Cell to get started.</p>
+                    </div>
+                `;
+                
+                container.appendChild(initialCell);
+                
+                // Add the "Add Cell" button
+                const addCellBtn = document.createElement('div');
+                addCellBtn.className = 'add-cell';
+                addCellBtn.onclick = addCell;
+                addCellBtn.innerHTML = `
+                    <span>+ Add Cell</span>
+                    <select id="cellTypeSelect" class="form-input" style="width: auto; padding: var(--space-1) var(--space-2); font-size: var(--font-size-sm);">
+                        <option value="code">Code</option>
+                        <option value="markdown">Markdown</option>
+                    </select>
+                `;
+                container.appendChild(addCellBtn);
+                
+                cellCounter = 2;
+                selectCell(initialCell);
+                
+                // Close sidebar on mobile
+                if (window.innerWidth <= 768) {
+                    const sidebar = document.getElementById('snippetsSidebar');
+                    sidebar.classList.remove('open');
+                }
+            }
+        }
+        
+        // Load existing notebook
+        function loadNotebook(notebookId) {
+            // Simulate loading a saved notebook
+            // Notebooks - will be loaded from NT tutorials
+            const notebooks = {
+                'nt_loading': {
+                    title: 'Loading NautilusTrader Tutorials...',
+                    cells: [
+                        {
+                            type: 'markdown',
+                            content: '# Loading NautilusTrader Tutorial Notebooks\n\nFetching tutorial notebooks from the backend...'
+                        }
+                    ]
+                },
+                'parameter_sweep_bb': {
+                    title: 'Bollinger Bands Parameter Sweep',
+                    cells: [
+                        {
+                            type: 'markdown',
+                            content: '# Bollinger Bands Parameter Optimization\n\nSystematic analysis of period and standard deviation parameters.'
+                        },
+                        {
+                            type: 'code',
+                            content: `# Load Bollinger Bands sweep results\nsweep_results = admf.load_signals(strategy_type='bollinger_bands')\nprint(f"Parameter combinations tested: {len(sweep_results)}")`
+                        }
+                    ]
+                }
+            };
+            
+            const notebook = notebooks[notebookId];
+            if (notebook) {
+                loadTemplate('custom', notebook);
+            }
+            
+            // Close sidebar on mobile
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('snippetsSidebar');
+                sidebar.classList.remove('open');
+            }
+        }
+        
+        // Toggle strategy folder
+        function toggleFolder(folder) {
+            // Placeholder for folder expansion
+            console.log('Toggle folder:', folder.textContent);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            addMobileMenuButton();
+        });
+        
+        // Initialize on load
+        window.addEventListener('load', init);
+        
+        // Click outside to close autocomplete
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.autocomplete-popup') && !e.target.closest('.code-textarea')) {
+                document.querySelectorAll('.autocomplete-popup').forEach(popup => {
+                    popup.classList.remove('show');
+                });
+            }
+        });
+    
+        // Load catalogue on page load if catalogue tab is active
+        document.addEventListener('DOMContentLoaded', function() {
+            const catalogueTab = document.getElementById('catalogueTab');
+            if (catalogueTab && catalogueTab.classList.contains('active')) {
+                loadStrategyCatalogue();
+            }
+        });
+
+    
+
+        // CATALOGUE TAB FUNCTIONALITY
+// Add this script to research.html to enable the Catalogue tab
+// This can be added at the end of the existing <script> section
+
+// Fix the switchTab function if it's broken
+window.switchTab = function(tabName, element) {
+    try {
+        console.log('Switching to tab:', tabName);
+        
+        // Update tab buttons
+        document.querySelectorAll('.sidebar-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        element.classList.add('active');
+        
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        const targetTab = document.getElementById(tabName + 'Tab');
+        if (targetTab) {
+            targetTab.classList.add('active');
+            console.log('Tab switched successfully to:', tabName);
+            
+            // Load catalogue content when switching to it
+            if (tabName === 'catalogue') {
+                loadStrategyCatalogue();
+            }
+        } else {
+            console.error('Tab not found:', tabName + 'Tab');
+        }
+    } catch (error) {
+        console.error('Error switching tab:', error);
+    }
+};
+
+        // Strategy selection
+        function selectStrategy(strategyType) {
+            console.log(`Selected strategy: ${strategyType}`);
+            
+            // Strategy mapping
+            const strategyInfo = {
+                'ema-cross': {
+                    name: 'EMA Cross Strategy',
+                    template: 'ema_cross_template',
+                    description: 'Classic exponential moving average crossover strategy'
+                },
+                'mean-reversion': {
+                    name: 'Mean Reversion Strategy',
+                    template: 'mean_reversion_template',
+                    description: 'Statistical arbitrage based on price deviations'
+                },
+                'momentum': {
+                    name: 'Momentum Strategy',
+                    template: 'momentum_template',
+                    description: 'Trend-following momentum-based strategy'
+                },
+                'pairs-trading': {
+                    name: 'Pairs Trading Strategy',
+                    template: 'pairs_trading_template',
+                    description: 'Market-neutral pairs trading'
+                },
+                'volatility': {
+                    name: 'Volatility Trading Strategy',
+                    template: 'volatility_template',
+                    description: 'Options and volatility-based strategies'
+                },
+                'ml-predictive': {
+                    name: 'ML Predictive Model',
+                    template: 'ml_template',
+                    description: 'Machine learning alpha generation'
+                },
+                'custom': {
+                    name: 'Custom Strategy Builder',
+                    template: 'blank_template',
+                    description: 'Build your own strategy from scratch'
+                }
+            };
+            
+            const strategy = strategyInfo[strategyType];
+            if (!strategy) {
+                alert('Coming soon!');
+                return;
+            }
+            
+            // Create a modal or navigate to strategy builder
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--color-bg-primary);
+                border: 3px solid var(--color-text-primary);
+                border-radius: var(--radius-lg);
+                box-shadow: -5px 7px var(--color-text-primary);
+                padding: var(--space-6);
+                max-width: 500px;
+                z-index: 1000;
+            `;
+            
+            modal.innerHTML = `
+                <h2 style="font-family: var(--font-family-mono); margin-bottom: var(--space-4);">${strategy.name}</h2>
+                <p style="color: var(--color-text-secondary); margin-bottom: var(--space-4);">${strategy.description}</p>
+                <div style="display: flex; gap: var(--space-2); margin-top: var(--space-6);">
+                    <button onclick="loadStrategyTemplate('${strategy.template}')" class="btn btn-primary">
+                        Load Template
+                    </button>
+                    <button onclick="this.parentElement.parentElement.remove()" class="btn">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add backdrop
+            const backdrop = document.createElement('div');
+            backdrop.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+            `;
+            backdrop.onclick = () => {
+                modal.remove();
+                backdrop.remove();
+            };
+            document.body.appendChild(backdrop);
+        }
+        
+        // Load strategy template
+        function loadStrategyTemplate(templateName) {
+            // Remove modal
+            document.querySelectorAll('div[style*="position: fixed"]').forEach(el => el.remove());
+            
+            // Switch to code editor view
+            // This would load the appropriate template
+            console.log(`Loading template: ${templateName}`);
+            alert(`Loading ${templateName}...\n\nThis would switch to the code editor with the selected strategy template.`);
+        }
+        
+        // Search strategies
+        function searchStrategies() {
+            const query = document.getElementById('strategySearchInput').value.toLowerCase();
+            const cards = document.querySelectorAll('.strategy-card');
+            
+            cards.forEach(card => {
+                const title = card.querySelector('.strategy-title').textContent.toLowerCase();
+                const description = card.querySelector('.strategy-description').textContent.toLowerCase();
+                const tags = Array.from(card.querySelectorAll('.tag')).map(tag => tag.textContent.toLowerCase()).join(' ');
+                
+                if (query === '' || title.includes(query) || description.includes(query) || tags.includes(query)) {
+                    card.style.display = 'flex';
+                    card.style.opacity = '1';
+                    card.style.pointerEvents = 'auto';
+                } else {
+                    card.style.opacity = '0.3';
+                    card.style.pointerEvents = 'none';
+                }
+            });
+        }
+
+
+        // Strategy selection
+        function selectStrategy(strategyType) {
+            console.log(`Selected strategy: ${strategyType}`);
+            
+            // Strategy mapping
+            const strategyInfo = {
+                'ema-cross': {
+                    name: 'EMA Cross Strategy',
+                    template: 'ema_cross_template',
+                    description: 'Classic exponential moving average crossover strategy'
+                },
+                'mean-reversion': {
+                    name: 'Mean Reversion Strategy',
+                    template: 'mean_reversion_template',
+                    description: 'Statistical arbitrage based on price deviations'
+                },
+                'momentum': {
+                    name: 'Momentum Strategy',
+                    template: 'momentum_template',
+                    description: 'Trend-following momentum-based strategy'
+                },
+                'pairs-trading': {
+                    name: 'Pairs Trading Strategy',
+                    template: 'pairs_trading_template',
+                    description: 'Market-neutral pairs trading'
+                },
+                'volatility': {
+                    name: 'Volatility Trading Strategy',
+                    template: 'volatility_template',
+                    description: 'Options and volatility-based strategies'
+                },
+                'ml-predictive': {
+                    name: 'ML Predictive Model',
+                    template: 'ml_template',
+                    description: 'Machine learning alpha generation'
+                },
+                'custom': {
+                    name: 'Custom Strategy Builder',
+                    template: 'blank_template',
+                    description: 'Build your own strategy from scratch'
+                }
+            };
+            
+            const strategy = strategyInfo[strategyType];
+            if (!strategy) {
+                alert('Coming soon!');
+                return;
+            }
+            
+            // For now, just show an alert. In production, this would navigate or load template
+            alert(`Loading ${strategy.name}...\n\n${strategy.description}\n\nTemplate: ${strategy.template}`);
+        }
+        
+        // Search strategies
+        function searchStrategies() {
+            const query = document.getElementById('strategySearchInput').value.toLowerCase();
+            const cards = document.querySelectorAll('.strategy-card');
+            
+            cards.forEach(card => {
+                const title = card.querySelector('.strategy-title').textContent.toLowerCase();
+                const description = card.querySelector('.strategy-description').textContent.toLowerCase();
+                const tags = Array.from(card.querySelectorAll('.tag')).map(tag => tag.textContent.toLowerCase()).join(' ');
+                
+                if (query === '' || title.includes(query) || description.includes(query) || tags.includes(query)) {
+                    card.style.display = 'flex';
+                    card.style.opacity = '1';
+                    card.style.pointerEvents = 'auto';
+                } else {
+                    card.style.opacity = '0.3';
+                    card.style.pointerEvents = 'none';
+                }
+            });
+        }
+
+
+        // Handle selected strategy from explore page
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectedStrategy = sessionStorage.getItem('selectedStrategy');
+            if (selectedStrategy) {
+                // Clear the selection
+                sessionStorage.removeItem('selectedStrategy');
+                
+                // Load the strategy template
+                console.log('Loading strategy:', selectedStrategy);
+                
+                // Update the notebook title
+                const titleInput = document.querySelector('.notebook-title-input');
+                if (titleInput) {
+                    const strategyNames = {
+                        'ema-cross': 'EMA Cross Strategy Analysis',
+                        'mean-reversion': 'Mean Reversion Strategy Analysis',
+                        'momentum': 'Momentum Strategy Analysis',
+                        'pairs-trading': 'Pairs Trading Analysis',
+                        'custom': 'Custom Strategy Development'
+                    };
+                    titleInput.value = strategyNames[selectedStrategy] || 'Strategy Analysis';
+                }
+                
+                // You could also load a specific template or notebook here
+                // loadStrategyNotebook(selectedStrategy);
+            }
+        });
+
+
+        // Strategy Builder Functions
+        let currentBuilderStep = 1;
+        let selectedTemplate = null;
+        let selectedIndicators = [];
+        
+        function openStrategyBuilder() {
+            document.getElementById('strategyBuilderModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeStrategyBuilder() {
+            document.getElementById('strategyBuilderModal').classList.remove('active');
+            document.body.style.overflow = '';
+            // Reset state
+            currentBuilderStep = 1;
+            selectedTemplate = null;
+            selectedIndicators = [];
+        }
+        
+        function selectTemplate(template) {
+            selectedTemplate = template;
+            // Highlight selected template
+            document.querySelectorAll('.builder-form .strategy-card').forEach(card => {
+                card.style.opacity = '0.5';
+            });
+            event.currentTarget.style.opacity = '1';
+            
+            // Auto advance to next step
+            setTimeout(() => nextStep(), 300);
+        }
+        
+        function toggleIndicator(element, indicator) {
+            element.classList.toggle('selected');
+            if (element.classList.contains('selected')) {
+                selectedIndicators.push(indicator);
+            } else {
+                selectedIndicators = selectedIndicators.filter(i => i !== indicator);
+            }
+        }
+        
+        function nextStep() {
+            if (currentBuilderStep < 4) {
+                currentBuilderStep++;
+                updateBuilderSteps();
+            }
+        }
+        
+        function previousStep() {
+            if (currentBuilderStep > 1) {
+                currentBuilderStep--;
+                updateBuilderSteps();
+            }
+        }
+        
+        function updateBuilderSteps() {
+            // Update step indicators
+            document.querySelectorAll('.progress-steps .step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 < currentBuilderStep) {
+                    step.classList.add('completed');
+                    step.querySelector('.step-circle').textContent = '✓';
+                } else if (index + 1 === currentBuilderStep) {
+                    step.classList.add('active');
+                } else {
+                    step.querySelector('.step-circle').textContent = index + 1;
+                }
+            });
+            
+            // Show/hide sections based on step
+            if (currentBuilderStep === 2) {
+                document.getElementById('indicatorSection').style.display = 'block';
+            }
+        }
+        
+        // Close modal on backdrop click
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('builder-modal')) {
+                closeStrategyBuilder();
+            }
+        });
+
+        function selectBuilderTemplate(template) {
+            console.log('Selected template:', template);
+            // Store the selected template
+            window.selectedTemplate = template;
+            
+            // If custom, skip to indicators, otherwise load template
+            if (template !== 'custom') {
+                // Pre-populate some indicators based on template
+                const templateIndicators = {
+                    'trend-following': ['EMA', 'SMA', 'MACD'],
+                    'mean-reversion': ['RSI', 'Bollinger Bands'],
+                    'breakout': ['ATR', 'Bollinger Bands', 'Volume']
+                };
+                window.templateIndicators = templateIndicators[template] || [];
+            }
+            
+            // Move to next step
+            goToBuilderStep(2);
+        }
+        
+        function goToBuilderStep(step) {
+            // Hide all panels
+            document.querySelectorAll('.step-panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+            
+            // Show the target panel
+            const panelIds = {
+                1: 'step-template',
+                2: 'step-indicators',
+                3: 'step-parameters',
+                4: 'step-universe',
+                5: 'step-backtest',
+                6: 'step-results'
+            };
+            
+            const targetPanel = document.getElementById(panelIds[step]);
+            if (targetPanel) {
+                targetPanel.style.display = 'block';
+            }
+            
+            // Update progress steps
+            document.querySelectorAll('.progress-steps .step').forEach((stepEl, index) => {
+                const stepNum = index + 1;
+                stepEl.classList.remove('active', 'completed');
+                
+                if (stepNum < step) {
+                    stepEl.classList.add('completed');
+                    stepEl.querySelector('.step-circle').textContent = '✓';
+                } else if (stepNum === step) {
+                    stepEl.classList.add('active');
+                    stepEl.querySelector('.step-circle').textContent = stepNum;
+                } else {
+                    stepEl.querySelector('.step-circle').textContent = stepNum;
+                }
+            });
+            
+            currentBuilderStep = step;
+            
+            // If moving to indicators step and we have template indicators, add them
+            if (step === 2 && window.templateIndicators) {
+                setTimeout(() => {
+                    window.templateIndicators.forEach(ind => {
+                        addIndicatorToBuilder(ind);
+                    });
+                    window.templateIndicators = null;
+                }, 100);
+            }
+        }
+    </script>
+
+    <!-- Strategy Builder Modal -->
+    <div class="builder-modal" id="strategyBuilderModal">
+        <div class="builder-container">
+            <div class="builder-header">
+                <h2 class="builder-title">Strategy Builder</h2>
+                <button class="builder-close" onclick="closeStrategyBuilder()">×</button>
+            </div>
+            
+            <div class="builder-content">
+                <!-- Progress Steps -->
+                <div class="progress-steps">
+                    <div class="step active" data-step="1">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">Template</div>
+                    </div>
+                    <div class="step" data-step="2">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">Indicators</div>
+                    </div>
+                    <div class="step" data-step="3">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Parameters</div>
+                    </div>
+                    <div class="step" data-step="4">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">Universe</div>
+                    </div>
+                    <div class="step" data-step="5">
+                        <div class="step-circle">5</div>
+                        <div class="step-label">Backtest</div>
+                    </div>
+                    <div class="step" data-step="6">
+                        <div class="step-circle">6</div>
+                        <div class="step-label">Results</div>
+                    </div>
+                </div>
+                
+                <!-- Main Content Grid -->
+                <div style="display: grid; grid-template-columns: 300px 1fr; gap: var(--space-8); margin-top: var(--space-8);">
+                    <!-- Sidebar -->
+                    <aside style="background: var(--color-bg-secondary); border: 2px solid var(--color-border-primary); border-radius: var(--radius-lg); padding: var(--space-4);">
+                        <h3 style="font-family: var(--font-family-mono); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-4);">Indicator Library</h3>
+                        
+                        <div style="position: relative; margin-bottom: var(--space-4);">
+                            <input 
+                                type="text" 
+                                placeholder="Type indicator name..." 
+                                id="indicator-search"
+                                style="width: 100%; padding: var(--space-3); font-family: var(--font-family-mono); font-size: var(--font-size-sm); background: var(--color-bg-primary); border: 2px solid var(--color-border-primary); border-radius: var(--radius-md); color: var(--color-text-primary);"
+                                oninput="filterIndicators(this.value)"
+                            />
+                            <div id="search-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--color-bg-primary); border: 2px solid var(--color-border-primary); border-radius: var(--radius-md); max-height: 300px; overflow-y: auto; z-index: 10; margin-top: var(--space-1);"></div>
+                        </div>
+                        
+                        <div style="font-family: var(--font-family-mono); font-size: var(--font-size-xs); color: var(--color-text-tertiary); font-style: italic;">
+                            Try: 'rsi', 'bollinger', 'macd', 'ema'
+                        </div>
+                    </aside>
+                    
+                    <!-- Main Panel -->
+                    <main style="background: var(--color-bg-secondary); border: 2px solid var(--color-border-primary); border-radius: var(--radius-lg); padding: var(--space-6);">
+                        <!-- Step 1: Template Selection -->
+                        <div id="step-template" class="step-panel active">
+                            <h2 style="font-family: var(--font-family-mono); font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-6);">Choose a Strategy Template</h2>
+                            
+                            <div class="strategy-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6);">
+                                <div class="strategy-card color-blue" onclick="selectBuilderTemplate('trend-following')" style="cursor: pointer; aspect-ratio: 1; padding: var(--space-4); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                                    <h3 class="strategy-title">Trend Following</h3>
+                                    <p class="strategy-description">EMA crosses & momentum</p>
+                                </div>
+                                <div class="strategy-card color-orange" onclick="selectBuilderTemplate('mean-reversion')" style="cursor: pointer; aspect-ratio: 1; padding: var(--space-4); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                                    <h3 class="strategy-title">Mean Reversion</h3>
+                                    <p class="strategy-description">RSI & Bollinger Bands</p>
+                                </div>
+                                <div class="strategy-card color-green" onclick="selectBuilderTemplate('breakout')" style="cursor: pointer; aspect-ratio: 1; padding: var(--space-4); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                                    <h3 class="strategy-title">Breakout</h3>
+                                    <p class="strategy-description">Channel & volatility</p>
+                                </div>
+                                <div class="strategy-card color-purple" onclick="selectBuilderTemplate('custom')" style="cursor: pointer; aspect-ratio: 1; padding: var(--space-4); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                                    <h3 class="strategy-title">Custom</h3>
+                                    <p class="strategy-description">Build from scratch</p>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: flex-end;">
+                                <button class="btn" onclick="closeStrategyBuilder()">Cancel</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 2: Indicators -->
+                        <div id="step-indicators" class="step-panel" style="display: none;">
+                            <h2 style="font-family: var(--font-family-mono); font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-6);">Build Your Strategy Logic</h2>
+                            
+                            <!-- Strategy Canvas -->
+                            <div id="strategy-canvas" style="min-height: 300px; background: var(--color-bg-primary); border: 2px dashed var(--color-border-primary); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-6); padding: var(--space-4);">
+                                <div class="canvas-placeholder" style="text-align: center; color: var(--color-text-secondary); font-family: var(--font-family-mono);">
+                                    <div style="font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-2);">Drag indicators here</div>
+                                    <div style="font-size: var(--font-size-sm);">Start typing in the search box to find indicators</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Logic Builder -->
+                            <div style="background: var(--color-bg-primary); border: 2px solid var(--color-border-primary); border-radius: var(--radius-lg); padding: var(--space-4); margin-bottom: var(--space-4);">
+                                <h3 style="font-family: var(--font-family-mono); font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); margin-bottom: var(--space-3);">Signal Combination Logic</h3>
+                                <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+                                    <div class="logic-option active" onclick="selectLogic(this, 'AND')" style="padding: var(--space-2) var(--space-3); background: var(--color-primary); color: white; border: 2px solid var(--color-primary); border-radius: var(--radius-md); font-family: var(--font-family-mono); font-size: var(--font-size-sm); cursor: pointer;">ALL signals must be true (AND)</div>
+                                    <div class="logic-option" onclick="selectLogic(this, 'OR')" style="padding: var(--space-2) var(--space-3); background: var(--color-bg-secondary); border: 2px solid var(--color-border-primary); border-radius: var(--radius-md); font-family: var(--font-family-mono); font-size: var(--font-size-sm); cursor: pointer;">ANY signal can be true (OR)</div>
+                                    <div class="logic-option" onclick="selectLogic(this, 'CUSTOM')" style="padding: var(--space-2) var(--space-3); background: var(--color-bg-secondary); border: 2px solid var(--color-border-primary); border-radius: var(--radius-md); font-family: var(--font-family-mono); font-size: var(--font-size-sm); cursor: pointer;">Custom logic builder</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Actions -->
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; gap: var(--space-2);">
+                                    <button class="btn" onclick="clearCanvas()">Clear All</button>
+                                    <button class="btn" onclick="saveAsTemplate()">Save as Template</button>
+                                </div>
+                                <div style="display: flex; gap: var(--space-2);">
+                                    <button class="btn" onclick="goToBuilderStep(1)">← Back</button>
+                                    <button class="btn btn-primary" onclick="goToBuilderStep(3)">Parameters →</button>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

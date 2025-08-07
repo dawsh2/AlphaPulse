@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Introspection Pipeline - AlphaPulse</title>
+    
+    <!-- AlphaPulse Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* CSS Variables - AlphaPulse Design System */
+        :root {
+            --font-family-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-family-mono: 'IBM Plex Mono', 'SF Mono', Monaco, Consolas, monospace;
+            
+            --font-size-xs: 0.75rem;
+            --font-size-sm: 0.875rem;
+            --font-size-base: 1rem;
+            --font-size-lg: 1.25rem;
+            --font-size-xl: 1.5rem;
+            --font-size-2xl: 1.875rem;
+            
+            --font-weight-normal: 400;
+            --font-weight-medium: 500;
+            --font-weight-semibold: 600;
+            --font-weight-bold: 700;
+            
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-6: 1.5rem;
+            --space-8: 2rem;
+            
+            --radius-md: 0.25rem;
+            --radius-lg: 0.375rem;
+            
+            --color-bg-primary: #faf8f3;
+            --color-bg-secondary: #f5f2ea;
+            --color-text-primary: #33332d;
+            --color-text-secondary: #666660;
+            --color-text-tertiary: #999990;
+            --color-border-primary: #e5e0d5;
+            
+            --color-blue: #89CDF1;
+            --color-orange: #FF9500;
+            --color-green: #4CAF50;
+            --color-purple: #9C27B0;
+            --color-red: #F44336;
+            --color-teal: #009688;
+            
+            --transition-fast: 150ms ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--font-family-sans);
+            background-color: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: var(--space-4);
+        }
+        
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-6);
+            padding: var(--space-4) 0;
+            border-bottom: 3px solid var(--color-text-primary);
+        }
+        
+        .logo {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+        }
+        
+        .pipeline-controls {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+        
+        .code-toggle {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .toggle-label {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: var(--color-border-primary);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .toggle-switch.active {
+            background: var(--color-green);
+        }
+        
+        .toggle-knob {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: all var(--transition-fast);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .toggle-switch.active .toggle-knob {
+            transform: translateX(30px);
+        }
+        
+        /* AlphaPulse Button Style */
+        .btn {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            padding: var(--space-2) var(--space-4);
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-md);
+            box-shadow: -3px 5px var(--color-text-primary);
+            color: var(--color-text-primary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: 5px;
+            margin-right: 5px;
+        }
+        
+        .btn:hover {
+            background: var(--color-text-primary);
+            color: var(--color-bg-primary);
+            transform: translate(2px, -2px);
+            box-shadow: -5px 7px var(--color-text-primary);
+        }
+        
+        .btn:active {
+            transform: translate(-1px, 2px);
+            box-shadow: -2px 3px var(--color-text-primary);
+        }
+        
+        .btn-primary {
+            background: var(--color-blue);
+            border-color: #5BA7D1;
+            color: #1a1a1a;
+        }
+        
+        .btn-primary:hover {
+            background: #1a1a1a;
+            color: var(--color-blue);
+        }
+        
+        .btn-success {
+            background: var(--color-green);
+            border-color: #388E3C;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: white;
+            color: var(--color-green);
+        }
+        
+        .btn-purple {
+            background: var(--color-purple);
+            border-color: #7B1FA2;
+            color: white;
+        }
+        
+        .btn-purple:hover {
+            background: white;
+            color: var(--color-purple);
+        }
+        
+        /* Main Layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-6);
+            min-height: 600px;
+        }
+        
+        .main-content.code-mode {
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        /* UI Panel */
+        .ui-panel {
+            background: var(--color-bg-secondary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-4);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        /* Strategy Builder Section */
+        .strategy-builder {
+            margin-bottom: var(--space-6);
+        }
+        
+        .builder-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-4);
+        }
+        
+        .indicators-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+        
+        .indicator-chip {
+            background: var(--color-bg-primary);
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--space-2) var(--space-3);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            position: relative;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .indicator-chip:hover {
+            border-color: var(--color-blue);
+            background: rgba(137, 205, 241, 0.1);
+        }
+        
+        .indicator-chip.has-code::after {
+            content: '</>';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--color-green);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-bold);
+        }
+        
+        /* Analysis Section */
+        .analysis-section {
+            margin-bottom: var(--space-6);
+        }
+        
+        .analysis-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-3);
+            margin-bottom: var(--space-4);
+        }
+        
+        .analysis-result {
+            background: var(--color-bg-primary);
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+        
+        .result-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-2);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .result-summary {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-3);
+        }
+        
+        .code-peek-btn {
+            padding: var(--space-1) var(--space-2);
+            font-size: var(--font-size-xs);
+            background: var(--color-green);
+            border-color: #388E3C;
+            color: white;
+        }
+        
+        .code-peek-btn:hover {
+            background: white;
+            color: var(--color-green);
+        }
+        
+        /* Code Panel */
+        .code-panel {
+            background: #1e1e1e;
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .code-panel.show {
+            display: flex;
+        }
+        
+        .code-header {
+            background: #2d2d2d;
+            padding: var(--space-4);
+            border-bottom: 1px solid #404040;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .code-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-lg);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .code-tabs {
+            display: flex;
+            gap: var(--space-1);
+        }
+        
+        .code-tab {
+            background: #404040;
+            color: #cccccc;
+            border: none;
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-md);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xs);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .code-tab.active {
+            background: var(--color-green);
+            color: white;
+        }
+        
+        .code-actions {
+            display: flex;
+            gap: var(--space-2);
+        }
+        
+        .code-action-btn {
+            background: #404040;
+            color: #cccccc;
+            border: none;
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-md);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xs);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+        }
+        
+        .code-action-btn:hover {
+            background: var(--color-blue);
+            color: #1a1a1a;
+        }
+        
+        .code-content {
+            flex: 1;
+            padding: var(--space-4);
+            background: #1e1e1e;
+            overflow-y: auto;
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            line-height: 1.6;
+        }
+        
+        .code-block {
+            display: none;
+            white-space: pre-wrap;
+            color: #d4d4d4;
+        }
+        
+        .code-block.active {
+            display: block;
+        }
+        
+        /* Syntax Highlighting */
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; font-style: italic; }
+        .function { color: #dcdcaa; }
+        .number { color: #b5cea8; }
+        .class { color: #4ec9b0; }
+        .import { color: #c586c0; }
+        
+        /* Code Explanations */
+        .code-explanation {
+            background: rgba(137, 205, 241, 0.1);
+            border: 1px solid var(--color-blue);
+            border-radius: var(--radius-md);
+            padding: var(--space-3);
+            margin: var(--space-2) 0;
+            font-family: var(--font-family-sans);
+            font-size: var(--font-size-sm);
+            color: var(--color-text-primary);
+            display: none;
+        }
+        
+        .code-explanation.show {
+            display: block;
+        }
+        
+        .explanation-title {
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-1);
+            color: #1a1a1a;
+        }
+        
+        /* Learning Paths */
+        .learning-section {
+            background: rgba(76, 175, 80, 0.1);
+            border: 2px solid var(--color-green);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-top: var(--space-4);
+        }
+        
+        .learning-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-3);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .learning-item {
+            margin-bottom: var(--space-2);
+            font-size: var(--font-size-sm);
+        }
+        
+        .learning-link {
+            color: var(--color-green);
+            text-decoration: none;
+            font-weight: var(--font-weight-medium);
+        }
+        
+        .learning-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* Deploy Section */
+        .deploy-section {
+            background: rgba(255, 149, 0, 0.1);
+            border: 2px solid var(--color-orange);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+        }
+        
+        .deploy-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-3);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .deploy-options {
+            display: flex;
+            gap: var(--space-3);
+            flex-wrap: wrap;
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: var(--space-4);
+            }
+            
+            .main-content.code-mode {
+                grid-template-columns: 1fr;
+            }
+            
+            .pipeline-controls {
+                flex-direction: column;
+                gap: var(--space-2);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="logo">🔬 AlphaPulse Development Pipeline</h1>
+            <div class="pipeline-controls">
+                <div class="code-toggle">
+                    <span class="toggle-label">Show Code</span>
+                    <div class="toggle-switch" onclick="toggleCodeMode()">
+                        <div class="toggle-knob"></div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="exportCode()">📤 Export Code</button>
+                <button class="btn btn-success" onclick="openIDE()">💻 Open IDE</button>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <div class="main-content" id="mainContent">
+            <!-- UI Panel -->
+            <div class="ui-panel">
+                <h2 class="panel-title">
+                    <span>🎛️</span>
+                    Interactive Strategy Builder
+                </h2>
+                
+                <!-- Strategy Builder -->
+                <div class="strategy-builder">
+                    <h3 class="builder-title">Current Strategy Components</h3>
+                    <div class="indicators-list">
+                        <div class="indicator-chip has-code" onclick="showCode('rsi')">
+                            RSI (period=14, oversold=30)
+                        </div>
+                        <div class="indicator-chip has-code" onclick="showCode('momentum')">
+                            Momentum (lookback=10, threshold=5%)
+                        </div>
+                        <div class="indicator-chip has-code" onclick="showCode('logic')">
+                            Signal Logic: AND
+                        </div>
+                    </div>
+                    
+                    <div class="analysis-buttons">
+                        <button class="btn" onclick="addIndicator()">➕ Add Indicator</button>
+                        <button class="btn" onclick="modifyStrategy()">⚙️ Modify</button>
+                        <button class="btn code-peek-btn" onclick="showCode('strategy')">
+                            </> View Strategy Code
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Analysis Section -->
+                <div class="analysis-section">
+                    <h3 class="builder-title">Analysis & Testing</h3>
+                    <div class="analysis-buttons">
+                        <button class="btn btn-primary" onclick="runAnalysis('backtest')">
+                            📊 Backtest
+                        </button>
+                        <button class="btn btn-purple" onclick="runAnalysis('regime')">
+                            🎯 Regime Analysis
+                        </button>
+                        <button class="btn" onclick="runAnalysis('optimize')">
+                            🔧 Optimize
+                        </button>
+                    </div>
+                    
+                    <div class="analysis-result">
+                        <div class="result-title">
+                            <span>📈</span>
+                            Backtest Results
+                        </div>
+                        <div class="result-summary">
+                            Sharpe: 1.42 | Annual Return: 18.7% | Max DD: -8.2%
+                        </div>
+                        <button class="btn code-peek-btn" onclick="showCode('backtest')">
+                            </> View Backtest Code
+                        </button>
+                    </div>
+                    
+                    <div class="analysis-result">
+                        <div class="result-title">
+                            <span>🎯</span>
+                            Regime Analysis
+                        </div>
+                        <div class="result-summary">
+                            Bull: +24.3% | Bear: -2.1% | Sideways: +8.7%
+                        </div>
+                        <button class="btn code-peek-btn" onclick="showCode('regime')">
+                            </> View Regime Code
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Deploy Section -->
+                <div class="deploy-section">
+                    <div class="deploy-title">
+                        <span>🚀</span>
+                        Deploy Strategy
+                    </div>
+                    <div class="deploy-options">
+                        <button class="btn" onclick="deployPaper()">📄 Paper Trading</button>
+                        <button class="btn" onclick="deployLive()">💰 Live Trading</button>
+                        <button class="btn code-peek-btn" onclick="showCode('deploy')">
+                            </> Deployment Code
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Learning Section -->
+                <div class="learning-section">
+                    <div class="learning-title">
+                        <span>🎓</span>
+                        Learn More
+                    </div>
+                    <div class="learning-item">
+                        📚 <a href="#" class="learning-link">Understanding RSI Implementation</a>
+                    </div>
+                    <div class="learning-item">
+                        📚 <a href="#" class="learning-link">Momentum Strategy Deep Dive</a>
+                    </div>
+                    <div class="learning-item">
+                        📚 <a href="#" class="learning-link">Regime Detection Methods</a>
+                    </div>
+                    <div class="learning-item">
+                        📚 <a href="#" class="learning-link">NautilusTrader Framework Guide</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Code Panel -->
+            <div class="code-panel" id="codePanel">
+                <div class="code-header">
+                    <div class="code-title">
+                        <span>💻</span>
+                        <span id="codeTitle">Strategy Implementation</span>
+                    </div>
+                    <div class="code-tabs">
+                        <button class="code-tab active" onclick="switchTab('implementation')">Implementation</button>
+                        <button class="code-tab" onclick="switchTab('explanation')">Explanation</button>
+                        <button class="code-tab" onclick="switchTab('tutorial')">Tutorial</button>
+                    </div>
+                    <div class="code-actions">
+                        <button class="code-action-btn" onclick="copyCode()">
+                            📋 Copy
+                        </button>
+                        <button class="code-action-btn" onclick="downloadCode()">
+                            💾 Download
+                        </button>
+                        <button class="code-action-btn" onclick="runCode()">
+                            ▶️ Run
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="code-content">
+                    <!-- Strategy Code -->
+                    <div class="code-block active" id="strategy-code">
+<span class="comment"># AlphaPulse Generated Strategy: RSI + Momentum
+# This strategy combines RSI oversold/overbought signals with momentum confirmation</span>
+
+<span class="import">from</span> nautilus_trader.model.instruments <span class="import">import</span> Instrument
+<span class="import">from</span> nautilus_trader.indicators.rsi <span class="import">import</span> RelativeStrengthIndex
+<span class="import">from</span> nautilus_trader.indicators.momentum <span class="import">import</span> Momentum
+
+<span class="keyword">class</span> <span class="class">RSIMomentumStrategy</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, rsi_period=<span class="number">14</span>, momentum_period=<span class="number">10</span>):
+        <span class="comment"># Initialize indicators with user-defined parameters</span>
+        <span class="keyword">self</span>.rsi = RelativeStrengthIndex(period=rsi_period)
+        <span class="keyword">self</span>.momentum = Momentum(period=momentum_period)
+        
+        <span class="comment"># Strategy parameters</span>
+        <span class="keyword">self</span>.rsi_oversold = <span class="number">30</span>
+        <span class="keyword">self</span>.rsi_overbought = <span class="number">70</span>
+        <span class="keyword">self</span>.momentum_threshold = <span class="number">0.05</span>  <span class="comment"># 5%</span>
+        
+    <span class="keyword">def</span> <span class="function">generate_signals</span>(<span class="keyword">self</span>, bar):
+        <span class="comment"># Update indicators with new price data</span>
+        <span class="keyword">self</span>.rsi.update_raw(bar.close.as_double())
+        <span class="keyword">self</span>.momentum.update_raw(bar.close.as_double())
+        
+        <span class="comment"># Get current indicator values</span>
+        rsi_value = <span class="keyword">self</span>.rsi.value
+        momentum_value = <span class="keyword">self</span>.momentum.value
+        
+        <span class="comment"># Generate buy signal: RSI oversold AND positive momentum</span>
+        buy_signal = (rsi_value < <span class="keyword">self</span>.rsi_oversold and 
+                     momentum_value > <span class="keyword">self</span>.momentum_threshold)
+        
+        <span class="comment"># Generate sell signal: RSI overbought AND negative momentum</span>
+        sell_signal = (rsi_value > <span class="keyword">self</span>.rsi_overbought and 
+                      momentum_value < -<span class="keyword">self</span>.momentum_threshold)
+        
+        <span class="keyword">return</span> {
+            <span class="string">'buy'</span>: buy_signal,
+            <span class="string">'sell'</span>: sell_signal,
+            <span class="string">'rsi'</span>: rsi_value,
+            <span class="string">'momentum'</span>: momentum_value
+        }
+                    </div>
+                    
+                    <!-- RSI Code -->
+                    <div class="code-block" id="rsi-code">
+<span class="comment"># RSI (Relative Strength Index) Implementation
+# Measures the speed and magnitude of price changes</span>
+
+<span class="keyword">class</span> <span class="class">RSI</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, period=<span class="number">14</span>):
+        <span class="keyword">self</span>.period = period
+        <span class="keyword">self</span>.gains = []
+        <span class="keyword">self</span>.losses = []
+        <span class="keyword">self</span>.prev_close = <span class="keyword">None</span>
+        
+    <span class="keyword">def</span> <span class="function">update</span>(<span class="keyword">self</span>, price):
+        <span class="keyword">if</span> <span class="keyword">self</span>.prev_close <span class="keyword">is</span> <span class="keyword">None</span>:
+            <span class="keyword">self</span>.prev_close = price
+            <span class="keyword">return</span> <span class="keyword">None</span>
+            
+        <span class="comment"># Calculate price change</span>
+        change = price - <span class="keyword">self</span>.prev_close
+        
+        <span class="comment"># Separate gains and losses</span>
+        gain = max(change, <span class="number">0</span>)
+        loss = max(-change, <span class="number">0</span>)
+        
+        <span class="keyword">self</span>.gains.append(gain)
+        <span class="keyword">self</span>.losses.append(loss)
+        
+        <span class="comment"># Keep only the most recent 'period' values</span>
+        <span class="keyword">if</span> len(<span class="keyword">self</span>.gains) > <span class="keyword">self</span>.period:
+            <span class="keyword">self</span>.gains.pop(<span class="number">0</span>)
+            <span class="keyword">self</span>.losses.pop(<span class="number">0</span>)
+            
+        <span class="comment"># Calculate RSI when we have enough data</span>
+        <span class="keyword">if</span> len(<span class="keyword">self</span>.gains) == <span class="keyword">self</span>.period:
+            avg_gain = sum(<span class="keyword">self</span>.gains) / <span class="keyword">self</span>.period
+            avg_loss = sum(<span class="keyword">self</span>.losses) / <span class="keyword">self</span>.period
+            
+            <span class="keyword">if</span> avg_loss == <span class="number">0</span>:
+                <span class="keyword">return</span> <span class="number">100</span>  <span class="comment"># Avoid division by zero</span>
+                
+            rs = avg_gain / avg_loss
+            rsi = <span class="number">100</span> - (<span class="number">100</span> / (<span class="number">1</span> + rs))
+            
+            <span class="keyword">self</span>.prev_close = price
+            <span class="keyword">return</span> rsi
+            
+        <span class="keyword">self</span>.prev_close = price
+        <span class="keyword">return</span> <span class="keyword">None</span>
+                    </div>
+                    
+                    <!-- Backtest Code -->
+                    <div class="code-block" id="backtest-code">
+<span class="comment"># Backtesting Framework - Test strategy against historical data</span>
+
+<span class="import">import</span> pandas <span class="import">as</span> pd
+<span class="import">from</span> datetime <span class="import">import</span> datetime, timedelta
+
+<span class="keyword">class</span> <span class="class">Backtester</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, strategy, initial_capital=<span class="number">100000</span>):
+        <span class="keyword">self</span>.strategy = strategy
+        <span class="keyword">self</span>.initial_capital = initial_capital
+        <span class="keyword">self</span>.cash = initial_capital
+        <span class="keyword">self</span>.position = <span class="number">0</span>
+        <span class="keyword">self</span>.trades = []
+        <span class="keyword">self</span>.portfolio_values = []
+        
+    <span class="keyword">def</span> <span class="function">run</span>(<span class="keyword">self</span>, price_data):
+        <span class="keyword">for</span> timestamp, bar <span class="keyword">in</span> price_data.iterrows():
+            <span class="comment"># Get strategy signals</span>
+            signals = <span class="keyword">self</span>.strategy.generate_signals(bar)
+            
+            <span class="comment"># Execute trades based on signals</span>
+            current_price = bar[<span class="string">'close'</span>]
+            
+            <span class="keyword">if</span> signals[<span class="string">'buy'</span>] <span class="keyword">and</span> <span class="keyword">self</span>.position == <span class="number">0</span>:
+                <span class="comment"># Buy signal: enter long position</span>
+                shares = <span class="keyword">self</span>.cash // current_price
+                <span class="keyword">self</span>.position = shares
+                <span class="keyword">self</span>.cash -= shares * current_price
+                
+                <span class="keyword">self</span>.trades.append({
+                    <span class="string">'timestamp'</span>: timestamp,
+                    <span class="string">'action'</span>: <span class="string">'BUY'</span>,
+                    <span class="string">'price'</span>: current_price,
+                    <span class="string">'shares'</span>: shares,
+                    <span class="string">'rsi'</span>: signals[<span class="string">'rsi'</span>],
+                    <span class="string">'momentum'</span>: signals[<span class="string">'momentum'</span>]
+                })
+                
+            <span class="keyword">elif</span> signals[<span class="string">'sell'</span>] <span class="keyword">and</span> <span class="keyword">self</span>.position > <span class="number">0</span>:
+                <span class="comment"># Sell signal: exit long position</span>
+                <span class="keyword">self</span>.cash += <span class="keyword">self</span>.position * current_price
+                
+                <span class="keyword">self</span>.trades.append({
+                    <span class="string">'timestamp'</span>: timestamp,
+                    <span class="string">'action'</span>: <span class="string">'SELL'</span>,
+                    <span class="string">'price'</span>: current_price,
+                    <span class="string">'shares'</span>: <span class="keyword">self</span>.position,
+                    <span class="string">'rsi'</span>: signals[<span class="string">'rsi'</span>],
+                    <span class="string">'momentum'</span>: signals[<span class="string">'momentum'</span>]
+                })
+                
+                <span class="keyword">self</span>.position = <span class="number">0</span>
+            
+            <span class="comment"># Track portfolio value</span>
+            portfolio_value = <span class="keyword">self</span>.cash + <span class="keyword">self</span>.position * current_price
+            <span class="keyword">self</span>.portfolio_values.append(portfolio_value)
+            
+        <span class="keyword">return</span> <span class="keyword">self</span>.calculate_metrics()
+        
+    <span class="keyword">def</span> <span class="function">calculate_metrics</span>(<span class="keyword">self</span>):
+        returns = pd.Series(<span class="keyword">self</span>.portfolio_values).pct_change().dropna()
+        
+        <span class="keyword">return</span> {
+            <span class="string">'total_return'</span>: (<span class="keyword">self</span>.portfolio_values[-<span class="number">1</span>] / <span class="keyword">self</span>.initial_capital - <span class="number">1</span>) * <span class="number">100</span>,
+            <span class="string">'sharpe_ratio'</span>: returns.mean() / returns.std() * (252**0.5),
+            <span class="string">'max_drawdown'</span>: (pd.Series(<span class="keyword">self</span>.portfolio_values).expanding().max() - 
+                            pd.Series(<span class="keyword">self</span>.portfolio_values)).max() / <span class="keyword">self</span>.initial_capital * <span class="number">100</span>,
+            <span class="string">'num_trades'</span>: len(<span class="keyword">self</span>.trades)
+        }
+                    </div>
+                </div>
+                
+                <!-- Code Explanations -->
+                <div class="code-explanation" id="strategy-explanation">
+                    <div class="explanation-title">💡 How This Strategy Works</div>
+                    This strategy combines two popular technical indicators:
+                    <br><br>
+                    <strong>RSI (Relative Strength Index):</strong> Measures if a stock is overbought (>70) or oversold (<30). We buy when RSI shows oversold conditions.
+                    <br><br>
+                    <strong>Momentum:</strong> Confirms the direction by checking if price movement is gaining strength. We only trade when both indicators agree.
+                    <br><br>
+                    <strong>Signal Logic:</strong> Buy when RSI < 30 AND momentum > 5%. Sell when RSI > 70 AND momentum < -5%. This reduces false signals compared to using RSI alone.
+                </div>
+                
+                <div class="code-explanation" id="rsi-explanation">
+                    <div class="explanation-title">📊 Understanding RSI Calculation</div>
+                    RSI measures the ratio of recent gains to recent losses over a specified period (typically 14 days).
+                    <br><br>
+                    <strong>Step 1:</strong> Calculate daily price changes (gains and losses)
+                    <br><strong>Step 2:</strong> Average the gains and losses over the period
+                    <br><strong>Step 3:</strong> Calculate Relative Strength (RS) = Average Gain / Average Loss
+                    <br><strong>Step 4:</strong> RSI = 100 - (100 / (1 + RS))
+                    <br><br>
+                    Values above 70 suggest overbought conditions, below 30 suggest oversold conditions.
+                </div>
+                
+                <div class="code-explanation" id="backtest-explanation">
+                    <div class="explanation-title">🔬 Backtesting Methodology</div>
+                    Backtesting simulates how your strategy would have performed using historical data.
+                    <br><br>
+                    <strong>Process:</strong> Feed historical price data to your strategy, execute trades when signals occur, track portfolio value over time.
+                    <br><br>
+                    <strong>Key Metrics:</strong>
+                    <br>• <strong>Sharpe Ratio:</strong> Risk-adjusted returns (higher is better)
+                    <br>• <strong>Max Drawdown:</strong> Largest peak-to-trough decline
+                    <br>• <strong>Total Return:</strong> Overall performance vs buy-and-hold
+                    <br><br>
+                    <strong>Important:</strong> Past performance doesn't guarantee future results. Always test on out-of-sample data.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let codeMode = false;
+        let currentCodeTab = 'implementation';
+        
+        function toggleCodeMode() {
+            codeMode = !codeMode;
+            const toggle = document.querySelector('.toggle-switch');
+            const codePanel = document.getElementById('codePanel');
+            const mainContent = document.getElementById('mainContent');
+            
+            if (codeMode) {
+                toggle.classList.add('active');
+                codePanel.classList.add('show');
+                mainContent.classList.add('code-mode');
+            } else {
+                toggle.classList.remove('active');
+                codePanel.classList.remove('show');
+                mainContent.classList.remove('code-mode');
+            }
+        }
+        
+        function showCode(codeType) {
+            if (!codeMode) {
+                toggleCodeMode();
+            }
+            
+            // Hide all code blocks
+            document.querySelectorAll('.code-block').forEach(block => {
+                block.classList.remove('active');
+            });
+            
+            // Hide all explanations
+            document.querySelectorAll('.code-explanation').forEach(exp => {
+                exp.classList.remove('show');
+            });
+            
+            // Show selected code
+            const codeBlock = document.getElementById(codeType + '-code');
+            if (codeBlock) {
+                codeBlock.classList.add('active');
+            }
+            
+            // Show explanation if in explanation tab
+            if (currentCodeTab === 'explanation') {
+                const explanation = document.getElementById(codeType + '-explanation');
+                if (explanation) {
+                    explanation.classList.add('show');
+                }
+            }
+            
+            // Update title
+            const titles = {
+                'strategy': 'Complete Strategy Implementation',
+                'rsi': 'RSI Indicator Implementation',
+                'momentum': 'Momentum Indicator Implementation',
+                'logic': 'Signal Combination Logic',
+                'backtest': 'Backtesting Framework',
+                'regime': 'Regime Analysis Implementation',
+                'deploy': 'Deployment Configuration'
+            };
+            
+            document.getElementById('codeTitle').textContent = titles[codeType] || 'Code Implementation';
+        }
+        
+        function switchTab(tabType) {
+            // Update tab buttons
+            document.querySelectorAll('.code-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            currentCodeTab = tabType;
+            
+            // Show/hide explanations
+            if (tabType === 'explanation') {
+                document.querySelectorAll('.code-explanation').forEach(exp => {
+                    exp.classList.add('show');
+                });
+            } else {
+                document.querySelectorAll('.code-explanation').forEach(exp => {
+                    exp.classList.remove('show');
+                });
+            }
+            
+            if (tabType === 'tutorial') {
+                // Show tutorial content
+                alert('📚 Tutorial Mode\n\nInteractive tutorials coming soon:\n• Step-by-step strategy building\n• Indicator deep dives\n• Backtesting best practices\n• Live coding examples');
+            }
+        }
+        
+        function copyCode() {
+            const activeCode = document.querySelector('.code-block.active');
+            if (activeCode) {
+                navigator.clipboard.writeText(activeCode.textContent);
+                alert('📋 Code copied to clipboard!');
+            }
+        }
+        
+        function downloadCode() {
+            const activeCode = document.querySelector('.code-block.active');
+            if (activeCode) {
+                const blob = new Blob([activeCode.textContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'alphapulse_strategy.py';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+        
+        function runCode() {
+            alert('▶️ Code Execution\n\nThis would:\n• Validate the code syntax\n• Run unit tests\n• Execute a mini backtest\n• Show immediate results\n\nIntegration with Jupyter/IDE coming soon!');
+        }
+        
+        function exportCode() {
+            alert('📤 Export Options\n\n• Full Python package\n• Jupyter notebook\n• NautilusTrader strategy\n• Backtrader implementation\n• QuantConnect algorithm\n• Complete project template');
+        }
+        
+        function openIDE() {
+            alert('💻 Opening Development Environment\n\n• VS Code integration\n• Jupyter Lab workspace\n• Live data connection\n• Real-time debugging\n• Version control setup');
+        }
+        
+        function addIndicator() {
+            alert('➕ Add Indicator\n\nAvailable indicators:\n• MACD\n• Bollinger Bands\n• Stochastic\n• ATR\n• ADX\n\nEach comes with full code implementation and explanations!');
+        }
+        
+        function modifyStrategy() {
+            alert('⚙️ Strategy Modification\n\n• Adjust parameters visually\n• See code changes in real-time\n• A/B test modifications\n• Revert to previous versions');
+        }
+        
+        function runAnalysis(type) {
+            const analysisTypes = {
+                'backtest': '📊 Running comprehensive backtest with transaction costs and slippage...',
+                'regime': '🎯 Analyzing performance across market regimes...',
+                'optimize': '🔧 Optimizing parameters using genetic algorithms...'
+            };
+            
+            alert(analysisTypes[type] + '\n\nAll analysis code is fully transparent and customizable!');
+        }
+        
+        function deployPaper() {
+            alert('📄 Paper Trading Setup\n\n• Real-time data feed\n• Simulated order execution\n• Live performance tracking\n• Risk monitoring\n• Full logging and analysis');
+        }
+        
+        function deployLive() {
+            alert('💰 Live Trading Deployment\n\n• Broker integration\n• Risk checks and limits\n• Real-time monitoring\n• Automated reporting\n• Emergency stop controls\n\n⚠️ Requires additional verification and risk management setup.');
+        }
+    </script>
+</body>
+</html>

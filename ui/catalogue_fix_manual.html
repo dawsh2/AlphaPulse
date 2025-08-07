@@ -1,0 +1,97 @@
+<!-- 
+MANUAL FIX INSTRUCTIONS FOR CATALOGUE TAB
+
+The issue is likely that the JavaScript is broken. Here's what to do:
+
+1. Open research.html in a text editor
+2. Find this line (around line 1905):
+   function switchTab(tabName, element) {
+
+3. Check if the function is complete. It should look like this:
+-->
+
+<script>
+function switchTab(tabName, element) {
+    try {
+        console.log('Switching to tab:', tabName);
+        
+        // Update tab buttons
+        document.querySelectorAll('.sidebar-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        element.classList.add('active');
+        
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        const targetTab = document.getElementById(tabName + 'Tab');
+        if (targetTab) {
+            targetTab.classList.add('active');
+            console.log('Tab switched successfully to:', tabName);
+            
+            // Load catalogue content when switching to it
+            if (tabName === 'catalogue') {
+                if (typeof loadStrategyCatalogue === 'function') {
+                    loadStrategyCatalogue();
+                } else {
+                    console.error('loadStrategyCatalogue function not found');
+                }
+            }
+        } else {
+            console.error('Tab not found:', tabName + 'Tab');
+        }
+    } catch (error) {
+        console.error('Error switching tab:', error);
+    }
+}
+</script>
+
+<!-- 
+4. If the function is broken or incomplete, replace it with the above.
+
+5. Also make sure these elements exist in the HTML:
+   - Button: <button class="sidebar-tab" onclick="switchTab('catalogue', this)">Catalogue</button>
+   - Content div: <div class="tab-content" id="catalogueTab">
+
+6. Add this CSS if missing:
+-->
+
+<style>
+.strategy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 16px;
+}
+
+.strategy-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+}
+
+.strategy-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+</style>
+
+<!-- 
+7. Add this simple test function to verify it works:
+-->
+
+<script>
+function loadStrategyCatalogue() {
+    console.log('Loading catalogue...');
+    const grid = document.getElementById('strategyGrid');
+    if (grid) {
+        grid.innerHTML = '<div class="strategy-card"><h3>EMA Cross</h3><p>Test strategy card - if you see this, it works!</p></div>';
+    } else {
+        console.error('Strategy grid not found');
+    }
+}
+</script>

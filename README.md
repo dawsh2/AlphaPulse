@@ -40,7 +40,7 @@ The API server will start on `http://localhost:5000`
 
 ### 4. Serve the Frontend
 
-From the `alphapulse-web` directory:
+From the `ui` directory:
 
 ```bash
 # Using Python's built-in server
@@ -65,7 +65,7 @@ The frontend will be available at `http://localhost:8000`
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  alphapulse-web │    │   pulse-engine  │    │     Alpaca      │
+│  ui │    │   pulse-engine  │    │     Alpaca      │
 │   (Frontend)    │◄──►│   (Backend)     │◄──►│   (Broker)      │
 │                 │    │                 │    │                 │
 │ • Live Trading  │    │ • OAuth Flow    │    │ • Market Data   │

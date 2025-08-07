@@ -49,3 +49,11 @@ yarn-error.log*
 *.tmp
 *.temp
 .cache/
+
+# Data catalogs (market data)
+catalog/
+ap/catalog/
+
+# Instance directories
+instance/
+ap/instance/

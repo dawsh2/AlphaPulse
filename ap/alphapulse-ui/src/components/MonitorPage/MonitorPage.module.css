@@ -1,0 +1,634 @@
+/* MonitorPage Component Styles */
+
+/* Form Styles */
+.monitorContainer :global(.form-select),
+.monitorContainer :global(.form-input) {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-primary);
+  border: 3px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -3px 5px var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  transition: all var(--transition-fast);
+}
+
+.monitorContainer :global(.form-select):hover,
+.monitorContainer :global(.form-input):hover {
+  transform: translate(2px, -2px);
+  box-shadow: -5px 7px var(--color-text-primary);
+}
+
+.monitorContainer :global(.form-select):focus,
+.monitorContainer :global(.form-input):focus {
+  outline: none;
+  background: var(--color-bg-secondary);
+}
+
+.monitorContainer :global(.form-select-sm),
+.monitorContainer :global(.form-input-sm) {
+  padding: var(--space-2) var(--space-2);
+  font-size: var(--font-size-xs);
+}
+
+/* Layout */
+.monitorContainer {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: calc(100vh - var(--header-height));
+  overflow: hidden;
+}
+
+/* Page Header */
+.pageHeader {
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  background: var(--color-bg-primary);
+  border-bottom: 3px solid var(--color-text-primary);
+  text-align: center;
+}
+
+.pageTitle {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.pageSubtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* Mode Selector */
+.modeSelector {
+  background: var(--color-bg-primary);
+  border-bottom: 3px solid var(--color-text-primary);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.modeTabs {
+  display: flex;
+  gap: 0;
+  background: var(--color-bg-primary);
+  border: 3px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  box-shadow: -3px 5px var(--color-text-primary);
+}
+
+.modeTab {
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex: 1;
+}
+
+.modeTab:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+.modeTab.active {
+  color: var(--color-bg-primary);
+  background: var(--color-text-primary);
+}
+
+.modeInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.modeStatus {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.statusIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent-secondary);
+}
+
+.statusIndicator.inactive {
+  background: var(--color-text-tertiary);
+}
+
+.statusIndicator.warning {
+  background: var(--color-accent-yellow);
+}
+
+/* Content Area */
+.contentArea {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  overflow: hidden;
+}
+
+.mainContent {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Chart Container */
+.chartContainer {
+  flex: 1;
+  position: relative;
+  background: var(--color-bg-primary);
+  min-height: 300px;
+}
+
+.chart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Chart Overlay Info */
+.chartInfo {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  background: var(--color-bg-primary);
+  backdrop-filter: blur(8px);
+  border: 3px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -3px 5px var(--color-text-primary);
+  padding: var(--space-3);
+  min-width: 200px;
+  z-index: 10;
+}
+
+.symbolInfo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.symbolDropdown {
+  position: relative;
+}
+
+.symbolButton {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: all var(--transition-fast);
+}
+
+.symbolButton:hover {
+  color: var(--color-accent-primary);
+}
+
+.symbolDropdownMenu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  background: var(--color-bg-primary);
+  border: 3px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -3px 5px var(--color-text-primary);
+  min-width: 120px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.symbol {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+}
+
+.timeframe {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.priceInfo {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.priceLabel {
+  color: var(--color-text-tertiary);
+}
+
+.priceValue {
+  font-family: var(--font-family-mono);
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+/* Controls Bar */
+.controlsBar {
+  background: var(--color-bg-primary);
+  border-top: 3px solid var(--color-text-primary);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.controlLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Replay Controls */
+.replayControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.replayBtn {
+  padding: var(--space-2);
+  background: var(--color-bg-primary);
+  border: 3px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -3px 5px var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-primary);
+}
+
+.replayBtn:hover {
+  transform: translate(2px, -2px);
+  box-shadow: -5px 7px var(--color-text-primary);
+}
+
+.replayBtn:active {
+  transform: translate(-1px, 2px);
+  box-shadow: -2px 3px var(--color-text-primary);
+}
+
+.replayBtn.active {
+  background: var(--color-text-primary);
+  color: var(--color-bg-primary);
+}
+
+.replayBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Dropdown Styles */
+.dropdownWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdownButton {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-primary);
+  border: 3px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -3px 5px var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.dropdownButton:hover {
+  transform: translate(2px, -2px);
+  box-shadow: -5px 7px var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+.dropdownMenu {
+  position: absolute;
+  left: 0;
+  background: var(--color-bg-primary);
+  border: 3px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -3px 5px var(--color-text-primary);
+  min-width: 100%;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+/* Default: drop down */
+.dropdownMenu {
+  top: calc(100% + var(--space-2));
+}
+
+/* For dropdowns in controls bar: drop up */
+.controlsBar .dropdownMenu {
+  bottom: calc(100% + var(--space-2));
+  top: auto;
+}
+
+.dropdownOption {
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border-primary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: block;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dropdownOption:last-child {
+  border-bottom: none;
+}
+
+.dropdownOption:hover {
+  background: var(--color-text-primary);
+  color: var(--color-bg-primary);
+}
+
+.dropdownOption.active {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+/* Sidebar */
+.sidebar {
+  background: var(--color-bg-primary);
+  border-left: 3px solid var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebarTabs {
+  display: flex;
+  gap: 0;
+  background: var(--color-bg-primary);
+  border-bottom: 3px solid var(--color-text-primary);
+  padding: 3px;
+}
+
+.sidebarTab {
+  flex: 1;
+  padding: var(--space-3);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sidebarTab:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.sidebarTab.active {
+  background: var(--color-text-primary);
+  color: var(--color-bg-primary);
+}
+
+.sidebarContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+/* Metrics Panel */
+.metricsGrid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.metricCard {
+  background: var(--color-bg-primary);
+  border: 2px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -2px 3px var(--color-text-primary);
+  padding: var(--space-3);
+  transition: all var(--transition-fast);
+}
+
+.metricCard:hover {
+  transform: translate(1px, -1px);
+  box-shadow: -3px 4px var(--color-text-primary);
+}
+
+.metricLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+  margin-bottom: var(--space-1);
+}
+
+.metricValue {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-family-mono);
+}
+
+.metricValue.positive {
+  color: var(--color-accent-secondary);
+}
+
+.metricValue.negative {
+  color: var(--color-accent-red);
+}
+
+/* Strategy List */
+.strategyList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.strategyItem {
+  background: var(--color-bg-primary);
+  border: 2px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -2px 3px var(--color-text-primary);
+  padding: var(--space-3);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.strategyItem:hover {
+  transform: translate(1px, -1px);
+  box-shadow: -3px 4px var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+.strategyItem.active {
+  background: var(--color-text-primary);
+  color: var(--color-bg-primary);
+}
+
+.strategyName {
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-1);
+}
+
+.strategyStats {
+  display: flex;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+  opacity: 0.8;
+}
+
+/* Event Log */
+.eventLog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.eventItem {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  background: var(--color-bg-primary);
+  border: 2px solid var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  box-shadow: -2px 3px var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+}
+
+.eventItem:hover {
+  transform: translate(1px, -1px);
+  box-shadow: -3px 4px var(--color-text-primary);
+}
+
+.eventTime {
+  font-family: var(--font-family-mono);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+}
+
+.eventType {
+  padding: var(--space-1) var(--space-2);
+  border: 2px solid;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+.eventType.buy {
+  background: rgba(63, 185, 80, 0.15);
+  border-color: var(--color-accent-secondary);
+  color: var(--color-accent-secondary);
+}
+
+.eventType.sell {
+  background: rgba(248, 81, 73, 0.15);
+  border-color: var(--color-accent-red);
+  color: var(--color-accent-red);
+}
+
+.eventMessage {
+  flex: 1;
+  color: var(--color-text-secondary);
+}
+
+/* Hide mode-specific content */
+.replayOnly,
+.deployOnly {
+  display: none;
+}
+
+.modeReplay .replayOnly {
+  display: flex;
+}
+
+.modeDeploy .deployOnly {
+  display: flex;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .contentArea {
+    grid-template-columns: 1fr;
+  }
+  
+  .sidebar {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .modeInfo {
+    display: none;
+  }
+  
+  .controlsBar {
+    flex-wrap: wrap;
+  }
+}
+
+/* Dark theme overrides */
+@media (prefers-color-scheme: dark) {
+  .chartInfo {
+    background: rgba(30, 32, 40, 0.9);
+  }
+}
+
+[data-theme="dark"] .chartInfo {
+  background: rgba(30, 32, 40, 0.9);
+}

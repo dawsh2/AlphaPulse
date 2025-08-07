@@ -1,0 +1,2865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0969da" id="theme-color">
+    <title>Develop - AlphaPulse</title>
+    
+    <!-- Shared styles with Full Stack Open design -->
+    <link rel="stylesheet" href="shared.css">
+    
+    <!-- Prism for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    
+    <!-- Page-specific styles -->
+    <style>
+        /* Layout */
+        .develop-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - var(--header-height));
+            overflow: hidden;
+        }
+        
+        .main-area {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--color-bg-secondary);
+            border-right: 1px solid var(--color-border-primary);
+            display: flex;
+            flex-direction: column;
+            transition: transform var(--transition-base);
+        }
+        
+        .sidebar-header {
+            padding: var(--space-2) var(--space-3);
+            background: var(--color-bg-tertiary);
+            border-bottom: 1px solid var(--color-border-primary);
+        }
+        
+        .explorer-search {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: inherit;
+            font-weight: var(--font-weight-medium);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--color-text-primary);
+            padding: var(--space-2);
+        }
+        
+        .explorer-search::placeholder {
+            color: var(--color-text-tertiary);
+        }
+        
+        .explorer-search:focus {
+            background: var(--color-bg-primary);
+            border-radius: var(--radius-sm);
+        }
+        
+        .file-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-2) 0;
+        }
+        
+        /* Folder styles */
+        .folder-item {
+            display: flex;
+            align-items: center;
+            padding: var(--space-2) var(--space-3);
+            cursor: pointer;
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-sm);
+            transition: all var(--transition-fast);
+            gap: var(--space-1);
+            user-select: none;
+        }
+        
+        .folder-item:hover {
+            background: var(--color-bg-tertiary);
+        }
+        
+        .folder-icon {
+            font-size: 10px;
+            width: 12px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .folder-item.collapsed .folder-icon {
+            transform: rotate(-90deg);
+        }
+        
+        .folder-contents {
+            display: none;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: var(--space-2) var(--space-4);
+            cursor: pointer;
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-sm);
+            transition: all var(--transition-fast);
+            gap: var(--space-2);
+        }
+        
+        .file-item:hover {
+            background: var(--color-text-primary);
+            color: var(--color-bg-primary);
+        }
+        
+        .file-item:hover .file-icon {
+            color: var(--color-bg-primary);
+            opacity: 1;
+        }
+        
+        /* Ensure hover works on dynamically created elements */
+        .file-list .file-item:hover {
+            background: var(--color-text-primary) !important;
+            color: var(--color-bg-primary) !important;
+        }
+        
+        .file-item.active {
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-primary);
+            border-left: 2px solid var(--color-accent-primary);
+            padding-left: calc(var(--space-4) - 2px);
+        }
+        
+        .file-item.active .file-icon {
+            opacity: 1;
+            color: var(--color-accent-primary);
+        }
+        
+        .file-icon {
+            font-size: 10px;
+            width: 28px;
+            text-align: center;
+            font-family: var(--font-family-mono);
+            font-weight: var(--font-weight-semibold);
+            text-transform: uppercase;
+            opacity: 0.6;
+        }
+        
+        /* Editor Container */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--color-bg-primary);
+            position: relative;
+        }
+        
+        /* Split View for PDF */
+        .split-view {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            height: calc(100vh - var(--header-height) - 40px); /* Account for header and tabs */
+        }
+        
+        /* Split Tabs Container */
+        .tabs-container.split-tabs {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .editor-tabs-section {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-right: 1px solid var(--color-border-primary);
+            padding-right: var(--space-2);
+        }
+        
+        .pdf-tabs-section {
+            flex: 1;
+            padding-left: var(--space-2);
+        }
+        
+        .pdf-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 var(--space-4);
+            height: 40px;
+        }
+        
+        /* PDF Viewer */
+        .pdf-viewer {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--color-bg-secondary);
+            border-left: 1px solid var(--color-border-primary);
+            position: relative;
+        }
+        
+        .pdf-viewer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-bg-tertiary);
+            border-bottom: 1px solid var(--color-border-primary);
+        }
+        
+        .pdf-viewer-title {
+            font-weight: var(--font-weight-medium);
+            color: var(--color-text-primary);
+        }
+        
+        .pdf-viewer-close {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-primary);
+            padding: 0.2rem 0.5rem;
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-md);
+            box-shadow: -3px 5px var(--color-text-primary);
+            transition: all 150ms ease-in-out;
+            cursor: pointer;
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+        
+        .pdf-viewer-close:hover {
+            color: var(--color-bg-primary);
+            background: var(--color-text-primary);
+            transform: translate(2px, -2px);
+            box-shadow: -5px 7px var(--color-text-primary);
+        }
+        
+        .pdf-viewer-close:active {
+            transform: translate(-1px, 2px);
+            box-shadow: -2px 3px var(--color-text-primary);
+        }
+        
+        .pdf-viewer-content {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pdf-viewer-frame {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            transform: scale(1.65);
+            transform-origin: 0 0;
+        }
+        
+        .pdf-viewer {
+            width: 50%;
+            border-right: 1px solid var(--color-border-primary);
+            display: flex;
+            flex-direction: column;
+            background: var(--color-bg-secondary);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pdf-viewer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-bg-tertiary);
+            border-bottom: 1px solid var(--color-border-primary);
+        }
+        
+        .pdf-viewer-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            color: var(--color-text-primary);
+        }
+        
+        .pdf-viewer-content {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pdf-viewer-frame {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #525659;
+            transform: scale(1.65); /* Scale up to 165% zoom to fill horizontally */
+            transform-origin: center center;
+        }
+        
+        /* PDF Viewer Close Button */
+        .pdf-viewer-close {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-primary);
+            padding: 0.3rem 0.6rem;
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-md);
+            box-shadow: -3px 5px var(--color-text-primary);
+            transition: all 150ms ease-in-out;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 5px;
+            line-height: 1;
+        }
+        
+        .pdf-viewer-close:hover {
+            color: var(--color-bg-primary);
+            background: var(--color-text-primary);
+            transform: translate(2px, -2px);
+            box-shadow: -5px 7px var(--color-text-primary);
+        }
+        
+        .pdf-viewer-close:active {
+            transform: translate(-1px, 2px);
+            box-shadow: -2px 3px var(--color-text-primary);
+        }
+        
+        .editor-half {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* AI Chat Button */
+        .ai-chat-button {
+            position: absolute;
+            bottom: var(--space-4);
+            right: var(--space-4);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-text-primary);
+            padding: 0.6rem;
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-md);
+            box-shadow: -3px 5px var(--color-text-primary);
+            transition: all 150ms ease-in-out;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            margin-bottom: 5px;
+        }
+        
+        .ai-chat-button:hover {
+            color: var(--color-bg-primary);
+            background: var(--color-text-primary);
+            transform: translate(2px, -2px);
+            box-shadow: -5px 7px var(--color-text-primary);
+        }
+        
+        .ai-chat-button:active {
+            transform: translate(-1px, 2px);
+            box-shadow: -2px 3px var(--color-text-primary);
+        }
+        
+        .ai-chat-button svg {
+            width: 24px;
+            height: 24px;
+        }
+        
+        /* AI Chat Terminal */
+        /* Global AI Chat Terminal */
+        .global-ai-terminal {
+            position: fixed;
+            bottom: 0;
+            right: var(--space-6);
+            width: 400px;
+            height: 300px;
+            min-width: 300px;
+            min-height: 200px;
+            max-width: 80vw;
+            max-height: 80vh;
+            background: var(--color-bg-primary);
+            border: 2px solid var(--color-text-primary);
+            display: none;
+            flex-direction: column;
+            z-index: var(--z-fixed);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            margin-bottom: calc(var(--space-6) + 56px + var(--space-3));
+            overflow: hidden;
+        }
+        
+        .ai-chat-resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            cursor: nwse-resize;
+            z-index: 10;
+        }
+        
+        .ai-chat-resize-handle::after {
+            content: '';
+            position: absolute;
+            bottom: 3px;
+            right: 3px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 0 10px 10px;
+            border-color: transparent transparent var(--color-text-tertiary) transparent;
+        }
+        
+        /* PDF-specific AI Chat Terminal */
+        .ai-chat-terminal {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 300px;
+            background: var(--color-bg-primary);
+            border-top: 2px solid var(--color-text-primary);
+            display: none;
+            flex-direction: column;
+            z-index: 15;
+        }
+        
+        .global-ai-terminal.open {
+            display: flex;
+        }
+        
+        .ai-chat-terminal.open {
+            display: flex;
+        }
+        
+        .ai-chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-bg-secondary);
+            border-bottom: 1px solid var(--color-border-primary);
+            cursor: move;
+            user-select: none;
+        }
+        
+        .ai-chat-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .ai-chat-close {
+            background: none;
+            border: none;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            font-size: var(--font-size-lg);
+            padding: var(--space-1);
+            line-height: 1;
+        }
+        
+        .ai-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-4);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+        }
+        
+        .ai-message {
+            margin-bottom: var(--space-3);
+            line-height: 1.6;
+        }
+        
+        .ai-message.user {
+            color: var(--color-text-secondary);
+        }
+        
+        .ai-message.user::before {
+            content: "> ";
+            color: var(--color-accent-primary);
+            font-weight: var(--font-weight-bold);
+        }
+        
+        .ai-message.assistant {
+            color: var(--color-text-primary);
+            padding-left: var(--space-4);
+        }
+        
+        .ai-chat-input-wrapper {
+            display: flex;
+            align-items: center;
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-bg-secondary);
+            border-top: 1px solid var(--color-border-primary);
+            gap: var(--space-3);
+        }
+        
+        .ai-chat-prompt {
+            color: var(--color-text-primary);
+            font-family: var(--font-family-mono);
+            font-weight: var(--font-weight-bold);
+        }
+        
+        .ai-chat-input {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--color-text-primary);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            outline: none;
+        }
+        
+        .ai-chat-input::placeholder {
+            color: var(--color-text-tertiary);
+        }
+        
+        /* Tabs */
+        .tabs-container {
+            background: var(--color-bg-tertiary);
+            border-bottom: 1px solid var(--color-border-primary);
+            padding: 0 var(--space-2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 40px;
+            overflow-x: auto;
+            scrollbar-width: thin;
+        }
+        
+        .tabs {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+        }
+        
+        .tab {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-border-primary);
+            border-bottom: none;
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            position: relative;
+            min-width: 100px;
+            max-width: 200px;
+        }
+        
+        .tab:hover {
+            background: var(--color-bg-primary);
+        }
+        
+        .tab.active {
+            background: var(--color-bg-primary);
+            border-bottom: 1px solid var(--color-bg-primary);
+            margin-bottom: -1px;
+        }
+        
+        .tab-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .tab-close {
+            background: none;
+            border: none;
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-tertiary);
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition-fast);
+        }
+        
+        .tab-close:hover {
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-primary);
+        }
+        
+        .new-tab-btn {
+            padding: var(--space-2);
+            background: transparent;
+            border: 1px dashed var(--color-border-primary);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-tertiary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .new-tab-btn:hover {
+            background: var(--color-bg-secondary);
+            border-color: var(--color-border-secondary);
+            color: var(--color-text-primary);
+        }
+        
+        .editor-actions {
+            display: flex;
+            gap: var(--space-2);
+            align-items: center;
+            padding-right: var(--space-2);
+        }
+        
+        
+        /* Close File Button with AlphaPulse shadow box style */
+        .close-file-button {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-primary);
+            padding: 0.3rem 0.6rem;
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-md);
+            box-shadow: -3px 5px var(--color-text-primary);
+            transition: all 150ms ease-in-out;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 5px;
+            line-height: 1;
+        }
+        
+        .close-file-button:hover {
+            color: var(--color-bg-primary);
+            background: var(--color-text-primary);
+            transform: translate(2px, -2px);
+            box-shadow: -5px 7px var(--color-text-primary);
+        }
+        
+        .close-file-button:active {
+            transform: translate(-1px, 2px);
+            box-shadow: -2px 3px var(--color-text-primary);
+        }
+        
+        /* Console Button with AlphaPulse shadow box style */
+        .console-button {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-text-primary);
+            padding: 0.4rem 0.8rem;
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-md);
+            box-shadow: -3px 5px var(--color-text-primary);
+            transition: all 150ms ease-in-out;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: 5px;
+        }
+        
+        .console-button:hover {
+            color: var(--color-bg-primary);
+            background: var(--color-text-primary);
+            transform: translate(2px, -2px);
+            box-shadow: -5px 7px var(--color-text-primary);
+        }
+        
+        .console-button:active {
+            transform: translate(-1px, 2px);
+            box-shadow: -2px 3px var(--color-text-primary);
+        }
+        
+        .console-button svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* Editor */
+        .editor-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Mobile Editor (textarea) */
+        .mobile-editor {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .editor-textarea {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            padding: var(--space-4);
+            background: transparent;
+            color: transparent;
+            caret-color: var(--color-text-primary);
+            border: none;
+            outline: none;
+            resize: none;
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            line-height: var(--line-height-relaxed);
+            white-space: pre;
+            overflow: auto;
+            z-index: 2;
+        }
+        
+        .editor-highlight {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: var(--space-4);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            line-height: var(--line-height-relaxed);
+            white-space: pre;
+            overflow: auto;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .editor-highlight code {
+            background: none !important;
+            padding: 0 !important;
+        }
+        
+        /* Desktop Editor (Monaco) */
+        .desktop-editor {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #monaco-editor {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Action Panel */
+        .action-panel {
+            background: var(--color-bg-secondary);
+            border-top: 1px solid var(--color-border-primary);
+            padding: var(--space-3) var(--space-4);
+            display: flex;
+            gap: var(--space-3);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        /* Action Panel Enhancements */
+        .action-panel {
+            border-top: 1px solid var(--color-border-primary);
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-bg-secondary);
+            display: flex;
+            gap: var(--space-4);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .action-group {
+            display: flex;
+            gap: var(--space-2);
+            align-items: center;
+        }
+        
+        .action-group:not(:last-child)::after {
+            content: '';
+            width: 1px;
+            height: 24px;
+            background: var(--color-border-primary);
+            margin-left: var(--space-2);
+        }
+        
+        /* Output Panel */
+        .output-panel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            background: var(--color-bg-secondary);
+            border-top: 2px solid var(--color-text-primary);
+            transition: height var(--transition-base);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 10;
+        }
+        
+        .output-panel.open {
+            height: 300px;
+        }
+        
+        .output-header {
+            background: var(--color-bg-tertiary);
+            padding: var(--space-3) var(--space-4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--color-border-primary);
+        }
+        
+        .output-title {
+            font-weight: var(--font-weight-medium);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--color-text-tertiary);
+        }
+        
+        .output-close {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-primary);
+            padding: 0.2rem 0.4rem;
+            background: var(--color-bg-primary);
+            border: 2px solid var(--color-text-primary);
+            border-radius: var(--radius-sm);
+            box-shadow: -2px 3px var(--color-text-primary);
+            transition: all 150ms ease-in-out;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        
+        .output-close:hover {
+            color: var(--color-bg-primary);
+            background: var(--color-text-primary);
+            transform: translate(1px, -1px);
+            box-shadow: -3px 4px var(--color-text-primary);
+        }
+        
+        .output-close:active {
+            transform: translate(-0.5px, 1px);
+            box-shadow: -1px 2px var(--color-text-primary);
+        }
+        
+        .output-content {
+            padding: var(--space-3);
+            overflow-y: auto;
+            flex: 1;
+            font-family: var(--font-family-mono);
+            font-size: 12px;
+            line-height: 1.6;
+            background: var(--color-bg-primary);
+        }
+        
+        .output-line {
+            margin-bottom: var(--space-1);
+            padding: var(--space-1) 0;
+        }
+        
+        .output-line.info {
+            color: var(--color-text-secondary);
+        }
+        
+        .output-line.success {
+            color: var(--color-success-emphasis);
+        }
+        
+        .output-line.error {
+            color: var(--color-danger-emphasis);
+        }
+        
+        .output-line.warning {
+            color: var(--color-warning-emphasis);
+        }
+        
+        .output-line {
+            margin-bottom: var(--space-1);
+        }
+        
+        .output-line.info { color: var(--color-text-secondary); }
+        .output-line.success { color: var(--color-accent-secondary); }
+        .output-line.error { color: var(--color-accent-danger); }
+        .output-line.warning { color: var(--color-accent-warning); }
+        
+        /* Terminal Input */
+        .terminal-input-wrapper {
+            display: flex;
+            align-items: center;
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-bg-secondary);
+            border-top: 1px solid var(--color-border-primary);
+            gap: var(--space-3);
+        }
+        
+        .terminal-prompt {
+            color: var(--color-accent-primary);
+            font-family: var(--font-family-mono);
+            font-weight: var(--font-weight-bold);
+        }
+        
+        .terminal-input {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--color-text-primary);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            outline: none;
+        }
+        
+        .terminal-input::placeholder {
+            color: var(--color-text-tertiary);
+        }
+        
+        /* Bottom AI Chat Button */
+        .ai-chat-button-bottom {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-text-primary);
+            padding: 0.4rem 0.8rem;
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-md);
+            box-shadow: -3px 5px var(--color-text-primary);
+            transition: all 150ms ease-in-out;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+        
+        .ai-chat-button-bottom:hover {
+            color: var(--color-bg-primary);
+            background: var(--color-text-primary);
+            transform: translate(2px, -2px);
+            box-shadow: -5px 7px var(--color-text-primary);
+        }
+        
+        .ai-chat-button-bottom:active {
+            transform: translate(-1px, 2px);
+            box-shadow: -2px 3px var(--color-text-primary);
+        }
+        
+        .ai-chat-button-bottom svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        /* AI Chat Close Button */
+        .ai-chat-close-btn {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-text-primary);
+            padding: 0.2rem 0.4rem;
+            background: var(--color-bg-primary);
+            border: 2px solid var(--color-text-primary);
+            border-radius: var(--radius-sm);
+            box-shadow: -2px 3px var(--color-text-primary);
+            transition: all 150ms ease-in-out;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        
+        .ai-chat-close-btn:hover {
+            color: var(--color-bg-primary);
+            background: var(--color-text-primary);
+            transform: translate(1px, -1px);
+            box-shadow: -3px 4px var(--color-text-primary);
+        }
+        
+        .ai-chat-close-btn:active {
+            transform: translate(-0.5px, 1px);
+            box-shadow: -1px 2px var(--color-text-primary);
+        }
+        
+        /* Welcome screen */
+        .welcome {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            color: var(--color-text-secondary);
+            padding: var(--space-6);
+        }
+        
+        .welcome h2 {
+            color: var(--color-text-primary);
+            margin-bottom: var(--space-4);
+        }
+        
+        .welcome p {
+            margin-bottom: var(--space-6);
+            max-width: 500px;
+        }
+        
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            .develop-container {
+                height: calc(100vh - var(--mobile-header-height));
+            }
+            
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: var(--mobile-header-height);
+                height: calc(100vh - var(--mobile-header-height));
+                z-index: 200;
+                transform: translateX(-100%);
+                width: 85vw;
+                max-width: 300px;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            /* Mobile backdrop */
+            .sidebar-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 199;
+                display: none;
+            }
+            
+            .sidebar-backdrop.active {
+                display: block;
+            }
+            
+            .editor-container {
+                width: 100%;
+            }
+            
+            .action-panel {
+                padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0));
+            }
+            
+            .filename {
+                font-size: var(--font-size-xs);
+            }
+        }
+        
+        /* Desktop specific */
+        @media (min-width: 769px) {
+            /* Hide mobile editor on desktop */
+            .mobile-editor {
+                display: none;
+            }
+            
+            /* Show desktop editor on desktop */
+            .desktop-editor {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header will be injected by layout.js -->
+        
+        <div class="develop-container" id="developContainer">
+            <div class="main-area">
+                <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <input type="text" class="explorer-search" placeholder="EXPLORER" onkeyup="filterFiles(this.value)">
+                </div>
+                <div class="file-list" id="fileList">
+                    <!-- Files will be loaded dynamically from backend -->
+                    <div class="file-item">
+                        <span class="file-icon">⏳</span>
+                        <span>Loading files...</span>
+                    </div>
+                </div>
+            </aside>
+            
+            <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+            
+            <div class="editor-container">
+                <div class="tabs-container">
+                    <div class="tabs" id="tabsList">
+                        <div class="tab active" data-file="strategy.py" onclick="switchTab('strategy.py')">
+                            <span class="tab-name">strategy.py</span>
+                            <button class="tab-close" onclick="closeTab(event, 'strategy.py')">×</button>
+                        </div>
+                        <button class="new-tab-btn" onclick="createNewTab()" title="New File">+</button>
+                    </div>
+                    <div class="editor-actions">
+                        <button class="console-button" onclick="saveFile()" title="Save File">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                        </button>
+                        <button class="console-button" onclick="openTerminal()" title="Open Terminal">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="4 17 10 11 4 5"></polyline>
+                                <line x1="12" y1="19" x2="20" y2="19"></line>
+                            </svg>
+                        </button>
+                        <button class="console-button" onclick="runCode()" title="Run Code">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="editor-wrapper" id="editorWrapper">
+                    <!-- Mobile Editor -->
+                    <div class="mobile-editor" id="mobileEditor">
+                        <div class="editor-highlight" id="editorHighlight">
+                            <pre><code class="language-python" id="highlightedCode"></code></pre>
+                        </div>
+                        <textarea 
+                            class="editor-textarea" 
+                            id="editorTextarea"
+                            autocomplete="off"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            spellcheck="false"
+                        ></textarea>
+                    </div>
+                    
+                    <!-- Desktop Editor -->
+                    <div class="desktop-editor" id="desktopEditor">
+                        <div id="monaco-editor"></div>
+                    </div>
+                    
+                    <div class="welcome" id="welcome" style="display: none;">
+                        <h2>AlphaPulse Development</h2>
+                        <p>Select a file from the sidebar to start coding your trading strategies.</p>
+                        <button class="btn btn-primary" onclick="toggleSidebar()">Open Files</button>
+                    </div>
+                </div>
+                
+                <!-- Console/Output Panel -->
+                <div class="output-panel" id="outputPanel">
+                    <div class="output-header">
+                        <div class="output-title">TERMINAL</div>
+                        <button class="output-close" onclick="hideOutput()">&times;</button>
+                    </div>
+                    <div class="output-content" id="outputContent">
+                        <div class="output-line info">AlphaPulse Development Environment v1.0.0</div>
+                        <div class="output-line info">Ready.</div>
+                    </div>
+                    <div class="terminal-input-wrapper">
+                        <span class="terminal-prompt">&gt;</span>
+                        <input 
+                            type="text" 
+                            class="terminal-input" 
+                            id="terminalInput" 
+                            placeholder="Enter command..."
+                            onkeypress="handleTerminalInput(event)"
+                        />
+                    </div>
+                </div>
+            </div>
+            </div>
+    </div>
+    
+    
+    <!-- Layout Manager -->
+    <script src="layout.js"></script>
+    
+    <!-- Mobile: Prism.js for syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+    
+    <!-- Desktop: Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    
+    <script>
+        // File contents - will be loaded from backend API
+        const files = {};
+        
+        // Placeholder content until backend loads
+        files['strategies/ema_cross.py'] = `# Loading from NautilusTrader...`;
+        files['config.yaml'] = `# Loading configuration...`;
+        
+        let currentFile = null;
+        let openTabs = [];
+        let tabCounter = 1;
+        let sidebarOpen = false;
+        let monacoEditor = null;
+        let isDesktop = window.innerWidth > 768;
+        
+        // Initialize editor
+        function initEditor() {
+            if (isDesktop) {
+                initMonacoEditor();
+            } else {
+                initMobileEditor();
+            }
+            
+            // Load NT example files from backend
+            loadNTFiles();
+            
+            // Add mobile menu button to header
+            addMobileMenuButton();
+        }
+        
+        // Load NT files from backend
+        async function loadNTFiles() {
+            try {
+                // Get list of available files
+                const response = await fetch('http://localhost:5001/api/nt-reference/list-files');
+                const data = await response.json();
+                
+                // Build file tree
+                const fileListEl = document.getElementById('fileList');
+                fileListEl.innerHTML = '';
+                
+                // Add Examples folder
+                const examplesFolder = createFolderElement('examples/', false);
+                fileListEl.appendChild(examplesFolder);
+                const examplesContents = createFolderContents(false);
+                
+                // Add strategies under examples
+                if (data.examples && data.examples.strategies) {
+                    const strategiesFolder = createFolderElement('strategies/', false, 20);
+                    examplesContents.appendChild(strategiesFolder);
+                    const strategiesContents = createFolderContents(false);
+                    
+                    data.examples.strategies.forEach(file => {
+                        const fileItem = createFileElement(`strategies/${file}`, file, 40);
+                        strategiesContents.appendChild(fileItem);
+                    });
+                    examplesContents.appendChild(strategiesContents);
+                }
+                
+                // Add algorithms under examples
+                if (data.examples && data.examples.algorithms) {
+                    const algorithmsFolder = createFolderElement('algorithms/', false, 20);
+                    examplesContents.appendChild(algorithmsFolder);
+                    const algorithmsContents = createFolderContents(false);
+                    
+                    data.examples.algorithms.forEach(file => {
+                        const fileItem = createFileElement(`algorithms/${file}`, file, 40);
+                        algorithmsContents.appendChild(fileItem);
+                    });
+                    examplesContents.appendChild(algorithmsContents);
+                }
+                
+                // Add example indicators under examples
+                if (data.examples && data.examples.indicators && data.examples.indicators.length > 0) {
+                    const indicatorsFolder = createFolderElement('indicators/', false, 20);
+                    examplesContents.appendChild(indicatorsFolder);
+                    const indicatorsContents = createFolderContents(false);
+                    
+                    data.examples.indicators.forEach(file => {
+                        const fileItem = createFileElement(`indicators/${file}`, file, 40);
+                        indicatorsContents.appendChild(fileItem);
+                    });
+                    examplesContents.appendChild(indicatorsContents);
+                }
+                
+                fileListEl.appendChild(examplesContents);
+                
+                // Add main Indicators folder
+                if (data.indicators && data.indicators.length > 0) {
+                    const indicatorsFolder = createFolderElement('indicators/', false);
+                    fileListEl.appendChild(indicatorsFolder);
+                    const indicatorsContents = createFolderContents(false);
+                    
+                    data.indicators.forEach(file => {
+                        const fileItem = createFileElement(`indicators/${file}`, file, 20);
+                        indicatorsContents.appendChild(fileItem);
+                    });
+                    fileListEl.appendChild(indicatorsContents);
+                }
+                
+                // Set initial file
+                if (!currentFile && data.examples && data.examples.strategies && data.examples.strategies.length > 0) {
+                    currentFile = `strategies/${data.examples.strategies[0]}`;
+                }
+                
+                // Load the initial file
+                if (currentFile) {
+                    openFile(currentFile);
+                }
+            } catch (error) {
+                console.error('Error loading NT files:', error);
+                addOutput('Error loading NautilusTrader files', 'error');
+            }
+        }
+        
+        // Helper functions to create file tree elements
+        function createFolderElement(name, expanded = false, paddingLeft = 0) {
+            const folder = document.createElement('div');
+            folder.className = `folder-item ${expanded ? 'expanded' : 'collapsed'}`;
+            folder.onclick = (e) => toggleFolder(folder);
+            if (paddingLeft > 0) folder.style.paddingLeft = `${paddingLeft}px`;
+            folder.innerHTML = `
+                <span class="folder-icon">${expanded ? '▼' : '▶'}</span>
+                <span class="file-icon">📁</span>
+                <span>${name}</span>
+            `;
+            return folder;
+        }
+        
+        function createFolderContents(display = true) {
+            const contents = document.createElement('div');
+            contents.className = 'folder-contents';
+            contents.style.display = display ? 'block' : 'none';
+            return contents;
+        }
+        
+        function createFileElement(path, name, paddingLeft = 20) {
+            const file = document.createElement('div');
+            file.className = 'file-item';
+            file.onclick = () => openFile(path);
+            file.style.paddingLeft = `${paddingLeft}px`;
+            const ext = name.split('.').pop();
+            file.innerHTML = `
+                <span class="file-icon">${ext}</span>
+                <span>${name}</span>
+            `;
+            return file;
+        }
+        
+        // Add mobile menu button
+        function addMobileMenuButton() {
+            if (window.innerWidth <= 768) {
+                const header = document.querySelector('.header-content');
+                if (header && !document.getElementById('sidebar-toggle')) {
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.id = 'sidebar-toggle';
+                    toggleBtn.className = 'btn btn-ghost btn-sm';
+                    toggleBtn.textContent = 'Files';
+                    toggleBtn.onclick = toggleSidebar;
+                    
+                    const nav = header.querySelector('.nav-actions');
+                    if (nav) {
+                        nav.insertBefore(toggleBtn, nav.firstChild);
+                    }
+                }
+            }
+        }
+        
+        // Initialize mobile editor
+        function initMobileEditor() {
+            const textarea = document.getElementById('editorTextarea');
+            const highlight = document.getElementById('editorHighlight');
+            
+            // Sync scroll
+            textarea.addEventListener('scroll', () => {
+                highlight.scrollTop = textarea.scrollTop;
+                highlight.scrollLeft = textarea.scrollLeft;
+            });
+            
+            // Update on input
+            textarea.addEventListener('input', () => {
+                updateHighlight();
+                files[currentFile] = textarea.value;
+            });
+        }
+        
+        // Initialize Monaco Editor for desktop
+        function initMonacoEditor() {
+            require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+            require(['vs/editor/editor.main'], function() {
+                // Define custom AlphaPulse themes
+                monaco.editor.defineTheme('alphapulse-light', {
+                    base: 'vs',
+                    inherit: true,
+                    rules: [
+                        { token: 'comment', foreground: '7d8590', fontStyle: 'italic' },
+                        { token: 'keyword', foreground: 'cf222e' },
+                        { token: 'string', foreground: '0a3069' },
+                        { token: 'number', foreground: '0550ae' },
+                        { token: 'function', foreground: '8250df' },
+                        { token: 'variable', foreground: '33332d' },
+                        { token: 'type', foreground: '116329' },
+                        { token: 'delimiter', foreground: '666660' },
+                        { token: 'operator', foreground: 'cf222e' }
+                    ],
+                    colors: {
+                        'editor.background': '#faf8f3',
+                        'editor.foreground': '#33332d',
+                        'editor.lineHighlightBackground': '#f5f2ea',
+                        'editor.selectionBackground': '#e8e4d9',
+                        'editor.inactiveSelectionBackground': '#ede8dd',
+                        'editorLineNumber.foreground': '#999990',
+                        'editorLineNumber.activeForeground': '#33332d',
+                        'editorCursor.foreground': '#0969da',
+                        'editor.wordHighlightBackground': '#e8e4d9',
+                        'editorWhitespace.foreground': '#d0d0ca',
+                        'editorIndentGuide.background': '#e5e0d5',
+                        'editorIndentGuide.activeBackground': '#d8d2c4',
+                        'editorBracketMatch.background': '#e8e4d9',
+                        'editorBracketMatch.border': '#d8d2c4'
+                    }
+                });
+                
+                monaco.editor.defineTheme('alphapulse-dark', {
+                    base: 'vs-dark',
+                    inherit: true,
+                    rules: [
+                        { token: 'comment', foreground: '8b949e', fontStyle: 'italic' },
+                        { token: 'keyword', foreground: 'ff7b72' },
+                        { token: 'string', foreground: 'a5d6ff' },
+                        { token: 'number', foreground: '79c0ff' },
+                        { token: 'function', foreground: 'd2a8ff' },
+                        { token: 'variable', foreground: 'f0f6fc' },
+                        { token: 'type', foreground: '7ee787' },
+                        { token: 'delimiter', foreground: '8b949e' },
+                        { token: 'operator', foreground: 'ff7b72' }
+                    ],
+                    colors: {
+                        'editor.background': '#1e2028',
+                        'editor.foreground': '#f0f6fc',
+                        'editor.lineHighlightBackground': '#262931',
+                        'editor.selectionBackground': '#2e323b',
+                        'editor.inactiveSelectionBackground': '#353943',
+                        'editorLineNumber.foreground': '#6e7681',
+                        'editorLineNumber.activeForeground': '#f0f6fc',
+                        'editorCursor.foreground': '#58a6ff',
+                        'editor.wordHighlightBackground': '#2e323b',
+                        'editorWhitespace.foreground': '#484f58',
+                        'editorIndentGuide.background': '#383c45',
+                        'editorIndentGuide.activeBackground': '#42474f',
+                        'editorBracketMatch.background': '#2e323b',
+                        'editorBracketMatch.border': '#42474f'
+                    }
+                });
+                
+                // Get current theme
+                const theme = document.documentElement.getAttribute('data-theme') || 'light';
+                
+                monacoEditor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                    value: files[currentFile] || '',
+                    language: getMonacoLanguage(currentFile),
+                    theme: theme === 'dark' ? 'alphapulse-dark' : 'alphapulse-light',
+                    automaticLayout: true,
+                    minimap: {
+                        enabled: true,
+                        side: 'right',
+                        showSlider: 'always',
+                        renderCharacters: true
+                    },
+                    fontSize: 15,
+                    fontFamily: "'IBM Plex Mono', 'JetBrains Mono', 'SF Mono', Monaco, Consolas, monospace",
+                    fontLigatures: true,
+                    fontWeight: '400',
+                    letterSpacing: 0.5,
+                    lineHeight: 22,
+                    scrollBeyondLastLine: false,
+                    lineNumbers: 'on',
+                    renderWhitespace: 'selection',
+                    wordWrap: 'off',
+                    folding: true,
+                    foldingHighlight: true,
+                    foldingStrategy: 'indentation',
+                    showFoldingControls: 'always',
+                    glyphMargin: true,
+                    contextmenu: true,
+                    quickSuggestions: {
+                        other: true,
+                        comments: true,
+                        strings: true
+                    },
+                    suggestOnTriggerCharacters: true,
+                    acceptSuggestionOnEnter: 'on',
+                    tabCompletion: 'on',
+                    wordBasedSuggestions: true,
+                    parameterHints: {
+                        enabled: true,
+                        cycle: true
+                    },
+                    codeLens: true,
+                    lightbulb: {
+                        enabled: true
+                    },
+                    bracketPairColorization: {
+                        enabled: true
+                    },
+                    guides: {
+                        bracketPairs: true,
+                        bracketPairsHorizontal: true,
+                        highlightActiveBracketPair: true,
+                        indentation: true,
+                        highlightActiveIndentation: true
+                    },
+                    renderLineHighlight: 'all',
+                    renderValidationDecorations: 'on',
+                    smoothScrolling: true,
+                    cursorBlinking: 'smooth',
+                    cursorSmoothCaretAnimation: 'on'
+                });
+                
+                // Update file content on change
+                monacoEditor.onDidChangeModelContent(() => {
+                    files[currentFile] = monacoEditor.getValue();
+                });
+                
+                // Add custom ADMF completions for Python
+                if (getMonacoLanguage(currentFile) === 'python') {
+                    monaco.languages.registerCompletionItemProvider('python', {
+                        provideCompletionItems: (model, position) => {
+                            const suggestions = [
+                                {
+                                    label: 'admf.load_signals',
+                                    kind: monaco.languages.CompletionItemKind.Function,
+                                    insertText: 'admf.load_signals(${1:strategy_type}, ${2:min_sharpe=1.0})',
+                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                    documentation: 'Load strategy signals from registry',
+                                    detail: 'ADMF Library'
+                                },
+                                {
+                                    label: 'admf.load_executions',
+                                    kind: monaco.languages.CompletionItemKind.Function,
+                                    insertText: 'admf.load_executions(${1:signal_hash})',
+                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                    documentation: 'Load execution traces',
+                                    detail: 'ADMF Library'
+                                },
+                                {
+                                    label: 'plot_equity_curves',
+                                    kind: monaco.languages.CompletionItemKind.Function,
+                                    insertText: 'plot_equity_curves(${1:signals}, benchmark="${2:SPY}")',
+                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                    documentation: 'Plot strategy equity curves with benchmark',
+                                    detail: 'Analysis Library'
+                                },
+                                {
+                                    label: 'performance_table',
+                                    kind: monaco.languages.CompletionItemKind.Function,
+                                    insertText: 'performance_table(${1:signals})',
+                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                    documentation: 'Generate performance metrics table',
+                                    detail: 'Analysis Library'
+                                },
+                                {
+                                    label: 'calculate_sharpe_ratio',
+                                    kind: monaco.languages.CompletionItemKind.Function,
+                                    insertText: 'calculate_sharpe_ratio(${1:returns}, risk_free_rate=${2:0.02})',
+                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                    documentation: 'Calculate Sharpe ratio for returns series',
+                                    detail: 'Analysis Library'
+                                }
+                            ];
+                            
+                            return { suggestions };
+                        }
+                    });
+                }
+                
+                // Add command palette shortcuts
+                monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
+                    monacoEditor.trigger('', 'editor.action.quickCommand', '');
+                });
+                
+                // Add format document shortcut
+                monacoEditor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => {
+                    monacoEditor.trigger('', 'editor.action.formatDocument', '');
+                });
+                
+                // Listen for theme changes
+                window.addEventListener('alphapulse:themechange', (e) => {
+                    const newTheme = e.detail.theme === 'dark' ? 'alphapulse-dark' : 'alphapulse-light';
+                    monaco.editor.setTheme(newTheme);
+                });
+            });
+        }
+        
+        function getMonacoLanguage(filename) {
+            const ext = filename.split('.').pop();
+            const langMap = {
+                'py': 'python',
+                'yaml': 'yaml',
+                'yml': 'yaml',
+                'json': 'json',
+                'md': 'markdown'
+            };
+            return langMap[ext] || 'plaintext';
+        }
+        
+        function loadFile(filename) {
+            currentFile = filename;
+            console.log('Loading file:', filename, 'Content length:', files[filename]?.length || 0);
+            
+            if (isDesktop && monacoEditor) {
+                // Update Monaco editor
+                const content = files[filename] || '';
+                console.log('Setting Monaco content, length:', content.length);
+                monacoEditor.setValue(content);
+                monaco.editor.setModelLanguage(monacoEditor.getModel(), getMonacoLanguage(filename));
+            } else {
+                // Update mobile editor
+                const textarea = document.getElementById('editorTextarea');
+                const code = document.getElementById('highlightedCode');
+                
+                textarea.value = files[filename] || '';
+                
+                // Update language for Prism
+                const ext = filename.split('.').pop();
+                const langMap = {
+                    'py': 'python',
+                    'yaml': 'yaml',
+                    'yml': 'yaml',
+                    'json': 'json',
+                    'md': 'markdown'
+                };
+                code.className = `language-${langMap[ext] || 'plaintext'}`;
+                
+                updateHighlight();
+            }
+            
+            // Update UI
+            document.querySelectorAll('.file-item').forEach(item => {
+                const fileSpan = item.querySelector('span:last-child');
+                if (fileSpan) {
+                    const itemFilename = item.getAttribute('onclick')?.match(/openFile\('(.+?)'\)/)?.[1];
+                    item.classList.toggle('active', itemFilename === filename);
+                }
+            });
+            
+            // Hide welcome
+            document.getElementById('welcome').style.display = 'none';
+            
+            // Close sidebar on mobile
+            if (window.innerWidth <= 768) {
+                toggleSidebar();
+            }
+        }
+        
+        function updateHighlight() {
+            const textarea = document.getElementById('editorTextarea');
+            const code = document.getElementById('highlightedCode');
+            
+            code.textContent = textarea.value + '\n';
+            Prism.highlightElement(code);
+        }
+        
+        async function openFile(filename) {
+            // Load file from backend if not already loaded
+            if (!files[filename]) {
+                try {
+                    const response = await fetch(`http://localhost:5001/api/nt-reference/files/${filename}`);
+                    const data = await response.json();
+                    if (data.content) {
+                        files[filename] = data.content;
+                    } else {
+                        addOutput(`Error loading ${filename}`, 'error');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error loading file:', error);
+                    addOutput(`Error loading ${filename}: ${error.message}`, 'error');
+                    return;
+                }
+            }
+            
+            // Add to tabs if not already open
+            if (!openTabs.includes(filename)) {
+                openTabs.push(filename);
+                addTabToUI(filename);
+            }
+            
+            // Switch to the tab and load content
+            currentFile = filename;
+            
+            // Update active tab
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.file === filename) {
+                    tab.classList.add('active');
+                }
+            });
+            
+            // Load file content into editor
+            loadFile(filename);
+        }
+        
+        // Tab management functions
+        function switchTab(filename) {
+            if (!files[filename]) return;
+            
+            currentFile = filename;
+            
+            // Update active tab
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.file === filename) {
+                    tab.classList.add('active');
+                }
+            });
+            
+            // Load file content
+            loadFile(filename);
+        }
+        
+        function closeTab(event, filename) {
+            event.stopPropagation();
+            
+            const tabIndex = openTabs.indexOf(filename);
+            if (tabIndex === -1) return;
+            
+            // Don't close if it's the only tab
+            if (openTabs.length === 1) {
+                alert('Cannot close the last tab');
+                return;
+            }
+            
+            // Remove from open tabs
+            openTabs.splice(tabIndex, 1);
+            
+            // Remove tab from UI
+            const tab = event.target.closest('.tab');
+            tab.remove();
+            
+            // If closing current tab, switch to another
+            if (currentFile === filename) {
+                const newIndex = Math.max(0, tabIndex - 1);
+                switchTab(openTabs[newIndex]);
+            }
+        }
+        
+        function createNewTab() {
+            const filename = `untitled${tabCounter}.py`;
+            
+            // Create new file
+            files[filename] = '# New file\n';
+            tabCounter++;
+            
+            // Add to tabs
+            openTabs.push(filename);
+            addTabToUI(filename);
+            
+            // Switch to new tab
+            switchTab(filename);
+        }
+        
+        function addTabToUI(filename) {
+            const tabsContainer = document.getElementById('tabsList');
+            const newTabBtn = tabsContainer.querySelector('.new-tab-btn');
+            
+            const tab = document.createElement('div');
+            tab.className = 'tab';
+            tab.dataset.file = filename;
+            tab.onclick = () => switchTab(filename);
+            tab.innerHTML = `
+                <span class="tab-name">${filename}</span>
+                <button class="tab-close" onclick="closeTab(event, '${filename}')">×</button>
+            `;
+            
+            tabsContainer.insertBefore(tab, newTabBtn);
+        }
+        
+        // Filter files based on search input
+        function filterFiles(searchTerm) {
+            const fileItems = document.querySelectorAll('.file-item');
+            const searchLower = searchTerm.toLowerCase();
+            
+            fileItems.forEach(item => {
+                const filename = item.querySelector('span:last-child').textContent.toLowerCase();
+                if (filename.includes(searchLower)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            
+            sidebarOpen = !sidebarOpen;
+            sidebar.classList.toggle('open', sidebarOpen);
+            backdrop.classList.toggle('active', sidebarOpen);
+        }
+        
+        function addOutput(message, type = 'info') {
+            const output = document.getElementById('outputContent');
+            const line = document.createElement('div');
+            line.className = `output-line ${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function showOutput() {
+            const panel = document.getElementById('outputPanel');
+            panel.classList.add('open');
+            updateButtonState();
+        }
+        
+        function hideOutput() {
+            const panel = document.getElementById('outputPanel');
+            panel.classList.remove('open');
+            updateButtonState();
+        }
+        
+        function toggleOutput() {
+            const panel = document.getElementById('outputPanel');
+            if (panel.classList.contains('open')) {
+                hideOutput();
+            } else {
+                showOutput();
+            }
+        }
+        
+        function updateButtonState() {
+            // No longer needed since we don't have the output button
+        }
+        
+        // Generate Notebook function
+        function generateNotebook() {
+            const currentContent = getCurrentFileContent();
+            
+            if (!currentContent || currentContent.trim() === '') {
+                showOutput();
+                addOutput('Error: No code content to generate notebook from', 'error');
+                return;
+            }
+            
+            showOutput();
+            addOutput('Generating analysis notebook...', 'info');
+            
+            // Simulate notebook generation process
+            setTimeout(() => {
+                addOutput('Analyzing code structure...', 'info');
+            }, 500);
+            
+            setTimeout(() => {
+                addOutput('Detecting strategy parameters...', 'info');
+            }, 1000);
+            
+            setTimeout(() => {
+                addOutput('Creating notebook template...', 'info');
+            }, 1500);
+            
+            setTimeout(() => {
+                addOutput('Notebook generated successfully!', 'success');
+                addOutput('Opening notebook in Research tab...', 'info');
+                
+                // Open notebook in new tab/window
+                const notebookUrl = 'research.html';
+                window.open(notebookUrl, '_blank');
+                
+                addOutput('Notebook opened in Research tab', 'success');
+            }, 2000);
+        }
+        
+        // Helper to get current file content
+        function getCurrentFileContent() {
+            if (isDesktop && monacoEditor) {
+                return monacoEditor.getValue();
+            } else {
+                const textarea = document.getElementById('editorTextarea');
+                return textarea ? textarea.value : '';
+            }
+        }
+        
+        function openTerminal() {
+            showOutput();
+            addOutput('> Terminal ready', 'info');
+        }
+        
+        function checkSyntax() {
+            showOutput();
+            addOutput('Validating NautilusTrader strategy...', 'info');
+            
+            if (currentFile.endsWith('.py')) {
+                const code = files[currentFile] || getCurrentFileContent();
+                
+                // Check for NT imports
+                const hasNTImports = code.includes('from nautilus_trader');
+                const hasStrategyImport = code.includes('from nautilus_trader.trading.strategy import Strategy');
+                const hasConfigImport = code.includes('StrategyConfig');
+                
+                // Check for required classes
+                const strategyClassMatch = code.match(/class\s+(\w+)\s*\(\s*Strategy\s*\)/);
+                const configClassMatch = code.match(/class\s+(\w+)\s*\(\s*\w*StrategyConfig\s*\)/);
+                
+                // Validate
+                let hasErrors = false;
+                
+                if (!hasNTImports) {
+                    addOutput('❌ Missing NautilusTrader imports', 'error');
+                    hasErrors = true;
+                } else {
+                    addOutput('✓ NautilusTrader imports found', 'success');
+                }
+                
+                if (!strategyClassMatch) {
+                    addOutput('❌ No Strategy class found (must inherit from Strategy)', 'error');
+                    hasErrors = true;
+                } else {
+                    addOutput(`✓ Found Strategy class: ${strategyClassMatch[1]}`, 'success');
+                }
+                
+                if (!configClassMatch) {
+                    addOutput('⚠ No StrategyConfig class found (recommended)', 'warning');
+                } else {
+                    addOutput(`✓ Found Config class: ${configClassMatch[1]}`, 'success');
+                }
+                
+                // Check for required methods
+                if (strategyClassMatch) {
+                    const hasOnStart = code.includes('def on_start');
+                    const hasOnStop = code.includes('def on_stop');
+                    const hasOnBar = code.includes('def on_bar');
+                    
+                    if (!hasOnStart) {
+                        addOutput('⚠ Missing on_start method (will use default)', 'warning');
+                    }
+                    if (!hasOnBar && !code.includes('on_quote_tick')) {
+                        addOutput('⚠ No data handlers found (on_bar or on_quote_tick)', 'warning');
+                    }
+                }
+                
+                if (!hasErrors) {
+                    addOutput('✅ Strategy validation passed!', 'success');
+                }
+            } else {
+                addOutput('Validation only available for Python files', 'warning');
+            }
+        }
+        
+        function exportYAML() {
+            showOutput();
+            addOutput('Generating YAML configuration...', 'info');
+            
+            const yaml = `# Generated Strategy Configuration
+name: ${currentFile.replace('.py', '')}
+version: 1.0.0
+generated: ${new Date().toISOString()}
+
+strategy:
+  file: ${currentFile}
+  class: MomentumStrategy
+  
+parameters:
+  lookback: 20
+  threshold: 0.02
+  
+execution:
+  mode: paper
+  broker: alpaca
+`;
+            
+            addOutput('✓ YAML configuration generated', 'success');
+            addOutput('--- YAML Content ---', 'info');
+            yaml.split('\n').forEach(line => addOutput(line, 'info'));
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(yaml).then(() => {
+                addOutput('✓ Copied to clipboard', 'success');
+            });
+        }
+        
+        function generateSignals() {
+            showOutput();
+            addOutput('Generating signals...', 'info');
+            
+            setTimeout(() => {
+                addOutput('✓ Loaded strategy: MomentumStrategy', 'success');
+                addOutput('✓ Processing data for SPY...', 'success');
+                addOutput('Generated 252 signals', 'info');
+                addOutput('  - BUY: 45 signals', 'info');
+                addOutput('  - SELL: 42 signals', 'info');
+                addOutput('  - HOLD: 165 signals', 'info');
+                addOutput('✓ Signals saved to signals_20240801.parquet', 'success');
+            }, 1000);
+        }
+        
+        function runBacktest() {
+            showOutput();
+            addOutput('Running backtest...', 'info');
+            
+            setTimeout(() => {
+                addOutput('✓ Backtest complete', 'success');
+                addOutput('--- Results ---', 'info');
+                addOutput('Total Return: +12.34%', 'success');
+                addOutput('Sharpe Ratio: 1.56', 'info');
+                addOutput('Max Drawdown: -8.2%', 'warning');
+                addOutput('Win Rate: 58%', 'info');
+                addOutput('✓ Full report saved to backtest_results.html', 'success');
+            }, 1500);
+        }
+        
+        function newFile() {
+            const name = prompt('Enter filename:');
+            if (name && !files[name]) {
+                files[name] = '';
+                location.reload(); // Simple refresh to update UI
+            }
+        }
+        
+        function saveFile() {
+            addOutput(`✓ Saved ${currentFile}`, 'success');
+            showOutput();
+        }
+        
+        function formatCode() {
+            addOutput('Code formatted', 'info');
+            showOutput();
+        }
+        
+        function saveFile() {
+            // Save current file to localStorage (in a real app, this would save to server)
+            if (currentFile && files[currentFile] !== undefined) {
+                const editor = document.querySelector('.editor');
+                if (editor) {
+                    files[currentFile] = editor.value;
+                    console.log(`Saved ${currentFile}`);
+                    
+                    // Show a brief save indicator
+                    const tab = document.querySelector(`.tab[data-file="${currentFile}"]`);
+                    if (tab) {
+                        const originalText = tab.querySelector('.tab-name').textContent;
+                        tab.querySelector('.tab-name').textContent = `${originalText} ✓`;
+                        setTimeout(() => {
+                            tab.querySelector('.tab-name').textContent = originalText;
+                        }, 1000);
+                    }
+                }
+            }
+        }
+        
+        async function runCode() {
+            showOutput();
+            
+            // Display NautilusTrader startup logs
+            displayNautilusStartup();
+            
+            const code = getCurrentFileContent();
+            if (!code) {
+                addOutput('No code to run', 'error');
+                return;
+            }
+            
+            // Simulate strategy execution after startup logs
+            setTimeout(async () => {
+                try {
+                    const response = await fetch('http://localhost:5001/api/nautilus/run-strategy', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            code: code,
+                            name: currentFile
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        addOutput('Strategy sent to NautilusTrader', 'success');
+                        addOutput(result.message, 'info');
+                    } else {
+                        addOutput('Error: ' + result.error, 'error');
+                    }
+                } catch (error) {
+                    addOutput('Error connecting to backend: ' + error.message, 'error');
+                }
+            }, 2000);
+        }
+        
+        function displayNautilusStartup() {
+            const logs = [
+                { time: '2025-08-06T21:10:46.073015000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.073059000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: ' NAUTILUS TRADER - Automated Algorithmic Trading Platform', highlight: true },
+                { time: '2025-08-06T21:10:46.073059001Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: ' by Nautech Systems Pty Ltd.', highlight: true },
+                { time: '2025-08-06T21:10:46.073060000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: ' Copyright (C) 2015-2025. All rights reserved.', highlight: true },
+                { time: '2025-08-06T21:10:46.073060001Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.073060002Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '' },
+                { time: '2025-08-06T21:10:46.073060003Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣶⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀' },
+                { time: '2025-08-06T21:10:46.073060004Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣾⣿⣿⣿⠀⢸⣿⣿⣿⣿⣶⣶⣤⣀⠀⠀⠀⠀⠀' },
+                { time: '2025-08-06T21:10:46.073061000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠀⠀⠀⠀⢀⣴⡇⢀⣾⣿⣿⣿⣿⣿⠀⣾⣿⣿⣿⣿⣿⣿⣿⠿⠓⠀⠀⠀⠀' },
+                { time: '2025-08-06T21:10:46.073061001Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠀⠀⠀⣰⣿⣿⡀⢸⣿⣿⣿⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⠟⠁⣠⣄⠀⠀⠀⠀' },
+                { time: '2025-08-06T21:10:46.073061002Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠀⠀⢠⣿⣿⣿⣇⠀⢿⣿⣿⣿⣿⣿⠀⢻⣿⣿⣿⡿⢃⣠⣾⣿⣿⣧⡀⠀⠀' },
+                { time: '2025-08-06T21:10:46.073061003Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠀⠠⣾⣿⣿⣿⣿⣿⣧⠈⠋⢀⣴⣧⠀⣿⡏⢠⡀⢸⣿⣿⣿⣿⣿⣿⣿⡇⠀' },
+                { time: '2025-08-06T21:10:46.073061004Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠀⣀⠙⢿⣿⣿⣿⣿⣿⠇⢠⣿⣿⣿⡄⠹⠃⠼⠃⠈⠉⠛⠛⠛⠛⠛⠻⠇⠀' },
+                { time: '2025-08-06T21:10:46.073061005Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⢸⡟⢠⣤⠉⠛⠿⢿⣿⠀⢸⣿⡿⠋⣠⣤⣄⠀⣾⣿⣿⣶⣶⣶⣦⡄⠀⠀⠀' },
+                { time: '2025-08-06T21:10:46.073062000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠸⠀⣾⠏⣸⣷⠂⣠⣤⠀⠘⢁⣴⣾⣿⣿⣿⡆⠘⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀' },
+                { time: '2025-08-06T21:10:46.073062001Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠀⠀⠛⠀⣿⡟⠀⢻⣿⡄⠸⣿⣿⣿⣿⣿⣿⣿⡀⠘⣿⣿⣿⣿⠟⠀⠀⠀⠀' },
+                { time: '2025-08-06T21:10:46.073062002Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠀⠀⠀⠀⣿⠇⠀⠀⢻⡿⠀⠈⠻⣿⣿⣿⣿⣿⡇⠀⢹⣿⠿⠋⠀⠀⠀⠀⠀' },
+                { time: '2025-08-06T21:10:46.073062003Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '⠀⠀⠀⠀⠀⠀⠋⠀⠀⠀⡘⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠁⠀⠀⠀⠀⠀⠀⠀' },
+                { time: '2025-08-06T21:10:46.073062004Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '' },
+                { time: '2025-08-06T21:10:46.073062005Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.073062006Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: ' SYSTEM SPECIFICATION', highlight: true },
+                { time: '2025-08-06T21:10:46.073063000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.073063001Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'CPU architecture: Apple M2' },
+                { time: '2025-08-06T21:10:46.073064000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'CPU(s): 8 @ 3504 Mhz' },
+                { time: '2025-08-06T21:10:46.073064001Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'OS: kernel-24.3.0 macOS 15.3.1 Sequoia' },
+                { time: '2025-08-06T21:10:46.094798000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.094803000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: ' MEMORY USAGE', highlight: true },
+                { time: '2025-08-06T21:10:46.094804000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.094822000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'RAM-Total: 8.00 GiB' },
+                { time: '2025-08-06T21:10:46.094823000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'RAM-Used: 6.34 GiB (79.26%)' },
+                { time: '2025-08-06T21:10:46.094824000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'RAM-Avail: 1.66 GiB (20.74%)' },
+                { time: '2025-08-06T21:10:46.094825000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'Swap-Total: 26.00 GiB' },
+                { time: '2025-08-06T21:10:46.094825001Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'Swap-Used: 24.87 GiB (95.66%)' },
+                { time: '2025-08-06T21:10:46.094826000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'Swap-Avail: 1.13 GiB (4.34%)' },
+                { time: '2025-08-06T21:10:46.094974000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.094976000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: ' IDENTIFIERS', highlight: true },
+                { time: '2025-08-06T21:10:46.094976001Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.094978000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'trader_id: BACKTESTER-001' },
+                { time: '2025-08-06T21:10:46.094979000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'machine_id: Mac-50.home' },
+                { time: '2025-08-06T21:10:46.094980000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'instance_id: 924cfb19-de5b-48e3-bc11-664f14bae110' },
+                { time: '2025-08-06T21:10:46.094980001Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'PID: 60574' },
+                { time: '2025-08-06T21:10:46.094980002Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.094980003Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: ' VERSIONING', highlight: true },
+                { time: '2025-08-06T21:10:46.094981000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.095078000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'nautilus_trader: 1.219.0' },
+                { time: '2025-08-06T21:10:46.095100000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'python: 3.11.9' },
+                { time: '2025-08-06T21:10:46.095104000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'numpy: 2.3.0' },
+                { time: '2025-08-06T21:10:46.095106000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'pandas: 2.3.0' },
+                { time: '2025-08-06T21:10:46.095108000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'msgspec: 0.19.0' },
+                { time: '2025-08-06T21:10:46.095110000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'pyarrow: 20.0.0' },
+                { time: '2025-08-06T21:10:46.095112000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'pytz: 2025.2' },
+                { time: '2025-08-06T21:10:46.095114000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'uvloop: 0.21.0' },
+                { time: '2025-08-06T21:10:46.095114001Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: '=================================================================', highlight: true },
+                { time: '2025-08-06T21:10:46.095332000Z', level: 'INFO', component: 'BACKTESTER-001.BacktestEngine', message: 'Building system kernel' }
+            ];
+            
+            // Clear existing output and display logs with timing
+            const output = document.getElementById('outputContent');
+            output.innerHTML = '';
+            
+            logs.forEach((log, index) => {
+                setTimeout(() => {
+                    addNautilusLog(log);
+                }, index * 15); // Stagger logs for visual effect
+            });
+        }
+        
+        function addNautilusLog(log) {
+            const output = document.getElementById('outputContent');
+            const line = document.createElement('div');
+            line.className = 'output-line nautilus-log';
+            
+            // Format the log message
+            const formattedMessage = `${log.time} [${log.level}] ${log.component}: ${log.message}`;
+            line.textContent = formattedMessage;
+            
+            // Apply highlight style for header lines
+            if (log.highlight) {
+                line.style.color = 'var(--color-accent-primary)';
+                line.style.fontWeight = 'var(--font-weight-semibold)';
+            } else {
+                line.style.color = 'var(--color-text-secondary)';
+            }
+            
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function closeCurrentFile() {
+            // Show welcome screen
+            const editorWrapper = document.getElementById('editorWrapper');
+            editorWrapper.innerHTML = `
+                <div class="welcome">
+                    <h2>AlphaPulse Development</h2>
+                    <p>Select a file from the sidebar to start coding your trading strategies.</p>
+                    <button class="btn btn-primary" onclick="toggleSidebar()">Open Files</button>
+                </div>
+            `;
+            
+            // Clear current file
+            currentFile = null;
+            
+            // Remove active state from all files
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('active');
+            });
+        }
+        
+        // Handle terminal input
+        function handleTerminalInput(event) {
+            if (event.key === 'Enter') {
+                const input = document.getElementById('terminalInput');
+                const command = input.value.trim();
+                
+                if (command) {
+                    // Add user command to output
+                    addOutput(`> ${command}`, 'info');
+                    
+                    // Process mock commands
+                    if (command === 'help') {
+                        addOutput('Available commands:', 'info');
+                        addOutput('  help      - Show this help message', 'info');
+                        addOutput('  run       - Run the current file', 'info');
+                        addOutput('  test      - Run tests', 'info');
+                        addOutput('  clear     - Clear terminal', 'info');
+                        addOutput('  ls        - List files', 'info');
+                        addOutput('  pwd       - Print working directory', 'info');
+                    } else if (command === 'run') {
+                        runCode();
+                    } else if (command === 'test') {
+                        addOutput('Running tests...', 'info');
+                        setTimeout(() => {
+                            addOutput('✓ All tests passed (5/5)', 'success');
+                        }, 1000);
+                    } else if (command === 'clear') {
+                        const output = document.getElementById('outputContent');
+                        output.innerHTML = '<div class="output-line info">Terminal cleared.</div>';
+                    } else if (command === 'ls') {
+                        addOutput('strategy.py', 'info');
+                        addOutput('signals.py', 'info');
+                        addOutput('config.yaml', 'info');
+                        addOutput('backtest.json', 'info');
+                        addOutput('README.md', 'info');
+                    } else if (command === 'pwd') {
+                        addOutput('/alphapulse/strategies', 'info');
+                    } else {
+                        addOutput(`Command not found: ${command}`, 'error');
+                    }
+                    
+                    // Clear input
+                    input.value = '';
+                }
+            }
+        }
+        
+        // Toggle folder function
+        function toggleFolder(folderElement) {
+            event.stopPropagation();
+            folderElement.classList.toggle('collapsed');
+            folderElement.classList.toggle('expanded');
+            
+            const nextElement = folderElement.nextElementSibling;
+            if (nextElement && nextElement.classList.contains('folder-contents')) {
+                nextElement.style.display = folderElement.classList.contains('expanded') ? 'block' : 'none';
+            }
+        }
+        
+        // Deploy strategy function
+        function deployStrategy() {
+            showOutput();
+            addOutput('Deploying strategy to paper trading...', 'info');
+            
+            // First validate
+            checkSyntax();
+            
+            setTimeout(() => {
+                addOutput('', 'info');
+                addOutput('Connecting to NautilusTrader engine...', 'info');
+                addOutput('Initializing paper trading account...', 'info');
+                
+                setTimeout(() => {
+                    addOutput('✅ Strategy deployed successfully!', 'success');
+                    addOutput('Strategy ID: STRAT-' + Math.random().toString(36).substr(2, 9).toUpperCase(), 'info');
+                    addOutput('Status: RUNNING', 'success');
+                    addOutput('Mode: PAPER_TRADING', 'info');
+                    addOutput('', 'info');
+                    addOutput('Monitor your strategy in the Deploy tab', 'info');
+                }, 1500);
+            }, 1000);
+        }
+        
+        // Open NT documentation
+        function openDocs() {
+            window.open('https://nautilustrader.io/docs/', '_blank');
+        }
+        
+        // Show performance metrics
+        function showMetrics() {
+            showOutput();
+            addOutput('Calculating performance metrics...', 'info');
+            
+            setTimeout(() => {
+                addOutput('', 'info');
+                addOutput('=== Strategy Performance Metrics ===', 'success');
+                addOutput('Annualized Return: 23.4%', 'success');
+                addOutput('Sharpe Ratio: 1.82', 'info');
+                addOutput('Sortino Ratio: 2.15', 'info');
+                addOutput('Max Drawdown: -6.3%', 'warning');
+                addOutput('Calmar Ratio: 3.71', 'info');
+                addOutput('Win Rate: 62.2%', 'info');
+                addOutput('Profit Factor: 1.85', 'info');
+                addOutput('Average Win: $156.23', 'success');
+                addOutput('Average Loss: -$84.37', 'warning');
+                addOutput('', 'info');
+                addOutput('Risk Metrics:', 'info');
+                addOutput('VaR (95%): -2.1%', 'info');
+                addOutput('CVaR (95%): -3.2%', 'info');
+                addOutput('Beta: 0.45', 'info');
+            }, 1000);
+        }
+        
+        // Make functions globally available for onclick handlers
+        window.toggleFolder = toggleFolder;
+        window.runCode = runCode;
+        window.deployStrategy = deployStrategy;
+        window.openDocs = openDocs;
+        window.showMetrics = showMetrics;
+        window.closePdfViewer = closePdfViewer;
+        window.toggleAIChat = toggleAIChat;
+        window.closeAIChat = closeAIChat;
+        window.handleAIChatInput = handleAIChatInput;
+        window.openFile = openFile;
+        window.toggleSidebar = toggleSidebar;
+        window.formatCode = formatCode;
+        window.checkSyntax = checkSyntax;
+        window.exportYAML = exportYAML;
+        window.generateSignals = generateSignals;
+        window.runBacktest = runBacktest;
+        window.generateNotebook = generateNotebook;
+        window.showOutput = showOutput;
+        window.hideOutput = hideOutput;
+        window.openTerminal = openTerminal;
+        window.filterFiles = filterFiles;
+        window.closeCurrentFile = closeCurrentFile;
+        window.handleTerminalInput = handleTerminalInput;
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const wasDesktop = isDesktop;
+            isDesktop = window.innerWidth > 768;
+            
+            // If switching between mobile and desktop, reinitialize editor
+            if (wasDesktop !== isDesktop) {
+                if (isDesktop && !monacoEditor) {
+                    initMonacoEditor();
+                }
+                loadFile(currentFile);
+                addMobileMenuButton();
+            }
+        });
+        
+        // Handle theme changes
+        window.addEventListener('alphapulse:themechange', (e) => {
+            // Update Prism theme if needed
+            const prismLink = document.querySelector('link[href*="prism"]');
+            if (prismLink) {
+                const theme = e.detail.theme;
+                if (theme === 'light') {
+                    prismLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css';
+                } else {
+                    prismLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css';
+                }
+            }
+        });
+        
+        // Create split view with PDF
+        function createSplitView(pdfUrl, pdfTitle) {
+            console.log('createSplitView called with:', pdfUrl, pdfTitle);
+            
+            const container = document.querySelector('.editor-container');
+            const tabsContainer = document.querySelector('.tabs-container');
+            const editorWrapper = document.querySelector('.editor-wrapper');
+            
+            if (!container || !tabsContainer || !editorWrapper) {
+                console.error('Required elements not found:', {container, tabsContainer, editorWrapper});
+                return;
+            }
+            
+            // Create new tabs container with split layout
+            const splitTabsContainer = document.createElement('div');
+            splitTabsContainer.className = 'tabs-container split-tabs';
+            splitTabsContainer.innerHTML = `
+                <div class="editor-tabs-section">
+                    ${tabsContainer.innerHTML}
+                </div>
+                <div class="pdf-tabs-section">
+                    <div class="pdf-header-bar">
+                        <span class="pdf-viewer-title">${pdfTitle}</span>
+                        <button class="pdf-viewer-close" onclick="closePdfViewer()">×</button>
+                    </div>
+                </div>
+            `;
+            
+            // Create split view wrapper
+            const splitView = document.createElement('div');
+            splitView.className = 'split-view';
+            splitView.style.height = 'calc(100vh - var(--header-height) - 40px)'; // Ensure proper height
+            
+            // Create PDF viewer (without header since it's now in tabs)
+            const pdfViewer = document.createElement('div');
+            pdfViewer.className = 'pdf-viewer';
+            pdfViewer.innerHTML = `
+                <div class="pdf-viewer-content">
+                    <iframe class="pdf-viewer-frame" src="${pdfUrl}"></iframe>
+                </div>
+                <!-- AI Chat Terminal -->
+                <div class="ai-chat-terminal" id="aiChatTerminal">
+                    <div class="ai-chat-header">
+                        <div class="ai-chat-title">
+                            <span>AI Assistant</span>
+                            <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary);">Help with implementation</span>
+                        </div>
+                        <button class="ai-chat-close-btn" onclick="closeAIChat()">×</button>
+                    </div>
+                    <div class="ai-chat-messages" id="aiChatMessages">
+                        <div class="ai-message assistant">Hello! I can help you implement ideas from this PDF. What would you like to code?</div>
+                    </div>
+                    <div class="ai-chat-input-wrapper">
+                        <span class="ai-chat-prompt">></span>
+                        <input 
+                            type="text" 
+                            class="ai-chat-input" 
+                            id="aiChatInput" 
+                            placeholder="Ask about implementation details..."
+                            onkeypress="handleAIChatInput(event)"
+                        />
+                    </div>
+                </div>
+            `;
+            
+            // Create editor half wrapper
+            const editorHalf = document.createElement('div');
+            editorHalf.className = 'editor-half';
+            
+            // Save reference to output panel
+            const outputPanel = document.getElementById('outputPanel');
+            
+            // Get editor header (might not have this element)
+            const editorHeader = document.querySelector('.editor-header');
+            
+            // Move editor components to the editor half
+            if (editorHeader) {
+                editorHalf.appendChild(editorHeader);
+            }
+            editorHalf.appendChild(editorWrapper);
+            
+            // Re-append output panel to editor half
+            if (outputPanel) {
+                editorHalf.appendChild(outputPanel);
+            }
+            
+            // Assemble split view (editor on left, PDF on right)
+            splitView.appendChild(editorHalf);
+            splitView.appendChild(pdfViewer);
+            
+            // Clear container and rebuild with split tabs and split view
+            container.innerHTML = '';
+            container.appendChild(splitTabsContainer);
+            container.appendChild(splitView);
+            
+            console.log('Split view created successfully');
+            
+            // Debug: Check if iframe is loading
+            const iframe = pdfViewer.querySelector('.pdf-viewer-frame');
+            if (iframe) {
+                console.log('PDF iframe src:', iframe.src);
+                iframe.onload = () => console.log('PDF iframe loaded successfully');
+                iframe.onerror = (e) => console.error('PDF iframe error:', e);
+            }
+            
+            // Re-attach event listeners to tabs
+            splitTabsContainer.querySelectorAll('.tab').forEach(tab => {
+                tab.onclick = () => switchTab(tab.dataset.file);
+            });
+            
+            // Re-attach event listener to new tab button
+            const newTabBtn = splitTabsContainer.querySelector('.new-tab-btn');
+            if (newTabBtn) {
+                newTabBtn.onclick = createNewTab;
+            }
+            
+            // Re-attach close button listeners
+            splitTabsContainer.querySelectorAll('.tab-close').forEach(closeBtn => {
+                const filename = closeBtn.closest('.tab').dataset.file;
+                closeBtn.onclick = (e) => closeTab(e, filename);
+            });
+        }
+        
+        // Close PDF viewer and restore normal view
+        function closePdfViewer() {
+            location.reload(); // Simple way to restore original layout
+        }
+        
+        // AI Chat Functions
+        let aiChatOpen = false;
+        let globalAIChatOpen = false;
+        let isDragging = false;
+        let isResizing = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+        let startWidth;
+        let startHeight;
+        let startX;
+        let startY;
+        
+        function toggleAIChat() {
+            const terminal = document.getElementById('aiChatTerminal');
+            const button = document.querySelector('.global-ai-chat-button');
+            
+            if (aiChatOpen) {
+                closeAIChat();
+            } else if (terminal) {
+                terminal.classList.add('open');
+                if (button) button.classList.add('hidden');
+                document.getElementById('aiChatInput').focus();
+                aiChatOpen = true;
+            } else {
+                // No PDF open, use global AI chat
+                toggleGlobalAIChat();
+            }
+        }
+        
+        function toggleGlobalAIChat() {
+            const terminal = document.getElementById('globalAITerminal');
+            const button = document.querySelector('.global-ai-chat-button');
+            
+            if (globalAIChatOpen) {
+                closeGlobalAIChat();
+            } else {
+                terminal.classList.add('open');
+                if (button) button.classList.add('hidden');
+                document.getElementById('globalAIInput').focus();
+                globalAIChatOpen = true;
+                
+                // Initialize drag functionality
+                initGlobalDrag();
+            }
+        }
+        
+        // Make it globally available
+        window.toggleGlobalAIChat = toggleGlobalAIChat;
+        
+        function closeAIChat() {
+            const terminal = document.getElementById('aiChatTerminal');
+            const button = document.querySelector('.global-ai-chat-button');
+            
+            if (terminal) {
+                terminal.classList.remove('open');
+                if (button) button.classList.remove('hidden');
+                aiChatOpen = false;
+            }
+        }
+        
+        function closeGlobalAIChat() {
+            const terminal = document.getElementById('globalAITerminal');
+            const button = document.querySelector('.global-ai-chat-button');
+            
+            if (terminal) {
+                terminal.classList.remove('open');
+                if (button) button.classList.remove('hidden');
+                globalAIChatOpen = false;
+            }
+        }
+        
+        function handleAIChatInput(event) {
+            if (event.key === 'Enter') {
+                const input = document.getElementById('aiChatInput');
+                const messages = document.getElementById('aiChatMessages');
+                const question = input.value.trim();
+                
+                if (question) {
+                    // Add user message
+                    const userMsg = document.createElement('div');
+                    userMsg.className = 'ai-message user';
+                    userMsg.textContent = question;
+                    messages.appendChild(userMsg);
+                    
+                    // Clear input
+                    input.value = '';
+                    
+                    // Simulate AI response
+                    setTimeout(() => {
+                        const aiMsg = document.createElement('div');
+                        aiMsg.className = 'ai-message assistant';
+                        
+                        // Mock responses for code implementation
+                        if (question.toLowerCase().includes('implement') || question.toLowerCase().includes('code')) {
+                            aiMsg.textContent = 'I can help you implement this. Based on the PDF, here\'s a starting structure:\n\n1. Create a GNN class with graph convolutional layers\n2. Implement the forward pass with node embeddings\n3. Add the momentum calculation logic\n\nWould you like me to generate the initial boilerplate code?';
+                        } else if (question.toLowerCase().includes('architecture')) {
+                            aiMsg.textContent = 'The paper describes a 3-layer GCN architecture:\n- Input layer: Node features (returns, volume, volatility)\n- Hidden layers: 64 units each with ReLU activation\n- Output: Return predictions\n\nThe graph edges are based on correlation thresholds.';
+                        } else if (question.toLowerCase().includes('data')) {
+                            aiMsg.textContent = 'For data preparation:\n1. Calculate rolling correlations between assets\n2. Create adjacency matrix (threshold at 0.6 correlation)\n3. Extract features: past returns, volume, volatility\n4. Normalize features using StandardScaler';
+                        } else if (question.toLowerCase().includes('training')) {
+                            aiMsg.textContent = 'Training details from the paper:\n- Optimizer: AdamW with lr=0.001\n- Batch size: 32 graphs\n- Loss: MSE for return prediction\n- Epochs: 100 with early stopping\n- Train/Val/Test split: 60/20/20';
+                        } else {
+                            aiMsg.textContent = `I see you're asking about "${question}". Based on this PDF about Graph Neural Networks for momentum strategies, I can help with implementation details, architecture design, or data preparation. What specific aspect would you like to explore?`;
+                        }
+                        
+                        messages.appendChild(aiMsg);
+                        messages.scrollTop = messages.scrollHeight;
+                    }, 800);
+                }
+            }
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            // Check if code was passed from index.html
+            const passedCode = sessionStorage.getItem('editorCode');
+            const passedFilename = sessionStorage.getItem('editorFilename');
+            const pdfUrl = sessionStorage.getItem('pdfUrl');
+            const pdfTitle = sessionStorage.getItem('pdfTitle');
+            const openWithPdf = sessionStorage.getItem('openWithPdf');
+            
+            if (passedCode) {
+                // Load the passed code
+                files[passedFilename || 'paper_implementation.py'] = passedCode;
+                currentFile = passedFilename || 'paper_implementation.py';
+                
+                // Add the new file to the file list if it doesn't exist
+                if (!document.querySelector(`[onclick="loadFile('${currentFile}')"]`)) {
+                    const fileList = document.querySelector('.file-list');
+                    const newFileItem = document.createElement('div');
+                    newFileItem.className = 'file-item active';
+                    newFileItem.onclick = () => loadFile(currentFile);
+                    newFileItem.innerHTML = `
+                        <span class="file-icon">PY</span>
+                        <span>${currentFile}</span>
+                    `;
+                    fileList.appendChild(newFileItem);
+                }
+                
+                // Clear sessionStorage
+                sessionStorage.removeItem('editorCode');
+                sessionStorage.removeItem('editorFilename');
+                sessionStorage.removeItem('pdfUrl');
+                sessionStorage.removeItem('pdfTitle');
+                sessionStorage.removeItem('openWithPdf');
+            }
+            
+            // Initialize editor
+            initEditor();
+            
+            // If we have passed code, load the file
+            if (passedCode) {
+                setTimeout(() => loadFile(currentFile), 100);
+            }
+            
+            // Create split view if PDF was passed
+            if (openWithPdf === 'true' && pdfUrl && pdfTitle) {
+                console.log('Opening with PDF:', pdfUrl, pdfTitle);
+                setTimeout(() => createSplitView(pdfUrl, pdfTitle), 200);
+            }
+        });
+        
+        function handleGlobalAIChatInput(event) {
+            if (event.key === 'Enter') {
+                const input = document.getElementById('globalAIInput');
+                const messages = document.getElementById('globalAIMessages');
+                const question = input.value.trim();
+                
+                if (question) {
+                    // Add user message
+                    const userMsg = document.createElement('div');
+                    userMsg.className = 'ai-message user';
+                    userMsg.textContent = question;
+                    messages.appendChild(userMsg);
+                    
+                    // Clear input
+                    input.value = '';
+                    
+                    // Simulate AI response
+                    setTimeout(() => {
+                        const aiMsg = document.createElement('div');
+                        aiMsg.className = 'ai-message assistant';
+                        aiMsg.textContent = 'I can help you with that coding task. Let me analyze your question and provide a solution...';
+                        messages.appendChild(aiMsg);
+                        
+                        // Scroll to bottom
+                        messages.scrollTop = messages.scrollHeight;
+                    }, 1000);
+                    
+                    // Scroll to bottom
+                    messages.scrollTop = messages.scrollHeight;
+                }
+            }
+        }
+        
+        // Draggable and Resizable functionality for Global AI Chat
+        function initGlobalDrag() {
+            const terminal = document.getElementById('globalAITerminal');
+            const header = terminal.querySelector('.ai-chat-header');
+            const resizeHandle = terminal.querySelector('.ai-chat-resize-handle');
+            
+            header.addEventListener('mousedown', dragStart);
+            resizeHandle.addEventListener('mousedown', resizeStart);
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+        
+        function dragStart(e) {
+            const terminal = document.getElementById('globalAITerminal');
+            
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+            
+            if (e.target.closest('.ai-chat-header') && !e.target.closest('button')) {
+                isDragging = true;
+                terminal.style.transition = 'none';
+            }
+        }
+        
+        function resizeStart(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const terminal = document.getElementById('globalAITerminal');
+            isResizing = true;
+            
+            startX = e.clientX;
+            startY = e.clientY;
+            startWidth = parseInt(document.defaultView.getComputedStyle(terminal).width, 10);
+            startHeight = parseInt(document.defaultView.getComputedStyle(terminal).height, 10);
+            
+            terminal.style.transition = 'none';
+        }
+        
+        function handleMouseMove(e) {
+            if (isDragging) {
+                drag(e);
+            } else if (isResizing) {
+                resize(e);
+            }
+        }
+        
+        function handleMouseUp(e) {
+            if (isDragging) {
+                dragEnd(e);
+            } else if (isResizing) {
+                resizeEnd(e);
+            }
+        }
+        
+        function drag(e) {
+            e.preventDefault();
+            
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+            
+            xOffset = currentX;
+            yOffset = currentY;
+            
+            const terminal = document.getElementById('globalAITerminal');
+            terminal.style.transform = `translate(${currentX}px, ${currentY}px)`;
+        }
+        
+        function resize(e) {
+            e.preventDefault();
+            
+            const terminal = document.getElementById('globalAITerminal');
+            const newWidth = startWidth - (e.clientX - startX);
+            const newHeight = startHeight - (e.clientY - startY);
+            
+            // Apply constraints
+            const constrainedWidth = Math.max(300, Math.min(newWidth, window.innerWidth * 0.8));
+            const constrainedHeight = Math.max(200, Math.min(newHeight, window.innerHeight * 0.8));
+            
+            terminal.style.width = constrainedWidth + 'px';
+            terminal.style.height = constrainedHeight + 'px';
+        }
+        
+        function dragEnd(e) {
+            initialX = currentX;
+            initialY = currentY;
+            
+            isDragging = false;
+            
+            const terminal = document.getElementById('globalAITerminal');
+            terminal.style.transition = '';
+        }
+        
+        function resizeEnd(e) {
+            isResizing = false;
+            
+            const terminal = document.getElementById('globalAITerminal');
+            terminal.style.transition = '';
+        }
+    </script>
+    
+    <!-- Global AI Chat Terminal -->
+    <div class="global-ai-terminal" id="globalAITerminal">
+        <div class="ai-chat-header">
+            <div class="ai-chat-title">
+                <span>AI Assistant</span>
+                <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary);">How can I help you code?</span>
+            </div>
+            <button class="ai-chat-close-btn" onclick="closeGlobalAIChat()">×</button>
+        </div>
+        <div class="ai-chat-messages" id="globalAIMessages">
+            <div class="ai-message assistant">Hello! I can help you with coding, debugging, and implementing trading strategies. What would you like to work on?</div>
+        </div>
+        <div class="ai-chat-input-wrapper">
+            <span class="ai-chat-prompt">></span>
+            <input 
+                type="text" 
+                class="ai-chat-input" 
+                id="globalAIInput" 
+                placeholder="Ask a coding question..."
+                onkeypress="handleGlobalAIChatInput(event)"
+            />
+        </div>
+        <div class="ai-chat-resize-handle"></div>
+    </div>
+</body>
+</html>

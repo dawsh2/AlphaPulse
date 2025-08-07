@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-AlphaPulse is an event-driven quantitative trading system with a Flask backend and vanilla JavaScript frontend, designed for paper trading with Alpaca Markets. The system emphasizes a clean separation between backend (pulse-engine) and frontend (alphapulse-web), with real-time market data and trading capabilities.
+AlphaPulse is an event-driven quantitative trading system with a Flask backend and vanilla JavaScript frontend, designed for paper trading with Alpaca Markets. The system emphasizes a clean separation between backend (pulse-engine) and frontend (ui), with real-time market data and trading capabilities.
 
 ## Common Development Commands
 
@@ -25,7 +25,7 @@ python app.py
 
 ### Run Frontend
 ```bash
-cd alphapulse-web
+cd ui
 python -m http.server 8000
 # Frontend served at http://localhost:8000
 ```
@@ -47,7 +47,7 @@ export ALPACA_BASE_URL="https://paper-api.alpaca.markets"
 - **alpaca_client.py**: Custom Alpaca API client using requests library
 - **config.py**: Configuration management, reads from .env and OS environment
 
-### Frontend (alphapulse-web/)
+### Frontend (ui/)
 - **live-trading.html**: Main trading interface
 - **index.html**: Landing page
 - Uses TradingView Lightweight Charts for professional charting

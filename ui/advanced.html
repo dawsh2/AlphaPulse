@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progressive Analysis - AlphaPulse</title>
+    
+    <!-- AlphaPulse Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* CSS Variables - AlphaPulse Design System */
+        :root {
+            --font-family-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-family-mono: 'IBM Plex Mono', 'SF Mono', Monaco, Consolas, monospace;
+            
+            --font-size-xs: 0.75rem;
+            --font-size-sm: 0.875rem;
+            --font-size-base: 1rem;
+            --font-size-lg: 1.25rem;
+            --font-size-xl: 1.5rem;
+            --font-size-2xl: 1.875rem;
+            
+            --font-weight-normal: 400;
+            --font-weight-medium: 500;
+            --font-weight-semibold: 600;
+            --font-weight-bold: 700;
+            
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-6: 1.5rem;
+            --space-8: 2rem;
+            
+            --radius-md: 0.25rem;
+            --radius-lg: 0.375rem;
+            
+            --color-bg-primary: #faf8f3;
+            --color-bg-secondary: #f5f2ea;
+            --color-text-primary: #33332d;
+            --color-text-secondary: #666660;
+            --color-text-tertiary: #999990;
+            --color-border-primary: #e5e0d5;
+            
+            --color-blue: #89CDF1;
+            --color-orange: #FF9500;
+            --color-green: #4CAF50;
+            --color-purple: #9C27B0;
+            --color-red: #F44336;
+            --color-teal: #009688;
+            
+            --transition-fast: 150ms ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--font-family-sans);
+            background-color: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-4);
+        }
+        
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-8);
+            padding: var(--space-4) 0;
+            border-bottom: 3px solid var(--color-text-primary);
+        }
+        
+        .logo {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+        }
+        
+        .expert-toggle {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        
+        .toggle-label {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: var(--color-border-primary);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .toggle-switch.active {
+            background: var(--color-blue);
+        }
+        
+        .toggle-knob {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: all var(--transition-fast);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .toggle-switch.active .toggle-knob {
+            transform: translateX(30px);
+        }
+        
+        /* AlphaPulse Button Style */
+        .btn {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            padding: var(--space-2) var(--space-4);
+            background: var(--color-bg-primary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-md);
+            box-shadow: -3px 5px var(--color-text-primary);
+            color: var(--color-text-primary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: 5px;
+            margin-right: 5px;
+        }
+        
+        .btn:hover {
+            background: var(--color-text-primary);
+            color: var(--color-bg-primary);
+            transform: translate(2px, -2px);
+            box-shadow: -5px 7px var(--color-text-primary);
+        }
+        
+        .btn:active {
+            transform: translate(-1px, 2px);
+            box-shadow: -2px 3px var(--color-text-primary);
+        }
+        
+        .btn-primary {
+            background: var(--color-blue);
+            border-color: #5BA7D1;
+            color: #1a1a1a;
+        }
+        
+        .btn-primary:hover {
+            background: #1a1a1a;
+            color: var(--color-blue);
+        }
+        
+        .btn-success {
+            background: var(--color-green);
+            border-color: #388E3C;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: white;
+            color: var(--color-green);
+        }
+        
+        .btn-warning {
+            background: var(--color-orange);
+            border-color: #CC7700;
+            color: #1a1a1a;
+        }
+        
+        .btn-warning:hover {
+            background: #1a1a1a;
+            color: var(--color-orange);
+        }
+        
+        .btn-purple {
+            background: var(--color-purple);
+            border-color: #7B1FA2;
+            color: white;
+        }
+        
+        .btn-purple:hover {
+            background: white;
+            color: var(--color-purple);
+        }
+        
+        /* Main Layout */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-8);
+        }
+        
+        /* Results Summary */
+        .results-panel {
+            background: var(--color-bg-secondary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+        }
+        
+        .panel-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-4);
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+        
+        .metric-card {
+            background: var(--color-bg-primary);
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-green);
+            margin-bottom: var(--space-1);
+        }
+        
+        .metric-label {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xs);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--color-text-secondary);
+        }
+        
+        /* Quick Analysis Buttons */
+        .quick-analysis {
+            margin-bottom: var(--space-6);
+        }
+        
+        .analysis-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-4);
+        }
+        
+        .analysis-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-3);
+            margin-bottom: var(--space-4);
+        }
+        
+        /* AI Insights */
+        .ai-insights {
+            background: linear-gradient(135deg, rgba(137, 205, 241, 0.1), rgba(156, 39, 176, 0.1));
+            border: 2px solid var(--color-blue);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+        
+        .insights-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-3);
+        }
+        
+        .insights-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+        }
+        
+        .insight-item {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-3);
+            margin-bottom: var(--space-3);
+            padding: var(--space-3);
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: var(--radius-md);
+        }
+        
+        .insight-icon {
+            font-size: var(--font-size-lg);
+            margin-top: var(--space-1);
+        }
+        
+        .insight-content {
+            flex: 1;
+        }
+        
+        .insight-text {
+            font-size: var(--font-size-sm);
+            margin-bottom: var(--space-2);
+        }
+        
+        .insight-action {
+            padding: var(--space-1) var(--space-3);
+            font-size: var(--font-size-xs);
+        }
+        
+        /* Analysis Panel */
+        .analysis-panel {
+            background: var(--color-bg-secondary);
+            border: 3px solid var(--color-text-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            position: relative;
+        }
+        
+        .analysis-view {
+            display: none;
+        }
+        
+        .analysis-view.active {
+            display: block;
+        }
+        
+        /* Default View */
+        .default-view {
+            text-align: center;
+            padding: var(--space-8);
+            color: var(--color-text-secondary);
+        }
+        
+        .default-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-lg);
+            margin-bottom: var(--space-2);
+        }
+        
+        .default-subtitle {
+            font-size: var(--font-size-sm);
+        }
+        
+        /* Regime Analysis View */
+        .regime-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+        
+        .regime-card {
+            background: var(--color-bg-primary);
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            text-align: center;
+        }
+        
+        .regime-card.bull {
+            border-color: var(--color-green);
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .regime-card.bear {
+            border-color: var(--color-red);
+            background: rgba(244, 67, 54, 0.1);
+        }
+        
+        .regime-card.sideways {
+            border-color: var(--color-orange);
+            background: rgba(255, 149, 0, 0.1);
+        }
+        
+        .regime-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-2);
+        }
+        
+        .regime-performance {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-bold);
+            margin-bottom: var(--space-1);
+        }
+        
+        .regime-card.bull .regime-performance {
+            color: var(--color-green);
+        }
+        
+        .regime-card.bear .regime-performance {
+            color: var(--color-red);
+        }
+        
+        .regime-card.sideways .regime-performance {
+            color: var(--color-orange);
+        }
+        
+        .regime-description {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-secondary);
+        }
+        
+        /* Chart Placeholder */
+        .chart-container {
+            background: var(--color-bg-primary);
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-lg);
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-text-secondary);
+            font-family: var(--font-family-mono);
+            margin-bottom: var(--space-4);
+        }
+        
+        /* Expert Mode Additions */
+        .expert-controls {
+            display: none;
+            background: rgba(156, 39, 176, 0.1);
+            border: 2px solid var(--color-purple);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+        
+        .expert-controls.show {
+            display: block;
+        }
+        
+        .expert-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-3);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .expert-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-4);
+        }
+        
+        .expert-option {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
+        }
+        
+        .expert-label {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .expert-input {
+            padding: var(--space-2);
+            border: 2px solid var(--color-border-primary);
+            border-radius: var(--radius-md);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+        }
+        
+        .expert-input:focus {
+            outline: none;
+            border-color: var(--color-purple);
+        }
+        
+        /* Recommendations */
+        .recommendations {
+            background: rgba(76, 175, 80, 0.1);
+            border: 2px solid var(--color-green);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+        }
+        
+        .recommendations-title {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-3);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .recommendation-item {
+            margin-bottom: var(--space-3);
+        }
+        
+        .recommendation-text {
+            font-size: var(--font-size-sm);
+            margin-bottom: var(--space-2);
+        }
+        
+        .recommendation-actions {
+            display: flex;
+            gap: var(--space-2);
+        }
+        
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-2);
+            padding: var(--space-8);
+            color: var(--color-text-secondary);
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--color-border-primary);
+            border-top: 2px solid var(--color-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: var(--space-4);
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .regime-summary {
+                grid-template-columns: 1fr;
+            }
+            
+            .expert-options {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="logo">📊 Strategy Analysis - RSI + Momentum</h1>
+            <div class="expert-toggle">
+                <span class="toggle-label">Expert Mode</span>
+                <div class="toggle-switch" onclick="toggleExpertMode()">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel: Results & Controls -->
+            <div class="results-panel">
+                <h2 class="panel-title">Backtest Results</h2>
+                
+                <!-- Performance Metrics -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">1.42</div>
+                        <div class="metric-label">Sharpe Ratio</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">18.7%</div>
+                        <div class="metric-label">Annual Return</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">-8.2%</div>
+                        <div class="metric-label">Max Drawdown</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">67%</div>
+                        <div class="metric-label">Win Rate</div>
+                    </div>
+                </div>
+                
+                <!-- Quick Analysis -->
+                <div class="quick-analysis">
+                    <h3 class="analysis-title">Quick Analysis</h3>
+                    <div class="analysis-buttons">
+                        <button class="btn btn-primary" onclick="showAnalysis('regime')">
+                            📊 Regime Analysis
+                        </button>
+                        <button class="btn btn-warning" onclick="showAnalysis('stress')">
+                            🔥 Stress Test
+                        </button>
+                        <button class="btn btn-purple" onclick="showAnalysis('sensitivity')">
+                            ⚡ Sensitivity
+                        </button>
+                        <button class="btn btn-success" onclick="showAnalysis('factor')">
+                            🧬 Factor Attribution
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- AI Insights -->
+                <div class="ai-insights">
+                    <div class="insights-header">
+                        <span>🤖</span>
+                        <h3 class="insights-title">AI Recommendations</h3>
+                    </div>
+                    
+                    <div class="insight-item">
+                        <div class="insight-icon">📈</div>
+                        <div class="insight-content">
+                            <div class="insight-text">Your strategy shows strong regime-dependent performance. Bull markets: +24% returns, Bear markets: -2% returns.</div>
+                            <button class="btn insight-action" onclick="showAnalysis('regime')">Analyze Market Regimes</button>
+                        </div>
+                    </div>
+                    
+                    <div class="insight-item">
+                        <div class="insight-icon">🌊</div>
+                        <div class="insight-content">
+                            <div class="insight-text">High correlation with VIX detected (0.73). Strategy may struggle in volatile periods.</div>
+                            <button class="btn insight-action" onclick="showAnalysis('volatility')">Volatility Analysis</button>
+                        </div>
+                    </div>
+                    
+                    <div class="insight-item">
+                        <div class="insight-icon">⚠️</div>
+                        <div class="insight-content">
+                            <div class="insight-text">Backtest period missed major crisis events. Consider stress testing against historical crashes.</div>
+                            <button class="btn insight-action" onclick="showAnalysis('stress')">Stress Test</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Expert Mode Controls -->
+                <div class="expert-controls" id="expertControls">
+                    <div class="expert-title">
+                        <span>🔬</span>
+                        Expert Analysis Controls
+                    </div>
+                    <div class="expert-options">
+                        <div class="expert-option">
+                            <label class="expert-label">Regime Detection Method</label>
+                            <select class="expert-input">
+                                <option>Hidden Markov Model</option>
+                                <option>Variance Change Points</option>
+                                <option>Trend Classification</option>
+                                <option>VIX-Based Regimes</option>
+                            </select>
+                        </div>
+                        <div class="expert-option">
+                            <label class="expert-label">Lookback Period</label>
+                            <input class="expert-input" type="number" value="252" placeholder="Days">
+                        </div>
+                        <div class="expert-option">
+                            <label class="expert-label">Confidence Level</label>
+                            <input class="expert-input" type="number" value="95" placeholder="%" min="90" max="99">
+                        </div>
+                        <div class="expert-option">
+                            <label class="expert-label">Bootstrap Samples</label>
+                            <input class="expert-input" type="number" value="1000" placeholder="Samples">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Panel: Analysis Results -->
+            <div class="analysis-panel">
+                <!-- Default View -->
+                <div class="analysis-view active" id="defaultView">
+                    <div class="default-view">
+                        <div class="default-title">Select an Analysis</div>
+                        <div class="default-subtitle">Choose from quick analysis options or AI recommendations to dive deeper into your strategy performance</div>
+                    </div>
+                </div>
+                
+                <!-- Regime Analysis View -->
+                <div class="analysis-view" id="regimeView">
+                    <h3 class="panel-title">Market Regime Analysis</h3>
+                    
+                    <div class="regime-summary">
+                        <div class="regime-card bull">
+                            <div class="regime-title">Bull Markets</div>
+                            <div class="regime-performance">+24.3%</div>
+                            <div class="regime-description">Strong momentum capture<br>2.1 Sharpe ratio</div>
+                        </div>
+                        <div class="regime-card bear">
+                            <div class="regime-title">Bear Markets</div>
+                            <div class="regime-performance">-2.1%</div>
+                            <div class="regime-description">Limited downside protection<br>0.3 Sharpe ratio</div>
+                        </div>
+                        <div class="regime-card sideways">
+                            <div class="regime-title">Sideways Markets</div>
+                            <div class="regime-performance">+8.7%</div>
+                            <div class="regime-description">Modest positive returns<br>0.9 Sharpe ratio</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        📈 Interactive Regime Performance Chart<br>
+                        <small>Strategy returns vs S&P 500 across different market conditions</small>
+                    </div>
+                    
+                    <div class="recommendations">
+                        <div class="recommendations-title">
+                            <span>💡</span>
+                            Recommendations
+                        </div>
+                        <div class="recommendation-item">
+                            <div class="recommendation-text"><strong>Add Defensive Component:</strong> Consider adding a mean-reversion or volatility-based filter to improve bear market performance.</div>
+                            <div class="recommendation-actions">
+                                <button class="btn" onclick="addDefensiveFilter()">Add VIX Filter</button>
+                                <button class="btn" onclick="exploreAlternatives()">Explore Alternatives</button>
+                            </div>
+                        </div>
+                        <div class="recommendation-item">
+                            <div class="recommendation-text"><strong>Position Sizing:</strong> Implement regime-aware position sizing to capitalize on favorable conditions.</div>
+                            <div class="recommendation-actions">
+                                <button class="btn" onclick="implementRegimeSizing()">Auto-Implement</button>
+                                <button class="btn" onclick="customizeSizing()">Customize</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stress Test View -->
+                <div class="analysis-view" id="stressView">
+                    <h3 class="panel-title">Stress Test Analysis</h3>
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Running stress tests against historical crisis periods...
+                    </div>
+                </div>
+                
+                <!-- Sensitivity Analysis View -->
+                <div class="analysis-view" id="sensitivityView">
+                    <h3 class="panel-title">Parameter Sensitivity</h3>
+                    <div class="chart-container">
+                        🔥 Parameter Optimization Heatmap<br>
+                        <small>RSI Period vs Momentum Lookback - Sharpe Ratio Surface</small>
+                    </div>
+                </div>
+                
+                <!-- Factor Attribution View -->
+                <div class="analysis-view" id="factorView">
+                    <h3 class="panel-title">Factor Attribution</h3>
+                    <div class="chart-container">
+                        🧬 Factor Decomposition Chart<br>
+                        <small>Strategy returns attributed to market factors</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let expertMode = false;
+        let currentAnalysis = 'default';
+        
+        function toggleExpertMode() {
+            expertMode = !expertMode;
+            const toggle = document.querySelector('.toggle-switch');
+            const controls = document.getElementById('expertControls');
+            
+            if (expertMode) {
+                toggle.classList.add('active');
+                controls.classList.add('show');
+            } else {
+                toggle.classList.remove('active');
+                controls.classList.remove('show');
+            }
+        }
+        
+        function showAnalysis(type) {
+            // Hide all views
+            document.querySelectorAll('.analysis-view').forEach(view => {
+                view.classList.remove('active');
+            });
+            
+            // Show selected view
+            const viewMap = {
+                'regime': 'regimeView',
+                'stress': 'stressView', 
+                'sensitivity': 'sensitivityView',
+                'factor': 'factorView',
+                'volatility': 'regimeView' // For demo, map to regime view
+            };
+            
+            const targetView = document.getElementById(viewMap[type] || 'defaultView');
+            if (targetView) {
+                targetView.classList.add('active');
+            }
+            
+            currentAnalysis = type;
+            
+            // Simulate loading for stress test
+            if (type === 'stress') {
+                setTimeout(() => {
+                    document.getElementById('stressView').innerHTML = `
+                        <h3 class="panel-title">Stress Test Results</h3>
+                        <div class="regime-summary">
+                            <div class="regime-card bear">
+                                <div class="regime-title">2008 Financial Crisis</div>
+                                <div class="regime-performance">-18.4%</div>
+                                <div class="regime-description">vs S&P 500: -37%<br>Better downside protection</div>
+                            </div>
+                            <div class="regime-card bear">
+                                <div class="regime-title">COVID Crash 2020</div>
+                                <div class="regime-performance">-12.1%</div>
+                                <div class="regime-description">vs S&P 500: -34%<br>Significant outperformance</div>
+                            </div>
+                            <div class="regime-card bear">
+                                <div class="regime-title">Synthetic Stress</div>
+                                <div class="regime-performance">-22.7%</div>
+                                <div class="regime-description">Prolonged bear scenario<br>Worst case projection</div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            📉 Crisis Period Performance Chart<br>
+                            <small>Strategy drawdown vs major market crashes</small>
+                        </div>
+                    `;
+                }, 2000);
+            }
+        }
+        
+        function addDefensiveFilter() {
+            alert('🛡️ Adding VIX-based defensive filter...\n\n• Reduce position size when VIX > 25\n• Exit positions when VIX > 40\n• Re-enter when VIX < 20\n\nThis should improve bear market performance by 8-12%.');
+        }
+        
+        function exploreAlternatives() {
+            alert('🔍 Alternative Strategies:\n\n• RSI + Bollinger Bands (better sideways markets)\n• MACD + ATR (improved risk management)\n• Multi-timeframe momentum (reduced whipsaws)\n\nWould you like to test these combinations?');
+        }
+        
+        function implementRegimeSizing() {
+            alert('🎯 Implementing Regime-Aware Sizing:\n\n• Bull markets: 150% normal position size\n• Bear markets: 50% normal position size\n• Sideways markets: 100% normal position size\n\nExpected improvement: +15% annual returns, +0.3 Sharpe ratio');
+        }
+        
+        function customizeSizing() {
+            alert('⚙️ Custom Position Sizing:\n\n• Set custom multipliers for each regime\n• Add volatility-based adjustments\n• Define transition smoothing\n• Backtest custom rules\n\nOpening advanced position sizing interface...');
+        }
+    </script>
+</body>
+</html>

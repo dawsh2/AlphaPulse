@@ -1,0 +1,383 @@
+<!-- COMPLETE CATALOGUE ADDON FOR RESEARCH PAGE -->
+<!-- Instructions: Copy everything between the START and END markers -->
+
+<!-- ===== START CATALOGUE ADDON ===== -->
+
+<!-- Add this CSS to your <style> section -->
+<style>
+/* Strategy Catalogue Styles */
+.catalogue-content {
+    padding: 20px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.catalogue-header {
+    margin-bottom: 20px;
+}
+
+.catalogue-filters {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-label {
+    font-size: 14px;
+    color: #666;
+}
+
+.filter-select {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+}
+
+.strategy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.strategy-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+.strategy-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    border-color: #007bff;
+}
+
+.strategy-card.featured {
+    border-color: #ffc107;
+    background: linear-gradient(135deg, #fff 0%, #fffbf0 100%);
+}
+
+.strategy-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #ffc107;
+    color: #000;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.strategy-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.strategy-icon {
+    width: 50px;
+    height: 50px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.strategy-info h3 {
+    margin: 0 0 5px 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.strategy-type {
+    color: #666;
+    font-size: 13px;
+}
+
+.strategy-description {
+    color: #555;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+.strategy-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.metric-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.metric-label {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 2px;
+}
+
+.metric-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+.metric-value.positive {
+    color: #10b981;
+}
+
+.metric-value.negative {
+    color: #ef4444;
+}
+
+.strategy-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.strategy-tag {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 12px;
+}
+
+.strategy-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.strategy-action {
+    flex: 1;
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.strategy-action:hover {
+    background: #f5f5f5;
+}
+
+.strategy-action.primary {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.strategy-action.primary:hover {
+    background: #0056b3;
+}
+</style>
+
+<!-- Add this as the catalogue tab content -->
+<div class="tab-content" id="catalogueTab">
+    <div class="catalogue-content">
+        <div class="catalogue-header">
+            <h2>Strategy Catalogue</h2>
+            <p>Browse and explore available trading strategies</p>
+        </div>
+        
+        <div class="catalogue-filters">
+            <div class="filter-group">
+                <label class="filter-label">Type:</label>
+                <select class="filter-select" id="typeFilter">
+                    <option value="all">All Types</option>
+                    <option value="trend">Trend Following</option>
+                    <option value="meanreversion">Mean Reversion</option>
+                    <option value="marketmaking">Market Making</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Complexity:</label>
+                <select class="filter-select" id="complexityFilter">
+                    <option value="all">All Levels</option>
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="strategy-grid" id="strategyGrid">
+            <!-- Cards will be inserted here by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Add this JavaScript at the end of your script section -->
+<script>
+// Make sure this runs after DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Simple strategy data
+    const strategies = [
+        {
+            id: 'ema_cross',
+            name: 'EMA Cross',
+            type: 'trend',
+            complexity: 'beginner',
+            icon: '📈',
+            description: 'Classic moving average crossover strategy using exponential moving averages.',
+            metrics: {
+                'Win Rate': '45%',
+                'Avg Return': '+12.5%',
+                'Sharpe': '1.35',
+                'Max DD': '-8.2%'
+            },
+            tags: ['Simple', 'Trending Markets'],
+            featured: true
+        },
+        {
+            id: 'market_maker',
+            name: 'Market Maker',
+            type: 'marketmaking',
+            complexity: 'advanced',
+            icon: '💹',
+            description: 'Provides liquidity by placing orders on both sides of the order book.',
+            metrics: {
+                'Fill Rate': '82%',
+                'Spread': '0.05%',
+                'Volume': '$1.2M/day',
+                'Sharpe': '2.1'
+            },
+            tags: ['High Frequency', 'Complex']
+        },
+        {
+            id: 'bollinger_mr',
+            name: 'Bollinger Bands',
+            type: 'meanreversion',
+            complexity: 'beginner',
+            icon: '📊',
+            description: 'Mean reversion strategy using Bollinger Bands for entry and exit signals.',
+            metrics: {
+                'Win Rate': '62%',
+                'Avg Trade': '+0.8%',
+                'Frequency': '25/mo',
+                'Sharpe': '1.8'
+            },
+            tags: ['Range Markets', 'Simple']
+        }
+    ];
+    
+    // Function to create strategy cards
+    function createStrategyCards() {
+        const grid = document.getElementById('strategyGrid');
+        if (!grid) return;
+        
+        grid.innerHTML = strategies.map(strategy => `
+            <div class="strategy-card ${strategy.featured ? 'featured' : ''}" 
+                 data-type="${strategy.type}" 
+                 data-complexity="${strategy.complexity}">
+                ${strategy.featured ? '<div class="strategy-badge">Featured</div>' : ''}
+                <div class="strategy-header">
+                    <div class="strategy-icon">${strategy.icon}</div>
+                    <div class="strategy-info">
+                        <h3>${strategy.name}</h3>
+                        <div class="strategy-type">${strategy.type}</div>
+                    </div>
+                </div>
+                <div class="strategy-description">${strategy.description}</div>
+                <div class="strategy-metrics">
+                    ${Object.entries(strategy.metrics).map(([label, value]) => `
+                        <div class="metric-item">
+                            <span class="metric-label">${label}</span>
+                            <span class="metric-value ${value.includes('+') ? 'positive' : value.includes('-') ? 'negative' : ''}">${value}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="strategy-tags">
+                    ${strategy.tags.map(tag => `<span class="strategy-tag">${tag}</span>`).join('')}
+                </div>
+                <div class="strategy-actions">
+                    <button class="strategy-action" onclick="alert('View code for ${strategy.name}')">View Code</button>
+                    <button class="strategy-action primary" onclick="alert('Backtest ${strategy.name}')">Backtest</button>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // Set up filter handlers
+    document.getElementById('typeFilter')?.addEventListener('change', function(e) {
+        filterStrategies('type', e.target.value);
+    });
+    
+    document.getElementById('complexityFilter')?.addEventListener('change', function(e) {
+        filterStrategies('complexity', e.target.value);
+    });
+    
+    // Filter function
+    window.filterStrategies = function(filterType, value) {
+        const cards = document.querySelectorAll('.strategy-card');
+        cards.forEach(card => {
+            if (value === 'all') {
+                card.style.display = 'block';
+            } else {
+                const cardValue = card.getAttribute(`data-${filterType}`);
+                card.style.display = cardValue === value ? 'block' : 'none';
+            }
+        });
+    };
+    
+    // Fix the tab switching if needed
+    const originalSwitchTab = window.switchTab;
+    window.switchTab = function(tabName, element) {
+        // Call original if it exists
+        if (originalSwitchTab) {
+            originalSwitchTab(tabName, element);
+        } else {
+            // Manual implementation
+            document.querySelectorAll('.sidebar-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            if (element) element.classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            const target = document.getElementById(tabName + 'Tab');
+            if (target) target.classList.add('active');
+        }
+        
+        // Load catalogue content
+        if (tabName === 'catalogue') {
+            createStrategyCards();
+        }
+    };
+    
+    // Initialize if catalogue is already active
+    if (document.getElementById('catalogueTab')?.classList.contains('active')) {
+        createStrategyCards();
+    }
+});
+</script>
+
+<!-- ===== END CATALOGUE ADDON ===== -->
