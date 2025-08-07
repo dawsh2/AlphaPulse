@@ -311,33 +311,50 @@
 .heatmapTile {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
+  justify-content: space-between;
   padding: var(--space-2);
-  cursor: pointer;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+  min-height: 70px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   transition: all var(--transition-fast);
-  text-align: center;
+  cursor: pointer;
 }
 
 .heatmapTile:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .heatmapTile.positive {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .heatmapTile.negative {
-  background: #ffebee;
-  color: #c62828;
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .heatmapTile.neutral {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
+  background: rgba(107, 114, 128, 0.1);
+  border-color: rgba(107, 114, 128, 0.2);
+}
+
+.heatmapTile.strong {
+  border-width: 2px;
+}
+
+.heatmapTile.strong.positive {
+  background: rgba(16, 185, 129, 0.35);
+  color: #065f46;
+}
+
+.heatmapTile.strong.negative {
+  background: rgba(239, 68, 68, 0.35);
+  color: #7f1d1d;
 }
 
 [data-theme="dark"] .heatmapTile.positive {
@@ -350,10 +367,31 @@
   color: #ef5350;
 }
 
+.sectorHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .sectorName {
-  font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.sectorCode {
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  opacity: 0.8;
+}
+
+.sectorMetrics {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: auto;
 }
 
 .sectorChange {
@@ -362,29 +400,41 @@
   font-weight: var(--font-weight-bold);
 }
 
+.sectorWeight {
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  opacity: 0.7;
+}
+
 /* Watchlist */
 .watchlistItems {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 0; /* Remove gap since we're using margin on items */
   flex: 1;
   overflow-y: auto;
+  padding: var(--space-2);
 }
 
 .watchlistItem {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 2fr auto; /* Give more space to middle (chart) column */
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border-primary);
+  background: transparent;
   transition: all var(--transition-fast);
   cursor: pointer;
 }
 
 .watchlistItem:hover {
-  background: var(--color-bg-tertiary);
-  transform: translateX(-2px);
+  background: var(--color-bg-secondary);
+}
+
+.watchlistItem:last-child {
+  border-bottom: none;
 }
 
 .tickerInfo {
@@ -417,6 +467,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 40px;
+  flex: 1; /* Take up more space */
+  padding: 0 var(--space-2);
+}
+
+.sparkline svg {
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
 .priceInfo {
@@ -434,26 +492,47 @@
 .calendarGrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  gap: var(--space-1);
+  gap: var(--space-2);
   flex: 1;
 }
 
 .calendarDay {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   padding: var(--space-2);
   border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   position: relative;
-  min-height: 60px;
+  min-height: 80px;
+  background: var(--color-bg-primary);
+  transition: all var(--transition-fast);
+}
+
+.calendarDay:hover {
+  border-color: rgba(0, 212, 219, 0.3);
+  background: var(--color-bg-secondary);
 }
 
 .calendarDay.today {
-  background: var(--color-primary-light);
-  border-color: var(--color-primary);
+  background: rgba(0, 212, 219, 0.2);
+  color: var(--color-text-primary);
+  border-color: rgba(0, 212, 219, 0.3);
+}
+
+
+.dayHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-1);
+}
+
+.dayName {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
 }
 
 .dayNumber {
@@ -463,17 +542,67 @@
   color: var(--color-text-primary);
 }
 
-.fedIndicator {
-  position: absolute;
-  top: 2px;
-  right: 2px;
+.fedEarningsItem {
+  background: rgba(0, 212, 219, 0.2);
+  color: var(--color-text-primary);
+  border-color: rgba(0, 212, 219, 0.3);
+}
+
+.earningsContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.earningsItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: var(--radius-xs);
+  font-size: 9px;
+  font-weight: var(--font-weight-semibold);
+  border: 1px solid transparent;
+}
+
+.earningsItem.importance_high {
+  background: rgba(0, 212, 219, 0.2);
+  color: var(--color-text-primary);
+  border-color: rgba(0, 212, 219, 0.3);
+}
+
+.earningsItem.importance_medium {
+  background: var(--color-accent-yellow);
+  color: var(--color-text-primary);
+  border-color: var(--color-accent-yellow);
+}
+
+.earningsItem.importance_low {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-primary);
+}
+
+.earningsTicker {
   font-family: var(--font-family-mono);
-  font-size: 10px;
   font-weight: var(--font-weight-bold);
-  color: var(--color-accent-red);
-  background: rgba(239, 68, 68, 0.1);
-  padding: 1px 3px;
-  border-radius: 2px;
+  font-size: 8px;
+}
+
+.earningsTime {
+  font-family: var(--font-family-mono);
+  font-size: 7px;
+  opacity: 0.8;
+}
+
+.noEarnings {
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  padding: var(--space-2);
+  opacity: 0.5;
 }
 
 .earningsDot {

@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import styles from './ResearchPage.module.css';
 import exploreStyles from './ExplorePage.module.css';
 import { StrategyWorkbench } from '../components/StrategyBuilder/StrategyWorkbench';
+import Editor from '@monaco-editor/react';
+import * as monaco from 'monaco-editor';
 
 // Types
 interface CodeSnippet {
@@ -477,6 +479,13 @@ const ResearchPage: React.FC = () => {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [notebookCells, setNotebookCells] = useState<NotebookCell[]>([]);
   const [activeCell, setActiveCell] = useState<string | null>(null);
+  // Initialize with correct theme detection
+  const [theme, setTheme] = useState(() => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+                   (!document.documentElement.getAttribute('data-theme') && 
+                    window.matchMedia('(prefers-color-scheme: dark)').matches);
+    return isDark ? 'vs-dark' : 'cream-light';
+  });
   
   // Explore page state
   const [exploreSearchQuery, setExploreSearchQuery] = useState('');
@@ -574,6 +583,48 @@ const ResearchPage: React.FC = () => {
       cells: []
     }
   ];
+
+  // Theme detection
+  useEffect(() => {
+    // Check if monaco is available before defining theme
+    if (typeof monaco !== 'undefined' && monaco.editor) {
+      // Define the cream theme once
+      monaco.editor.defineTheme('cream-light', {
+        base: 'vs',
+        inherit: true,
+        rules: [],
+        colors: {
+          'editor.background': '#faf7f0', // Cream/eggshell color
+          'editor.foreground': '#33332d',
+          'editor.lineHighlightBackground': '#f5f2ea',
+          'editor.selectionBackground': '#e5e0d5',
+          'editorCursor.foreground': '#33332d',
+          'editorLineNumber.foreground': '#8b8680',
+          'editorLineNumber.activeForeground': '#33332d'
+        }
+      });
+    }
+    
+    // Detect current theme
+    const updateTheme = () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+                     (!document.documentElement.getAttribute('data-theme') && 
+                      window.matchMedia('(prefers-color-scheme: dark)').matches);
+      
+      setTheme(isDark ? 'vs-dark' : 'cream-light');
+    };
+    
+    updateTheme();
+    
+    // Listen for theme changes
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+    
+    return () => observer.disconnect();
+  }, []);
 
   // Initialize with default notebook cells
   useEffect(() => {
@@ -1316,26 +1367,6 @@ const ResearchPage: React.FC = () => {
 
     return (
       <div className={styles.notebookView}>
-        <div className={styles.notebookHeader}>
-          <div className={styles.notebookTitle}>
-            <h2>Research Notebook</h2>
-          </div>
-          <div className={styles.notebookControls}>
-            <button 
-              className={styles.addCellBtn}
-              onClick={() => addCell('code')}
-            >
-              + Code
-            </button>
-            <button 
-              className={styles.addCellBtn}
-              onClick={() => addCell('markdown')}
-            >
-              + Markdown
-            </button>
-          </div>
-        </div>
-        
         <div className={styles.notebookCells}>
           {notebookCells.map(cell => (
             <div 
@@ -1377,12 +1408,86 @@ const ResearchPage: React.FC = () => {
               </div>
               
               <div className={styles.cellContent}>
-                <textarea
-                  className={styles.cellTextarea}
-                  value={cell.content}
-                  onChange={(e) => updateCellContent(cell.id, e.target.value)}
-                  onFocus={() => setActiveCell(cell.id)}
-                />
+                {cell.type === 'code' ? (
+                  <div className={styles.codeEditor}>
+                    <Editor
+                      height="200px"
+                      language="python"
+                      value={cell.content}
+                      onChange={(value) => updateCellContent(cell.id, value || '')}
+                      theme={theme}
+                      onMount={(editor, monaco) => {
+                        // Define the cream theme with more explicit colors
+                        monaco.editor.defineTheme('cream-light', {
+                          base: 'vs',
+                          inherit: true,
+                          rules: [
+                            { token: '', foreground: '33332d', background: 'faf7f0' }
+                          ],
+                          colors: {
+                            'editor.background': '#faf7f0',
+                            'editor.foreground': '#33332d',
+                            'editorLineNumber.foreground': '#8b8680',
+                            'editorLineNumber.activeForeground': '#33332d',
+                            'editor.selectionBackground': '#e5e0d5',
+                            'editor.lineHighlightBackground': '#f5f2ea',
+                            'editorCursor.foreground': '#33332d',
+                            'editorWidget.background': '#f5f2ea',
+                            'editorSuggestWidget.background': '#f5f2ea',
+                            'editorHoverWidget.background': '#f5f2ea'
+                          }
+                        });
+                        
+                        // Force apply the theme
+                        monaco.editor.setTheme(theme);
+                        
+                        const updateHeight = () => {
+                          const contentHeight = Math.min(1000, Math.max(100, editor.getContentHeight()));
+                          editor.getContainerDomNode().style.height = `${contentHeight}px`;
+                          editor.layout();
+                        };
+                        editor.onDidContentSizeChange(updateHeight);
+                        updateHeight();
+                      }}
+                      options={{
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                        fontFamily: "'IBM Plex Mono', 'SF Mono', Monaco, Consolas, 'Courier New', monospace",
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        automaticLayout: true,
+                        wordWrap: 'on',
+                        lineNumbers: 'on',
+                        folding: false,
+                        selectOnLineNumbers: true,
+                        matchBrackets: 'always',
+                        autoIndent: 'advanced',
+                        formatOnPaste: true,
+                        formatOnType: true,
+                        tabSize: 4,
+                        insertSpaces: true,
+                        renderWhitespace: 'boundary',
+                        smoothScrolling: true,
+                        cursorBlinking: 'smooth',
+                        cursorSmoothCaretAnimation: 'on',
+                        scrollbar: {
+                          vertical: 'auto',
+                          horizontal: 'auto',
+                          verticalScrollbarSize: 10,
+                          horizontalScrollbarSize: 10
+                        }
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <textarea
+                    className={styles.cellTextarea}
+                    value={cell.content}
+                    onChange={(e) => updateCellContent(cell.id, e.target.value)}
+                    onFocus={() => setActiveCell(cell.id)}
+                    placeholder="Enter markdown content..."
+                  />
+                )}
               </div>
 
               {cell.output && (
@@ -1434,6 +1539,17 @@ const ResearchPage: React.FC = () => {
                 <line x1="10" y1="7" x2="18" y2="7"></line>
                 <line x1="10" y1="11" x2="18" y2="11"></line>
                 <line x1="10" y1="15" x2="16" y2="15"></line>
+              </svg>
+            </button>
+            <button 
+              className={`${styles.sidebarTab} ${mainView === 'explore' ? styles.active : ''}`}
+              onClick={() => setMainView('explore')}
+              title="Explore"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>
+                {/* Magnifying glass */}
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
               </svg>
             </button>
           </div>

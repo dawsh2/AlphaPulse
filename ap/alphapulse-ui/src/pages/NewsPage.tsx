@@ -17,6 +17,8 @@ interface Article {
 interface Sector {
   name: string;
   change: number;
+  code?: string;
+  weight?: number;
 }
 
 interface Stock {
@@ -30,6 +32,7 @@ interface Stock {
 interface EarningsItem {
   ticker: string;
   time: 'BMO' | 'AMC';
+  importance?: 'high' | 'medium' | 'low';
 }
 
 interface MarketNews {
@@ -136,17 +139,37 @@ const sampleArticles: Article[] = [
   }
 ];
 
-const sectors: Sector[] = [
-  { name: "Tech", change: 1.23 },
-  { name: "Finance", change: -0.45 },
-  { name: "Energy", change: 2.10 },
-  { name: "Health", change: 0.82 },
-  { name: "Consumer", change: -0.12 },
-  { name: "Industrial", change: 0.55 },
-  { name: "Materials", change: 1.76 },
-  { name: "Utilities", change: -0.23 },
-  { name: "Real Estate", change: 0.34 }
-];
+// Generate more realistic and randomized sector data
+const generateSectorData = (): Sector[] => {
+  const baseSectors = [
+    { name: "Technology", code: "XLK", weight: 28.2 },
+    { name: "Financials", code: "XLF", weight: 13.1 },
+    { name: "Healthcare", code: "XLV", weight: 12.9 },
+    { name: "Consumer Disc.", code: "XLY", weight: 10.8 },
+    { name: "Communication", code: "XLC", weight: 8.7 },
+    { name: "Industrials", code: "XLI", weight: 8.2 },
+    { name: "Energy", code: "XLE", weight: 4.2 },
+    { name: "Materials", code: "XLB", weight: 2.8 },
+    { name: "Utilities", code: "XLU", weight: 2.3 }
+  ];
+
+  return baseSectors.map(sector => {
+    // Generate more realistic daily changes with some correlation to sector characteristics
+    let baseVolatility = 1.2;
+    if (sector.code === "XLE") baseVolatility = 2.8; // Energy more volatile
+    if (sector.code === "XLK") baseVolatility = 1.8; // Tech moderately volatile
+    if (sector.code === "XLU") baseVolatility = 0.6; // Utilities less volatile
+    if (sector.code === "XLRE") baseVolatility = 0.8; // REITs less volatile
+    
+    const change = (Math.random() - 0.5) * baseVolatility * 4;
+    return {
+      ...sector,
+      change: Math.round(change * 100) / 100
+    };
+  });
+};
+
+const sectors = generateSectorData();
 
 const watchlist: Stock[] = [
   { ticker: "SPY", price: 445.23, change: 2.15, changePercent: 0.48, sparkline: [440, 442, 441, 443, 445, 444, 445] },
@@ -169,29 +192,90 @@ export const NewsPage: React.FC = () => {
   const [showAIChat, setShowAIChat] = useState(false);
 
   const generateSparklinePath = (data: number[]): string => {
-    const width = 60;
+    const width = 120;
     const height = 30;
     const min = Math.min(...data);
     const max = Math.max(...data);
     const range = max - min || 1;
     
+    // Use a much more conservative approach - keep all points well within bounds
     const points = data.map((value, index) => {
       const x = (index / (data.length - 1)) * width;
-      const y = height - ((value - min) / range) * height;
-      return `${x},${y}`;
+      // Map to a safe zone in the middle 60% of the height, with 20% padding top/bottom
+      const normalizedValue = (value - min) / range;
+      const y = height * 0.8 - (normalizedValue * height * 0.6) + height * 0.2;
+      return { x, y };
     });
     
-    return `M ${points.join(' L ')}`;
+    // Create smooth curve using simple line segments for cleaner look
+    if (points.length < 2) return '';
+    
+    const pathData = points.map((point, index) => 
+      index === 0 ? `M ${point.x},${point.y}` : `L ${point.x},${point.y}`
+    ).join(' ');
+    
+    return pathData;
   };
 
+  const generateSparklineGradient = (ticker: string, isPositive: boolean): string => {
+    return `sparkline-gradient-${ticker}-${isPositive ? 'positive' : 'negative'}`;
+  };
+
+  // Generate more realistic earnings calendar
+  const generateEarningsCalendar = () => {
+    const earningsStocks = [
+      { ticker: "AAPL", importance: "high" },
+      { ticker: "MSFT", importance: "high" },
+      { ticker: "GOOGL", importance: "high" },
+      { ticker: "AMZN", importance: "high" },
+      { ticker: "META", importance: "high" },
+      { ticker: "TSLA", importance: "high" },
+      { ticker: "NVDA", importance: "high" },
+      { ticker: "NFLX", importance: "medium" },
+      { ticker: "AMD", importance: "medium" },
+      { ticker: "CRM", importance: "medium" },
+      { ticker: "UBER", importance: "medium" },
+      { ticker: "LYFT", importance: "low" },
+      { ticker: "SNAP", importance: "low" },
+      { ticker: "PINS", importance: "low" },
+      { ticker: "SQ", importance: "medium" },
+      { ticker: "PYPL", importance: "medium" },
+      { ticker: "ZM", importance: "low" },
+      { ticker: "SHOP", importance: "medium" },
+      { ticker: "SPOT", importance: "low" },
+      { ticker: "ROKU", importance: "low" }
+    ];
+
+    const calendar: { [key: number]: EarningsItem[] } = {};
+    const currentWeekDays = Array.from({ length: 14 }, (_, i) => i + 1);
+
+    currentWeekDays.forEach(day => {
+      const dayEarnings: EarningsItem[] = [];
+      const numEarnings = Math.floor(Math.random() * 4); // 0-3 earnings per day
+      
+      for (let i = 0; i < numEarnings; i++) {
+        const randomStock = earningsStocks[Math.floor(Math.random() * earningsStocks.length)];
+        const time = Math.random() > 0.6 ? "BMO" : "AMC"; // More AMC than BMO
+        
+        if (!dayEarnings.find(e => e.ticker === randomStock.ticker)) {
+          dayEarnings.push({
+            ticker: randomStock.ticker,
+            time,
+            importance: randomStock.importance
+          });
+        }
+      }
+      
+      calendar[day] = dayEarnings;
+    });
+
+    return calendar;
+  };
+
+  const [earningsCalendar] = useState(() => generateEarningsCalendar());
+
   const getEarningsForDay = (day: number): EarningsItem[] => {
-    const earnings: { [key: number]: EarningsItem[] } = {
-      3: [{ ticker: "MSFT", time: "AMC" }, { ticker: "META", time: "AMC" }],
-      5: [{ ticker: "AMZN", time: "AMC" }],
-      8: [{ ticker: "GOOGL", time: "AMC" }, { ticker: "AMD", time: "AMC" }],
-      10: [{ ticker: "NFLX", time: "BMO" }],
-    };
-    return earnings[day] || [];
+    return earningsCalendar[day] || [];
   };
 
   return (
@@ -280,21 +364,43 @@ export const NewsPage: React.FC = () => {
           <div className={styles.dashboardCard}>
             <h3 className={styles.cardTitle}>Sector Performance</h3>
             <div className={styles.heatmapGrid}>
-              {sectors.map((sector) => (
-                <div 
-                  key={sector.name}
-                  className={`${styles.heatmapTile} ${
-                    sector.change > 0 ? styles.positive : 
-                    sector.change < 0 ? styles.negative : 
-                    styles.neutral
-                  }`}
-                >
-                  <span className={styles.sectorName}>{sector.name}</span>
-                  <span className={styles.sectorChange}>
-                    {sector.change > 0 ? '+' : ''}{sector.change.toFixed(2)}%
-                  </span>
-                </div>
-              ))}
+              {sectors.map((sector) => {
+                const intensity = Math.abs(sector.change);
+                const isStrong = intensity > 1.5;
+                const isModerate = intensity > 0.8;
+                
+                return (
+                  <div 
+                    key={sector.name}
+                    className={`${styles.heatmapTile} ${
+                      sector.change > 0 ? styles.positive : 
+                      sector.change < 0 ? styles.negative : 
+                      styles.neutral
+                    } ${isStrong ? styles.strong : isModerate ? styles.moderate : styles.weak}`}
+                    style={{
+                      opacity: 0.6 + (intensity / 4) * 0.4, // Dynamic opacity based on change magnitude
+                      fontSize: sector.weight && sector.weight > 10 ? '0.75rem' : '0.7rem'
+                    }}
+                  >
+                    <div className={styles.sectorHeader}>
+                      <span className={styles.sectorName}>{sector.name}</span>
+                      {sector.code && (
+                        <span className={styles.sectorCode}>{sector.code}</span>
+                      )}
+                    </div>
+                    <div className={styles.sectorMetrics}>
+                      <span className={styles.sectorChange}>
+                        {sector.change > 0 ? '+' : ''}{sector.change.toFixed(2)}%
+                      </span>
+                      {sector.weight && (
+                        <span className={styles.sectorWeight}>
+                          {sector.weight.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -311,12 +417,28 @@ export const NewsPage: React.FC = () => {
                     </span>
                   </div>
                   <div className={styles.sparkline}>
-                    <svg width="60" height="30" viewBox="0 0 60 30">
+                    <svg width="100%" height="30" viewBox="-4 -4 128 38" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id={generateSparklineGradient(stock.ticker, stock.change > 0)} x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor={stock.change > 0 ? '#10b981' : '#ef4444'} stopOpacity="0.3"/>
+                          <stop offset="100%" stopColor={stock.change > 0 ? '#10b981' : '#ef4444'} stopOpacity="0.1"/>
+                        </linearGradient>
+                      </defs>
+                      
+                      {/* Area fill under the curve */}
+                      <path 
+                        d={`${generateSparklinePath(stock.sparkline)} L 120,30 L 0,30 Z`}
+                        fill={`url(#${generateSparklineGradient(stock.ticker, stock.change > 0)})`}
+                      />
+                      
+                      {/* Main price line */}
                       <path 
                         d={generateSparklinePath(stock.sparkline)}
                         fill="none"
                         stroke={stock.change > 0 ? '#10b981' : '#ef4444'}
                         strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
                     </svg>
                   </div>
@@ -332,27 +454,60 @@ export const NewsPage: React.FC = () => {
           <div className={styles.dashboardCard}>
             <h3 className={styles.cardTitle}>Earnings Calendar</h3>
             <div className={styles.calendarGrid}>
-              {[...Array(10)].map((_, i) => {
+              {[...Array(14)].map((_, i) => {
                 const day = i + 1;
                 const earnings = getEarningsForDay(day);
-                const isToday = day === 5;
-                const isFedDay = day === 7;
+                const isToday = day === 8; // Different today for variety
+                const isFedDay = day === 12; // Fed meeting day
+                
+                // Get current date info for labeling
+                const currentDate = new Date();
+                const targetDate = new Date(currentDate);
+                targetDate.setDate(currentDate.getDate() + (day - 8)); // Relative to "today"
+                const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 6 = Saturday
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Skip weekends
+                
+                // Skip rendering weekend days
+                if (isWeekend) {
+                  return null;
+                }
+                
+                const dayName = targetDate.toLocaleDateString('en-US', { weekday: 'short' });
+                const dateNum = targetDate.getDate();
                 
                 return (
                   <div 
                     key={day}
                     className={`${styles.calendarDay} ${isToday ? styles.today : ''}`}
                   >
-                    <span className={styles.dayNumber}>{day}</span>
-                    {isFedDay && <span className={styles.fedIndicator}>FED</span>}
-                    {earnings.map((item, idx) => (
-                      <span key={idx} className={styles.earningsDot}>
-                        {item.ticker}
-                      </span>
-                    ))}
+                    <div className={styles.dayHeader}>
+                      <span className={styles.dayName}>{dayName}</span>
+                      <span className={styles.dayNumber}>{dateNum}</span>
+                    </div>
+                    <div className={styles.earningsContainer}>
+                      {isFedDay && (
+                        <div className={`${styles.earningsItem} ${styles.fedEarningsItem}`}>
+                          <span className={styles.earningsTicker}>FOMC</span>
+                          <span className={styles.earningsTime}>14:00</span>
+                        </div>
+                      )}
+                      {earnings.map((item, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`${styles.earningsItem} ${styles[`importance_${item.importance || 'medium'}`]}`}
+                          title={`${item.ticker} - ${item.time === 'BMO' ? 'Before Market Open' : 'After Market Close'}`}
+                        >
+                          <span className={styles.earningsTicker}>{item.ticker}</span>
+                          <span className={styles.earningsTime}>{item.time}</span>
+                        </div>
+                      ))}
+                      {earnings.length === 0 && (
+                        <span className={styles.noEarnings}>—</span>
+                      )}
+                    </div>
                   </div>
                 );
-              })}
+              }).filter(Boolean)}
             </div>
           </div>
 

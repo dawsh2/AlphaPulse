@@ -35,7 +35,6 @@ interface Strategy {
   active?: boolean;
 }
 
-type Mode = 'replay' | 'deploy';
 type SidebarTab = 'metrics' | 'events' | 'strategies';
 type PlaybackSpeed = 1 | 2 | 5 | 10;
 
@@ -46,16 +45,13 @@ interface DropdownOption {
 
 const MonitorPage: React.FC = () => {
   // State management
-  const [mode, setMode] = useState<Mode>('replay');
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('metrics');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentBar, setCurrentBar] = useState(50);
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
   const [symbol, setSymbol] = useState('SPY');
   const [timeframe, setTimeframe] = useState('5m');
-  const [account, setAccount] = useState('Paper Trading');
   const [selectedStrategy, setSelectedStrategy] = useState('Mean Reversion v2');
-  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [timeframeDropdownOpen, setTimeframeDropdownOpen] = useState(false);
   const [strategyDropdownOpen, setStrategyDropdownOpen] = useState(false);
   const [speedDropdownOpen, setSpeedDropdownOpen] = useState(false);
@@ -65,7 +61,7 @@ const MonitorPage: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const candleSeriesRef = useRef<any>(null);
-  const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const playbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Data
   const [marketData, setMarketData] = useState<MarketData[]>([]);
@@ -292,13 +288,6 @@ const MonitorPage: React.FC = () => {
     }
   }, [playbackSpeed]);
 
-  useEffect(() => {
-    if (mode === 'deploy') {
-      const data = generateMockData();
-      setMarketData(data);
-      updateChart(data.length);
-    }
-  }, [mode]);
 
   // Handle window resize
   useEffect(() => {
@@ -348,62 +337,106 @@ const MonitorPage: React.FC = () => {
 
   return (
     <div className={styles.monitorContainer}>
-      {/* Mode Selector */}
-      <div className={styles.modeSelector}>
-        <div className={styles.modeTabs}>
-          <button
-            className={`${styles.modeTab} ${mode === 'replay' ? styles.active : ''}`}
-            onClick={() => setMode('replay')}
-          >
-            Replay
-          </button>
-          <button
-            className={`${styles.modeTab} ${mode === 'deploy' ? styles.active : ''}`}
-            onClick={() => setMode('deploy')}
-          >
-            Deploy
-          </button>
-        </div>
-
-        <div className={styles.modeInfo}>
-          <div className={`${styles.modeStatus} ${mode === 'replay' ? styles.replayOnly : styles.deployOnly}`}>
-            <span className={styles.statusIndicator}></span>
-            <span>{mode === 'replay' ? 'Replay Mode' : 'Live Trading'}</span>
-          </div>
-          <div className={styles.controlGroup}>
-            <label className={styles.controlLabel}>Account:</label>
-            <div 
-              className={styles.dropdownWrapper}
-              onMouseEnter={() => setAccountDropdownOpen(true)}
-              onMouseLeave={() => setAccountDropdownOpen(false)}
-            >
-              <button className={styles.dropdownButton}>
-                {account}
-                <span style={{ marginLeft: '8px' }}>▼</span>
-              </button>
-              {accountDropdownOpen && (
-                <div className={styles.dropdownMenu}>
-                  <button
-                    className={`${styles.dropdownOption} ${account === 'Paper Trading' ? styles.active : ''}`}
-                    onClick={() => setAccount('Paper Trading')}
-                  >
-                    Paper Trading
-                  </button>
-                  <button
-                    className={`${styles.dropdownOption} ${account === 'Live Account' ? styles.active : ''}`}
-                    onClick={() => setAccount('Live Account')}
-                  >
-                    Live Account
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Content Area */}
       <div className={styles.contentArea}>
+        {/* Sidebar */}
+        <div className={styles.sidebar}>
+          <div className={styles.sidebarHeader}>
+            <div className={styles.sidebarTabs}>
+              <button
+                className={`${styles.sidebarTab} ${sidebarTab === 'metrics' ? styles.active : ''}`}
+                onClick={() => setSidebarTab('metrics')}
+              >
+                Metrics
+              </button>
+              <button
+                className={`${styles.sidebarTab} ${sidebarTab === 'events' ? styles.active : ''}`}
+                onClick={() => setSidebarTab('events')}
+              >
+                Events
+              </button>
+              <button
+                className={`${styles.sidebarTab} ${sidebarTab === 'strategies' ? styles.active : ''}`}
+                onClick={() => setSidebarTab('strategies')}
+              >
+                Strategies
+              </button>
+            </div>
+          </div>
+
+          <div className={styles.sidebarContent}>
+            {/* Metrics Tab */}
+            {sidebarTab === 'metrics' && (
+              <div className={styles.metricsGrid}>
+                <div className={styles.metricCard}>
+                  <div className={styles.metricLabel}>Total P&L</div>
+                  <div className={`${styles.metricValue} ${mockMetrics.totalPnL > 0 ? styles.positive : styles.negative}`}>
+                    {mockMetrics.totalPnL > 0 ? '+' : ''}${mockMetrics.totalPnL.toFixed(2)}
+                  </div>
+                </div>
+                <div className={styles.metricCard}>
+                  <div className={styles.metricLabel}>Win Rate</div>
+                  <div className={styles.metricValue}>{mockMetrics.winRate.toFixed(1)}%</div>
+                </div>
+                <div className={styles.metricCard}>
+                  <div className={styles.metricLabel}>Sharpe Ratio</div>
+                  <div className={styles.metricValue}>{mockMetrics.sharpeRatio.toFixed(2)}</div>
+                </div>
+                <div className={styles.metricCard}>
+                  <div className={styles.metricLabel}>Max Drawdown</div>
+                  <div className={`${styles.metricValue} ${styles.negative}`}>
+                    {mockMetrics.maxDrawdown.toFixed(1)}%
+                  </div>
+                </div>
+                <div className={styles.metricCard}>
+                  <div className={styles.metricLabel}>Total Trades</div>
+                  <div className={styles.metricValue}>{mockMetrics.totalTrades}</div>
+                </div>
+                <div className={styles.metricCard}>
+                  <div className={styles.metricLabel}>Avg Trade</div>
+                  <div className={`${styles.metricValue} ${mockMetrics.avgTrade > 0 ? styles.positive : styles.negative}`}>
+                    {mockMetrics.avgTrade > 0 ? '+' : ''}${mockMetrics.avgTrade.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Events Tab */}
+            {sidebarTab === 'events' && (
+              <div className={styles.eventLog}>
+                {getVisibleEvents().map((event, index) => (
+                  <div key={index} className={styles.eventItem}>
+                    <span className={styles.eventTime}>{event.time}</span>
+                    <span className={`${styles.eventType} ${event.type === 'buy' ? styles.buy : event.type === 'sell' ? styles.sell : ''}`}>
+                      {event.type.toUpperCase()}
+                    </span>
+                    <span className={styles.eventMessage}>{event.description}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Strategies Tab */}
+            {sidebarTab === 'strategies' && (
+              <div className={styles.strategyList}>
+                {mockStrategies.map((strategy) => (
+                  <div
+                    key={strategy.id}
+                    className={`${styles.strategyItem} ${strategy.active ? styles.active : ''}`}
+                    onClick={() => setSelectedStrategy(strategy.name)}
+                  >
+                    <div className={styles.strategyName}>{strategy.name}</div>
+                    <div className={styles.strategyStats}>
+                      <span>Win: {strategy.winRate}%</span>
+                      <span>P&L: +{strategy.pnl.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className={styles.mainContent}>
           {/* Chart */}
           <div className={styles.chartContainer}>
@@ -480,63 +513,61 @@ const MonitorPage: React.FC = () => {
           {/* Controls Bar */}
           <div className={styles.controlsBar}>
             {/* Replay Controls */}
-            {mode === 'replay' && (
-              <div className={styles.controlGroup}>
-                <label className={styles.controlLabel}>Replay:</label>
-                <div className={styles.replayControls}>
-                  <button className={styles.replayBtn} onClick={skipBackward}>
+            <div className={styles.controlGroup}>
+              <label className={styles.controlLabel}>Replay:</label>
+              <div className={styles.replayControls}>
+                <button className={styles.replayBtn} onClick={skipBackward}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="11 19 2 12 11 5 11 19"></polygon>
+                    <polygon points="22 19 13 12 22 5 22 19"></polygon>
+                  </svg>
+                </button>
+                <button
+                  className={`${styles.replayBtn} ${isPlaying ? styles.active : ''}`}
+                  onClick={togglePlay}
+                >
+                  {isPlaying ? (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="11 19 2 12 11 5 11 19"></polygon>
-                      <polygon points="22 19 13 12 22 5 22 19"></polygon>
+                      <rect x="6" y="4" width="4" height="16"></rect>
+                      <rect x="14" y="4" width="4" height="16"></rect>
                     </svg>
-                  </button>
-                  <button
-                    className={`${styles.replayBtn} ${isPlaying ? styles.active : ''}`}
-                    onClick={togglePlay}
-                  >
-                    {isPlaying ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="6" y="4" width="4" height="16"></rect>
-                        <rect x="14" y="4" width="4" height="16"></rect>
-                      </svg>
-                    ) : (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                      </svg>
-                    )}
-                  </button>
-                  <button className={styles.replayBtn} onClick={skipForward}>
+                  ) : (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="13 19 22 12 13 5 13 19"></polygon>
-                      <polygon points="2 19 11 12 2 5 2 19"></polygon>
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
                     </svg>
+                  )}
+                </button>
+                <button className={styles.replayBtn} onClick={skipForward}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="13 19 22 12 13 5 13 19"></polygon>
+                    <polygon points="2 19 11 12 2 5 2 19"></polygon>
+                  </svg>
+                </button>
+                <div 
+                  className={styles.dropdownWrapper}
+                  onMouseEnter={() => setSpeedDropdownOpen(true)}
+                  onMouseLeave={() => setSpeedDropdownOpen(false)}
+                >
+                  <button className={styles.dropdownButton}>
+                    {playbackSpeed}x
+                    <span style={{ marginLeft: '8px' }}>▼</span>
                   </button>
-                  <div 
-                    className={styles.dropdownWrapper}
-                    onMouseEnter={() => setSpeedDropdownOpen(true)}
-                    onMouseLeave={() => setSpeedDropdownOpen(false)}
-                  >
-                    <button className={styles.dropdownButton}>
-                      {playbackSpeed}x
-                      <span style={{ marginLeft: '8px' }}>▼</span>
-                    </button>
-                    {speedDropdownOpen && (
-                      <div className={styles.dropdownMenu}>
-                        {[1, 2, 5, 10].map((speed) => (
-                          <button
-                            key={speed}
-                            className={`${styles.dropdownOption} ${playbackSpeed === speed ? styles.active : ''}`}
-                            onClick={() => setPlaybackSpeed(speed as PlaybackSpeed)}
-                          >
-                            {speed}x
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {speedDropdownOpen && (
+                    <div className={styles.dropdownMenu}>
+                      {[1, 2, 5, 10].map((speed) => (
+                        <button
+                          key={speed}
+                          className={`${styles.dropdownOption} ${playbackSpeed === speed ? styles.active : ''}`}
+                          onClick={() => setPlaybackSpeed(speed as PlaybackSpeed)}
+                        >
+                          {speed}x
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Symbol & Timeframe */}
             <div className={styles.controlGroup}>
@@ -600,102 +631,6 @@ const MonitorPage: React.FC = () => {
                 )}
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className={styles.sidebar}>
-          <div className={styles.sidebarTabs}>
-            <button
-              className={`${styles.sidebarTab} ${sidebarTab === 'metrics' ? styles.active : ''}`}
-              onClick={() => setSidebarTab('metrics')}
-            >
-              Metrics
-            </button>
-            <button
-              className={`${styles.sidebarTab} ${sidebarTab === 'events' ? styles.active : ''}`}
-              onClick={() => setSidebarTab('events')}
-            >
-              Events
-            </button>
-            <button
-              className={`${styles.sidebarTab} ${sidebarTab === 'strategies' ? styles.active : ''}`}
-              onClick={() => setSidebarTab('strategies')}
-            >
-              Strategies
-            </button>
-          </div>
-
-          <div className={styles.sidebarContent}>
-            {/* Metrics Tab */}
-            {sidebarTab === 'metrics' && (
-              <div className={styles.metricsGrid}>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Total P&L</div>
-                  <div className={`${styles.metricValue} ${mockMetrics.totalPnL > 0 ? styles.positive : styles.negative}`}>
-                    {mockMetrics.totalPnL > 0 ? '+' : ''}${mockMetrics.totalPnL.toFixed(2)}
-                  </div>
-                </div>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Win Rate</div>
-                  <div className={styles.metricValue}>{mockMetrics.winRate.toFixed(1)}%</div>
-                </div>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Sharpe Ratio</div>
-                  <div className={styles.metricValue}>{mockMetrics.sharpeRatio.toFixed(2)}</div>
-                </div>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Max Drawdown</div>
-                  <div className={`${styles.metricValue} ${styles.negative}`}>
-                    {mockMetrics.maxDrawdown.toFixed(1)}%
-                  </div>
-                </div>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Total Trades</div>
-                  <div className={styles.metricValue}>{mockMetrics.totalTrades}</div>
-                </div>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Avg Trade</div>
-                  <div className={`${styles.metricValue} ${mockMetrics.avgTrade > 0 ? styles.positive : styles.negative}`}>
-                    {mockMetrics.avgTrade > 0 ? '+' : ''}${mockMetrics.avgTrade.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Events Tab */}
-            {sidebarTab === 'events' && (
-              <div className={styles.eventLog}>
-                {getVisibleEvents().map((event, index) => (
-                  <div key={index} className={styles.eventItem}>
-                    <span className={styles.eventTime}>{event.time}</span>
-                    <span className={`${styles.eventType} ${event.type === 'buy' ? styles.buy : event.type === 'sell' ? styles.sell : ''}`}>
-                      {event.type.toUpperCase()}
-                    </span>
-                    <span className={styles.eventMessage}>{event.description}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Strategies Tab */}
-            {sidebarTab === 'strategies' && (
-              <div className={styles.strategyList}>
-                {mockStrategies.map((strategy) => (
-                  <div
-                    key={strategy.id}
-                    className={`${styles.strategyItem} ${strategy.active ? styles.active : ''}`}
-                    onClick={() => setSelectedStrategy(strategy.name)}
-                  >
-                    <div className={styles.strategyName}>{strategy.name}</div>
-                    <div className={styles.strategyStats}>
-                      <span>Win: {strategy.winRate}%</span>
-                      <span>P&L: +{strategy.pnl.toFixed(1)}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>

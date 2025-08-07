@@ -508,6 +508,158 @@ def create_event():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ================================================================================
+# Strategy Management & Persistence
+# ================================================================================
+
+@app.route('/api/strategies', methods=['GET'])
+@require_auth
+def get_strategies():
+    """Get all saved strategies for the current user."""
+    try:
+        strategies = Strategy.query.filter_by(user_id=request.current_user.id).all()
+        
+        return jsonify({
+            'status': 'success',
+            'data': [s.to_dict() for s in strategies]
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/strategies', methods=['POST'])
+@require_auth
+def save_strategy():
+    """Save a new strategy or update existing one."""
+    try:
+        data = request.get_json()
+        
+        # Check if updating existing strategy
+        strategy_id = data.get('strategyId')
+        if strategy_id:
+            strategy = Strategy.query.filter_by(
+                id=strategy_id,
+                user_id=request.current_user.id
+            ).first()
+            if not strategy:
+                return jsonify({'status': 'error', 'message': 'Strategy not found'}), 404
+        else:
+            # Create new strategy
+            strategy = Strategy(user_id=request.current_user.id)
+            db.session.add(strategy)
+        
+        # Update fields
+        strategy.name = data.get('strategyName', strategy.name)
+        strategy.type = data.get('type', 'single')
+        strategy.description = data.get('metadata', {}).get('description', '')
+        strategy.parameters = data.get('parameters', {})
+        strategy.entry_conditions = data.get('entryConditions', [])
+        strategy.exit_conditions = data.get('exitConditions', [])
+        strategy.risk_management = data.get('riskManagement', {})
+        strategy.backtest_results = data.get('backtestResults', {})
+        strategy.is_public = data.get('isPublic', False)
+        strategy.is_template = data.get('saveAsTemplate', False)
+        strategy.tags = data.get('metadata', {}).get('tags', [])
+        
+        # Handle ensemble components
+        if data.get('type') == 'ensemble':
+            strategy.components = data.get('components', [])
+        
+        db.session.commit()
+        
+        # Log the event
+        event = EventLog(
+            user_id=request.current_user.id,
+            event_type='strategy_saved',
+            message=f"Strategy saved: {strategy.name}",
+            severity='info'
+        )
+        event.set_event_data({
+            'strategy_id': strategy.id,
+            'strategy_name': strategy.name,
+            'type': strategy.type
+        })
+        db.session.add(event)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'data': strategy.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/strategies/<int:strategy_id>', methods=['DELETE'])
+@require_auth
+def delete_strategy(strategy_id):
+    """Delete a strategy."""
+    try:
+        strategy = Strategy.query.filter_by(
+            id=strategy_id,
+            user_id=request.current_user.id
+        ).first()
+        
+        if not strategy:
+            return jsonify({'status': 'error', 'message': 'Strategy not found'}), 404
+        
+        db.session.delete(strategy)
+        db.session.commit()
+        
+        return jsonify({'status': 'success', 'message': 'Strategy deleted'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/strategies/templates', methods=['GET'])
+def get_strategy_templates():
+    """Get public strategy templates."""
+    try:
+        templates = Strategy.query.filter_by(
+            is_template=True,
+            is_public=True
+        ).all()
+        
+        return jsonify({
+            'status': 'success',
+            'data': [t.to_dict() for t in templates]
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/strategies/export/<int:strategy_id>', methods=['GET'])
+@require_auth
+def export_strategy(strategy_id):
+    """Export a strategy in different formats."""
+    try:
+        strategy = Strategy.query.filter_by(
+            id=strategy_id,
+            user_id=request.current_user.id
+        ).first()
+        
+        if not strategy:
+            return jsonify({'status': 'error', 'message': 'Strategy not found'}), 404
+        
+        format_type = request.args.get('format', 'json')
+        
+        if format_type == 'json':
+            return jsonify(strategy.to_dict())
+        elif format_type == 'python':
+            # Generate Python code
+            python_code = strategy.to_python_code()
+            return python_code, 200, {'Content-Type': 'text/plain'}
+        elif format_type == 'yaml':
+            # Generate YAML
+            import yaml
+            yaml_content = yaml.dump(strategy.to_dict(), default_flow_style=False)
+            return yaml_content, 200, {'Content-Type': 'text/yaml'}
+        else:
+            return jsonify({'status': 'error', 'message': 'Invalid format'}), 400
+            
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ================================================================================
 # Error Handlers
 # ================================================================================
 

@@ -1,4 +1,4 @@
-import React from 'react';
+// React 19 JSX transform handles imports automatically
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout/Layout';
 import { NewsPage } from './pages/NewsPage';

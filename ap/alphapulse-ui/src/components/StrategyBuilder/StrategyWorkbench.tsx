@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './StrategyWorkbench.module.css';
+import SignalAnalysisPanel from './SignalAnalysisPanel';
 
 interface StrategyWorkbenchProps {
   isOpen: boolean;
@@ -176,6 +177,13 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
   // Strategy search and selection
   const [strategySearch, setStrategySearch] = useState('');
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
+  const [currentStrategyParams, setCurrentStrategyParams] = useState<Record<string, any>>({});
+  const [addedStrategies, setAddedStrategies] = useState<Array<{
+    id: string;
+    name: string;
+    type: string;
+    parameters: Record<string, any>;
+  }>>([]);
   
   // Backtesting state
   const [isBacktesting, setIsBacktesting] = useState(false);
@@ -375,41 +383,10 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
     <div className={styles.workbenchContainer}>
       {/* Main Signal Analysis */}
       <main className={styles.strategyBuilder}>
-        {/* Header */}
-        <div className={styles.builderHeader}>
-          <div className={styles.headerLeft}>
-            <h2>Signal Analysis</h2>
-            {selectedTemplate && (
-              <span className={styles.templateBadge}>
-                {selectedTemplate.icon} {selectedTemplate.name}
-              </span>
-            )}
-          </div>
-          <div className={styles.headerRight}>
-            <div className={styles.viewToggle}>
-              <button 
-                className={`${styles.toggleBtn} ${activeView === 'builder' ? styles.active : ''}`}
-                onClick={() => setActiveView('builder')}
-              >
-                Builder
-              </button>
-              <button 
-                className={`${styles.toggleBtn} ${activeView === 'results' ? styles.active : ''}`}
-                onClick={() => setActiveView('results')}
-                disabled={!backtestResults}
-              >
-                Results
-              </button>
-            </div>
-            <button className={styles.closeBtn} onClick={onClose}>×</button>
-          </div>
-        </div>
-
         {/* Main Content Area */}
         <div className={styles.builderContent}>
-          {activeView === 'builder' ? (
-            // Signal Analysis Interface
-            <div className={styles.conditionBuilder}>
+          {/* Signal Analysis Interface */}
+          <div className={styles.conditionBuilder}>
               {/* Data Universe - Elegant Search Context */}
               <div className={styles.dataUniverse}>
                 <div className={styles.universeHeader}>
@@ -446,71 +423,78 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
                 </div>
                 
                 <div className={styles.universeCompact}>
-                  {/* Assets Selection */}
-                  <div className={styles.universeSection}>
-                    <label className={styles.sectionLabel}>Assets</label>
-                    <div className={styles.assetPills}>
-                      {['SPY', 'QQQ', 'IWM'].map(ticker => (
-                        <button
-                          key={ticker}
-                          className={`${styles.assetPill} ${dataUniverse.symbols.includes(ticker) ? styles.active : ''}`}
-                          onClick={() => {
-                            const newSymbols = dataUniverse.symbols.includes(ticker)
-                              ? dataUniverse.symbols.filter(s => s !== ticker)
-                              : [...dataUniverse.symbols, ticker];
-                            setDataUniverse({...dataUniverse, symbols: newSymbols});
-                          }}
-                        >
-                          {ticker}
+                  <div className={styles.universeLeft}>
+                    {/* Assets Selection */}
+                    <div className={styles.universeSection}>
+                      <label className={styles.sectionLabel}>Assets</label>
+                      <div className={styles.assetPills}>
+                        {['SPY', 'QQQ', 'IWM'].map(ticker => (
+                          <button
+                            key={ticker}
+                            className={`${styles.assetPill} ${dataUniverse.symbols.includes(ticker) ? styles.active : ''}`}
+                            onClick={() => {
+                              const newSymbols = dataUniverse.symbols.includes(ticker)
+                                ? dataUniverse.symbols.filter(s => s !== ticker)
+                                : [...dataUniverse.symbols, ticker];
+                              setDataUniverse({...dataUniverse, symbols: newSymbols});
+                            }}
+                          >
+                            {ticker}
+                          </button>
+                        ))}
+                        <button className={styles.assetPillAdd}>
+                          Custom
                         </button>
-                      ))}
-                      <button className={styles.assetPillAdd}>
-                        Custom
-                      </button>
+                      </div>
+                    </div>
+                    
+                    {/* Timeframe Selection */}
+                    <div className={styles.universeSection}>
+                      <label className={styles.sectionLabel}>Timeframe</label>
+                      <div className={styles.timeframeButtons}>
+                        {[
+                          { value: '1m', label: '1min' },
+                          { value: '5m', label: '5min' },
+                          { value: '15m', label: '15min' },
+                          { value: '1h', label: '1hr' },
+                          { value: 'Daily', label: 'Daily' }
+                        ].map(tf => (
+                          <button
+                            key={tf.value}
+                            className={`${styles.timeframeBtn} ${dataUniverse.timeframe === tf.value ? styles.active : ''}`}
+                            onClick={() => setDataUniverse({...dataUniverse, timeframe: tf.value})}
+                          >
+                            {tf.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   
-                  {/* Timeframe Selection */}
-                  <div className={styles.universeSection}>
-                    <label className={styles.sectionLabel}>Timeframe</label>
-                    <div className={styles.timeframeButtons}>
-                      {[
-                        { value: '1m', label: '1min' },
-                        { value: '5m', label: '5min' },
-                        { value: '15m', label: '15min' },
-                        { value: '1h', label: '1hr' },
-                        { value: 'Daily', label: 'Daily' }
-                      ].map(tf => (
-                        <button
-                          key={tf.value}
-                          className={`${styles.timeframeBtn} ${dataUniverse.timeframe === tf.value ? styles.active : ''}`}
-                          onClick={() => setDataUniverse({...dataUniverse, timeframe: tf.value})}
-                        >
-                          {tf.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Date Range Selection */}
-                  <div className={styles.universeSection}>
-                    <label className={styles.sectionLabel}>Date Range</label>
-                    <div className={styles.dateInputs}>
-                      <input
-                        type="date"
-                        className={styles.dateInput}
-                        value={dataUniverse.startDate}
-                        onChange={(e) => setDataUniverse({...dataUniverse, startDate: e.target.value})}
-                        placeholder="Start Date"
-                      />
-                      <span className={styles.dateSeparator}>to</span>
-                      <input
-                        type="date"
-                        className={styles.dateInput}
-                        value={dataUniverse.endDate}
-                        onChange={(e) => setDataUniverse({...dataUniverse, endDate: e.target.value})}
-                        placeholder="End Date"
-                      />
+                  {/* Date Range on Right Side */}
+                  <div className={styles.universeRight}>
+                    <div className={styles.dateRangeSection}>
+                      <label className={styles.sectionLabel}>Date Range</label>
+                      <div className={styles.dateInputsVertical}>
+                        <div className={styles.dateRow}>
+                          <label className={styles.dateLabel}>Begin</label>
+                          <input
+                            type="date"
+                            className={styles.dateInput}
+                            value={dataUniverse.startDate}
+                            onChange={(e) => setDataUniverse({...dataUniverse, startDate: e.target.value})}
+                          />
+                        </div>
+                        <div className={styles.dateRow}>
+                          <label className={styles.dateLabel}>End</label>
+                          <input
+                            type="date"
+                            className={styles.dateInput}
+                            value={dataUniverse.endDate}
+                            onChange={(e) => setDataUniverse({...dataUniverse, endDate: e.target.value})}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -528,11 +512,8 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
                 </div>
                 
                 <div className={styles.strategyLayout}>
+                  {/* Strategies List on Left Side */}
                   <div className={styles.strategyLeft}>
-                  </div>
-                  
-                  {/* Strategies & Parameters on Right Side */}
-                  <div className={styles.universeRight}>
                     <div className={styles.strategySection}>
                       <label className={styles.sectionLabel}>Strategies</label>
                       <input
@@ -542,8 +523,8 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
                         value={strategySearch}
                         onChange={(e) => setStrategySearch(e.target.value)}
                       />
-                      <div className={styles.strategyList}>
-                        {/* Available Strategies */}
+                      <div className={styles.strategyListSplit}>
+                        {/* Available Strategies - Split into two columns */}
                         {[
                           { name: 'RSI Mean Reversion', type: 'Technical' },
                           { name: 'MACD Crossover', type: 'Momentum' },
@@ -562,35 +543,90 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
                               onClick={() => {
                                 setSelectedStrategy(strategy.name);
                                 // Set default parameters for the strategy
-                                if (strategy.name === 'RSI Mean Reversion') {
-                                  setDataUniverse({
-                                    ...dataUniverse,
-                                    parameterSpace: {
+                                let params = {};
+                                
+                                switch(strategy.name) {
+                                  case 'RSI Mean Reversion':
+                                    params = {
                                       rsi_period: { min: 10, max: 21, step: 1 },
                                       rsi_oversold: { min: 20, max: 35, step: 5 },
                                       rsi_overbought: { min: 65, max: 80, step: 5 }
-                                    }
-                                  });
-                                } else if (strategy.name === 'EMA Cross') {
-                                  setDataUniverse({
-                                    ...dataUniverse,
-                                    parameterSpace: {
-                                      fast_period: { min: 5, max: 20, step: 1 },
-                                      slow_period: { min: 20, max: 50, step: 5 }
-                                    }
-                                  });
+                                    };
+                                    break;
+                                  case 'MACD Crossover':
+                                    params = {
+                                      fast_period: { min: 8, max: 15, step: 1 },
+                                      slow_period: { min: 20, max: 30, step: 2 },
+                                      signal_period: { min: 7, max: 12, step: 1 }
+                                    };
+                                    break;
+                                  case 'Bollinger Breakout':
+                                    params = {
+                                      bb_period: { min: 15, max: 25, step: 5 },
+                                      bb_std: { min: 1.5, max: 3.0, step: 0.5 },
+                                      breakout_threshold: { min: 0.5, max: 2.0, step: 0.25 }
+                                    };
+                                    break;
+                                  case 'Volume Profile':
+                                    params = {
+                                      volume_ma_period: { min: 10, max: 30, step: 5 },
+                                      volume_multiplier: { min: 1.5, max: 3.0, step: 0.5 },
+                                      price_range: { min: 0.01, max: 0.05, step: 0.01 }
+                                    };
+                                    break;
+                                  case 'EMA Cross':
+                                    params = {
+                                      fast_ema: { min: 5, max: 20, step: 1 },
+                                      slow_ema: { min: 20, max: 50, step: 5 },
+                                      confirmation_bars: { min: 1, max: 3, step: 1 }
+                                    };
+                                    break;
+                                  case 'Support Resistance':
+                                    params = {
+                                      lookback_period: { min: 10, max: 50, step: 10 },
+                                      touch_threshold: { min: 0.001, max: 0.01, step: 0.001 },
+                                      min_touches: { min: 2, max: 5, step: 1 }
+                                    };
+                                    break;
+                                  case 'Fibonacci Retracement':
+                                    params = {
+                                      swing_period: { min: 10, max: 30, step: 5 },
+                                      fib_level_1: { min: 0.236, max: 0.382, step: 0.146 },
+                                      fib_level_2: { min: 0.5, max: 0.618, step: 0.118 }
+                                    };
+                                    break;
+                                  case 'Stochastic Oscillator':
+                                    params = {
+                                      k_period: { min: 10, max: 20, step: 2 },
+                                      d_period: { min: 3, max: 5, step: 1 },
+                                      oversold_level: { min: 15, max: 30, step: 5 },
+                                      overbought_level: { min: 70, max: 85, step: 5 }
+                                    };
+                                    break;
+                                  default:
+                                    params = {
+                                      custom_param_1: { min: 1, max: 100, step: 1 },
+                                      custom_param_2: { min: 0, max: 1, step: 0.1 }
+                                    };
                                 }
+                                
+                                setDataUniverse({
+                                  ...dataUniverse,
+                                  parameterSpace: params
+                                });
+                                setCurrentStrategyParams(params);
                               }}
                             >
                               <span className={styles.strategyName}>{strategy.name}</span>
-                              <span className={styles.strategyType}>{strategy.type}</span>
                             </div>
                           ))}
                       </div>
                     </div>
-                    
-                    {/* Parameters Input */}
-                    {selectedStrategy && Object.keys(dataUniverse.parameterSpace).length > 0 && (
+                  </div>
+                  
+                  {/* Parameters on Right Side */}
+                  <div className={styles.strategyRight}>
+                    {selectedStrategy && Object.keys(dataUniverse.parameterSpace).length > 0 ? (
                       <div className={styles.parametersSection}>
                         <label className={styles.sectionLabel}>Parameter Ranges</label>
                         <div className={styles.parameterInputs}>
@@ -609,6 +645,7 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
                                     const newSpace = { ...dataUniverse.parameterSpace };
                                     newSpace[key] = { ...param, min: parseFloat(e.target.value) || 0 };
                                     setDataUniverse({ ...dataUniverse, parameterSpace: newSpace });
+                                    setCurrentStrategyParams(newSpace);
                                   }}
                                 />
                                 <span className={styles.paramSep}>-</span>
@@ -621,6 +658,7 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
                                     const newSpace = { ...dataUniverse.parameterSpace };
                                     newSpace[key] = { ...param, max: parseFloat(e.target.value) || 0 };
                                     setDataUniverse({ ...dataUniverse, parameterSpace: newSpace });
+                                    setCurrentStrategyParams(newSpace);
                                   }}
                                 />
                                 <span className={styles.paramSep}>step</span>
@@ -633,17 +671,92 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
                                     const newSpace = { ...dataUniverse.parameterSpace };
                                     newSpace[key] = { ...param, step: parseFloat(e.target.value) || 1 };
                                     setDataUniverse({ ...dataUniverse, parameterSpace: newSpace });
+                                    setCurrentStrategyParams(newSpace);
                                   }}
                                 />
                               </div>
                             </div>
                           ))}
                         </div>
+                        <button
+                          className={styles.addStrategyBtn}
+                          onClick={() => {
+                            const strategyType = [
+                              { name: 'RSI Mean Reversion', type: 'Technical' },
+                              { name: 'MACD Crossover', type: 'Momentum' },
+                              { name: 'Bollinger Breakout', type: 'Volatility' },
+                              { name: 'Volume Profile', type: 'Volume' },
+                              { name: 'EMA Cross', type: 'Trend' },
+                              { name: 'Support Resistance', type: 'Price Action' },
+                              { name: 'Fibonacci Retracement', type: 'Technical' },
+                              { name: 'Stochastic Oscillator', type: 'Momentum' }
+                            ].find(s => s.name === selectedStrategy)?.type || 'Custom';
+                            
+                            setAddedStrategies([...addedStrategies, {
+                              id: `${selectedStrategy}_${Date.now()}`,
+                              name: selectedStrategy || '',
+                              type: strategyType,
+                              parameters: currentStrategyParams
+                            }]);
+                            setSelectedStrategy(null);
+                            setCurrentStrategyParams({});
+                            setDataUniverse({ ...dataUniverse, parameterSpace: {} });
+                          }}
+                        >
+                          Add Strategy
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={styles.parametersPlaceholder}>
+                        <p>Select a strategy to configure parameters</p>
                       </div>
                     )}
                   </div>
                 </div>
+                
+                {/* Added Strategies List */}
+                {addedStrategies.length > 0 && (
+                  <div className={styles.addedStrategiesSection}>
+                    <div className={styles.addedStrategiesHeader}>
+                      <h4>Active Strategies ({addedStrategies.length})</h4>
+                    </div>
+                    <div className={styles.addedStrategiesList}>
+                      {addedStrategies.map((strategy) => (
+                        <div key={strategy.id} className={styles.addedStrategyItem}>
+                          <div className={styles.addedStrategyInfo}>
+                            <span className={styles.addedStrategyName}>{strategy.name}</span>
+                          </div>
+                          <div className={styles.addedStrategyParams}>
+                            {Object.entries(strategy.parameters).map(([key, value]: [string, any]) => (
+                              <span key={key} className={styles.paramChip}>
+                                {key}: {value.min}-{value.max}
+                              </span>
+                            ))}
+                          </div>
+                          <button
+                            className={styles.removeStrategyBtn}
+                            onClick={() => {
+                              setAddedStrategies(addedStrategies.filter(s => s.id !== strategy.id));
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+              
+              {/* Signal Analysis Panel - Shows when strategies are added */}
+              {addedStrategies.length > 0 && (
+                <div className={styles.signalAnalysisSection}>
+                  <SignalAnalysisPanel 
+                    dataUniverse={dataUniverse}
+                    strategies={addedStrategies}
+                  />
+                </div>
+              )}
 
               {/* Entry Conditions */}
               <div className={styles.conditionSection}>
@@ -793,251 +906,6 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
                 </div>
               </div>
             </div>
-          ) : activeView === 'results' && (backtestResults || optimizationResults.length > 0) ? (
-            // Results View
-            <div className={styles.resultsView}>
-              {isBacktesting || isOptimizing ? (
-                <div className={styles.loadingState}>
-                  <div className={styles.spinner}></div>
-                  <span>{isOptimizing ? 'Analyzing signals across parameter space...' : 'Running backtest...'}</span>
-                  {isOptimizing && (
-                    <span className={styles.loadingHint}>
-                      Testing {calculateTotalCombinations(dataUniverse.parameterSpace)} parameter combinations
-                    </span>
-                  )}
-                </div>
-              ) : optimizationResults.length > 0 ? (
-                // Optimization Results
-                <div className={styles.optimizationResults}>
-                  <div className={styles.resultsHeader}>
-                    <h3>🔬 Parameter Optimization Results</h3>
-                    <div className={styles.resultsActions}>
-                      <button 
-                        className={styles.exportBtn}
-                        onClick={() => console.log('Export results')}
-                      >
-                        📊 Export
-                      </button>
-                      <button 
-                        className={styles.advancedAnalysisBtn}
-                        onClick={() => console.log('Research Lab - Coming Soon')}
-                      >
-                        🧪 Research Lab
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className={styles.optimizationSummary}>
-                    <div className={styles.summaryItem}>
-                      <span className={styles.summaryLabel}>Combinations Tested:</span>
-                      <span className={styles.summaryValue}>{optimizationResults.length}</span>
-                    </div>
-                    <div className={styles.summaryItem}>
-                      <span className={styles.summaryLabel}>Best Sharpe Ratio:</span>
-                      <span className={styles.summaryValue} style={{ color: getMetricColor('sharpeRatio', optimizationResults[0]?.metrics.sharpe || 0) }}>
-                        {optimizationResults[0]?.metrics.sharpe.toFixed(2) || 'N/A'}
-                      </span>
-                    </div>
-                    <div className={styles.summaryItem}>
-                      <span className={styles.summaryLabel}>Profitable Strategies:</span>
-                      <span className={styles.summaryValue}>
-                        {optimizationResults.filter(r => r.metrics.totalReturn > 0).length} / {optimizationResults.length}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className={styles.optimizationTable}>
-                    <div className={styles.tableHeader}>
-                      <div className={styles.headerCell}>Rank</div>
-                      <div className={styles.headerCell}>Parameters</div>
-                      <div className={styles.headerCell}>Sharpe</div>
-                      <div className={styles.headerCell}>Return</div>
-                      <div className={styles.headerCell}>Max DD</div>
-                      <div className={styles.headerCell}>Win Rate</div>
-                      <div className={styles.headerCell}>Trades</div>
-                      <div className={styles.headerCell}>Actions</div>
-                    </div>
-                    
-                    <div className={styles.tableBody}>
-                      {optimizationResults.slice(0, 20).map((result, index) => (
-                        <div key={index} className={`${styles.tableRow} ${index === 0 ? styles.bestResult : ''}`}>
-                          <div className={styles.tableCell}>
-                            {index === 0 && <span className={styles.crownIcon} style={{color: '#FFD700', fontWeight: 'bold'}}>#1</span>}
-                            #{result.rank}
-                          </div>
-                          <div className={styles.tableCell}>
-                            <div className={styles.parametersList}>
-                              {Object.entries(result.parameters).map(([param, value]) => (
-                                <span key={param} className={styles.paramTag}>
-                                  {param}: {value}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                          <div className={styles.tableCell}>
-                            <span style={{ color: getMetricColor('sharpeRatio', result.metrics.sharpe) }}>
-                              {result.metrics.sharpe.toFixed(2)}
-                            </span>
-                          </div>
-                          <div className={styles.tableCell}>
-                            <span className={result.metrics.totalReturn > 0 ? styles.positive : styles.negative}>
-                              {result.metrics.totalReturn > 0 ? '+' : ''}{result.metrics.totalReturn.toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className={styles.tableCell}>
-                            <span style={{ color: getMetricColor('maxDrawdown', result.metrics.maxDrawdown) }}>
-                              {result.metrics.maxDrawdown.toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className={styles.tableCell}>
-                            <span style={{ color: getMetricColor('winRate', result.metrics.winRate) }}>
-                              {result.metrics.winRate.toFixed(0)}%
-                            </span>
-                          </div>
-                          <div className={styles.tableCell}>{result.trades}</div>
-                          <div className={styles.tableCell}>
-                            <button 
-                              className={styles.selectBtn}
-                              onClick={() => {
-                                // Load this parameter set back into the data universe
-                                const newParameterSpace = { ...dataUniverse.parameterSpace };
-                                Object.entries(result.parameters).forEach(([param, value]) => {
-                                  if (newParameterSpace[param]) {
-                                    // Set single value as default
-                                    newParameterSpace[param] = { 
-                                      ...newParameterSpace[param],
-                                      default: value,
-                                      min: value,
-                                      max: value,
-                                      step: 0.1
-                                    };
-                                  }
-                                });
-                                setDataUniverse({ ...dataUniverse, parameterSpace: newParameterSpace });
-                              }}
-                            >
-                              Use
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : backtestResults ? (
-                // Single Backtest Results
-                <div className={styles.singleBacktestResults}>
-                  <div className={styles.resultsGrid}>
-                    {/* Performance Metrics */}
-                    <div className={styles.metricsPanel}>
-                    <div className={styles.panelHeader}>
-                      <h3>Performance Metrics</h3>
-                    </div>
-                    <div className={styles.metricsGrid}>
-                      <div className={styles.metric}>
-                        <span 
-                          className={styles.metricValue}
-                          style={{ color: getMetricColor('winRate', backtestResults.winRate) }}
-                        >
-                          {backtestResults.winRate.toFixed(1)}%
-                        </span>
-                        <span className={styles.metricLabel}>Win Rate</span>
-                      </div>
-                      <div className={styles.metric}>
-                        <span 
-                          className={styles.metricValue}
-                          style={{ color: getMetricColor('sharpeRatio', backtestResults.sharpeRatio) }}
-                        >
-                          {backtestResults.sharpeRatio.toFixed(2)}
-                        </span>
-                        <span className={styles.metricLabel}>Sharpe Ratio</span>
-                      </div>
-                      <div className={styles.metric}>
-                        <span className={styles.metricValue}>
-                          {backtestResults.avgReturn > 0 ? '+' : ''}{backtestResults.avgReturn.toFixed(2)}%
-                        </span>
-                        <span className={styles.metricLabel}>Avg Return</span>
-                      </div>
-                      <div className={styles.metric}>
-                        <span 
-                          className={styles.metricValue}
-                          style={{ color: getMetricColor('maxDrawdown', backtestResults.maxDrawdown) }}
-                        >
-                          {backtestResults.maxDrawdown.toFixed(1)}%
-                        </span>
-                        <span className={styles.metricLabel}>Max Drawdown</span>
-                      </div>
-                      <div className={styles.metric}>
-                        <span className={styles.metricValue}>{backtestResults.totalTrades}</span>
-                        <span className={styles.metricLabel}>Total Trades</span>
-                      </div>
-                      <div className={styles.metric}>
-                        <span className={styles.metricValue}>{backtestResults.profitFactor.toFixed(2)}</span>
-                        <span className={styles.metricLabel}>Profit Factor</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Recent Trades */}
-                  <div className={styles.tradesPanel}>
-                    <div className={styles.panelHeader}>
-                      <h3>Recent Trades</h3>
-                    </div>
-                    <div className={styles.tradesList}>
-                      {backtestResults.trades.slice(0, 5).map(trade => (
-                        <div key={trade.id} className={styles.tradeItem}>
-                          <div className={styles.tradeInfo}>
-                            <span className={`${styles.tradeType} ${styles[trade.type.toLowerCase()]}`}>
-                              {trade.type}
-                            </span>
-                            <span className={styles.tradePrice}>${trade.price.toFixed(2)}</span>
-                            <span className={styles.tradeDate}>
-                              {new Date(trade.timestamp).toLocaleDateString()}
-                            </span>
-                          </div>
-                          {trade.pnl !== undefined && (
-                            <span className={`${styles.tradePnl} ${trade.pnl > 0 ? styles.profit : styles.loss}`}>
-                              {trade.pnl > 0 ? '+' : ''}${trade.pnl.toFixed(2)}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            // Welcome State
-            <div className={styles.welcomeState}>
-              <div className={styles.welcomeContent}>
-                <h2>Welcome to Signal Analysis</h2>
-                <p>Define your search context and analyze signals across multiple dimensions.</p>
-                
-                <div className={styles.quickStart}>
-                  <h3>Quick Start</h3>
-                  <div className={styles.quickStartOptions}>
-                    <button 
-                      className={styles.quickStartBtn}
-                      onClick={() => setActiveView('templates')}
-                    >
-                      Choose Template
-                    </button>
-                    <button 
-                      className={styles.quickStartBtn}
-                      onClick={() => {
-                        setActiveView('builder');
-                        addCondition('entry');
-                      }}
-                    >
-                      Build from Scratch
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </main>
     </div>

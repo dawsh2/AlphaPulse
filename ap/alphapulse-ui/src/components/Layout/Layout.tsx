@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import { Navigation } from '../Navigation/Navigation';
 import { GlobalAIChat } from '../common/GlobalAIChat';
 import styles from './Layout.module.css';
