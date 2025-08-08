@@ -479,6 +479,8 @@ const ResearchPage: React.FC = () => {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [notebookCells, setNotebookCells] = useState<NotebookCell[]>([]);
   const [activeCell, setActiveCell] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile sidebar state
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   // Initialize with correct theme detection
   const [theme, setTheme] = useState(() => {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
@@ -640,6 +642,16 @@ const ResearchPage: React.FC = () => {
         content: `import admf\nimport pandas as pd\nimport numpy as np\nfrom analysis_lib import *\n\n# Load sample data\nsignals = admf.load_signals(strategy_type='ema_cross', limit=5)\nprint(f"Loaded {len(signals)} signal traces for analysis")`
       }
     ]);
+  }, []);
+
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Check if opened from Explore page with strategy data or builder request
@@ -1504,8 +1516,36 @@ const ResearchPage: React.FC = () => {
 
   return (
     <div className={styles.researchContainer}>
+      {/* Mobile Menu Button */}
+      {isMobile && (
+        <button
+          className={styles.mobileMenuButton}
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          style={{
+            position: 'fixed',
+            top: 'calc(var(--mobile-header-height) + 10px)',
+            left: '10px',
+            zIndex: 250,
+            padding: '8px',
+            background: 'var(--color-bg-primary)',
+            border: '2px solid var(--color-text-primary)',
+            borderRadius: 'var(--radius-sm)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+      )}
+      
       {/* Sidebar */}
-      <aside className={styles.snippetsSidebar}>
+      <aside className={`${styles.snippetsSidebar} ${sidebarOpen ? styles.open : ''}`}>
         <div className={styles.sidebarHeader}>
           <div className={styles.sidebarTabs}>
             <button 

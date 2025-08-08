@@ -223,7 +223,7 @@ export const NewsPage: React.FC = () => {
 
   // Generate more realistic earnings calendar
   const generateEarningsCalendar = () => {
-    const earningsStocks = [
+    const earningsStocks: Array<{ ticker: string; importance: 'high' | 'medium' | 'low' }> = [
       { ticker: "AAPL", importance: "high" },
       { ticker: "MSFT", importance: "high" },
       { ticker: "GOOGL", importance: "high" },

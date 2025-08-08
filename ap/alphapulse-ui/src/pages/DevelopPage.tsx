@@ -415,13 +415,20 @@ if __name__ == "__main__":
               </svg>
             </button>
             <button 
-              className={`${styles.sidebarTab} ${sidebarView === 'search' ? styles.active : ''}`}
-              onClick={() => setSidebarView('search')}
-              title="Search"
+              className={`${styles.sidebarTab} ${outputOpen ? styles.active : ''}`}
+              onClick={() => {
+                const newOutputOpen = !outputOpen;
+                setOutputOpen(newOutputOpen);
+                if (newOutputOpen && splitSize === 0) {
+                  // Set default split size to 50% when opening terminal
+                  setTimeout(() => setSplitSize(calculateDefaultSplitSize()), 100);
+                }
+              }}
+              title="Console"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
               </svg>
             </button>
             <button 
@@ -548,19 +555,6 @@ if __name__ == "__main__":
                   <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                   <polyline points="17 21 17 13 7 13 7 21"></polyline>
                   <polyline points="7 3 7 8 15 8"></polyline>
-                </svg>
-              </button>
-              <button className={styles.actionButton} onClick={() => {
-                const newOutputOpen = !outputOpen;
-                setOutputOpen(newOutputOpen);
-                if (newOutputOpen && splitSize === 0) {
-                  // Set default split size to 50% when opening terminal
-                  setTimeout(() => setSplitSize(calculateDefaultSplitSize()), 100);
-                }
-              }} title="Toggle Terminal">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="4 17 10 11 4 5"></polyline>
-                  <line x1="12" y1="19" x2="20" y2="19"></line>
                 </svg>
               </button>
               <button className={styles.actionButton} onClick={() => {
