@@ -664,7 +664,7 @@ const ResearchPage: React.FC = () => {
   // Handle window resize for mobile detection
   // Load datasets when data tab is active
   useEffect(() => {
-    if (activeTab === 'data' && datasets.length === 0) {
+    if (mainView === 'data' && datasets.length === 0) {
       setLoadingDatasets(true);
       dataStorage.getDatasets()
         .then(data => {
@@ -676,7 +676,7 @@ const ResearchPage: React.FC = () => {
           setLoadingDatasets(false);
         });
     }
-  }, [activeTab]);
+  }, [mainView]);
 
   useEffect(() => {
     const handleResize = () => {
