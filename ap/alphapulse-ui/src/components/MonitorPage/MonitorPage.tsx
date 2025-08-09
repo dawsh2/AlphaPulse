@@ -1,15 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createChart } from 'lightweight-charts';
 import styles from './MonitorPage.module.css';
+import { exchangeManager } from '../../services/exchanges';
+import type { MarketData, ExchangeType } from '../../services/exchanges';
+import { dataStorage, dataFetcher } from '../../services/data';
 
-interface MarketData {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  signal?: 'buy' | 'sell';
+interface KrakenOHLC {
+  channel: string;
+  type: string;
+  data: {
+    symbol: string;
+    timestamp: string;
+    open: string;
+    high: string;
+    low: string;
+    close: string;
+    vwap: string;
+    volume: string;
+    count: number;
+    interval_begin: string;
+  }[];
 }
 
 interface EventData {
@@ -49,8 +59,10 @@ const MonitorPage: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentBar, setCurrentBar] = useState(50);
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
-  const [symbol, setSymbol] = useState('SPY');
-  const [timeframe, setTimeframe] = useState('5m');
+  const [symbol, setSymbol] = useState('BTC/USD');
+  const [exchange, setExchange] = useState<ExchangeType>('coinbase');
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+  const [timeframe, setTimeframe] = useState('1m');
   const [selectedStrategy, setSelectedStrategy] = useState('Mean Reversion v2');
   const [timeframeDropdownOpen, setTimeframeDropdownOpen] = useState(false);
   const [strategyDropdownOpen, setStrategyDropdownOpen] = useState(false);
@@ -62,55 +74,13 @@ const MonitorPage: React.FC = () => {
   const chartRef = useRef<any>(null);
   const candleSeriesRef = useRef<any>(null);
   const playbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   // Data
   const [marketData, setMarketData] = useState<MarketData[]>([]);
   const [eventData, setEventData] = useState<EventData[]>([]);
 
-  // Mock data generators
-  const generateMockData = (): MarketData[] => {
-    const data: MarketData[] = [];
-    const basePrice = 420;
-    const now = new Date();
-    const events: EventData[] = [];
-
-    for (let i = 0; i < 390; i++) { // 390 minutes in trading day
-      const time = new Date(now.getTime() - (390 - i) * 60000);
-      const random = Math.random();
-      const trend = Math.sin(i / 50) * 5;
-      const noise = (random - 0.5) * 2;
-
-      const open = basePrice + trend + noise + (i > 0 ? data[i-1].close - basePrice : 0) * 0.3;
-      const close = open + (Math.random() - 0.5) * 1;
-      const high = Math.max(open, close) + Math.random() * 0.5;
-      const low = Math.min(open, close) - Math.random() * 0.5;
-      const volume = Math.floor(1000000 + Math.random() * 2000000);
-
-      const signal = i % 50 === 0 ? (Math.random() > 0.5 ? 'buy' : 'sell') : undefined;
-
-      data.push({
-        time: Math.floor(time.getTime() / 1000),
-        open,
-        high,
-        low,
-        close,
-        volume,
-        signal
-      });
-
-      // Add event data
-      if (signal) {
-        events.push({
-          time: time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          type: signal,
-          description: `${signal.toUpperCase()} signal generated at $${close.toFixed(2)}`
-        });
-      }
-    }
-
-    setEventData(events);
-    return data;
-  };
+  // Mock data and strategies remain unchanged
 
   const mockMetrics: MetricData = {
     totalPnL: 2345.67,
@@ -129,15 +99,26 @@ const MonitorPage: React.FC = () => {
 
   // Chart initialization
   const initChart = () => {
-    if (!chartContainerRef.current) return;
+    if (!chartContainerRef.current) {
+      console.error('Chart container not found');
+      return;
+    }
+
+    const containerWidth = chartContainerRef.current.clientWidth;
+    const containerHeight = chartContainerRef.current.clientHeight;
+    
+    if (!containerWidth || !containerHeight) {
+      console.error('Chart container has no dimensions', { containerWidth, containerHeight });
+      return;
+    }
 
     // Detect theme
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
                    window.matchMedia('(prefers-color-scheme: dark)').matches;
 
     const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
+      width: containerWidth,
+      height: containerHeight,
       layout: {
         background: { color: 'transparent' },
         textColor: isDark ? '#f0f6fc' : '#33332d',
@@ -161,8 +142,33 @@ const MonitorPage: React.FC = () => {
           labelBackgroundColor: isDark ? '#262931' : '#f5f2ea'
         }
       },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true
+      },
+      handleScale: {
+        axisPressedMouseMove: {
+          time: true,
+          price: true
+        },
+        mouseWheel: true,
+        pinch: true
+      },
       rightPriceScale: {
         borderColor: isDark ? '#383c45' : '#e5e0d5',
+        mode: 0, // Normal mode (not logarithmic)
+        autoScale: true, // Keep auto-scale for now
+        invertScale: false,
+        alignLabels: true,
+        borderVisible: true,
+        entireTextOnly: false,
+        visible: true,
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1
+        }
       },
       timeScale: {
         borderColor: isDark ? '#383c45' : '#e5e0d5',
@@ -183,29 +189,80 @@ const MonitorPage: React.FC = () => {
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
 
-    // Start with first 50 bars
-    updateChart(50);
+    // Show all available data
+    if (marketData.length > 0) {
+      candleSeries.setData(marketData as any);
+      setCurrentBar(marketData.length);
+    }
+    
+    // Add custom wheel handler for Y-axis zoom
+    const wheelHandler = (e: WheelEvent) => {
+      if (!chartRef.current) return;
+      
+      // Check if we're over the price scale area or holding shift
+      const rect = chartContainerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      
+      const isOverPriceScale = e.clientX > rect.right - 60; // Price scale is ~60px wide
+      
+      if (e.shiftKey || isOverPriceScale) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const priceScale = candleSeries.priceScale();
+        const logicalRange = priceScale.getVisibleLogicalRange();
+        
+        if (logicalRange) {
+          // Zoom factor
+          const scaleFactor = e.deltaY > 0 ? 1.05 : 0.95;
+          
+          // Get current visible price range
+          const currentRange = candleSeries.priceScale().getVisiblePriceRange();
+          if (currentRange) {
+            const center = (currentRange.from + currentRange.to) / 2;
+            const range = currentRange.to - currentRange.from;
+            const newRange = range * scaleFactor;
+            
+            // Apply new range
+            candleSeries.priceScale().setVisiblePriceRange({
+              from: center - newRange / 2,
+              to: center + newRange / 2
+            });
+          }
+        }
+      }
+    };
+    
+    if (chartContainerRef.current) {
+      chartContainerRef.current.addEventListener('wheel', wheelHandler, { passive: false });
+      
+      // Store handler for cleanup
+      (chartContainerRef.current as any)._wheelHandler = wheelHandler;
+    }
   };
 
-  // Update chart data
+  // Update chart data for playback mode
   const updateChart = (bars: number) => {
     if (!candleSeriesRef.current || !marketData.length) return;
 
-    const visibleData = marketData.slice(0, bars);
-    candleSeriesRef.current.setData(visibleData);
+    // For playback mode, show limited data
+    if (isPlaying) {
+      const visibleData = marketData.slice(0, bars);
+      candleSeriesRef.current.setData(visibleData as any);
+      
+      // Add markers for signals
+      const markers = visibleData
+        .filter(d => d.signal)
+        .map(d => ({
+          time: d.time,
+          position: d.signal === 'buy' ? 'belowBar' : 'aboveBar',
+          color: d.signal === 'buy' ? '#3fb950' : '#f85149',
+          shape: d.signal === 'buy' ? 'arrowUp' : 'arrowDown',
+          text: d.signal!.toUpperCase()
+        }));
 
-    // Add markers for signals
-    const markers = visibleData
-      .filter(d => d.signal)
-      .map(d => ({
-        time: d.time,
-        position: d.signal === 'buy' ? 'belowBar' : 'aboveBar',
-        color: d.signal === 'buy' ? '#3fb950' : '#f85149',
-        shape: d.signal === 'buy' ? 'arrowUp' : 'arrowDown',
-        text: d.signal!.toUpperCase()
-      }));
-
-    candleSeriesRef.current.setMarkers(markers as any);
+      candleSeriesRef.current.setMarkers(markers as any);
+    }
     setCurrentBar(bars);
   };
 
@@ -262,23 +319,248 @@ const MonitorPage: React.FC = () => {
 
   // Effects
   useEffect(() => {
-    const data = generateMockData();
-    setMarketData(data);
-  }, []);
-
-  useEffect(() => {
-    if (marketData.length > 0) {
-      initChart();
+    // Set the exchange
+    exchangeManager.setExchange(exchange);
+    const service = exchangeManager.getService();
+    
+    if (!service) {
+      console.error('No exchange service available');
+      return;
     }
 
+    // Backfill historical data
+    const backfillData = async () => {
+      try {
+        // First, try to load from local storage
+        console.log(`[${exchange}] Checking local storage for ${symbol} data...`);
+        
+        const cachedData = await dataStorage.queryCandles({
+          symbol,
+          exchange,
+          interval: '1m',
+          limit: 10000 // Get up to ~7 days of data
+        });
+        
+        if (cachedData.length > 0) {
+          // Convert stored data to MarketData format
+          const marketData: MarketData[] = cachedData
+            .sort((a, b) => a.timestamp - b.timestamp)
+            .map(candle => ({
+              time: candle.timestamp,
+              open: candle.open,
+              high: candle.high,
+              low: candle.low,
+              close: candle.close,
+              volume: candle.volume
+            }));
+          
+          console.log(`[${exchange}] Loaded ${marketData.length} candles from cache`);
+          setMarketData(marketData);
+          setCurrentBar(marketData.length);
+          
+          // Add event
+          setEventData(prev => [...prev, {
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            type: 'signal',
+            description: `[${exchange}] Loaded ${marketData.length} candles from cache`
+          }]);
+          
+          // Check if we need to update in background
+          dataFetcher.updateIfNeeded(symbol, exchange).catch(console.error);
+        } else {
+          // No cached data, fetch from exchange
+          console.log(`[${exchange}] No cached data, fetching from API...`);
+          
+          // For initial load, fetch and store 7 days of data
+          if (exchange === 'coinbase' && (symbol === 'BTC/USD' || symbol === 'ETH/USD')) {
+            const result = await dataFetcher.fetchAndStoreHistoricalData(symbol, 7);
+            if (result.success) {
+              // Load the newly fetched data
+              const newData = await dataStorage.queryCandles({
+                symbol,
+                exchange,
+                interval: '1m',
+                limit: 10000
+              });
+              
+              const marketData: MarketData[] = newData
+                .sort((a, b) => a.timestamp - b.timestamp)
+                .map(candle => ({
+                  time: candle.timestamp,
+                  open: candle.open,
+                  high: candle.high,
+                  low: candle.low,
+                  close: candle.close,
+                  volume: candle.volume
+                }));
+              
+              setMarketData(marketData);
+              setCurrentBar(marketData.length);
+              
+              setEventData(prev => [...prev, {
+                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                type: 'signal',
+                description: `[${exchange}] Fetched and cached ${result.candleCount} candles`
+              }]);
+            }
+          } else {
+            // Fallback to regular API fetch for other exchanges
+            const historicalData = await service.fetchHistoricalData(symbol, 30);
+            console.log(`[${exchange}] Loaded ${historicalData.length} historical candles`);
+            
+            setMarketData(historicalData);
+            setCurrentBar(historicalData.length);
+            
+            setEventData(prev => [...prev, {
+              time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              type: 'signal',
+              description: `[${exchange}] Loaded ${historicalData.length} historical candles`
+            }]);
+          }
+        }
+      } catch (error) {
+        console.error(`[${exchange}] Failed to backfill data:`, error);
+      }
+    };
+
+    // Connect to exchange WebSocket
+    const connectToExchange = () => {
+      const ws = service.connect(symbol, (newCandle: MarketData) => {
+        console.log(`[${exchange}] New candle:`, {
+          time: new Date(newCandle.time * 1000).toISOString(),
+          ohlc: `O:${newCandle.open.toFixed(2)} H:${newCandle.high.toFixed(2)} L:${newCandle.low.toFixed(2)} C:${newCandle.close.toFixed(2)}`
+        });
+        
+        // Update live price
+        setLivePrice(newCandle.close);
+        
+        // Update market data
+        setMarketData(prev => {
+          const updated = [...prev];
+          const existingIndex = updated.findIndex(d => d.time === newCandle.time);
+          
+          if (existingIndex >= 0) {
+            // Update existing candle
+            updated[existingIndex] = newCandle;
+          } else {
+            // Add new candle only if it's newer
+            const lastCandle = updated[updated.length - 1];
+            if (!lastCandle || newCandle.time > lastCandle.time) {
+              updated.push(newCandle);
+              if (updated.length > 500) {
+                updated.shift();
+              }
+            }
+          }
+          
+          updated.sort((a, b) => a.time - b.time);
+          return updated;
+        });
+      });
+      
+      if (ws) {
+        wsRef.current = ws;
+        
+        // Add connection event
+        setEventData(prev => [...prev, {
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          type: 'signal',
+          description: `Connected to ${exchange} live ${symbol} feed`
+        }]);
+      }
+    };
+
+    let cancelled = false;
+    const abortController = new AbortController();
+    
+    // First backfill historical data, then connect WebSocket
+    const init = async () => {
+      try {
+        await backfillData();
+        if (!cancelled) {
+          // Small delay to avoid rapid connect/disconnect in dev
+          setTimeout(() => {
+            if (!cancelled) {
+              connectToExchange();
+            }
+          }, 100);
+        }
+      } catch (error) {
+        console.error('Failed to initialize:', error);
+      }
+    };
+    
+    init();
+    
+    // Cleanup on unmount or symbol change
     return () => {
+      cancelled = true;
+      abortController.abort();
+      if (service) {
+        service.disconnect();
+      }
+      if (wsRef.current) {
+        wsRef.current = null;
+      }
+    };
+  }, [symbol, exchange]);
+
+  // Initialize chart when container is ready
+  useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 5;
+    
+    const tryInitChart = () => {
+      if (!chartRef.current && chartContainerRef.current) {
+        const width = chartContainerRef.current.clientWidth;
+        const height = chartContainerRef.current.clientHeight;
+        
+        console.log(`Chart init attempt ${retryCount + 1}:`, { width, height, hasContainer: !!chartContainerRef.current });
+        
+        if (width > 0 && height > 0) {
+          initChart();
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(tryInitChart, 200);
+        } else {
+          console.error('Failed to initialize chart after', maxRetries, 'attempts');
+        }
+      }
+    };
+    
+    // Start initialization after a small delay
+    const timer = setTimeout(tryInitChart, 100);
+
+    return () => {
+      clearTimeout(timer);
+      // Remove wheel handler
+      if (chartContainerRef.current && (chartContainerRef.current as any)._wheelHandler) {
+        chartContainerRef.current.removeEventListener('wheel', (chartContainerRef.current as any)._wheelHandler);
+        delete (chartContainerRef.current as any)._wheelHandler;
+      }
       if (chartRef.current) {
         chartRef.current.remove();
+        chartRef.current = null;
+        candleSeriesRef.current = null;
       }
       if (playbackIntervalRef.current) {
         clearInterval(playbackIntervalRef.current);
       }
     };
+  }, []); // Empty dependency array - only init once
+
+  // Update chart when market data changes
+  useEffect(() => {
+    if (candleSeriesRef.current && marketData.length > 0) {
+      console.log(`Updating chart with ${marketData.length} candles`);
+      // Log first and last few candles to debug
+      console.log('First candle:', marketData[0]);
+      console.log('Last candles:', marketData.slice(-3));
+      
+      candleSeriesRef.current.setData(marketData as any);
+    } else if (!candleSeriesRef.current && marketData.length > 0) {
+      console.log('Chart not ready yet, data available:', marketData.length);
+    }
   }, [marketData]);
 
   useEffect(() => {
@@ -460,40 +742,25 @@ const MonitorPage: React.FC = () => {
                       onMouseEnter={() => setSymbolDropdownOpen(true)}
                       onMouseLeave={() => setSymbolDropdownOpen(false)}
                     >
-                      <button
-                        className={`${styles.dropdownOption} ${symbol === 'SPY' ? styles.active : ''}`}
-                        onClick={() => { setSymbol('SPY'); setSymbolDropdownOpen(false); }}
-                      >
-                        SPY
-                      </button>
-                      <button
-                        className={`${styles.dropdownOption} ${symbol === 'QQQ' ? styles.active : ''}`}
-                        onClick={() => { setSymbol('QQQ'); setSymbolDropdownOpen(false); }}
-                      >
-                        QQQ
-                      </button>
-                      <button
-                        className={`${styles.dropdownOption} ${symbol === 'IWM' ? styles.active : ''}`}
-                        onClick={() => { setSymbol('IWM'); setSymbolDropdownOpen(false); }}
-                      >
-                        IWM
-                      </button>
-                      <button
-                        className={`${styles.dropdownOption} ${symbol === 'AAPL' ? styles.active : ''}`}
-                        onClick={() => { setSymbol('AAPL'); setSymbolDropdownOpen(false); }}
-                      >
-                        AAPL
-                      </button>
-                      <button
-                        className={`${styles.dropdownOption} ${symbol === 'TSLA' ? styles.active : ''}`}
-                        onClick={() => { setSymbol('TSLA'); setSymbolDropdownOpen(false); }}
-                      >
-                        TSLA
-                      </button>
+                      {exchangeManager.getSupportedSymbols().map((sym) => (
+                        <button
+                          key={sym}
+                          className={`${styles.dropdownOption} ${symbol === sym ? styles.active : ''}`}
+                          onClick={() => { setSymbol(sym); setSymbolDropdownOpen(false); }}
+                        >
+                          {sym}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
                 <span className={styles.timeframe}>{timeframe}</span>
+                {livePrice && (
+                  <span className={styles.liveIndicator}>
+                    <span className={styles.liveDot}></span>
+                    LIVE: ${livePrice.toFixed(2)}
+                  </span>
+                )}
               </div>
               {currentBarData && (
                 <div className={styles.priceInfo}>
@@ -569,6 +836,21 @@ const MonitorPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Exchange Selector */}
+            <div className={styles.controlGroup}>
+              <label className={styles.controlLabel}>Exchange:</label>
+              <select 
+                className="form-input form-input-sm"
+                value={exchange}
+                onChange={(e) => setExchange(e.target.value as ExchangeType)}
+                style={{ width: '100px' }}
+              >
+                {exchangeManager.getAvailableExchanges().map(ex => (
+                  <option key={ex.value} value={ex.value}>{ex.label}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Symbol & Timeframe */}
             <div className={styles.controlGroup}>
               <input
@@ -577,7 +859,7 @@ const MonitorPage: React.FC = () => {
                 placeholder="Symbol"
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
-                style={{ width: '80px' }}
+                style={{ width: '100px' }}
               />
               <div 
                 className={styles.dropdownWrapper}
@@ -590,7 +872,7 @@ const MonitorPage: React.FC = () => {
                 </button>
                 {timeframeDropdownOpen && (
                   <div className={styles.dropdownMenu}>
-                    {['1m', '5m', '15m', '1h', '1d'].map((tf) => (
+                    {['tick', '1m', '5m', '15m', '1h', '1d'].map((tf) => (
                       <button
                         key={tf}
                         className={`${styles.dropdownOption} ${timeframe === tf ? styles.active : ''}`}

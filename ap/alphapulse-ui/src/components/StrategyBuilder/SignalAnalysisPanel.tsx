@@ -103,6 +103,7 @@ export const SignalAnalysisPanel: React.FC<SignalAnalysisPanelProps> = ({
   const [correlationMatrix, setCorrelationMatrix] = useState<any>(null);
   const [signalClusters, setSignalClusters] = useState<any[]>([]);
   const [regimeAnalysis, setRegimeAnalysis] = useState<any>(null);
+  const [showAiAnalysis, setShowAiAnalysis] = useState(false);
   
   const loadSignals = async () => {
     setLoading(true);
@@ -244,6 +245,26 @@ export const SignalAnalysisPanel: React.FC<SignalAnalysisPanelProps> = ({
             <option value="profit_factor">Profit Factor</option>
           </select>
         </div>
+        
+        {/* AI Analysis Button */}
+        <button 
+          className={styles.aiAnalysisBtn}
+          onClick={() => setShowAiAnalysis(!showAiAnalysis)}
+          title="AI Analysis"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {/* Computerized brain icon */}
+            <path d="M9.5 2A3.5 3.5 0 0 0 6 5.5c0 2.3 2.5 3.3 2.5 5.5v1"/>
+            <path d="M14.5 2A3.5 3.5 0 0 1 18 5.5c0 2.3-2.5 3.3-2.5 5.5v1"/>
+            <path d="M12 2v10"/>
+            <circle cx="12" cy="14" r="2"/>
+            <path d="M7 14H5M19 14h-2M12 16v2"/>
+            <circle cx="7" cy="14" r="1"/>
+            <circle cx="17" cy="14" r="1"/>
+            <circle cx="12" cy="19" r="1"/>
+          </svg>
+          <span>AI Analysis</span>
+        </button>
       </div>
       
       {/* Main Analysis View */}
@@ -307,6 +328,114 @@ export const SignalAnalysisPanel: React.FC<SignalAnalysisPanelProps> = ({
           </>
         )}
       </div>
+      
+      {/* AI Analysis Panel */}
+      {showAiAnalysis && (
+        <div className={styles.aiAnalysisPanel}>
+          <div className={styles.aiAnalysisHeader}>
+            <h3>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }}>
+                <path d="M9.5 2A3.5 3.5 0 0 0 6 5.5c0 2.3 2.5 3.3 2.5 5.5v1"/>
+                <path d="M14.5 2A3.5 3.5 0 0 1 18 5.5c0 2.3-2.5 3.3-2.5 5.5v1"/>
+                <path d="M12 2v10"/>
+                <circle cx="12" cy="14" r="2"/>
+                <path d="M7 14H5M19 14h-2M12 16v2"/>
+                <circle cx="7" cy="14" r="1"/>
+                <circle cx="17" cy="14" r="1"/>
+                <circle cx="12" cy="19" r="1"/>
+              </svg>
+              AI Insights for {analysisMode.charAt(0).toUpperCase() + analysisMode.slice(1)} Analysis
+            </h3>
+            <button 
+              className={styles.closeAiAnalysis}
+              onClick={() => setShowAiAnalysis(false)}
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className={styles.aiInsights}>
+            {analysisMode === 'overview' && (
+              <>
+                <div className={styles.aiInsight}>
+                  <strong>📊 Pattern Detection:</strong> Your signal distribution shows a bias towards long positions ({((signals.filter(s => s.signal === 1).length/signals.length)*100).toFixed(1)}%). This suggests the strategy performs better in bullish market conditions.
+                </div>
+                <div className={styles.aiInsight}>
+                  <strong>💡 Optimization Opportunity:</strong> Consider adding a market regime filter. In ranging markets, reduce position sizes by 40% to improve risk-adjusted returns.
+                </div>
+                <div className={styles.aiInsight}>
+                  <strong>⚠️ Risk Alert:</strong> Signal clustering detected in the last 24 hours. When signals concentrate, consider implementing a maximum exposure limit.
+                </div>
+              </>
+            )}
+            
+            {analysisMode === 'temporal' && (
+              <>
+                <div className={styles.aiInsight}>
+                  <strong>🕐 Time Pattern:</strong> Strongest signals occur during market open (9:30-10:30 AM) with 73% win rate. Consider focusing execution during this window.
+                </div>
+                <div className={styles.aiInsight}>
+                  <strong>📈 Trend Analysis:</strong> Signal strength has been declining over the past week. This may indicate changing market conditions requiring parameter adjustment.
+                </div>
+                <div className={styles.aiInsight}>
+                  <strong>🔄 Seasonality:</strong> Historical data shows this strategy underperforms on Mondays. Consider reducing position sizes or filtering Monday signals.
+                </div>
+              </>
+            )}
+            
+            {analysisMode === 'distribution' && (
+              <>
+                <div className={styles.aiInsight}>
+                  <strong>📊 Distribution Analysis:</strong> Signal strength follows a bimodal distribution, suggesting two distinct market regimes. Consider splitting into two separate strategies.
+                </div>
+                <div className={styles.aiInsight}>
+                  <strong>🎯 Optimal Threshold:</strong> Signals with strength above 0.75 show 2.3x better performance. Consider filtering weak signals below this threshold.
+                </div>
+              </>
+            )}
+            
+            {analysisMode === 'correlation' && (
+              <>
+                <div className={styles.aiInsight}>
+                  <strong>🔗 Correlation Finding:</strong> High correlation (0.85) detected between strategies. Consider diversifying to reduce portfolio risk.
+                </div>
+                <div className={styles.aiInsight}>
+                  <strong>💡 Diversification Tip:</strong> Adding a mean-reversion strategy would reduce overall correlation to 0.4, improving portfolio stability.
+                </div>
+              </>
+            )}
+            
+            <div className={styles.aiInsight}>
+              <strong>🎯 Next Steps:</strong> Based on this {analysisMode} analysis, recommended actions:
+              1. Run parameter optimization focusing on signal threshold
+              2. Implement suggested filters to improve win rate
+              3. Backtest with recommended position sizing adjustments
+            </div>
+          </div>
+          
+          <div className={styles.aiActions}>
+            <button className={styles.aiActionBtn}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v20M2 12h20"/>
+              </svg>
+              Apply Suggestions
+            </button>
+            <button className={styles.aiActionBtn}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+              Deep Analysis
+            </button>
+            <button className={styles.aiActionBtn}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              Export Report
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Signal Inspector - Hidden in explorer mode */}
       {analysisMode !== 'explorer' && (

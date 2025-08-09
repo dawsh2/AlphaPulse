@@ -65,7 +65,8 @@ find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name 'CNAME' -exec rm -rf {} \;
 
 # Copy new files from build output
 echo "📂 Copying new files from React build..."
-cp -r /Users/daws/alphapulse/ap/alphapulse-ui/dist/* .
+# Use rsync for more reliable copying
+rsync -av --exclude='.git' /Users/daws/alphapulse/ap/alphapulse-ui/dist/ ./
 
 # Restore CNAME file if it was backed up
 if [ ! -z "$CNAME_BACKUP" ]; then

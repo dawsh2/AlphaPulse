@@ -1,6 +1,5 @@
 import React, { type ReactNode } from 'react';
 import { Navigation } from '../Navigation/Navigation';
-import { GlobalAIChat } from '../common/GlobalAIChat';
 import styles from './Layout.module.css';
 
 interface LayoutProps {
@@ -14,7 +13,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <main className={styles.mainContent}>
         {children}
       </main>
-      <GlobalAIChat />
     </div>
   );
 };

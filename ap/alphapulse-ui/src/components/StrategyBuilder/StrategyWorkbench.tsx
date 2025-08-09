@@ -194,6 +194,7 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
   
   const [optimizationResults, setOptimizationResults] = useState<OptimizationResult[]>([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [showAiAnalysis, setShowAiAnalysis] = useState(false);
 
   const loadTemplate = (template: StrategyTemplate) => {
     setSelectedTemplate(template);
@@ -905,6 +906,101 @@ export const StrategyWorkbench: React.FC<StrategyWorkbenchProps> = ({ isOpen, on
                   </div>
                 </div>
               </div>
+              
+              {/* AI Analysis Section - shown when backtest results are available */}
+              {backtestResults && (
+                <div className={styles.conditionSection}>
+                  <div className={styles.sectionHeader}>
+                    <h3>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }}>
+                        {/* Computerized brain icon */}
+                        <path d="M9.5 2A3.5 3.5 0 0 0 6 5.5c0 2.3 2.5 3.3 2.5 5.5v1"/>
+                        <path d="M14.5 2A3.5 3.5 0 0 1 18 5.5c0 2.3-2.5 3.3-2.5 5.5v1"/>
+                        <path d="M12 2v10"/>
+                        <circle cx="12" cy="14" r="2"/>
+                        <path d="M7 14H5M19 14h-2M12 16v2"/>
+                        <circle cx="7" cy="14" r="1"/>
+                        <circle cx="17" cy="14" r="1"/>
+                        <circle cx="12" cy="19" r="1"/>
+                      </svg>
+                      AI Analysis
+                    </h3>
+                    <button
+                      className={styles.toggleAnalysisBtn}
+                      onClick={() => setShowAiAnalysis(!showAiAnalysis)}
+                    >
+                      {showAiAnalysis ? 'Hide' : 'Show'} Analysis
+                    </button>
+                  </div>
+                  
+                  {showAiAnalysis && (
+                    <div className={styles.aiAnalysisContent}>
+                      <div className={styles.backtestMetrics}>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricLabel}>Total Trades</span>
+                          <span className={styles.metricValue}>{backtestResults.totalTrades}</span>
+                        </div>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricLabel}>Win Rate</span>
+                          <span className={styles.metricValue}>{backtestResults.winRate.toFixed(1)}%</span>
+                        </div>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricLabel}>Avg Return</span>
+                          <span className={styles.metricValue}>{backtestResults.avgReturn.toFixed(2)}%</span>
+                        </div>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricLabel}>Sharpe Ratio</span>
+                          <span className={styles.metricValue}>{backtestResults.sharpeRatio.toFixed(2)}</span>
+                        </div>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricLabel}>Max Drawdown</span>
+                          <span className={styles.metricValue}>{backtestResults.maxDrawdown.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                      
+                      <div className={styles.aiInsights}>
+                        <div className={styles.insightItem}>
+                          <strong>📊 Pattern Analysis:</strong> Your strategy shows strong performance during trending markets. Consider adding a trend filter to improve results.
+                        </div>
+                        <div className={styles.insightItem}>
+                          <strong>💡 Optimization Suggestion:</strong> The win rate of {backtestResults.winRate.toFixed(1)}% could be improved by tightening entry conditions. Expected improvement: +5-10%.
+                        </div>
+                        <div className={styles.insightItem}>
+                          <strong>⚠️ Risk Alert:</strong> Maximum drawdown of {backtestResults.maxDrawdown.toFixed(1)}% exceeds typical risk tolerance. Consider implementing dynamic position sizing.
+                        </div>
+                        <div className={styles.insightItem}>
+                          <strong>🎯 Next Steps:</strong> Run parameter optimization on RSI period (test 10-20) and stop loss percentage (test 2-5%).
+                        </div>
+                      </div>
+                      
+                      <div className={styles.aiActions}>
+                        <button className={styles.aiActionBtn}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 2v20M2 12h20"/>
+                          </svg>
+                          Generate Improved Strategy
+                        </button>
+                        <button className={styles.aiActionBtn}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                          </svg>
+                          Deep Dive Analysis
+                        </button>
+                        <button className={styles.aiActionBtn}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                          </svg>
+                          Export Report
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
         </div>
       </main>

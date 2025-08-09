@@ -25,20 +25,26 @@
 .searchWrapper {
   display: flex;
   align-items: stretch;
-  gap: 0;
-  border-radius: var(--radius-md);
-  box-shadow: -3px 5px var(--color-text-primary);
-  transition: all var(--transition-fast);
+  gap: var(--space-2);
   width: fit-content;
 }
 
-.searchWrapper:hover {
+.searchSortGroup {
+  display: flex;
+  align-items: stretch;
+  box-shadow: -3px 5px var(--color-text-primary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.searchSortGroup:hover {
   transform: translate(2px, -2px);
   box-shadow: -5px 7px var(--color-text-primary);
 }
 
 .searchInput {
   width: 500px;
+  max-width: calc(100vw - 200px); /* Account for buttons and padding */
   height: 50px;
   padding: var(--space-3) var(--space-4);
   font-family: var(--font-family-mono);
@@ -47,9 +53,40 @@
   border: 3px solid var(--color-text-primary);
   border-right: none;
   border-radius: var(--radius-md) 0 0 var(--radius-md);
+  box-shadow: none;
   color: var(--color-text-primary);
   transition: all var(--transition-fast);
   outline: none;
+}
+
+.searchInput:hover {
+  background: var(--color-bg-secondary);
+}
+
+.newStrategyBtn {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-primary);
+  border: 3px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -3px 5px var(--color-text-primary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.newStrategyBtn:hover {
+  transform: translate(2px, -2px);
+  box-shadow: -5px 7px var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+.newStrategyBtn:active {
+  transform: translate(0, 0);
+  box-shadow: -2px 3px var(--color-text-primary);
 }
 
 .searchInput:focus {
@@ -70,7 +107,9 @@
   font-size: var(--font-size-base);
   background: var(--color-bg-primary);
   border: 3px solid var(--color-text-primary);
+  border-left: none;
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  box-shadow: none;
   color: var(--color-text-primary);
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -779,4 +818,58 @@
 
 .tearsheetIconBtn svg {
   flex-shrink: 0;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .controlsBar {
+    padding: 0 var(--space-3);
+    margin-bottom: var(--space-3);
+  }
+
+  .searchWrapper {
+    flex: 1;
+    width: 100%;
+  }
+
+  .searchInput {
+    width: 100%;
+    max-width: none;
+    flex: 1;
+    font-size: var(--font-size-sm);
+    padding: var(--space-2) var(--space-3);
+    height: 44px;
+  }
+
+  .searchInput::placeholder {
+    font-size: var(--font-size-xs);
+  }
+
+  .sortButton {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-sm);
+    height: 44px;
+    min-width: 80px;
+  }
+
+  .catalogueContainer {
+    padding: var(--space-3);
+  }
+
+  .strategyGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .catalogueHeader {
+    margin-bottom: var(--space-3);
+  }
+
+  .catalogueTitle {
+    font-size: var(--font-size-xl);
+  }
+
+  .catalogueSubtitle {
+    font-size: var(--font-size-sm);
+  }
 }

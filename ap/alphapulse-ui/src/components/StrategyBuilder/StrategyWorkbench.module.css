@@ -2415,6 +2415,118 @@
   border-radius: var(--radius-md);
 }
 
+/* AI Analysis Styles */
+.toggleAnalysisBtn {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border: 2px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.toggleAnalysisBtn:hover {
+  background: var(--color-bg-tertiary);
+  transform: translate(1px, -1px);
+  box-shadow: -2px 3px var(--color-text-primary);
+}
+
+.aiAnalysisContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.backtestMetrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.metricItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.metricLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metricValue {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.aiInsights {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border: 2px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+}
+
+.insightItem {
+  padding: var(--space-2);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-primary);
+}
+
+.insightItem strong {
+  display: inline-block;
+  margin-bottom: var(--space-1);
+  color: var(--color-text-primary);
+}
+
+.aiActions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.aiActionBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border: 2px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.aiActionBtn:hover {
+  background: var(--color-bg-tertiary);
+  transform: translate(1px, -1px);
+  box-shadow: -2px 3px var(--color-text-primary);
+}
+
+.aiActionBtn:active {
+  transform: translate(0, 0);
+  box-shadow: -1px 2px var(--color-text-primary);
+}
+
 .tradeInfo {
   display: flex;
   align-items: center;

@@ -5,6 +5,8 @@ import exploreStyles from './ExplorePage.module.css';
 import { StrategyWorkbench } from '../components/StrategyBuilder/StrategyWorkbench';
 import Editor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
+import { dataStorage } from '../services/data';
+import type { DatasetInfo } from '../services/data';
 
 // Types
 interface CodeSnippet {
@@ -21,12 +23,23 @@ interface NotebookTemplate {
   cells: NotebookCell[];
 }
 
+interface AiMessage {
+  role: 'assistant' | 'user';
+  content: string;
+  timestamp?: string;
+}
+
 interface NotebookCell {
   id: string;
-  type: 'code' | 'markdown';
+  type: 'code' | 'markdown' | 'ai-chat';
   content: string;
   output?: string;
   isExecuting?: boolean;
+  showAiAnalysis?: boolean;
+  isAiChat?: boolean;
+  parentCellId?: string;
+  aiMessages?: AiMessage[];
+  chatInput?: string;
 }
 
 interface SavedNotebook {
@@ -61,7 +74,7 @@ interface TearsheetData {
 }
 
 type SidebarTab = 'builder' | 'notebooks';
-type MainView = 'explore' | 'notebook' | 'builder';
+type MainView = 'explore' | 'notebook' | 'builder' | 'data';
 type SortBy = 'new' | 'sharpe' | 'returns' | 'name' | 'winrate';
 
 // Strategy data - matching ExplorePage
@@ -481,6 +494,10 @@ const ResearchPage: React.FC = () => {
   const [activeCell, setActiveCell] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile sidebar state
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
+  const [loadingDatasets, setLoadingDatasets] = useState(false);
   // Initialize with correct theme detection
   const [theme, setTheme] = useState(() => {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
@@ -645,6 +662,22 @@ const ResearchPage: React.FC = () => {
   }, []);
 
   // Handle window resize for mobile detection
+  // Load datasets when data tab is active
+  useEffect(() => {
+    if (activeTab === 'data' && datasets.length === 0) {
+      setLoadingDatasets(true);
+      dataStorage.getDatasets()
+        .then(data => {
+          setDatasets(data);
+          setLoadingDatasets(false);
+        })
+        .catch(error => {
+          console.error('Failed to load datasets:', error);
+          setLoadingDatasets(false);
+        });
+    }
+  }, [activeTab]);
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -653,6 +686,32 @@ const ResearchPage: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Touch event handlers for swipe gestures
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientY);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isSwipeUp = distance > 50;
+    const isSwipeDown = distance < -50;
+    
+    if (isSwipeUp && !sidebarOpen && isMobile) {
+      // Swipe up to open sidebar
+      setSidebarOpen(true);
+    } else if (isSwipeDown && sidebarOpen && isMobile) {
+      // Swipe down to close sidebar
+      setSidebarOpen(false);
+    }
+  };
 
   // Check if opened from Explore page with strategy data or builder request
   useEffect(() => {
@@ -682,13 +741,27 @@ const ResearchPage: React.FC = () => {
   // Event handlers
   const handleTabSwitch = (tab: SidebarTab) => {
     setActiveTab(tab);
-    // Keep explore view as main content unless explicitly changing to builder/notebook
-    // This way the catalogue stays visible
+    
+    // When builder button is clicked, open default template
+    if (tab === 'builder') {
+      setMainView('builder');
+      // Set a default 'New Strategy' template
+      setSelectedTemplate('new_strategy');
+    } 
+    // When notebook button is clicked, open default notebook template
+    else if (tab === 'notebooks') {
+      setMainView('notebook');
+      // Load a default notebook template
+      if (notebookTemplates.length > 0) {
+        loadTemplate(notebookTemplates[0]); // Load first template as default
+      }
+    }
   };
   
   const handleOpenBuilder = () => {
     setActiveTab('builder');
     setMainView('builder');
+    setSelectedTemplate('new_strategy');
   };
 
   const toggleCategory = (category: string) => {
@@ -759,13 +832,50 @@ const ResearchPage: React.FC = () => {
     // Simulate code execution
     await new Promise(resolve => setTimeout(resolve, 1000));
 
+    // Generate different outputs based on cell content
+    const cell = notebookCells.find(c => c.id === cellId);
+    let output = 'Execution completed successfully.\nOutput: Sample analysis results...';
+    
+    if (cell?.content.includes('admf.load_signals')) {
+      output = `=== Overview ===
+Total Strategies Loaded: 3
+Time Range: 2023-01-01 to 2025-01-15
+Universe: US Equities (S&P 500)
+
+=== Temporal Analysis ===
+Best Performing Period: Q2 2024 (+18.5%)
+Worst Performing Period: Q3 2023 (-7.2%)
+Average Monthly Return: 2.3%
+Volatility: 15.8%
+
+=== Performance Metrics ===
+Sharpe Ratio: 1.87
+Max Drawdown: -12.4%
+Win Rate: 62.3%
+Profit Factor: 1.92`;
+    } else if (cell?.content.includes('plot') || cell?.content.includes('chart')) {
+      output = `[Chart Output]
+📊 Strategy Performance Chart Generated
+- Equity curve plotted with confidence bands
+- Drawdown periods highlighted in red
+- Key statistics overlaid`;
+    } else if (cell?.content.includes('backtest')) {
+      output = `=== Backtest Results ===
+Total Trades: 142
+Winning Trades: 89 (62.7%)
+Losing Trades: 53 (37.3%)
+Average Win: +3.2%
+Average Loss: -1.8%
+Expectancy: $1,247 per trade`;
+    }
+
     setNotebookCells(prev => 
       prev.map(cell => 
         cell.id === cellId 
           ? { 
               ...cell, 
               isExecuting: false, 
-              output: 'Execution completed successfully.\nOutput: Sample analysis results...' 
+              output
             } 
           : cell
       )
@@ -797,6 +907,17 @@ const ResearchPage: React.FC = () => {
 
   const handleNotebookClick = (e: React.MouseEvent, strategy: Strategy) => {
     e.stopPropagation();
+    
+    // On mobile, open the builder view instead of notebook
+    if (isMobile) {
+      setActiveTab('builder');
+      setMainView('builder');
+      setSelectedTemplate(strategy.id);
+      setSidebarOpen(false); // Close sidebar on mobile after selection
+      return;
+    }
+    
+    // Desktop behavior - open notebook
     const analysisCell: NotebookCell = {
       id: `cell-${Date.now()}`,
       type: 'markdown',
@@ -990,6 +1111,199 @@ const ResearchPage: React.FC = () => {
   };
 
   const renderSidebarContent = () => {
+    // When in explore view, show strategy directory
+    if (mainView === 'explore') {
+      const strategies = filterAndSortStrategies();
+      const strategyCategories = {
+        'Trending': strategies.filter(s => s.tags.includes('trending')),
+        'Mean Reversion': strategies.filter(s => s.tags.includes('mean-reversion')),
+        'Momentum': strategies.filter(s => s.tags.includes('momentum')),
+        'Machine Learning': strategies.filter(s => s.tags.includes('ml')),
+        'High Frequency': strategies.filter(s => s.tags.includes('high-frequency')),
+        'Options': strategies.filter(s => s.tags.includes('options')),
+        'Crypto': strategies.filter(s => s.tags.includes('crypto')),
+        'Forex': strategies.filter(s => s.tags.includes('forex'))
+      };
+
+      return (
+        <div className={styles.tabContent}>
+          {/* Categories with strategies - no header text */}
+          {Object.entries(strategyCategories).map(([category, categoryStrategies]) => (
+            categoryStrategies.length > 0 && (
+              <div key={category} className={styles.strategyCategory}>
+                <div 
+                  className={`${styles.categoryHeader} ${collapsedCategories.has(category) ? styles.collapsed : ''}`}
+                  onClick={() => toggleCategory(category)}
+                >
+                  <span className={styles.categoryArrow}>▼</span>
+                  <span>{category} ({categoryStrategies.length})</span>
+                </div>
+                {!collapsedCategories.has(category) && (
+                  <div className={styles.strategyList}>
+                    {categoryStrategies.slice(0, 5).map(strategy => (
+                      <div 
+                        key={strategy.id}
+                        className={styles.strategyItem}
+                        onClick={() => {
+                          setTearsheet({ strategy, isOpen: true });
+                        }}
+                      >
+                        <div className={styles.strategyName}>{strategy.title}</div>
+                        <div className={styles.strategyDesc}>
+                          {strategy.metrics.sharpe.toFixed(2)} Sharpe • {strategy.metrics.winRate}% Win
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          ))}
+        </div>
+      );
+    }
+    
+    // Data Explorer view
+    if (mainView === 'data') {
+      return (
+        <div className={styles.tabContent}>
+          {/* Cached Datasets */}
+          <div className={styles.dataCategory}>
+            <div 
+              className={`${styles.categoryHeader} ${collapsedCategories.has('Cached Data') ? styles.collapsed : ''}`}
+              onClick={() => toggleCategory('Cached Data')}
+            >
+              <span className={styles.categoryArrow}>▼</span>
+              <span>Cached Market Data (IndexedDB)</span>
+            </div>
+            {!collapsedCategories.has('Cached Data') && (
+              <div className={styles.datasetList}>
+                {loadingDatasets ? (
+                  <div className={styles.datasetItem}>
+                    <div className={styles.datasetName}>Loading datasets...</div>
+                  </div>
+                ) : datasets.length === 0 ? (
+                  <div className={styles.datasetItem}>
+                    <div className={styles.datasetName}>No cached data yet</div>
+                    <div className={styles.datasetInfo}>Open the Monitor page to fetch and cache market data</div>
+                  </div>
+                ) : (
+                  datasets.map((dataset, index) => {
+                    const startDate = new Date(dataset.startTime * 1000).toLocaleDateString();
+                    const endDate = new Date(dataset.endTime * 1000).toLocaleDateString();
+                    const duration = Math.round((dataset.endTime - dataset.startTime) / (60 * 60 * 24));
+                    
+                    return (
+                      <div key={index} className={styles.datasetItem} onClick={() => {
+                        // Export dataset as JSON
+                        dataStorage.exportToJSON({
+                          symbol: dataset.symbol,
+                          exchange: dataset.exchange,
+                          interval: dataset.interval
+                        }).then(json => {
+                          const blob = new Blob([json], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${dataset.symbol}_${dataset.exchange}_${dataset.interval}.json`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        });
+                      }}>
+                        <div className={styles.datasetName}>
+                          {dataset.symbol} • {dataset.exchange.toUpperCase()} • {dataset.interval}
+                        </div>
+                        <div className={styles.datasetInfo}>
+                          {dataset.candleCount.toLocaleString()} candles • {duration} days • {startDate} to {endDate}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Parquet Files (Backend) */}
+          <div className={styles.dataCategory}>
+            <div 
+              className={`${styles.categoryHeader} ${collapsedCategories.has('Parquet Files') ? styles.collapsed : ''}`}
+              onClick={() => toggleCategory('Parquet Files')}
+            >
+              <span className={styles.categoryArrow}>▼</span>
+              <span>Parquet Files (Backend Catalog)</span>
+            </div>
+            {!collapsedCategories.has('Parquet Files') && (
+              <div className={styles.datasetList}>
+                <div className={styles.datasetItem} onClick={() => {}}>
+                  <div className={styles.datasetName}>NVDA.ALPACA-1-MINUTE</div>
+                  <div className={styles.datasetInfo}>catalog/data/bar/ • OHLCV</div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className={styles.dataCategory}>
+            <div 
+              className={`${styles.categoryHeader} ${collapsedCategories.has('Signals') ? styles.collapsed : ''}`}
+              onClick={() => toggleCategory('Signals')}
+            >
+              <span className={styles.categoryArrow}>▼</span>
+              <span>Signals & Features</span>
+            </div>
+            {!collapsedCategories.has('Signals') && (
+              <div className={styles.datasetList}>
+                <div className={styles.datasetItem} onClick={() => {}}>
+                  <div className={styles.datasetName}>momentum_signals.parquet</div>
+                  <div className={styles.datasetInfo}>500K rows • 120MB • Features</div>
+                </div>
+                <div className={styles.datasetItem} onClick={() => {}}>
+                  <div className={styles.datasetName}>ml_features_v2.parquet</div>
+                  <div className={styles.datasetInfo}>2M rows • 380MB • ML features</div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className={styles.dataCategory}>
+            <div 
+              className={`${styles.categoryHeader} ${collapsedCategories.has('Backtests') ? styles.collapsed : ''}`}
+              onClick={() => toggleCategory('Backtests')}
+            >
+              <span className={styles.categoryArrow}>▼</span>
+              <span>Backtest Results</span>
+            </div>
+            {!collapsedCategories.has('Backtests') && (
+              <div className={styles.datasetList}>
+                <div className={styles.datasetItem} onClick={() => {}}>
+                  <div className={styles.datasetName}>ema_cross_results.parquet</div>
+                  <div className={styles.datasetInfo}>10K rows • 5MB • Performance</div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Quick Actions */}
+          <div className={styles.dataActions}>
+            <button className={styles.dataActionBtn}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+              Upload Dataset
+            </button>
+            <button className={styles.dataActionBtn}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="9" y1="9" x2="15" y2="9"></line>
+                <line x1="9" y1="15" x2="15" y2="15"></line>
+              </svg>
+              SQL Query
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
     switch (activeTab) {
       case 'notebooks':
         return (
@@ -1151,26 +1465,27 @@ const ResearchPage: React.FC = () => {
         <div className={exploreStyles.catalogueContainer}>
           <div className={exploreStyles.controlsBar}>
             <div className={exploreStyles.searchWrapper}>
-              <input
-                type="text"
-                placeholder="search strategies... (e.g., trending swing @alexchen)"
-                className={exploreStyles.searchInput}
-                value={exploreSearchQuery}
-                onChange={(e) => setExploreSearchQuery(e.target.value)}
-              />
-              
-              <div 
-                className={exploreStyles.sortDropdown}
-                onMouseEnter={() => setSortDropdownOpen(true)}
-                onMouseLeave={() => setSortDropdownOpen(false)}
-              >
-                <button 
-                  className={exploreStyles.sortButton}
-                  onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+              <div className={exploreStyles.searchSortGroup}>
+                <input
+                  type="text"
+                  placeholder="search strategies... (e.g., trending swing @alexchen)"
+                  className={exploreStyles.searchInput}
+                  value={exploreSearchQuery}
+                  onChange={(e) => setExploreSearchQuery(e.target.value)}
+                />
+                
+                <div 
+                  className={exploreStyles.sortDropdown}
+                  onMouseEnter={() => setSortDropdownOpen(true)}
+                  onMouseLeave={() => setSortDropdownOpen(false)}
                 >
-                  Sort: {sortBy === 'new' ? 'New' : sortBy === 'sharpe' ? 'Sharpe' : sortBy === 'returns' ? 'Returns' : sortBy === 'winrate' ? 'Win %' : 'A-Z'}
-                  <span style={{ marginLeft: '8px' }}>▼</span>
-                </button>
+                  <button 
+                    className={exploreStyles.sortButton}
+                    onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                  >
+                    Sort: {sortBy === 'new' ? 'New' : sortBy === 'sharpe' ? 'Sharpe' : sortBy === 'returns' ? 'Returns' : sortBy === 'winrate' ? 'Win %' : 'A-Z'}
+                    <span style={{ marginLeft: '8px' }}>▼</span>
+                  </button>
                 {sortDropdownOpen && (
                   <div 
                     className={exploreStyles.sortMenu}
@@ -1209,7 +1524,27 @@ const ResearchPage: React.FC = () => {
                     </button>
                   </div>
                 )}
+                </div>
               </div>
+              
+              {/* Plus button for new strategy */}
+              <button 
+                className={exploreStyles.newStrategyBtn}
+                onClick={() => {
+                  // Navigate to builder tab for new strategy
+                  setActiveTab('builder');
+                  setMainView('builder');
+                  // Clear any existing builder state and start fresh
+                  // TODO: Add state management for builder
+                  console.log('Opening new strategy builder');
+                }}
+                title="Create New Strategy"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
             </div>
             {searchTerms.length > 0 && (
               <div className={exploreStyles.activeFilters}>
@@ -1376,51 +1711,260 @@ const ResearchPage: React.FC = () => {
         </div>
       );
     }
+    
+    if (mainView === 'data') {
+      // Data viewer main content
+      return (
+        <div className={styles.dataViewerContainer}>
+          <div className={styles.dataTableContainer}>
+            <div className={styles.dataTableHeader}>
+              <div className={styles.tableInfo}>
+                <span className={styles.tableName}>Select a dataset from the sidebar to view</span>
+                <span className={styles.tableStats}></span>
+              </div>
+            </div>
+            
+            <div className={styles.sqlEditor}>
+              <textarea
+                className={styles.sqlInput}
+                placeholder="-- Enter SQL query here (e.g., SELECT * FROM read_parquet('data.parquet') LIMIT 100)"
+                rows={3}
+              />
+              <button className={styles.runQueryBtn}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                Run Query
+              </button>
+            </div>
+            
+            <div className={styles.dataTableWrapper}>
+              <div className={styles.emptyDataState}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.3">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="3" y1="9" x2="21" y2="9"></line>
+                  <line x1="9" y1="21" x2="9" y2="9"></line>
+                  <line x1="15" y1="21" x2="15" y2="9"></line>
+                </svg>
+                <p>No data loaded</p>
+                <p className={styles.dataHint}>Select a dataset or run a SQL query to view data</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className={styles.notebookView}>
         <div className={styles.notebookCells}>
-          {notebookCells.map(cell => (
-            <div 
-              key={cell.id} 
-              className={`${styles.notebookCell} ${styles[`${cell.type}Cell`]} ${activeCell === cell.id ? styles.active : ''}`}
-              onClick={() => setActiveCell(cell.id)}
-            >
-              <div className={styles.cellHeader}>
-                <span className={styles.cellType}>{cell.type}</span>
-                <div className={styles.cellActions}>
-                  <button 
-                    onClick={() => executeCell(cell.id)} 
-                    disabled={cell.isExecuting}
-                    className={styles.cellActionBtn}
-                    title="Run cell"
-                  >
-                    {cell.isExecuting ? (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2">
-                          <animateTransform attributeName="transform" type="rotate" from="0 8 8" to="360 8 8" dur="1s" repeatCount="indefinite"/>
-                        </circle>
+          {notebookCells.map(cell => {
+            // Render AI chat cells differently
+            if (cell.type === 'ai-chat') {
+              return (
+                <div 
+                  key={cell.id}
+                  className={`${styles.aiChatCell} ${activeCell === cell.id ? styles.active : ''}`}
+                  onClick={() => setActiveCell(cell.id)}
+                >
+                  <div className={styles.aiChatHeader}>
+                    <div className={styles.aiChatTitle}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9.5 2A3.5 3.5 0 0 0 6 5.5c0 2.3 2.5 3.3 2.5 5.5v1"/>
+                        <path d="M14.5 2A3.5 3.5 0 0 1 18 5.5c0 2.3-2.5 3.3-2.5 5.5v1"/>
+                        <path d="M12 2v10"/>
+                        <circle cx="12" cy="14" r="2"/>
+                        <path d="M7 14H5M19 14h-2M12 16v2"/>
+                        <circle cx="7" cy="14" r="1"/>
+                        <circle cx="17" cy="14" r="1"/>
+                        <circle cx="12" cy="19" r="1"/>
                       </svg>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M5 3.5v9l7-4.5z"/>
+                      <span>AI Analysis Assistant</span>
+                    </div>
+                    <button 
+                      onClick={() => deleteCell(cell.id)}
+                      className={styles.closeAiChat}
+                      title="Close AI chat"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  <div className={styles.aiChatMessages}>
+                    {cell.aiMessages?.map((msg, idx) => (
+                      <div key={idx} className={`${styles.aiMessage} ${styles[msg.role]}`}>
+                        <span className={styles.messageRole}>
+                          {msg.role === 'assistant' ? '🤖' : '👤'}
+                        </span>
+                        <div className={styles.messageContent}>{msg.content}</div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className={styles.aiChatInput}>
+                    <input
+                      type="text"
+                      value={cell.chatInput || ''}
+                      onChange={(e) => {
+                        setNotebookCells(prev =>
+                          prev.map(c =>
+                            c.id === cell.id
+                              ? { ...c, chatInput: e.target.value }
+                              : c
+                          )
+                        );
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && cell.chatInput?.trim()) {
+                          // Add user message and generate AI response
+                          const userMessage: AiMessage = {
+                            role: 'user',
+                            content: cell.chatInput
+                          };
+                          
+                          // Generate AI response based on user input
+                          let aiResponse = '';
+                          const input = cell.chatInput.toLowerCase();
+                          
+                          if (input.includes('volatility') || input.includes('vol')) {
+                            aiResponse = `Good choice focusing on volatility. I recommend using these snippets:
+1. \`snippets.risk.volatility_decomp(returns, window=30)\` - Separates market vs idiosyncratic volatility
+2. \`snippets.risk.rolling_correlation(returns, benchmark='SPY')\` - Shows when correlations spike
+
+This will help identify if the volatility is systematic or strategy-specific. Ready to generate the analysis cell?`;
+                          } else if (input.includes('drawdown') || input.includes('risk')) {
+                            aiResponse = `For drawdown analysis, let's use:
+1. \`snippets.risk.drawdown_clusters(returns, min_duration=5)\` - Identifies drawdown patterns
+2. \`snippets.risk.max_drawdown_duration(returns)\` - Time to recovery analysis
+3. \`snippets.risk.conditional_drawdown(returns, confidence=0.95)\` - Expected shortfall
+
+These will give you a complete risk picture. Generate the cell?`;
+                          } else if (input.includes('performance') || input.includes('returns')) {
+                            aiResponse = `To analyze performance, I suggest:
+1. \`snippets.performance.rolling_sharpe(returns, window=60)\` - Time-varying risk-adjusted returns
+2. \`snippets.performance.factor_attribution(returns, factors=['MKT', 'SMB', 'HML'])\` - Factor decomposition
+3. \`snippets.performance.regime_analysis(returns, vix_threshold=20)\` - Performance by market regime
+
+This will show where your returns are coming from. Ready to build the cell?`;
+                          } else {
+                            aiResponse = `Based on your question, I can help with:
+• Volatility analysis - decompose market vs strategy risk
+• Drawdown patterns - understand your risk profile
+• Performance attribution - see what drives returns
+• Signal quality - evaluate entry/exit timing
+
+Which area would you like to explore first?`;
+                          }
+                          
+                          const aiMessage: AiMessage = {
+                            role: 'assistant',
+                            content: aiResponse
+                          };
+                          
+                          setNotebookCells(prev =>
+                            prev.map(c =>
+                              c.id === cell.id
+                                ? { 
+                                    ...c, 
+                                    aiMessages: [...(c.aiMessages || []), userMessage, aiMessage],
+                                    chatInput: ''
+                                  }
+                                : c
+                            )
+                          );
+                        }
+                      }}
+                      placeholder="Ask about your results or request specific analysis..."
+                    />
+                    <button 
+                      className={styles.generateCellBtn}
+                      onClick={() => {
+                        // Generate a new code cell with recommended snippets
+                        const codeTemplate = `# AI-recommended analysis based on your discussion
+import admf
+from snippets import risk, performance, signals
+
+# Volatility decomposition
+vol_decomp = risk.volatility_decomp(returns, window=30)
+print("Market vs Idiosyncratic Volatility:")
+print(vol_decomp)
+
+# Rolling correlation analysis
+correlations = risk.rolling_correlation(returns, benchmark='SPY')
+correlations.plot(title='Rolling Correlation with Market')
+
+# Performance attribution
+attribution = performance.factor_attribution(returns, factors=['MKT', 'SMB', 'HML'])
+print("\\nFactor Attribution:")
+print(attribution)`;
+                        
+                        const newCell: NotebookCell = {
+                          id: `cell-${Date.now()}`,
+                          type: 'code',
+                          content: codeTemplate
+                        };
+                        
+                        setNotebookCells(prev => {
+                          const index = prev.findIndex(c => c.id === cell.id);
+                          const newCells = [...prev];
+                          newCells.splice(index + 1, 0, newCell);
+                          return newCells;
+                        });
+                      }}
+                      title="Generate analysis cell from recommendations"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 2v20M2 12h20"/>
                       </svg>
-                    )}
-                  </button>
-                  <button 
-                    onClick={() => deleteCell(cell.id)}
-                    className={styles.cellActionBtn}
-                    title="Delete cell"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                    </svg>
-                  </button>
+                      Generate Cell
+                    </button>
+                  </div>
                 </div>
-              </div>
-              
-              <div className={styles.cellContent}>
-                {cell.type === 'code' ? (
+              );
+            }
+            
+            // Regular cell rendering
+            return (
+              <div 
+                key={cell.id} 
+                className={`${styles.notebookCell} ${styles[`${cell.type}Cell`]} ${activeCell === cell.id ? styles.active : ''}`}
+                onClick={() => setActiveCell(cell.id)}
+              >
+                <div className={styles.cellHeader}>
+                  <span className={styles.cellType}>{cell.type}</span>
+                  <div className={styles.cellActions}>
+                    <button 
+                      onClick={() => executeCell(cell.id)} 
+                      disabled={cell.isExecuting}
+                      className={styles.cellActionBtn}
+                      title="Run cell"
+                    >
+                      {cell.isExecuting ? (
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2">
+                            <animateTransform attributeName="transform" type="rotate" from="0 8 8" to="360 8 8" dur="1s" repeatCount="indefinite"/>
+                          </circle>
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                          <path d="M5 3.5v9l7-4.5z"/>
+                        </svg>
+                      )}
+                    </button>
+                    <button 
+                      onClick={() => deleteCell(cell.id)}
+                      className={styles.cellActionBtn}
+                      title="Delete cell"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div className={styles.cellContent}>
+                  {cell.type === 'code' ? (
                   <div className={styles.codeEditor}>
                     <Editor
                       height="200px"
@@ -1504,44 +2048,144 @@ const ResearchPage: React.FC = () => {
 
               {cell.output && (
                 <div className={styles.cellOutput}>
+                  <div className={styles.outputHeader}>
+                    <span className={styles.outputLabel}>Output</span>
+                    <button
+                      className={styles.aiAnalyzeBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Create AI chat cell after this cell
+                        const newAiCell: NotebookCell = {
+                          id: `ai-chat-${Date.now()}`,
+                          type: 'ai-chat',
+                          content: '',
+                          output: cell.output,
+                          isAiChat: true,
+                          parentCellId: cell.id,
+                          aiMessages: [
+                            {
+                              role: 'assistant',
+                              content: `I've analyzed your results. ${
+                                cell.output?.includes('Overview') 
+                                  ? "Your strategies show interesting patterns. The Sharpe ratio of 1.87 is solid, but I notice the max drawdown of -12.4%. What's your main concern - risk management or performance optimization?"
+                                  : cell.output?.includes('Backtest')
+                                  ? "Your backtest shows 142 trades with a 62.7% win rate. The expectancy of $1,247 per trade is promising. Would you like to explore position sizing optimization or signal filtering?"
+                                  : "I can see several areas for improvement in your analysis. What aspect would you like to investigate first - volatility patterns, correlation analysis, or performance attribution?"
+                              }`
+                            }
+                          ],
+                          chatInput: ''
+                        };
+                        
+                        setNotebookCells(prev => {
+                          const index = prev.findIndex(c => c.id === cell.id);
+                          const newCells = [...prev];
+                          // Check if AI chat already exists for this cell
+                          const existingAiChat = prev.find(c => c.parentCellId === cell.id);
+                          if (!existingAiChat) {
+                            newCells.splice(index + 1, 0, newAiCell);
+                          }
+                          return newCells;
+                        });
+                        setActiveCell(newAiCell.id);
+                      }}
+                      title="AI Analysis"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        {/* Computerized brain icon - circuit-like design */}
+                        <path d="M9.5 2A3.5 3.5 0 0 0 6 5.5c0 2.3 2.5 3.3 2.5 5.5v1"/>
+                        <path d="M14.5 2A3.5 3.5 0 0 1 18 5.5c0 2.3-2.5 3.3-2.5 5.5v1"/>
+                        <path d="M12 2v10"/>
+                        <circle cx="12" cy="14" r="2"/>
+                        <path d="M7 14H5M19 14h-2M12 16v2"/>
+                        <circle cx="7" cy="14" r="1"/>
+                        <circle cx="17" cy="14" r="1"/>
+                        <circle cx="12" cy="19" r="1"/>
+                        <path d="M9 19H7v2M15 19h2v2M5 14v-2M19 14v-2"/>
+                        <circle cx="5" cy="11" r="0.5"/>
+                        <circle cx="19" cy="11" r="0.5"/>
+                        <circle cx="7" cy="21" r="0.5"/>
+                        <circle cx="17" cy="21" r="0.5"/>
+                      </svg>
+                      <span>AI Analysis</span>
+                    </button>
+                  </div>
                   <pre>{cell.output}</pre>
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
+          
+          {/* Add Cell Button at Bottom */}
+          <div className={styles.addCellContainer}>
+            <button 
+              className={styles.addCellButton}
+              onClick={() => addCell('code')}
+              title="Add new cell"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Add Cell</span>
+            </button>
+          </div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className={styles.researchContainer}>
-      {/* Mobile Menu Button */}
-      {isMobile && (
-        <button
-          className={styles.mobileMenuButton}
-          onClick={() => setSidebarOpen(!sidebarOpen)}
+    <div 
+      className={styles.researchContainer}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Overlay for Mobile */}
+      {isMobile && sidebarOpen && (
+        <div
           style={{
             position: 'fixed',
-            top: 'calc(var(--mobile-header-height) + 10px)',
-            left: '10px',
-            zIndex: 250,
-            padding: '8px',
-            background: 'var(--color-bg-primary)',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 199,
+            backdropFilter: 'blur(2px)'
+          }}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
+      {/* Swipe Indicator for Mobile */}
+      {isMobile && !sidebarOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+            background: 'var(--color-bg-secondary)',
             border: '2px solid var(--color-text-primary)',
-            borderRadius: 'var(--radius-sm)',
-            cursor: 'pointer',
+            borderRadius: 'var(--radius-lg)',
+            padding: '8px 16px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            gap: '8px',
+            opacity: 0.9,
+            pointerEvents: 'none',
+            animation: 'pulse 2s infinite'
           }}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 19V6M5 12l7-7 7 7"/>
           </svg>
-        </button>
+          <span style={{ fontSize: '12px', fontWeight: 500 }}>Swipe up for sidebar</span>
+        </div>
       )}
       
       {/* Sidebar */}
@@ -1549,9 +2193,21 @@ const ResearchPage: React.FC = () => {
         <div className={styles.sidebarHeader}>
           <div className={styles.sidebarTabs}>
             <button 
-              className={`${styles.sidebarTab} ${activeTab === 'builder' ? styles.active : ''}`}
+              className={`${styles.sidebarTab} ${mainView === 'data' ? styles.active : ''}`}
+              onClick={() => setMainView('data')}
+              title="Data Explorer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>
+                {/* Database/cylinder icon */}
+                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+              </svg>
+            </button>
+            <button 
+              className={`${styles.sidebarTab} ${mainView === 'builder' ? styles.active : ''}`}
               onClick={() => handleTabSwitch('builder')}
-              title="Builder"
+              title="StrategyWorkbench"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>
                 {/* Wrench */}
@@ -1562,7 +2218,7 @@ const ResearchPage: React.FC = () => {
               </svg>
             </button>
             <button 
-              className={`${styles.sidebarTab} ${activeTab === 'notebooks' ? styles.active : ''}`}
+              className={`${styles.sidebarTab} ${mainView === 'notebook' ? styles.active : ''}`}
               onClick={() => handleTabSwitch('notebooks')}
               title="Notebooks"
             >

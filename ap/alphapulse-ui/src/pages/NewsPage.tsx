@@ -189,7 +189,6 @@ const marketNews: MarketNews[] = [
 export const NewsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
-  const [showAIChat, setShowAIChat] = useState(false);
 
   const generateSparklinePath = (data: number[]): string => {
     const width = 120;
@@ -526,42 +525,6 @@ export const NewsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Chat Terminal - Hidden by default */}
-      {showAIChat && (
-        <div className={styles.aiChatTerminal}>
-          <div className={styles.terminalHeader}>
-            <h3 className={styles.terminalTitle}>ALPHA RESEARCH TERMINAL</h3>
-            <button 
-              className={styles.terminalClose}
-              onClick={() => setShowAIChat(false)}
-            >
-              ×
-            </button>
-          </div>
-          <div className={styles.terminalContent}>
-            <div className={styles.aiMessage + ' ' + styles.user}>
-              Show me the latest papers on transformer models in finance
-            </div>
-            <div className={styles.aiMessage + ' ' + styles.assistant}>
-              Here are the most recent papers on transformer models applied to finance:
-
-              1. "FinBERT: Financial Sentiment Analysis with Pre-trained Language Models" - Analyzes financial text using BERT architecture
-              
-              2. "Temporal Fusion Transformers for Interpretable Multi-horizon Time Series Forecasting" - Google's approach to financial time series
-              
-              3. "StockFormer: Learning Hybrid Trading Patterns with Transformers" - Novel architecture combining technical and fundamental analysis
-            </div>
-          </div>
-          <div className={styles.aiChatInputWrapper}>
-            <span className={styles.aiChatPrompt}>{'>'}</span>
-            <input 
-              type="text" 
-              className={styles.aiChatInput}
-              placeholder="Ask about papers, strategies, or market analysis..."
-            />
-          </div>
-        </div>
-      )}
 
       {/* PDF Reader Overlay */}
       {selectedPdf && (
