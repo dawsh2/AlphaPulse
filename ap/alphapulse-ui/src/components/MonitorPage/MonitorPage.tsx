@@ -209,26 +209,33 @@ const MonitorPage: React.FC = () => {
         e.preventDefault();
         e.stopPropagation();
         
-        const priceScale = candleSeries.priceScale();
-        const logicalRange = priceScale.getVisibleLogicalRange();
+        // Use the chart's time scale for zoom functionality
+        const timeScale = chartRef.current.timeScale();
+        const logicalRange = timeScale.getVisibleLogicalRange();
         
         if (logicalRange) {
-          // Zoom factor
+          // Zoom factor for price scale
           const scaleFactor = e.deltaY > 0 ? 1.05 : 0.95;
           
-          // Get current visible price range
-          const currentRange = candleSeries.priceScale().getVisiblePriceRange();
-          if (currentRange) {
-            const center = (currentRange.from + currentRange.to) / 2;
-            const range = currentRange.to - currentRange.from;
-            const newRange = range * scaleFactor;
-            
-            // Apply new range
-            candleSeries.priceScale().setVisiblePriceRange({
-              from: center - newRange / 2,
-              to: center + newRange / 2
+          // Get current auto scale mode and temporarily disable it
+          const priceScale = candleSeries.priceScale();
+          const autoScaleEnabled = priceScale.options().autoScale;
+          
+          // Apply scaling by adjusting the auto scale margins
+          priceScale.applyOptions({
+            autoScale: false,
+            scaleMargins: {
+              top: 0.1 * scaleFactor,
+              bottom: 0.1 * scaleFactor
+            }
+          });
+          
+          // Re-enable auto scale if it was enabled
+          setTimeout(() => {
+            priceScale.applyOptions({
+              autoScale: autoScaleEnabled
             });
-          }
+          }, 100);
         }
       }
     };
