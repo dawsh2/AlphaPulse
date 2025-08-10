@@ -7,7 +7,17 @@ import Editor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import { dataStorage } from '../../../services/data';
 import type { DatasetInfo } from '../../../services/data';
-import { MobileOverlay, SwipeIndicator } from '../../common/MobileOverlay';
+import { 
+  allStrategies,
+  type Strategy 
+} from '../../../data/strategies';
+import { 
+  useStrategyFiltering, 
+  getRandomTags,
+  type SortBy 
+} from '../../../hooks/useStrategyFiltering';
+import { MobileOverlay } from '../../common/MobileOverlay';
+import { SwipeIndicator } from '../../common/SwipeIndicator';
 import { SidebarWrapper } from '../../common/SidebarWrapper';
 import { SidebarTabs } from '../../common/SidebarTabs';
 import { DataIcon, BuilderIcon, NotebookIcon, ExploreIcon } from '../../common/Icons';
@@ -65,24 +75,6 @@ interface SavedNotebook {
   cells: NotebookCell[];
 }
 
-interface Strategy {
-  id: string;
-  title: string;
-  description: string;
-  color: string;
-  tags: string[];
-  creator?: string;
-  comingSoon?: boolean;
-  metrics?: {
-    sharpe: number;
-    annualReturn: number;
-    maxDrawdown: number;
-    winRate: number;
-  };
-  behavior?: 'trending' | 'meanrev' | 'breakout' | 'volatility';
-  risk?: 'conservative' | 'moderate' | 'aggressive';
-  timeframe?: 'intraday' | 'swing' | 'position';
-}
 
 interface TearsheetData {
   strategy: Strategy;
@@ -91,409 +83,8 @@ interface TearsheetData {
 
 type SidebarTab = 'builder' | 'notebooks';
 type MainView = 'explore' | 'notebook' | 'builder' | 'data';
-type SortBy = 'new' | 'sharpe' | 'returns' | 'name' | 'winrate';
 
-// Strategy data - matching ExplorePage
-const coreStrategies: Strategy[] = [
-  {
-    id: 'ema-cross',
-    title: 'EMA Cross',
-    description: 'Classic trend-following strategy using exponential moving average crossovers.',
-    color: 'blue',
-    tags: ['MA cross', 'simple', 'S&P-500', 'NASDAQ', 'Russell-2000', 'SPY', 'QQQ', 'IWM'],
-    creator: 'alexchen',
-    behavior: 'trending',
-    risk: 'moderate',
-    timeframe: 'swing',
-    metrics: {
-      sharpe: 1.82,
-      annualReturn: 24.5,
-      maxDrawdown: -8.3,
-      winRate: 68
-    }
-  },
-  {
-    id: 'mean-reversion',
-    title: 'RSI Mean Reversion',
-    description: 'Trades oversold bounces and overbought reversals using RSI divergences.',
-    color: 'orange',
-    tags: ['RSI', 'reversal', 'S&P-500', 'NASDAQ', 'SPY', 'QQQ'],
-    creator: 'sarahkim',
-    behavior: 'meanrev',
-    risk: 'conservative',
-    timeframe: 'swing',
-    metrics: {
-      sharpe: 2.15,
-      annualReturn: 31.2,
-      maxDrawdown: -6.7,
-      winRate: 72
-    }
-  },
-  {
-    id: 'momentum',
-    title: 'Momentum Breakout',
-    description: 'Captures explosive moves after consolidation periods.',
-    color: 'green',
-    tags: ['breakout', 'volume', 'S&P-500', 'NASDAQ', 'Russell-2000', 'SPY', 'QQQ', 'IWM'],
-    creator: 'mikejohnson',
-    behavior: 'breakout',
-    risk: 'aggressive',
-    timeframe: 'intraday',
-    metrics: {
-      sharpe: 1.58,
-      annualReturn: 28.9,
-      maxDrawdown: -14.2,
-      winRate: 61
-    }
-  },
-  {
-    id: 'custom',
-    title: 'Strategy Builder',
-    description: 'Create your own strategy with visual tools.',
-    color: 'cyan',
-    tags: ['custom', 'builder', 'any-universe'],
-    metrics: {
-      sharpe: 0,
-      annualReturn: 0,
-      maxDrawdown: 0,
-      winRate: 0
-    }
-  }
-];
-
-const statisticalStrategies: Strategy[] = [
-  {
-    id: 'pairs-trading',
-    title: 'Pairs Trading',
-    description: 'Market-neutral strategy trading correlated pairs divergence.',
-    color: 'purple',
-    tags: ['pairs', 'neutral', 'S&P-500', 'NASDAQ', 'sector-ETFs'],
-    creator: 'quantdave',
-    behavior: 'meanrev',
-    risk: 'conservative',
-    timeframe: 'position',
-    metrics: {
-      sharpe: 2.54,
-      annualReturn: 28.7,
-      maxDrawdown: -4.2,
-      winRate: 76
-    }
-  },
-  {
-    id: 'volatility-harvest',
-    title: 'Vol Harvester',
-    description: 'Profits from volatility spikes and VIX contango.',
-    color: 'red',
-    tags: ['VIX', 'options', 'VXX', 'UVXY', 'volatility-ETFs'],
-    creator: 'voltrader',
-    behavior: 'volatility',
-    risk: 'aggressive',
-    timeframe: 'swing',
-    metrics: {
-      sharpe: 1.95,
-      annualReturn: 35.8,
-      maxDrawdown: -15.3,
-      winRate: 65
-    }
-  },
-  {
-    id: 'bollinger-squeeze',
-    title: 'Bollinger Squeeze',
-    description: 'Trades volatility expansion after consolidation.',
-    color: 'teal',
-    tags: ['BB', 'squeeze', 'S&P-500', 'NASDAQ', 'SPY', 'QQQ'],
-    behavior: 'breakout',
-    risk: 'moderate',
-    timeframe: 'intraday',
-    metrics: {
-      sharpe: 1.67,
-      annualReturn: 22.4,
-      maxDrawdown: -9.8,
-      winRate: 69
-    }
-  }
-];
-
-const mlStrategies: Strategy[] = [
-  {
-    id: 'trend-rider',
-    title: 'Trend Rider XL',
-    description: 'Multi-timeframe trend following with dynamic position sizing.',
-    color: 'indigo',
-    tags: ['multi-TF', 'adaptive', 'S&P-500', 'NASDAQ', 'Russell-2000', 'SPY', 'QQQ', 'IWM'],
-    creator: 'trendmaster',
-    behavior: 'trending',
-    risk: 'moderate',
-    timeframe: 'position',
-    metrics: {
-      sharpe: 2.91,
-      annualReturn: 42.5,
-      maxDrawdown: -9.8,
-      winRate: 71
-    }
-  },
-  {
-    id: 'gap-fade',
-    title: 'Gap Fade Pro',
-    description: 'Fades opening gaps with statistical edge.',
-    color: 'pink',
-    tags: ['gaps', 'open', 'S&P-500', 'NASDAQ', 'SPY', 'QQQ', 'individual-stocks'],
-    creator: 'gapfader',
-    behavior: 'meanrev',
-    risk: 'moderate',
-    timeframe: 'intraday',
-    metrics: {
-      sharpe: 1.93,
-      annualReturn: 27.8,
-      maxDrawdown: -7.2,
-      winRate: 74
-    }
-  }
-];
-
-const additionalStrategies: Strategy[] = [
-  {
-    id: 'macd-cross',
-    title: 'MACD Cross Signal',
-    description: 'Classic MACD signal line crossover with histogram confirmation.',
-    color: 'blue',
-    tags: ['trending', 'MACD', 'crossover', 'histogram', 'swing', 'moderate-risk', 'beginner', 'momentum', 'S&P-500', 'NASDAQ', 'SPY', 'QQQ'],
-    metrics: {
-      sharpe: 1.64,
-      annualReturn: 21.3,
-      maxDrawdown: -11.2,
-      winRate: 59
-    }
-  },
-  {
-    id: 'stoch-rsi',
-    title: 'Stochastic RSI',
-    description: 'Combines Stochastic and RSI for precise overbought/oversold signals.',
-    color: 'orange',
-    tags: ['mean-reversion', 'stochastic', 'RSI', 'oversold', 'overbought', 'intraday', 'moderate-risk', 'intermediate', 'S&P-500', 'NASDAQ', 'SPY', 'QQQ'],
-    metrics: {
-      sharpe: 2.08,
-      annualReturn: 26.7,
-      maxDrawdown: -8.9,
-      winRate: 71
-    }
-  },
-  {
-    id: 'channel-breakout',
-    title: 'Channel Breakout',
-    description: 'Trades breakouts from established support and resistance channels.',
-    color: 'green',
-    tags: ['breakout', 'channels', 'support-resistance', 'swing', 'moderate-risk', 'technical', 'intermediate', 'S&P-500', 'NASDAQ', 'Russell-2000', 'SPY', 'QQQ', 'IWM'],
-    metrics: {
-      sharpe: 1.77,
-      annualReturn: 29.4,
-      maxDrawdown: -13.6,
-      winRate: 54
-    }
-  },
-  {
-    id: 'vwap-reversion',
-    title: 'VWAP Reversion',
-    description: 'Mean reversion strategy using Volume Weighted Average Price.',
-    color: 'purple',
-    tags: ['mean-reversion', 'VWAP', 'volume', 'intraday', 'low-risk', 'institutional', 'beginner', 'SPY', 'S&P-500', 'ETF'],
-    creator: 'flowtrader',
-    metrics: {
-      sharpe: 2.31,
-      annualReturn: 19.8,
-      maxDrawdown: -5.4,
-      winRate: 78
-    }
-  },
-  {
-    id: 'buy-the-dip',
-    title: 'Buy the Dip',
-    description: 'Systematic dip buying with risk management and trend filters.',
-    color: 'red',
-    tags: ['mean-reversion', 'dip-buying', 'swing', 'contrarian', 'beginner', 'systematic', 'bull-market', 'SPY', 'QQQ', 'ETF'],
-    creator: 'dipbuyerxyz',
-    metrics: {
-      sharpe: 1.52,
-      annualReturn: 31.7,
-      maxDrawdown: -16.8,
-      winRate: 64
-    }
-  },
-  {
-    id: 'ma-ribbon',
-    title: 'MA Ribbon',
-    description: 'Multiple moving averages create a trend-following ribbon system.',
-    color: 'teal',
-    tags: ['trending', 'MA-ribbon', 'multi-timeframe', 'swing', 'intermediate', 'systematic', 'momentum', 'S&P-500', 'NASDAQ', 'SPY', 'QQQ'],
-    metrics: {
-      sharpe: 1.89,
-      annualReturn: 25.1,
-      maxDrawdown: -10.3,
-      winRate: 62
-    }
-  },
-  {
-    id: 'fibonacci-retrace',
-    title: 'Fibonacci Retracement',
-    description: 'Trades pullbacks to key Fibonacci retracement levels.',
-    color: 'indigo',
-    tags: ['mean-reversion', 'fibonacci', 'technical', 'swing', 'intermediate', 'pullback', 'support-resistance', 'S&P-500', 'NASDAQ', 'individual-stocks'],
-    metrics: {
-      sharpe: 1.73,
-      annualReturn: 23.9,
-      maxDrawdown: -12.1,
-      winRate: 67
-    }
-  },
-  {
-    id: 'iron-condor',
-    title: 'Iron Condor',
-    description: 'Options strategy profiting from low volatility and time decay.',
-    color: 'pink',
-    tags: ['volatility', 'options', 'theta-decay', 'range-bound', 'advanced', 'premium-selling', 'market-neutral', 'SPX', 'RUT', 'NDX', 'index-options'],
-    metrics: {
-      sharpe: 2.17,
-      annualReturn: 18.4,
-      maxDrawdown: -7.3,
-      winRate: 82
-    }
-  },
-  {
-    id: 'news-sentiment',
-    title: 'News Sentiment',
-    description: 'NLP-driven strategy using real-time news sentiment analysis.',
-    color: 'cyan',
-    tags: ['sentiment', 'NLP', 'news', 'event-driven', 'intraday', 'alternative-data', 'advanced', 'systematic', 'S&P-500', 'individual-stocks'],
-    comingSoon: true
-  }
-];
-
-const cryptoStrategies: Strategy[] = [
-  {
-    id: 'crypto-arbitrage',
-    title: 'Crypto Arbitrage',
-    description: 'Cross-exchange arbitrage capturing price differences between crypto exchanges.',
-    color: 'orange',
-    tags: ['crypto', 'arbitrage', 'market-neutral', 'systematic', 'high-frequency', 'bitcoin', 'ethereum', 'advanced', 'BTC', 'ETH', 'multi-exchange'],
-    creator: 'cryptoarb',
-    metrics: {
-      sharpe: 3.12,
-      annualReturn: 45.8,
-      maxDrawdown: -4.2,
-      winRate: 89
-    }
-  },
-  {
-    id: 'defi-yield-farming',
-    title: 'DeFi Yield Farming',
-    description: 'Automated yield optimization across DeFi protocols and liquidity pools.',
-    color: 'green',
-    tags: ['crypto', 'DeFi', 'yield-farming', 'liquidity', 'ethereum', 'position', 'moderate-risk', 'advanced', 'ETH', 'USDC', 'USDT', 'stablecoins'],
-    creator: 'defifarmer',
-    metrics: {
-      sharpe: 2.67,
-      annualReturn: 78.4,
-      maxDrawdown: -23.1,
-      winRate: 76
-    }
-  },
-  {
-    id: 'bitcoin-halving',
-    title: 'Bitcoin Halving Cycle',
-    description: 'Long-term strategy based on Bitcoin halving cycles and market psychology.',
-    color: 'indigo',
-    tags: ['crypto', 'bitcoin', 'halving', 'cycle', 'position', 'long-term', 'macro', 'beginner', 'BTC', 'bitcoin-only'],
-    creator: 'hodlmaster',
-    metrics: {
-      sharpe: 1.95,
-      annualReturn: 127.3,
-      maxDrawdown: -45.8,
-      winRate: 71
-    }
-  },
-  {
-    id: 'altcoin-momentum',
-    title: 'Altcoin Momentum',
-    description: 'Momentum strategy for high-beta altcoins during bull market phases.',
-    color: 'red',
-    tags: ['crypto', 'altcoin', 'momentum', 'high-risk', 'bull-market', 'swing', 'aggressive', 'volatile', 'ETH', 'SOL', 'ADA', 'MATIC', 'altcoins'],
-    metrics: {
-      sharpe: 1.43,
-      annualReturn: 89.2,
-      maxDrawdown: -67.4,
-      winRate: 58
-    }
-  }
-];
-
-const forexStrategies: Strategy[] = [
-  {
-    id: 'carry-trade',
-    title: 'Currency Carry Trade',
-    description: 'Profits from interest rate differentials between currency pairs.',
-    color: 'purple',
-    tags: ['forex', 'carry-trade', 'interest-rates', 'position', 'macro', 'fundamental', 'conservative', 'systematic', 'EUR-USD', 'GBP-USD', 'USD-JPY', 'AUD-USD'],
-    metrics: {
-      sharpe: 2.08,
-      annualReturn: 22.7,
-      maxDrawdown: -8.9,
-      winRate: 74
-    }
-  },
-  {
-    id: 'london-breakout',
-    title: 'London Breakout',
-    description: 'Trades volatility expansion during London market opening hours.',
-    color: 'teal',
-    tags: ['forex', 'breakout', 'london-session', 'intraday', 'volatility', 'timezone', 'moderate-risk', 'systematic', 'EUR-USD', 'GBP-USD', 'USD-JPY'],
-    metrics: {
-      sharpe: 1.89,
-      annualReturn: 28.4,
-      maxDrawdown: -11.7,
-      winRate: 63
-    }
-  }
-];
-
-const commoditiesStrategies: Strategy[] = [
-  {
-    id: 'gold-volatility',
-    title: 'Gold Volatility',
-    description: 'Trades gold price volatility during economic uncertainty periods.',
-    color: 'orange',
-    tags: ['commodities', 'gold', 'volatility', 'safe-haven', 'macro', 'swing', 'moderate-risk', 'hedging', 'GLD', 'GOLD', 'IAU', 'gold-ETFs'],
-    metrics: {
-      sharpe: 1.76,
-      annualReturn: 19.8,
-      maxDrawdown: -9.2,
-      winRate: 69
-    }
-  },
-  {
-    id: 'oil-contango',
-    title: 'Oil Contango',
-    description: 'Profits from oil futures contango and backwardation patterns.',
-    color: 'red',
-    tags: ['commodities', 'oil', 'futures', 'contango', 'calendar-spreads', 'position', 'advanced', 'systematic', 'USO', 'OIL', 'UCO', 'oil-ETFs', 'WTI', 'Brent'],
-    metrics: {
-      sharpe: 2.31,
-      annualReturn: 24.6,
-      maxDrawdown: -7.8,
-      winRate: 78
-    }
-  }
-];
-
-// Combine all strategies
-const allStrategies = [
-  ...coreStrategies,
-  ...statisticalStrategies,
-  ...mlStrategies,
-  ...additionalStrategies,
-  ...cryptoStrategies,
-  ...forexStrategies,
-  ...commoditiesStrategies
-];
+// Strategy data imported from data/strategies.ts
 
 const ResearchPage: React.FC = () => {
   const location = useLocation();
@@ -1053,69 +644,13 @@ Which area would you like to explore first?`;
     navigate('/monitor', { state: { strategy } });
   };
 
-  const filterAndSortStrategies = () => {
-    let filtered = allStrategies;
-
-    // Multi-tag filter
-    const allSearchTerms = [...searchTerms];
-    if (exploreSearchQuery.trim()) {
-      allSearchTerms.push(...exploreSearchQuery.toLowerCase().split(' ').filter(term => term.length > 0));
-    }
-
-    if (allSearchTerms.length > 0) {
-      filtered = filtered.filter(strategy => {
-        const searchableText = [
-          strategy.title.toLowerCase(),
-          strategy.description.toLowerCase(),
-          ...strategy.tags.map(tag => tag.toLowerCase())
-        ];
-        
-        if (strategy.creator) {
-          searchableText.push(strategy.creator.toLowerCase());
-          searchableText.push(`@${strategy.creator.toLowerCase()}`);
-        }
-        
-        return allSearchTerms.every(term => 
-          searchableText.some(text => text.includes(term))
-        );
-      });
-    }
-
-    // Sort
-    return filtered.sort((a, b) => {
-      if (!a.metrics || !b.metrics) return 0;
-      
-      switch (sortBy) {
-        case 'new':
-          // Reverse order to show newest first (higher indices first)
-          return allStrategies.indexOf(b) - allStrategies.indexOf(a);
-        case 'sharpe':
-          return b.metrics.sharpe - a.metrics.sharpe;
-        case 'returns':
-          return b.metrics.annualReturn - a.metrics.annualReturn;
-        case 'winrate':
-          return b.metrics.winRate - a.metrics.winRate;
-        case 'name':
-          return a.title.localeCompare(b.title);
-        default:
-          return 0;
-      }
-    });
-  };
-
-  // Helper function to get random subset of tags and shuffle them
-  const getRandomTags = (tags: string[], strategyId: string) => {
-    // Use strategy ID as seed for consistent randomization per strategy
-    const seed = strategyId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const shuffled = [...tags].sort(() => {
-      const random = Math.sin(seed) * 10000;
-      return random - Math.floor(random) < 0.5 ? -1 : 1;
-    });
-    
-    // Random number of tags between 2 and 4
-    const numTags = 2 + (seed % 3);
-    return shuffled.slice(0, Math.min(numTags, tags.length));
-  };
+  // Use the custom hook for filtering and sorting
+  const filteredStrategies = useStrategyFiltering({
+    strategies: allStrategies,
+    searchQuery: exploreSearchQuery,
+    searchTerms,
+    sortBy
+  });
 
   const renderStrategyCard = (strategy: Strategy) => {
     const displayTags = getRandomTags(strategy.tags, strategy.id);
@@ -1142,11 +677,10 @@ Which area would you like to explore first?`;
   const renderSidebarContent = () => {
     // When in explore view, show strategy directory
     if (mainView === 'explore') {
-      const strategies = filterAndSortStrategies();
       return (
         <StrategyDirectory
           styles={styles}
-          strategies={strategies}
+          strategies={filteredStrategies}
           collapsedCategories={collapsedCategories}
           onToggleCategory={toggleCategory}
           onStrategyClick={(strategy) => setTearsheet({ strategy, isOpen: true })}
@@ -1232,8 +766,8 @@ Which area would you like to explore first?`;
             sortDropdownOpen={sortDropdownOpen}
             searchTerms={searchTerms}
             displayLimit={displayLimit}
-            totalResults={filterAndSortStrategies().length}
-            filteredCount={filterAndSortStrategies().length}
+            totalResults={filteredStrategies.length}
+            filteredCount={filteredStrategies.length}
             onSearchChange={setExploreSearchQuery}
             onSortChange={setSortBy}
             onSortDropdownToggle={setSortDropdownOpen}
@@ -1250,12 +784,12 @@ Which area would you like to explore first?`;
 
           <StrategyGrid
             styles={exploreStyles}
-            strategies={filterAndSortStrategies()}
+            strategies={filteredStrategies}
             displayLimit={displayLimit}
-            totalCount={filterAndSortStrategies().length}
+            totalCount={filteredStrategies.length}
             renderCard={renderStrategyCard}
             onLoadMore={() => setDisplayLimit(prev => prev + 12)}
-            onShowAll={() => setDisplayLimit(filterAndSortStrategies().length)}
+            onShowAll={() => setDisplayLimit(filteredStrategies.length)}
           />
 
           {/* Tearsheet Modal */}
@@ -1324,32 +858,10 @@ Which area would you like to explore first?`;
       />
       
       {/* Swipe Indicator for Mobile */}
-      {isMobile && !sidebarOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 100,
-            background: 'var(--color-bg-secondary)',
-            border: '2px solid var(--color-text-primary)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '8px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            opacity: 0.9,
-            pointerEvents: 'none',
-            animation: 'pulse 2s infinite'
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 19V6M5 12l7-7 7 7"/>
-          </svg>
-          <span style={{ fontSize: '12px', fontWeight: 500 }}>Swipe up for sidebar</span>
-        </div>
-      )}
+      <SwipeIndicator 
+        isVisible={isMobile && !sidebarOpen}
+        text="Swipe up for sidebar"
+      />
       
       {/* Sidebar */}
       <aside className={`${styles.snippetsSidebar} ${sidebarOpen ? styles.open : ''}`}>

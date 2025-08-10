@@ -109,8 +109,9 @@ export class DataFetcher {
     const start = new Date(startTime * 1000).toISOString();
     const end = new Date(endTime * 1000).toISOString();
     
+    // Use our backend proxy to avoid CORS issues
     const response = await fetch(
-      `https://api.exchange.coinbase.com/products/${coinbaseSymbol}/candles?` +
+      `http://localhost:5001/api/proxy/coinbase/products/${coinbaseSymbol}/candles?` +
       `start=${start}&end=${end}&granularity=60`
     );
     
