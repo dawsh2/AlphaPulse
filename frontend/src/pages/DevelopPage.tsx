@@ -642,6 +642,9 @@ This environment provides everything you need to develop, test, and deploy tradi
           setTerminalTabs={setTerminalTabs}
           setActiveTerminalTab={setActiveTerminalTab}
           setTerminalTabCounter={setTerminalTabCounter}
+          setSplitOrientation={setSplitOrientation}
+          setSplitSize={setSplitSize}
+          setOutputOpen={setOutputOpen}
           onSplitDragStart={handleSplitDragStart}
           onInitializeConsole={initializeConsole}
           styles={styles}

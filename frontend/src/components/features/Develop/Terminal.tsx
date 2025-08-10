@@ -4,7 +4,7 @@
  * NO FALLBACK CODE - Clean extraction only
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { formatShortPath } from '../../../utils/format';
 
 export interface TerminalTab {
@@ -26,6 +26,9 @@ interface TerminalProps {
   setTerminalTabs: (tabs: TerminalTab[]) => void;
   setActiveTerminalTab: (tabId: string) => void;
   setTerminalTabCounter: (counter: number) => void;
+  setSplitOrientation: (orientation: 'horizontal' | 'vertical') => void;
+  setSplitSize: (size: number) => void;
+  setOutputOpen: (open: boolean) => void;
   onSplitDragStart: (e: React.MouseEvent) => void;
   onInitializeConsole: () => void;
   styles: Record<string, string>;
@@ -42,6 +45,9 @@ export const Terminal: React.FC<TerminalProps> = ({
   setTerminalTabs,
   setActiveTerminalTab,
   setTerminalTabCounter,
+  setSplitOrientation,
+  setSplitSize,
+  setOutputOpen,
   onSplitDragStart,
   onInitializeConsole,
   styles
@@ -86,6 +92,9 @@ export const Terminal: React.FC<TerminalProps> = ({
     ));
   };
 
+  const outputEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
   const addOutput = (message: string, tabId?: string) => {
     const targetTabId = tabId || activeTerminalTab;
     setTerminalTabs(prev => prev.map(tab => 
@@ -94,36 +103,66 @@ export const Terminal: React.FC<TerminalProps> = ({
         : tab
     ));
   };
+  
+  // Auto-scroll to bottom when new output is added
+  useEffect(() => {
+    if (outputEndRef.current) {
+      outputEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [terminalTabs]);
+  
+  // Refocus input after orientation change
+  useEffect(() => {
+    if (inputRef.current && outputOpen) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [splitOrientation, outputOpen]);
 
   const initializeConsole = () => {
     const currentTab = getCurrentTerminalTab();
-    if (currentTab && !currentTab.content.length) {
+    if (currentTab && currentTab.content.length === 0) {
+      const timestamp = new Date().toISOString();
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: =================================================================`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine:  NAUTILUS TRADER - Automated Algorithmic Trading Platform`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine:  by Nautech Systems Pty Ltd.`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine:  Copyright (C) 2015-2025. All rights reserved.`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: =================================================================`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: `);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣶⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣾⣿⣿⣿⠀⢸⣿⣿⣿⣿⣶⣶⣤⣀⠀⠀⠀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⢀⣴⡇⢀⣾⣿⣿⣿⣿⣿⠀⣾⣿⣿⣿⣿⣿⣿⣿⠿⠓⠀⠀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⣰⣿⣿⡀⢸⣿⣿⣿⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⠟⠁⣠⣄⠀⠀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⢠⣿⣿⣿⣇⠀⢿⣿⣿⣿⣿⣿⠀⢻⣿⣿⣿⡿⢃⣠⣾⣿⣿⣧⡀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠠⣾⣿⣿⣿⣿⣿⣧⠈⠋⢀⣴⣧⠀⣿⡏⢠⡀⢸⣿⣿⣿⣿⣿⣿⣿⡇⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⣀⠙⢿⣿⣿⣿⣿⣿⠇⢠⣿⣿⣿⡄⠹⠃⠼⠃⠈⠉⠛⠛⠛⠛⠛⠻⠇⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⢸⡟⢠⣤⠉⠛⠿⢿⣿⠀⢸⣿⡿⠋⣠⣤⣄⠀⣾⣿⣿⣶⣶⣶⣦⡄⠀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠸⠀⣾⠏⣸⣷⠂⣠⣤⠀⠘⢁⣴⣾⣿⣿⣿⡆⠘⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠛⠀⣿⡟⠀⢻⣿⡄⠸⣿⣿⣿⣿⣿⣿⣿⡀⠘⣿⣿⣿⣿⠟⠀⠀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⣿⠇⠀⠀⢻⡿⠀⠈⠻⣿⣿⣿⣿⣿⡇⠀⢹⣿⠿⠋⠀⠀⠀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠙⠀⠀⠀⠈⠛⠿⠿⠛⠁⠀⠈⠁⠀⠀⠀⠀⠀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀`);
       addOutput('');
-      addOutput(' ███▄▄▄▄      ▄████████ ███    █▄      ███      ▄█   ▄█        ███    █▄     ▄████████ ');
-      addOutput(' ███▀▀▀██▄   ███    ███ ███    ███ ▀█████████▄ ███  ███        ███    ███   ███    ███ ');
-      addOutput(' ███   ███   ███    ███ ███    ███    ▀███▀▀██ ███▌ ███        ███    ███   ███    █▀  ');
-      addOutput(' ███   ███   ███    ███ ███    ███     ███   ▀ ███▌ ███        ███    ███   ███        ');
-      addOutput(' ███   ███ ▀███████████ ███    ███     ███     ███▌ ███      ▀▄███▄▄▄███  ▀███████████ ');
-      addOutput(' ███   ███   ███    ███ ███    ███     ███     ███  ███       ▀▀███▀▀▀███           ███ ');
-      addOutput(' ███   ███   ███    ███ ███    ███     ███     ███  ███▌    ▄  ███    ███     ▄█    ███ ');
-      addOutput('  ▀█   █▀    ███    █▀  ████████▀     ▄████▀   █▀   █████▄▄██  ███    ███   ▄████████▀  ');
-      addOutput('                                                    ▀         ███    ███                ');
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: =================================================================`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Component initialized.`);
+      addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ================================================================= `);
       addOutput('');
-      addOutput('Welcome to NautilusTrader Development Environment v2.0');
-      addOutput('═══════════════════════════════════════════════════════');
-      addOutput('');
-      addOutput('🚀 Ready for quantitative trading strategy development');
-      addOutput('📊 Integrated with market data, backtesting, and live trading');
-      addOutput('');
-      addOutput('Quick Start:');
-      addOutput('  • Type "help" to see available commands');
-      addOutput('  • Type "examples" to explore sample strategies');
-      addOutput('  • Type "claude" for AI assistance');
-      addOutput('');
-      addOutput('Happy coding! 📈');
+      addOutput('Type "help" for available commands or "examples" to see strategy samples.');
       addOutput('');
     }
   };
+
+  // Initialize console when terminal opens
+  useEffect(() => {
+    if (outputOpen && terminalTabs.length > 0) {
+      const currentTab = getCurrentTerminalTab();
+      if (currentTab && currentTab.content.length === 0) {
+        setTimeout(() => initializeConsole(), 100);
+      }
+    }
+  }, [outputOpen]);
 
   if (!outputOpen) return null;
 
@@ -135,14 +174,26 @@ export const Terminal: React.FC<TerminalProps> = ({
           onMouseDown={onSplitDragStart}
         />
       )}
+      <div
+        style={{
+          flex: editorHidden ? '1' : `0 0 ${splitSize || 300}px`,
+          minWidth: splitOrientation === 'vertical' && !editorHidden ? '250px' : 'auto',
+          minHeight: splitOrientation === 'horizontal' && !editorHidden ? '150px' : 'auto',
+          borderBottom: '3px solid var(--color-border-primary)',
+          borderRight: splitOrientation === 'vertical' ? '3px solid var(--color-border-primary)' : 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative'
+        }}
+      >
       <div 
         className={`${styles.outputPanel} ${styles[splitOrientation]} ${editorHidden ? styles.fullScreen : ''}`}
         style={{
-          ...(!editorHidden ? { 
-            flex: `0 0 ${splitSize || 300}px`,
-            minWidth: splitOrientation === 'vertical' ? '250px' : 'auto',
-            minHeight: splitOrientation === 'horizontal' ? '150px' : 'auto'
-          } : {})
+          border: 'none',
+          height: '100%',
+          flex: '1',
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
         <div className={styles.outputHeader}>
@@ -177,6 +228,34 @@ export const Terminal: React.FC<TerminalProps> = ({
               </button>
             </div>
           </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button 
+              className={styles.outputClose}
+              onClick={() => {
+                const newOrientation = splitOrientation === 'horizontal' ? 'vertical' : 'horizontal';
+                setSplitOrientation(newOrientation);
+                // Recalculate split size for new orientation
+                const mainArea = document.querySelector(`.${styles.mainArea}`) as HTMLElement;
+                if (mainArea) {
+                  if (newOrientation === 'horizontal') {
+                    setSplitSize(Math.floor(mainArea.clientHeight / 2));
+                  } else {
+                    setSplitSize(Math.floor(mainArea.clientWidth / 2));
+                  }
+                }
+              }}
+              title={`Switch to ${splitOrientation === 'horizontal' ? 'vertical' : 'horizontal'} split`}
+            >
+              {splitOrientation === 'horizontal' ? <span style={{ transform: 'rotate(90deg)', display: 'inline-block' }}>⊟</span> : '⊟'}
+            </button>
+            <button 
+              className={styles.outputClose}
+              onClick={() => setOutputOpen(false)}
+              title="Close Terminal"
+            >
+              ×
+            </button>
+          </div>
         </div>
         
         <div className={styles.outputContent}>
@@ -190,12 +269,14 @@ export const Terminal: React.FC<TerminalProps> = ({
                       {line}
                     </div>
                   ))}
+                  <div ref={outputEndRef} />
                 </div>
                 <div className={styles.inputLine}>
                   <span className={styles.prompt}>
                     {currentTab.cwd}$
                   </span>
                   <input
+                    ref={inputRef}
                     type="text"
                     className={styles.terminalInput}
                     value={currentTab.currentInput}
@@ -328,6 +409,7 @@ export const Terminal: React.FC<TerminalProps> = ({
             );
           })()}
         </div>
+      </div>
       </div>
     </>
   );
