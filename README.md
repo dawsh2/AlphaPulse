@@ -1,161 +1,137 @@
-# AlphaPulse - Event-Driven Trading System
+# AlphaPulse
 
-## Quick Start Guide
+Event-driven quantitative trading platform with microservices architecture.
 
-### 1. Setup Environment Variables
-
-Copy the example environment file and configure it:
+## Quick Start
 
 ```bash
-cp .env.example .env
+# Initial setup
+make setup
+
+# Start development environment
+make dev
+
+# View logs
+make dev-logs
+
+# Stop environment
+make dev-stop
 ```
 
-Edit `.env` with your settings:
+## Architecture
 
-```bash
-# Required for OAuth (get from https://app.alpaca.markets/developers/oauth)
-ALPACA_CLIENT_ID=your_alpaca_client_id
-ALPACA_CLIENT_SECRET=your_alpaca_client_secret
-
-# Optional - defaults are fine for development
-FLASK_PORT=5000
-FRONTEND_URL=http://localhost:8000
-```
-
-### 2. Install Backend Dependencies
-
-```bash
-cd pulse-engine
-pip install -r requirements.txt
-```
-
-### 3. Start the Backend Server
-
-```bash
-cd pulse-engine
-python app.py
-```
-
-The API server will start on `http://localhost:5000`
-
-### 4. Serve the Frontend
-
-From the `ui` directory:
-
-```bash
-# Using Python's built-in server
-python -m http.server 8000
-
-# Or using Node.js
-npx serve -p 8000
-
-# Or any other static file server
-```
-
-The frontend will be available at `http://localhost:8000`
-
-### 5. Connect Alpaca Account
-
-1. Open `http://localhost:8000/live-trading.html`
-2. Click "Connect Alpaca" 
-3. Authorize AlphaPulse in the Alpaca OAuth flow
-4. You'll be redirected back with your account connected
-
-## Architecture Overview
+AlphaPulse uses a microservices architecture for scalability and maintainability:
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  ui │    │   pulse-engine  │    │     Alpaca      │
-│   (Frontend)    │◄──►│   (Backend)     │◄──►│   (Broker)      │
-│                 │    │                 │    │                 │
-│ • Live Trading  │    │ • OAuth Flow    │    │ • Market Data   │
-│ • Strategy Lab  │    │ • API Proxy     │    │ • Order Exec    │
-│ • News Feed     │    │ • Event System  │    │ • Account Info  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+alphapulse/
+├── frontend/           # React/TypeScript UI
+├── services/          # Microservices
+│   ├── gateway/       # API Gateway (Nginx)
+│   ├── auth/          # Authentication service
+│   ├── market-data/   # Market data service
+│   ├── news/          # News & sentiment service
+│   ├── social/        # Comments & social features
+│   └── nautilus-core/ # NautilusTrader engine
+├── infrastructure/    # Docker, K8s configs
+├── shared/           # Shared libraries
+└── data/            # Persistent data (git-ignored)
 ```
 
-## Features Implemented
+## Services
 
-### ✅ OAuth Integration
-- Secure Alpaca OAuth flow
-- No API keys in frontend code
-- Token management and refresh
+### Frontend
+- **URL**: http://localhost:3000
+- **Tech**: React, TypeScript, Vite
+- **Features**: Research workbench, strategy builder, backtesting UI
 
-### ✅ Live Trading Interface
-- Real-time account data
-- Position monitoring
-- Strategy controls
-- Event logging
+### API Gateway
+- **URL**: http://localhost:80
+- **Purpose**: Routes requests to appropriate microservices
+- **Tech**: Nginx
 
-### ✅ Professional Charts
-- TradingView Lightweight Charts
-- Real-time data capability
-- Professional appearance
+### Auth Service
+- **Purpose**: User authentication and management
+- **Tech**: Python FastAPI, PostgreSQL, JWT
 
-### ✅ Event-Driven Architecture
-- Structured event logging
-- Database persistence
-- Real-time updates
+### Market Data Service
+- **Purpose**: Real-time and historical market data
+- **Tech**: Python, Alpaca API, Redis cache
+- **Features**: WebSocket feeds, data caching
 
-## Next Steps
-
-1. **Strategy Engine**: Implement the actual trading logic
-2. **WebSocket Streaming**: Add real-time market data
-3. **Risk Management**: Position sizing, stop losses
-4. **Backtesting**: Historical strategy testing
-5. **Analytics**: Performance metrics and reporting
+### NautilusTrader Core
+- **Purpose**: Trading engine for backtesting and live trading
+- **Tech**: NautilusTrader, Python
+- **Features**: Strategy execution, risk management, performance analytics
 
 ## Development
 
-### Database Schema
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 18+ (for frontend development)
+- Python 3.11+ (for backend development)
 
-The system uses SQLite by default with these tables:
-- `users` - User accounts
-- `broker_accounts` - Connected broker accounts (OAuth tokens)
-- `strategies` - Trading strategy configurations
-- `event_logs` - System and trading events
+### Environment Variables
+Copy `.env.example` to `.env` and configure:
+```bash
+ALPACA_API_KEY=your_key_here
+ALPACA_API_SECRET=your_secret_here
+ALPACA_BASE_URL=https://paper-api.alpaca.markets
+JWT_SECRET=your-secret-key
+```
 
-### API Endpoints
+### Common Commands
 
-- `GET /api/health` - System health check
-- `POST /api/auth/demo-login` - Demo authentication
-- `GET /api/auth/alpaca/connect` - Initiate OAuth
-- `GET /auth/alpaca/callback` - OAuth callback
-- `GET /api/account` - Account information
-- `GET /api/positions` - Current positions
-- `GET /api/events` - Event logs
+```bash
+# Build all services
+make build
 
-### Security
+# Run tests
+make test
 
-- JWT tokens for authentication
-- OAuth 2.0 for broker connections
-- Encrypted token storage
-- CORS protection
-- Environment variable configuration
+# Format code
+make format
 
-## Production Deployment
+# Shell into service
+make shell-nautilus
+make shell-auth
 
-For production deployment:
+# Database access
+make db-shell    # PostgreSQL
+make mongo-shell # MongoDB
+make redis-cli   # Redis
 
-1. Set `PRODUCTION_MODE=true` in `.env`
-2. Use PostgreSQL instead of SQLite
-3. Set up proper SSL certificates
-4. Configure domain-specific OAuth redirect URLs
-5. Set strong JWT secret keys
-6. Enable proper logging and monitoring
+# Backup data
+make backup
+```
 
-## Getting Alpaca OAuth Credentials
+## Migration from Old Structure
 
-1. Go to https://app.alpaca.markets/developers/oauth
-2. Create a new OAuth application
-3. Set redirect URI to: `http://localhost:5000/auth/alpaca/callback`
-4. Copy the Client ID and Client Secret to your `.env` file
+The project has been migrated from `ap/` directory structure to a proper microservices architecture. Old code remains in `ap/` for reference during migration.
 
-## Support
+### Migration Status
+- ✅ Frontend moved to `/frontend`
+- ✅ Service directories created
+- ✅ Docker Compose configuration
+- ✅ Makefile for common commands
+- ⏳ Backend service extraction
+- ⏳ API Gateway configuration
+- ⏳ Service implementations
 
-The system is designed to be:
-- **Secure**: OAuth instead of API keys
-- **Scalable**: Event-driven architecture
-- **Professional**: Production-ready UI/UX
-- **Extensible**: Modular design for easy expansion
-# alphapulse
+## Documentation
+
+- [Architecture Overview](./ARCHITECTURE.md)
+- [API Documentation](./docs/api/)
+- [Development Setup](./docs/development/)
+- [Deployment Guide](./docs/deployment/)
+
+## Contributing
+
+1. Create feature branch
+2. Make changes
+3. Run tests: `make test`
+4. Format code: `make format`
+5. Submit PR
+
+## License
+
+Proprietary - All rights reserved

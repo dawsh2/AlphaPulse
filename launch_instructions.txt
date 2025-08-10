@@ -1,8 +1,0 @@
-Launch Instructions for AlphaPulse
-=====================================
-
-To deploy AlphaPulse UI to the site, run the following command:
-
-cd /Users/daws/alphapulse/ap/alphapulse-ui && ./deploy_to_site.sh
-
-Note: Make sure you're in the correct directory and that the deploy_to_site.sh script has execute permissions before running this command.

@@ -1,0 +1,678 @@
+/* Develop Components Styles */
+
+.developContainer {
+  display: flex;
+  height: 100vh;
+  background: var(--color-bg-primary);
+  overflow: hidden;
+}
+
+/* Panels */
+.leftPanel {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border-primary);
+  min-width: 200px;
+  max-width: 500px;
+  resize: horizontal;
+  overflow: auto;
+}
+
+.centerPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rightPanel {
+  background: var(--color-bg-secondary);
+  border-left: 1px solid var(--color-border-primary);
+  min-width: 250px;
+  max-width: 500px;
+  resize: horizontal;
+  overflow: auto;
+}
+
+.bottomPanel {
+  border-top: 1px solid var(--color-border-primary);
+  min-height: 100px;
+  max-height: 50vh;
+  resize: vertical;
+  overflow: auto;
+}
+
+/* File Explorer */
+.fileExplorer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.explorerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-primary);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  font-size: var(--font-size-xs);
+}
+
+.explorerActions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.iconButton {
+  padding: var(--space-1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.iconButton:hover {
+  opacity: 1;
+}
+
+.fileTree {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2) 0;
+}
+
+.fileItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.fileItem:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.fileItem.selected {
+  background: var(--color-accent-light);
+  color: var(--color-accent-primary);
+}
+
+.fileIcon {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-sm);
+}
+
+.fileName {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.renameInput {
+  flex: 1;
+  padding: var(--space-1);
+  border: 1px solid var(--color-accent-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-primary);
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+
+/* Context Menu */
+.contextMenuOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.contextMenu {
+  position: fixed;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: var(--space-1);
+  min-width: 150px;
+  z-index: 1000;
+}
+
+.contextMenu button {
+  display: block;
+  width: 100%;
+  padding: var(--space-2);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background 0.1s;
+}
+
+.contextMenu button:hover {
+  background: var(--color-bg-tertiary);
+}
+
+/* Editor Area */
+.editorArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tabBar {
+  display: flex;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-primary);
+  overflow-x: auto;
+  height: 40px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border-primary);
+  cursor: pointer;
+  min-width: 120px;
+  max-width: 200px;
+  transition: background 0.1s;
+}
+
+.tab:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.tab.active {
+  background: var(--color-bg-primary);
+  border-bottom: 2px solid var(--color-accent-primary);
+}
+
+.tabTitle {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tabClose {
+  padding: var(--space-1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: var(--font-size-lg);
+  line-height: 1;
+}
+
+.tabClose:hover {
+  opacity: 1;
+}
+
+/* Welcome Screen */
+.welcomeScreen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.welcomeScreen h2 {
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--space-3);
+}
+
+.welcomeScreen p {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.shortcuts {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  text-align: left;
+}
+
+.shortcuts h3 {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--space-3);
+}
+
+.shortcuts ul {
+  list-style: none;
+  padding: 0;
+}
+
+.shortcuts li {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.shortcuts kbd {
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+/* Code Editor Wrapper */
+.codeEditorWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.editorToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.editorTitle {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+}
+
+.editorActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.editorButton {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.editorButton:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.monacoContainer {
+  flex: 1;
+}
+
+/* Terminal */
+.terminal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: var(--font-mono);
+}
+
+.terminalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  background: #2d2d2d;
+  border-bottom: 1px solid #3e3e3e;
+}
+
+.terminalTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.terminalActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.terminalButton {
+  padding: var(--space-1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.terminalButton:hover {
+  opacity: 1;
+}
+
+.terminalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+
+.commandBlock {
+  margin-bottom: var(--space-2);
+}
+
+.commandInput {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.prompt {
+  color: #569cd6;
+  white-space: nowrap;
+}
+
+.command {
+  color: #d4d4d4;
+}
+
+.terminalInput {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #d4d4d4;
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+}
+
+.commandOutput {
+  color: #cccccc;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: var(--font-size-sm);
+}
+
+.commandOutput.error {
+  color: #f48771;
+}
+
+.commandOutput pre {
+  margin: 0;
+  font-family: inherit;
+}
+
+.running {
+  color: #dcdcaa;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Git Panel */
+.gitPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.gitHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.gitBranch {
+  position: relative;
+}
+
+.branchButton {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.branchButton:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.branchSelector {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: var(--space-1);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+.branchInput {
+  padding: var(--space-2);
+  border: none;
+  background: none;
+  min-width: 200px;
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+
+.gitActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.gitButton {
+  padding: var(--space-1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-lg);
+  opacity: 0.7;
+}
+
+.gitButton:hover {
+  opacity: 1;
+}
+
+.gitTabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.gitTab {
+  flex: 1;
+  padding: var(--space-2);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all 0.2s;
+}
+
+.gitTab:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.gitTab.active {
+  border-bottom-color: var(--color-accent-primary);
+  color: var(--color-accent-primary);
+}
+
+.gitChanges {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.fileSection {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.sectionHeader {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-2);
+}
+
+.gitFile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.gitFile:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.fileStatus {
+  width: 20px;
+  text-align: center;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+}
+
+.fileStatus.modified { color: #e2c08d; }
+.fileStatus.added { color: #73c991; }
+.fileStatus.deleted { color: #f48771; }
+.fileStatus.renamed { color: #6796e6; }
+.fileStatus.untracked { color: #808080; }
+
+.fileName {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stageButton,
+.unstageButton {
+  padding: var(--space-1);
+  background: none;
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  opacity: 0.7;
+  transition: opacity 0.1s;
+}
+
+.stageButton:hover,
+.unstageButton:hover {
+  opacity: 1;
+}
+
+.noChanges,
+.noCommits {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+.commitSection {
+  padding: var(--space-3);
+}
+
+.commitMessage {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  resize: vertical;
+  margin-bottom: var(--space-2);
+}
+
+.commitButton {
+  width: 100%;
+  padding: var(--space-2);
+  background: var(--color-accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.commitButton:hover:not(:disabled) {
+  background: var(--color-accent-secondary);
+}
+
+.commitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gitHistory {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+
+.commit {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.commit:last-child {
+  border-bottom: none;
+}
+
+.commitHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-1);
+}
+
+.commitHash {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-accent-primary);
+}
+
+.commitDate {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.commitMessage {
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-1);
+}
+
+.commitAuthor {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}

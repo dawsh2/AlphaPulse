@@ -1,0 +1,133 @@
+version: '3.8'
+
+services:
+  # Frontend - React application
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:80/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+  # API Gateway - Nginx
+  gateway:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./services/gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth
+      - nautilus-core
+      - market-data
+
+  # Authentication Service
+  auth:
+    build: ./services/auth
+    environment:
+      - DATABASE_URL=postgresql://alphapulse:alphapulse@postgres:5432/auth
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-here}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/auth:/app
+
+  # Market Data Service
+  market-data:
+    build: ./services/market-data
+    environment:
+      - ALPACA_API_KEY=${ALPACA_API_KEY}
+      - ALPACA_API_SECRET=${ALPACA_API_SECRET}
+      - ALPACA_BASE_URL=${ALPACA_BASE_URL:-https://paper-api.alpaca.markets}
+      - REDIS_URL=redis://redis:6379/1
+    depends_on:
+      - redis
+    volumes:
+      - ./services/market-data:/app
+
+  # News Service
+  news:
+    build: ./services/news
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017/news
+      - REDIS_URL=redis://redis:6379/2
+    depends_on:
+      - mongodb
+      - redis
+    volumes:
+      - ./services/news:/app
+
+  # Social Service (Comments)
+  social:
+    build: ./services/social
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017/social
+      - AUTH_SERVICE_URL=http://auth:8000
+    depends_on:
+      - mongodb
+      - auth
+    volumes:
+      - ./services/social:/app
+
+  # NautilusTrader Core Service
+  nautilus-core:
+    build: ./services/nautilus-core
+    environment:
+      - CATALOG_PATH=/catalog
+      - WORKSPACE_PATH=/workspace
+      - REDIS_URL=redis://redis:6379/3
+      - DATABASE_URL=postgresql://alphapulse:alphapulse@postgres:5432/nautilus
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/nautilus-core:/app
+      - ./data/parquet:/catalog
+      - ./data/user-files:/workspace
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=alphapulse
+      - POSTGRES_PASSWORD=alphapulse
+      - POSTGRES_MULTIPLE_DATABASES=auth,nautilus
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh
+    ports:
+      - "5432:5432"
+
+  # MongoDB Database
+  mongodb:
+    image: mongo:6-jammy
+    volumes:
+      - ./data/mongodb:/data/db
+    ports:
+      - "27017:27017"
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  redis_data:
+  parquet_catalog:
+  user_workspaces:
+
+networks:
+  default:
+    name: alphapulse_network

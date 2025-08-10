@@ -1,0 +1,371 @@
+/* Monitor Components Styles */
+
+.monitorContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg-primary);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.priceDisplay {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.symbol {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.price {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-mono);
+}
+
+.priceChange {
+  font-size: var(--font-size-md);
+}
+
+.positive {
+  color: var(--color-success);
+}
+
+.negative {
+  color: var(--color-error);
+}
+
+.crosshairPrice {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-left: var(--space-4);
+}
+
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.connected {
+  color: var(--color-success);
+}
+
+.disconnected {
+  color: var(--color-text-tertiary);
+}
+
+.exchange {
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  overflow: hidden;
+}
+
+.chartSection {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar {
+  width: 350px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.tab {
+  flex: 1;
+  padding: var(--space-3);
+  background: none;
+  border: none;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  background: var(--color-bg-primary);
+}
+
+.tab.active {
+  color: var(--color-text-primary);
+  border-bottom: 2px solid var(--color-accent-primary);
+}
+
+.tabContent {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.loading, .error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-4);
+}
+
+.error button {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.chartContainer {
+  width: 100%;
+  position: relative;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* Metrics Panel */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.metricCard {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  transition: transform 0.2s ease;
+}
+
+.metricCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.metricLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+  margin-bottom: var(--space-1);
+}
+
+.metricValue {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-mono);
+}
+
+.metricgreen {
+  color: var(--color-success);
+}
+
+.metricred {
+  color: var(--color-error);
+}
+
+.metricorange {
+  color: var(--color-warning);
+}
+
+.metricneutral {
+  color: var(--color-text-primary);
+}
+
+/* Event Stream */
+.eventStream {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-3);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.eventItem {
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  background: var(--color-bg-primary);
+  border-left: 3px solid;
+  border-radius: var(--radius-sm);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.eventBuy {
+  border-left-color: var(--color-success);
+}
+
+.eventSell {
+  border-left-color: var(--color-error);
+}
+
+.eventSignal {
+  border-left-color: var(--color-info);
+}
+
+.eventError {
+  border-left-color: var(--color-warning);
+  background: rgba(255, 152, 0, 0.05);
+}
+
+.eventInfo {
+  border-left-color: var(--color-text-tertiary);
+}
+
+.eventHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.eventIcon {
+  font-size: var(--font-size-md);
+}
+
+.eventTime {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.eventDescription {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  line-height: 1.5;
+}
+
+.eventMetadata {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.metadataItem {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-secondary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
+
+/* Strategy List */
+.strategyList {
+  padding: var(--space-3);
+}
+
+.strategyItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.strategyItem:hover {
+  background: var(--color-bg-secondary);
+  transform: translateX(4px);
+}
+
+.strategyItem.active {
+  border-color: var(--color-accent-primary);
+  background: var(--color-accent-light);
+}
+
+.strategyInfo {
+  flex: 1;
+}
+
+.strategyName {
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
+}
+
+.strategyStats {
+  display: flex;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.strategyStat {
+  color: var(--color-text-tertiary);
+}
+
+.strategyToggle {
+  width: 48px;
+  height: 24px;
+  background: var(--color-bg-tertiary);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.strategyToggle.active {
+  background: var(--color-success);
+}
+
+.strategyToggle::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s ease;
+}
+
+.strategyToggle.active::after {
+  transform: translateX(24px);
+}
