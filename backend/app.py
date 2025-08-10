@@ -378,6 +378,36 @@ def save_market_data():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ================================================================================
+# Coinbase Proxy Endpoint
+# ================================================================================
+
+@app.route('/api/proxy/coinbase/<path:endpoint>', methods=['GET'])
+def proxy_coinbase(endpoint):
+    """Proxy requests to Coinbase API to avoid CORS issues."""
+    import requests
+    
+    try:
+        # Build the Coinbase API URL
+        base_url = 'https://api.exchange.coinbase.com'
+        url = f"{base_url}/{endpoint}"
+        
+        # Forward query parameters
+        params = request.args.to_dict()
+        
+        # Make the request to Coinbase
+        response = requests.get(url, params=params, timeout=10)
+        
+        # Return the response with proper CORS headers
+        return jsonify(response.json()), response.status_code
+        
+    except requests.exceptions.Timeout:
+        return jsonify({'error': 'Request to Coinbase timed out'}), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Error proxying to Coinbase: {str(e)}'}), 502
+    except Exception as e:
+        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+
+# ================================================================================
 # Trading Operations (Paper Trading Safe)
 # ================================================================================
 

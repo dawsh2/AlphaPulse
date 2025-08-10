@@ -148,3 +148,42 @@ export function formatBytes(bytes: number, decimals: number = 2): string {
   
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(decimals))} ${sizes[i]}`;
 }
+
+/**
+ * Format file path for display in tabs (abbreviated)
+ */
+export function formatShortPath(path: string): string {
+  // For display in tab, show abbreviated path
+  if (path === '~' || path === '~/strategies') {
+    return path;
+  }
+  const parts = path.split('/');
+  if (parts.length > 3) {
+    // Show first part and last two parts
+    return `${parts[0]}/.../${parts.slice(-2).join('/')}`;
+  }
+  return path;
+}
+
+/**
+ * Get file icon text based on file extension
+ */
+export function getFileIcon(filename: string): string {
+  if (filename.endsWith('.py')) return 'PY';
+  if (filename.endsWith('.yaml') || filename.endsWith('.yml')) return 'YML';
+  if (filename.endsWith('.json')) return 'JSON';
+  if (filename.endsWith('.md')) return 'MD';
+  return 'TXT';
+}
+
+/**
+ * Get file language based on file extension for syntax highlighting
+ */
+export function getFileLanguage(filename: string): string {
+  if (filename.endsWith('.py')) return 'python';
+  if (filename.endsWith('.yaml') || filename.endsWith('.yml')) return 'yaml';
+  if (filename.endsWith('.json')) return 'json';
+  if (filename.endsWith('.ipynb')) return 'json';
+  if (filename.endsWith('.md')) return 'markdown';
+  return 'text';
+}
