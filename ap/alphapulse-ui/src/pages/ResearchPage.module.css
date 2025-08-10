@@ -425,8 +425,9 @@
   border: 3px solid var(--color-text-primary);
   border-radius: var(--radius-lg);
   box-shadow: -3px 5px var(--color-text-primary);
-  overflow: hidden;
+  overflow: visible;
   background: var(--color-bg-secondary);
+  position: relative;
 }
 
 .codeEditor:hover {

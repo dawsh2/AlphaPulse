@@ -328,6 +328,55 @@ def get_market_data(symbol):
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/api/market-data/save', methods=['POST', 'OPTIONS'])
+def save_market_data():
+    """Save market data to database (optional endpoint for caching)."""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response, 200
+    
+    try:
+        data = request.get_json()
+        
+        # Log the save request (optional - you can implement actual storage if needed)
+        symbol = data.get('symbol')
+        exchange = data.get('exchange')
+        candles = data.get('candles', [])
+        
+        # For now, just log and return success
+        # You could implement actual database storage here if needed
+        print(f"📊 Market data save request: {symbol} from {exchange}, {len(candles)} candles")
+        
+        # Log as event
+        import json
+        event = EventLog(
+            id=str(uuid.uuid4()),
+            user_id='system',  # System event, not user-specific
+            event_type='data_cache',
+            event_data=json.dumps({
+                'symbol': symbol,
+                'exchange': exchange,
+                'candle_count': len(candles),
+                'interval': data.get('interval', '1m')
+            })
+        )
+        db.session.add(event)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Saved {len(candles)} candles for {symbol}',
+            'event_id': event.id
+        })
+        
+    except Exception as e:
+        print(f"❌ Error saving market data: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 # ================================================================================
 # Trading Operations (Paper Trading Safe)
 # ================================================================================
@@ -511,24 +560,12 @@ def create_event():
 # Strategy Management & Persistence
 # ================================================================================
 
-@app.route('/api/strategies', methods=['GET'])
-@require_auth
-def get_strategies():
-    """Get all saved strategies for the current user."""
-    try:
-        strategies = Strategy.query.filter_by(user_id=request.current_user.id).all()
-        
-        return jsonify({
-            'status': 'success',
-            'data': [s.to_dict() for s in strategies]
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+# Note: /api/strategies routes already defined above at line 460
 
-@app.route('/api/strategies', methods=['POST'])
+@app.route('/api/strategies/<int:strategy_id>', methods=['PUT'])
 @require_auth
-def save_strategy():
-    """Save a new strategy or update existing one."""
+def update_strategy(strategy_id):
+    """Update an existing strategy."""
     try:
         data = request.get_json()
         

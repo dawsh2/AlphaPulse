@@ -58,7 +58,9 @@ export class CoinbaseService implements ExchangeService {
               onData(currentCandle);
             }
             
-            // Start new candle
+            // For a new minute, we should ideally fetch the actual OHLC from REST API
+            // But for real-time updates, we'll build from trades
+            // The first trade of a minute is the open, not all OHLC values
             currentCandle = {
               time: minute,
               open: price,
@@ -68,8 +70,11 @@ export class CoinbaseService implements ExchangeService {
               volume: size
             };
             lastMinute = minute;
+            
+            // Note: The first candle when connecting might be incomplete
+            // The frontend should fetch recent complete candles via REST API first
           } else {
-            // Update current candle
+            // Update current candle - this properly tracks OHLC
             currentCandle.high = Math.max(currentCandle.high, price);
             currentCandle.low = Math.min(currentCandle.low, price);
             currentCandle.close = price;

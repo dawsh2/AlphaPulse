@@ -1967,7 +1967,7 @@ print(attribution)`;
                   {cell.type === 'code' ? (
                   <div className={styles.codeEditor}>
                     <Editor
-                      height="200px"
+                      height="300px"
                       language="python"
                       value={cell.content}
                       onChange={(value) => updateCellContent(cell.id, value || '')}
@@ -1996,14 +1996,6 @@ print(attribution)`;
                         
                         // Force apply the theme
                         monaco.editor.setTheme(theme);
-                        
-                        const updateHeight = () => {
-                          const contentHeight = Math.min(1000, Math.max(100, editor.getContentHeight()));
-                          editor.getContainerDomNode().style.height = `${contentHeight}px`;
-                          editor.layout();
-                        };
-                        editor.onDidContentSizeChange(updateHeight);
-                        updateHeight();
                       }}
                       options={{
                         fontSize: 13,
@@ -2027,11 +2019,14 @@ print(attribution)`;
                         cursorBlinking: 'smooth',
                         cursorSmoothCaretAnimation: 'on',
                         scrollbar: {
-                          vertical: 'auto',
-                          horizontal: 'auto',
+                          vertical: 'visible',
+                          horizontal: 'visible',
                           verticalScrollbarSize: 10,
-                          horizontalScrollbarSize: 10
-                        }
+                          horizontalScrollbarSize: 10,
+                          alwaysConsumeMouseWheel: false
+                        },
+                        overviewRulerLanes: 0,
+                        fixedOverflowWidgets: true
                       }}
                     />
                   </div>

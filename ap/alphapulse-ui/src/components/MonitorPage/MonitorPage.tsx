@@ -68,6 +68,7 @@ const MonitorPage: React.FC = () => {
   const [strategyDropdownOpen, setStrategyDropdownOpen] = useState(false);
   const [speedDropdownOpen, setSpeedDropdownOpen] = useState(false);
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Refs
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -350,7 +351,7 @@ const MonitorPage: React.FC = () => {
         
         if (cachedData.length > 0) {
           // Convert stored data to MarketData format
-          const marketData: MarketData[] = cachedData
+          let marketData: MarketData[] = cachedData
             .sort((a, b) => a.timestamp - b.timestamp)
             .map(candle => ({
               time: candle.timestamp,
@@ -362,18 +363,76 @@ const MonitorPage: React.FC = () => {
             }));
           
           console.log(`[${exchange}] Loaded ${marketData.length} candles from cache`);
+          
+          // Check if we need to top off the data before displaying
+          const lastCandle = marketData[marketData.length - 1];
+          const now = Math.floor(Date.now() / 1000);
+          const gapMinutes = Math.floor((now - lastCandle.time) / 60);
+          
+          console.log(`[${exchange}] Last cached candle: ${new Date(lastCandle.time * 1000).toISOString()}, Gap: ${gapMinutes} minutes`);
+          
+          // If there's a gap, try to fill it with recent data
+          if (gapMinutes > 5 && gapMinutes < 200) {
+            console.log(`[${exchange}] Fetching recent ${gapMinutes} minutes to fill gap...`);
+            try {
+              const recentData = await service.fetchHistoricalData(symbol, gapMinutes + 5); // Get a bit extra
+              console.log(`[${exchange}] Got ${recentData.length} recent candles`);
+              
+              // Filter to only add candles newer than what we have
+              const newCandles = recentData.filter(c => c.time > lastCandle.time);
+              if (newCandles.length > 0) {
+                marketData = [...marketData, ...newCandles];
+                console.log(`[${exchange}] Added ${newCandles.length} candles to fill gap`);
+                
+                // Store the recent candles
+                const storedCandles = newCandles.map(candle => ({
+                  symbol,
+                  exchange,
+                  interval: '1m' as const,
+                  timestamp: candle.time,
+                  open: candle.open,
+                  high: candle.high,
+                  low: candle.low,
+                  close: candle.close,
+                  volume: candle.volume,
+                  metadata: {
+                    fetchedAt: Date.now(),
+                    source: 'coinbase-rest-recent'
+                  }
+                }));
+                await dataStorage.saveCandles(storedCandles);
+                
+                setEventData(prev => [...prev, {
+                  time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                  type: 'signal',
+                  description: `[${exchange}] Loaded ${marketData.length} candles (gap filled)`
+                }]);
+              } else {
+                setEventData(prev => [...prev, {
+                  time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                  type: 'signal',
+                  description: `[${exchange}] Loaded ${marketData.length} candles (${gapMinutes}min gap remains)`
+                }]);
+              }
+            } catch (error) {
+              console.error(`[${exchange}] Failed to fetch recent data:`, error);
+              setEventData(prev => [...prev, {
+                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                type: 'signal',
+                description: `[${exchange}] Loaded ${marketData.length} candles (couldn't fill ${gapMinutes}min gap)`
+              }]);
+            }
+          } else {
+            setEventData(prev => [...prev, {
+              time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              type: 'signal',
+              description: `[${exchange}] Loaded ${marketData.length} candles from cache`
+            }]);
+          }
+          
+          // Always set the market data
           setMarketData(marketData);
           setCurrentBar(marketData.length);
-          
-          // Add event
-          setEventData(prev => [...prev, {
-            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            type: 'signal',
-            description: `[${exchange}] Loaded ${marketData.length} candles from cache`
-          }]);
-          
-          // Check if we need to update in background
-          dataFetcher.updateIfNeeded(symbol, exchange).catch(console.error);
         } else {
           // No cached data, fetch from exchange
           console.log(`[${exchange}] No cached data, fetching from API...`);
@@ -390,7 +449,7 @@ const MonitorPage: React.FC = () => {
                 limit: 10000
               });
               
-              const marketData: MarketData[] = newData
+              let marketData: MarketData[] = newData
                 .sort((a, b) => a.timestamp - b.timestamp)
                 .map(candle => ({
                   time: candle.timestamp,
@@ -400,6 +459,49 @@ const MonitorPage: React.FC = () => {
                   close: candle.close,
                   volume: candle.volume
                 }));
+              
+              // Check for gap and fetch recent data to fill it
+              if (marketData.length > 0) {
+                const lastCandle = marketData[marketData.length - 1];
+                const now = Math.floor(Date.now() / 1000);
+                const gapMinutes = Math.floor((now - lastCandle.time) / 60);
+                
+                if (gapMinutes > 5 && gapMinutes < 200) {
+                  console.log(`[${exchange}] Fetching recent ${gapMinutes} minutes to fill gap...`);
+                  try {
+                    // Use the service's fetchHistoricalData which gets more recent data
+                    const recentData = await service.fetchHistoricalData(symbol, gapMinutes);
+                    console.log(`[${exchange}] Got ${recentData.length} recent candles`);
+                    
+                    // Filter to only add candles newer than what we have
+                    const newCandles = recentData.filter(c => c.time > lastCandle.time);
+                    if (newCandles.length > 0) {
+                      marketData = [...marketData, ...newCandles];
+                      console.log(`[${exchange}] Added ${newCandles.length} candles to fill gap`);
+                      
+                      // Store the recent candles too
+                      const storedCandles = newCandles.map(candle => ({
+                        symbol,
+                        exchange,
+                        interval: '1m' as const,
+                        timestamp: candle.time,
+                        open: candle.open,
+                        high: candle.high,
+                        low: candle.low,
+                        close: candle.close,
+                        volume: candle.volume,
+                        metadata: {
+                          fetchedAt: Date.now(),
+                          source: 'coinbase-rest-recent'
+                        }
+                      }));
+                      await dataStorage.saveCandles(storedCandles);
+                    }
+                  } catch (error) {
+                    console.error(`[${exchange}] Failed to fetch recent data:`, error);
+                  }
+                }
+              }
               
               setMarketData(marketData);
               setCurrentBar(marketData.length);
@@ -430,16 +532,60 @@ const MonitorPage: React.FC = () => {
       }
     };
 
-    // Connect to exchange WebSocket
-    const connectToExchange = () => {
+    // Connect to exchange WebSocket  
+    const connectToExchange = async () => {
+      let lastUpdateTime = 0;
+      
+      // First, fetch the last 3 minutes to ensure we have complete candles
+      // This prevents the issue where WebSocket creates incomplete candles
+      try {
+        const recentCandles = await service.fetchHistoricalData(symbol, 3);
+        if (recentCandles.length > 0) {
+          console.log(`[${exchange}] Fetched ${recentCandles.length} recent complete candles for proper OHLC`);
+          
+          // Update market data with these complete candles
+          setMarketData(prev => {
+            const updated = [...prev];
+            
+            // Replace or add the recent complete candles
+            recentCandles.forEach(candle => {
+              const existingIndex = updated.findIndex(d => d.time === candle.time);
+              if (existingIndex >= 0) {
+                // Replace with complete candle from REST API
+                // This fixes the issue where WebSocket might have created an incomplete candle
+                updated[existingIndex] = candle;
+              } else {
+                // Add new candle in the right position
+                const insertIndex = updated.findIndex(d => d.time > candle.time);
+                if (insertIndex >= 0) {
+                  updated.splice(insertIndex, 0, candle);
+                } else {
+                  updated.push(candle);
+                }
+              }
+            });
+            
+            // Sort by time to ensure correct order
+            updated.sort((a, b) => a.time - b.time);
+            
+            return updated;
+          });
+        }
+      } catch (error) {
+        console.error(`[${exchange}] Failed to fetch recent candles:`, error);
+      }
+      
+      // Now connect WebSocket for live updates
       const ws = service.connect(symbol, (newCandle: MarketData) => {
-        console.log(`[${exchange}] New candle:`, {
-          time: new Date(newCandle.time * 1000).toISOString(),
-          ohlc: `O:${newCandle.open.toFixed(2)} H:${newCandle.high.toFixed(2)} L:${newCandle.low.toFixed(2)} C:${newCandle.close.toFixed(2)}`
-        });
-        
-        // Update live price
+        // Update live price immediately
         setLivePrice(newCandle.close);
+        
+        // Throttle chart updates to once per second to prevent spam
+        const now = Date.now();
+        if (now - lastUpdateTime < 1000) {
+          return; // Skip this update if less than 1 second has passed
+        }
+        lastUpdateTime = now;
         
         // Update market data
         setMarketData(prev => {
@@ -447,20 +593,36 @@ const MonitorPage: React.FC = () => {
           const existingIndex = updated.findIndex(d => d.time === newCandle.time);
           
           if (existingIndex >= 0) {
-            // Update existing candle
-            updated[existingIndex] = newCandle;
+            // For the current minute, be careful about replacing complete candles
+            const existing = updated[existingIndex];
+            
+            // Check if the new candle has better data
+            // A candle built from WebSocket might start with all prices the same
+            const existingRange = existing.high - existing.low;
+            const newRange = newCandle.high - newCandle.low;
+            
+            // Only update if the new candle has equal or better price range
+            // OR if the prices have actually changed
+            if (newRange >= existingRange ||
+                existing.close !== newCandle.close ||
+                (newCandle.high > existing.high) ||
+                (newCandle.low < existing.low)) {
+              updated[existingIndex] = newCandle;
+            } else {
+              return prev; // Keep the existing better candle
+            }
           } else {
             // Add new candle only if it's newer
             const lastCandle = updated[updated.length - 1];
             if (!lastCandle || newCandle.time > lastCandle.time) {
               updated.push(newCandle);
-              if (updated.length > 500) {
+              // Keep a reasonable amount of data in memory
+              if (updated.length > 10000) {
                 updated.shift();
               }
             }
           }
           
-          updated.sort((a, b) => a.time - b.time);
           return updated;
         });
       });
@@ -482,6 +644,8 @@ const MonitorPage: React.FC = () => {
     
     // First backfill historical data, then connect WebSocket
     const init = async () => {
+      if (cancelled) return;
+      
       try {
         await backfillData();
         if (!cancelled) {
@@ -497,11 +661,17 @@ const MonitorPage: React.FC = () => {
       }
     };
     
-    init();
+    // Small delay to prevent double-fetch in React StrictMode
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        init();
+      }
+    }, 10);
     
     // Cleanup on unmount or symbol change
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
       abortController.abort();
       if (service) {
         service.disconnect();
@@ -556,18 +726,30 @@ const MonitorPage: React.FC = () => {
     };
   }, []); // Empty dependency array - only init once
 
-  // Update chart when market data changes
+  // Update chart when market data changes (debounced)
   useEffect(() => {
-    if (candleSeriesRef.current && marketData.length > 0) {
-      console.log(`Updating chart with ${marketData.length} candles`);
-      // Log first and last few candles to debug
-      console.log('First candle:', marketData[0]);
-      console.log('Last candles:', marketData.slice(-3));
-      
-      candleSeriesRef.current.setData(marketData as any);
-    } else if (!candleSeriesRef.current && marketData.length > 0) {
-      console.log('Chart not ready yet, data available:', marketData.length);
+    if (!candleSeriesRef.current || marketData.length === 0) {
+      if (!candleSeriesRef.current && marketData.length > 0) {
+        console.log('Chart not ready yet, data available:', marketData.length);
+      }
+      return;
     }
+    
+    // Debounce chart updates to prevent excessive re-renders
+    const timeoutId = setTimeout(() => {
+      if (candleSeriesRef.current && marketData.length > 0) {
+        console.log(`Updating chart with ${marketData.length} candles`);
+        // Only log in debug mode or first update
+        if (marketData.length <= 100 || !candleSeriesRef.current.options) {
+          console.log('First candle:', marketData[0]);
+          console.log('Last candles:', marketData.slice(-3));
+        }
+        
+        candleSeriesRef.current.setData(marketData as any);
+      }
+    }, 100); // 100ms debounce
+    
+    return () => clearTimeout(timeoutId);
   }, [marketData]);
 
   useEffect(() => {
@@ -730,6 +912,14 @@ const MonitorPage: React.FC = () => {
           {/* Chart */}
           <div className={styles.chartContainer}>
             <div ref={chartContainerRef} className={styles.chart}></div>
+            
+            {/* Loading overlay */}
+            {isLoadingData && (
+              <div className={styles.loadingOverlay}>
+                <div className={styles.loadingSpinner}></div>
+                <div className={styles.loadingText}>Updating market data...</div>
+              </div>
+            )}
 
             <div className={styles.chartInfo}>
               <div className={styles.symbolInfo}>
