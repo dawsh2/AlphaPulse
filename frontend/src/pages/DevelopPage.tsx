@@ -3,6 +3,15 @@ import styles from './DevelopPage.module.css';
 import CodeEditor from '../components/CodeEditor/CodeEditor';
 import { generateFileContent } from '../services/fileContentGenerator';
 import { loadFileStructure } from '../services/fileSystemService';
+import { Terminal } from '../components/features/Develop/Terminal';
+
+interface TerminalTab {
+  id: string;
+  name: string;
+  content: string[];
+  currentInput: string;
+  cwd: string;
+}
 
 interface FileItem {
   path: string;
@@ -27,13 +36,6 @@ export const DevelopPage: React.FC = () => {
   const [outputOpen, setOutputOpen] = useState(false);
   
   // Terminal tabs state
-  interface TerminalTab {
-    id: string;
-    name: string;
-    content: string[];
-    currentInput: string;
-    cwd: string;
-  }
   
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([
     { id: 'terminal-1', name: '~/strategies', content: [], currentInput: '', cwd: '~/strategies' }
@@ -142,86 +144,15 @@ This environment provides everything you need to develop, test, and deploy tradi
     return path;
   };
   
-  const addTerminalTab = () => {
-    const newTab: TerminalTab = {
-      id: `terminal-${terminalTabCounter}`,
-      name: '~/strategies',
-      content: [],
-      currentInput: '',
-      cwd: '~/strategies'
-    };
-    setTerminalTabs(prev => [...prev, newTab]);
-    setActiveTerminalTab(newTab.id);
-    setTerminalTabCounter(prev => prev + 1);
-    // Initialize the new tab
-    setTimeout(() => initializeConsole(newTab.id), 100);
+  const initializeConsole = () => {
+    // This is now handled by the Terminal component
   };
-  
-  const closeTerminalTab = (tabId: string) => {
-    if (terminalTabs.length > 1) {
-      const tabIndex = terminalTabs.findIndex(t => t.id === tabId);
-      const newTabs = terminalTabs.filter(t => t.id !== tabId);
-      setTerminalTabs(newTabs);
-      
-      if (activeTerminalTab === tabId) {
-        const newActiveIndex = Math.min(tabIndex, newTabs.length - 1);
-        setActiveTerminalTab(newTabs[newActiveIndex].id);
-      }
-    }
-  };
-  
-  const updateTerminalInput = (value: string, tabId?: string) => {
-    const targetTabId = tabId || activeTerminalTab;
-    setTerminalTabs(prev => prev.map(tab => 
-      tab.id === targetTabId 
-        ? { ...tab, currentInput: value }
-        : tab
-    ));
-  };
-  
+
   const addOutput = (text: string, tabId?: string) => {
     const targetTabId = tabId || activeTerminalTab;
     setTerminalTabs(prev => prev.map(tab => 
       tab.id === targetTabId 
         ? { ...tab, content: [...tab.content, text] }
-        : tab
-    ));
-  };
-  
-  const initializeConsole = (tabId?: string) => {
-    const targetTabId = tabId || activeTerminalTab;
-    const timestamp = new Date().toISOString();
-    const nautilusArt = [
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: =================================================================`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine:  NAUTILUS TRADER - Automated Algorithmic Trading Platform`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine:  by Nautech Systems Pty Ltd.`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine:  Copyright (C) 2015-2025. All rights reserved.`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: =================================================================`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: `,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣶⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣾⣿⣿⣿⠀⢸⣿⣿⣿⣿⣶⣶⣤⣀⠀⠀⠀⠀⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⢀⣴⡇⢀⣾⣿⣿⣿⣿⣿⠀⣾⣿⣿⣿⣿⣿⣿⣿⠿⠓⠀⠀⠀⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⣰⣿⣿⡀⢸⣿⣿⣿⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⠟⠁⣠⣄⠀⠀⠀⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⢠⣿⣿⣿⣇⠀⢿⣿⣿⣿⣿⣿⠀⢻⣿⣿⣿⡿⢃⣠⣾⣿⣿⣧⡀⠀⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠠⣾⣿⣿⣿⣿⣿⣧⠈⠋⢀⣴⣧⠀⣿⡏⢠⡀⢸⣿⣿⣿⣿⣿⣿⣿⡇⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⣀⠙⢿⣿⣿⣿⣿⣿⠇⢠⣿⣿⣿⡄⠹⠃⠼⠃⠈⠉⠛⠛⠛⠛⠛⠻⠇⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⢸⡟⢠⣤⠉⠛⠿⢿⣿⠀⢸⣿⡿⠋⣠⣤⣄⠀⣾⣿⣿⣶⣶⣶⣦⡄⠀⠀⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠸⠀⣾⠏⣸⣷⠂⣠⣤⠀⠘⢁⣴⣾⣿⣿⣿⡆⠘⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠛⠀⣿⡟⠀⢻⣿⡄⠸⣿⣿⣿⣿⣿⣿⣿⡀⠘⣿⣿⣿⣿⠟⠀⠀⠀⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⣿⠇⠀⠀⢻⡿⠀⠈⠻⣿⣿⣿⣿⣿⡇⠀⢹⣿⠿⠋⠀⠀⠀⠀⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: ⠀⠀⠀⠀⠀⠀⠋⠀⠀⠀⡘⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠁⠀⠀⠀⠀⠀⠀⠀`,
-      `${timestamp} [INFO] BACKTESTER-001.BacktestEngine: `,
-      '',
-      'AlphaPulse Development Environment v1.0.0',
-      'Connected to Nautilus Trader Engine',
-      'Ready.',
-      '',
-      'alphapulse@server:~/strategies$ '
-    ];
-    
-    setTerminalTabs(prev => prev.map(tab => 
-      tab.id === targetTabId 
-        ? { ...tab, content: nautilusArt }
         : tab
     ));
   };
@@ -289,21 +220,10 @@ This environment provides everything you need to develop, test, and deploy tradi
       setTimeout(() => {
         const timestamp = new Date().toISOString();
         addOutput('');
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Starting backtest...`);
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Loading ${activeTabData.name}`);
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Strategy initialized`);
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Connected to data feed`);
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Executing strategy...`);
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Processing historical data...`);
       }, 500);
       
       setTimeout(() => {
         const timestamp = new Date().toISOString();
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Backtest complete`);
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Total PnL: $12,345.67`);
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Sharpe Ratio: 1.85`);
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Max Drawdown: -8.3%`);
-        addOutput(`${timestamp} [INFO] BACKTESTER-001.BacktestEngine: Win Rate: 63.2%`);
       }, 2000);
     }
   };
@@ -711,248 +631,21 @@ This environment provides everything you need to develop, test, and deploy tradi
           )}
         </div>
 
-        {outputOpen && (
-          <>
-            {!editorHidden && (
-              <div 
-                className={`${styles.splitter} ${splitOrientation === 'horizontal' ? styles.splitterHorizontal : styles.splitterVertical}`}
-                onMouseDown={handleSplitDragStart}
-              />
-            )}
-            <div 
-              className={`${styles.outputPanel} ${styles[splitOrientation]} ${editorHidden ? styles.fullScreen : ''}`}
-              style={{
-                ...(!editorHidden ? { 
-                  flex: `0 0 ${splitSize || 300}px`,
-                  minWidth: splitOrientation === 'vertical' ? '250px' : 'auto',
-                  minHeight: splitOrientation === 'horizontal' ? '150px' : 'auto'
-                } : {})
-              }}
-            >
-                <div className={styles.outputHeader}>
-                  <div className={styles.terminalTabsContainer}>
-                    <div className={styles.terminalTabs}>
-                      {terminalTabs.map(tab => (
-                        <div
-                          key={tab.id}
-                          className={`${styles.terminalTab} ${activeTerminalTab === tab.id ? styles.active : ''}`}
-                          onClick={() => setActiveTerminalTab(tab.id)}
-                        >
-                          <span className={styles.terminalTabName} title={tab.cwd}>{getShortPath(tab.name)}</span>
-                          {terminalTabs.length > 1 && (
-                            <button 
-                              className={styles.terminalTabClose}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                closeTerminalTab(tab.id);
-                              }}
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      <button 
-                        className={styles.newTerminalTabBtn} 
-                        onClick={addTerminalTab}
-                        title="New Terminal"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                  <div className={styles.outputControls}>
-                    <button 
-                      className={`${styles.editorToggleBtn} ${editorHidden ? styles.editorHidden : ''}`}
-                      onClick={() => {
-                        if (editorHidden) {
-                          setEditorHidden(false);
-                        } else {
-                          // Toggle focus to editor when it's already open
-                          const activeTabElement = document.querySelector('.monaco-editor');
-                          if (activeTabElement) {
-                            (activeTabElement as HTMLElement).focus();
-                          }
-                        }
-                      }}
-                      title={editorHidden ? "Open Editor" : "Focus Editor"}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                      </svg>
-                    </button>
-                    {!editorHidden && (
-                      <button 
-                        className={styles.splitToggleBtn}
-                        onClick={() => {
-                          const newOrientation = splitOrientation === 'horizontal' ? 'vertical' : 'horizontal';
-                          setSplitOrientation(newOrientation);
-                          // Recalculate split size for the new orientation
-                          setTimeout(() => setSplitSize(calculateDefaultSplitSize(newOrientation)), 0);
-                        }}
-                        title={`Switch to ${splitOrientation === 'horizontal' ? 'vertical' : 'horizontal'} split`}
-                      >
-                        {splitOrientation === 'horizontal' ? <span style={{ transform: 'rotate(90deg)', display: 'inline-block' }}>⊟</span> : '⊟'}
-                      </button>
-                    )}
-                    <button 
-                      className={styles.outputClose}
-                      onClick={() => setOutputOpen(false)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-                <div className={styles.outputContent}>
-                  {(() => {
-                    const currentTab = getCurrentTerminalTab();
-                    return (
-                      <>
-                        {currentTab.content.map((line, idx) => {
-                          const isPromptLine = line.includes('alphapulse@server');
-                          const isNautilusLine = line.includes('[INFO] BACKTESTER');
-                          return (
-                            <div 
-                              key={idx} 
-                              className={`${styles.outputLine} ${isNautilusLine ? 'nautilus-branding' : ''}`}
-                              style={{ 
-                                color: isPromptLine ? '#00d4db' : undefined
-                              }}
-                            >
-                              {line}
-                            </div>
-                          );
-                        })}
-                        <div className={styles.terminalInputLine}>
-                          <span style={{ color: '#00d4db' }}>alphapulse@server:{currentTab.cwd}$ </span>
-                          <input
-                            type="text"
-                            className={styles.terminalInput}
-                            value={currentTab.currentInput}
-                            onChange={(e) => updateTerminalInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                const command = currentTab.currentInput.trim();
-                                
-                                // Add command to output
-                                addOutput(`alphapulse@server:${currentTab.cwd}$ ${command}`);
-                                
-                                // Process command
-                                if (command === 'clear') {
-                                  setTerminalTabs(prev => prev.map(tab => 
-                                    tab.id === activeTerminalTab 
-                                      ? { ...tab, content: [] }
-                                      : tab
-                                  ));
-                                } else if (command === 'help') {
-                                  addOutput('Available commands: clear, help, run, save, ls, cd, python, exit');
-                                } else if (command === 'ls') {
-                                  addOutput('README.md  snippets/  examples/  config/  docs/  builder-ui/  strategy.py');
-                                } else if (command.startsWith('cd ')) {
-                                  const dir = command.substring(3).trim();
-                                  let newCwd = currentTab.cwd;
-                                  
-                                  if (dir === '..' || dir === '../') {
-                                    const pathParts = currentTab.cwd.split('/');
-                                    pathParts.pop();
-                                    newCwd = pathParts.length > 1 ? pathParts.join('/') : '~';
-                                  } else if (dir === '~' || dir === '') {
-                                    newCwd = '~/strategies';
-                                  } else if (dir.startsWith('/')) {
-                                    newCwd = dir;
-                                  } else {
-                                    newCwd = `${currentTab.cwd}/${dir}`;
-                                  }
-                                  
-                                  // Update both cwd and tab name
-                                  setTerminalTabs(prev => prev.map(tab => 
-                                    tab.id === activeTerminalTab 
-                                      ? { ...tab, cwd: newCwd, name: newCwd }
-                                      : tab
-                                  ));
-                                } else if (command.startsWith('python ')) {
-                                  const timestamp = new Date().toISOString();
-                                  addOutput(`${timestamp} [INFO] Running ${command}...`);
-                                  setTimeout(() => {
-                                    addOutput(`${timestamp} [INFO] Strategy execution complete`);
-                                  }, 1500);
-                                } else if (command === 'claude') {
-                                  // Display Claude ASCII art and welcome message
-                                  addOutput('');
-                                  addOutput('     ▄████▄   ██▓    ▄▄▄       █    ██ ▓█████▄ ▓█████ ');
-                                  addOutput('    ▒██▀ ▀█  ▓██▒   ▒████▄     ██  ▓██▒▒██▀ ██▌▓█   ▀ ');
-                                  addOutput('    ▒▓█    ▄ ▒██░   ▒██  ▀█▄  ▓██  ▒██░░██   █▌▒███   ');
-                                  addOutput('    ▒▓▓▄ ▄██▒▒██░   ░██▄▄▄▄██ ▓▓█  ░██░░▓█▄   ▌▒▓█  ▄ ');
-                                  addOutput('    ▒ ▓███▀ ░░██████▒▓█   ▓██▒▒▒█████▓ ░▒████▓ ░▒████▒');
-                                  addOutput('    ░ ░▒ ▒  ░░ ▒░▓  ░▒▒   ▓▒█░░▒▓▒ ▒ ▒  ▒▒▓  ▒ ░░ ▒░ ░');
-                                  addOutput('      ░  ▒   ░ ░ ▒  ░ ▒   ▒▒ ░░░▒░ ░ ░  ░ ▒  ▒  ░ ░  ░');
-                                  addOutput('    ░          ░ ░    ░   ▒    ░░░ ░ ░  ░ ░  ░    ░   ');
-                                  addOutput('    ░ ░          ░  ░     ░  ░   ░        ░       ░  ░');
-                                  addOutput('');
-                                  addOutput('    Claude Code v0.1.0 - Your AI Coding Assistant');
-                                  addOutput('    ═══════════════════════════════════════════════');
-                                  addOutput('');
-                                  addOutput('    Welcome to Claude Code! I\'m here to help with:');
-                                  addOutput('      • Code generation and optimization');
-                                  addOutput('      • Debugging and error resolution');
-                                  addOutput('      • Strategy development and backtesting');
-                                  addOutput('      • Data analysis and visualization');
-                                  addOutput('');
-                                  addOutput('    Usage: claude <prompt>');
-                                  addOutput('    Example: claude "help me optimize this momentum strategy"');
-                                  addOutput('');
-                                  addOutput('    Type \'claude help\' for more commands');
-                                  addOutput('');
-                                } else if (command.startsWith('claude ')) {
-                                  const prompt = command.substring(7).trim();
-                                  if (prompt === 'help') {
-                                    addOutput('Claude Code Commands:');
-                                    addOutput('  claude <prompt>    - Ask Claude for help');
-                                    addOutput('  claude analyze     - Analyze current file');
-                                    addOutput('  claude optimize    - Optimize selected code');
-                                    addOutput('  claude debug       - Debug recent errors');
-                                    addOutput('  claude test        - Generate test cases');
-                                    addOutput('  claude docs        - Generate documentation');
-                                  } else if (prompt) {
-                                    addOutput(`[Claude] Processing: "${prompt}"...`);
-                                    setTimeout(() => {
-                                      addOutput('[Claude] I understand you want help with that. Here\'s what I suggest:');
-                                      addOutput('  1. First, let\'s analyze your current approach');
-                                      addOutput('  2. Consider implementing these optimizations');
-                                      addOutput('  3. Run backtests to validate the changes');
-                                      addOutput('');
-                                      addOutput('[Claude] Ready to assist with implementation. Type specific questions for detailed help.');
-                                    }, 1000);
-                                  } else {
-                                    addOutput('[Claude] Please provide a prompt. Usage: claude <your question>');
-                                  }
-                                } else if (command === 'exit') {
-                                  if (terminalTabs.length > 1) {
-                                    closeTerminalTab(activeTerminalTab);
-                                  } else {
-                                    addOutput('Cannot close the last terminal. Use the × button to close the terminal panel.');
-                                  }
-                                } else if (command) {
-                                  addOutput(`bash: ${command}: command not found`);
-                                }
-                                
-                                // Clear input
-                                updateTerminalInput('');
-                              }
-                            }}
-                            autoFocus
-                            spellCheck={false}
-                          />
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            </>
-          )}
+        <Terminal
+          terminalTabs={terminalTabs}
+          activeTerminalTab={activeTerminalTab}
+          outputOpen={outputOpen}
+          editorHidden={editorHidden}
+          splitOrientation={splitOrientation}
+          splitSize={splitSize}
+          terminalTabCounter={terminalTabCounter}
+          setTerminalTabs={setTerminalTabs}
+          setActiveTerminalTab={setActiveTerminalTab}
+          setTerminalTabCounter={setTerminalTabCounter}
+          onSplitDragStart={handleSplitDragStart}
+          onInitializeConsole={initializeConsole}
+          styles={styles}
+        />
       </div>
     </div>
   );

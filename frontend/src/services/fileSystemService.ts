@@ -18,6 +18,11 @@ export async function loadFileStructure(): Promise<FileItem[]> {
     
     // Transform the data into our file structure
     const fileStructure: FileItem[] = [];
+
+    // Add README.md at the top
+    fileStructure.push(
+      { path: 'README.md', name: 'README.md', type: 'file' }
+    );
     
     if (data.examples) {
       const examplesFolder: FileItem = {
@@ -58,13 +63,7 @@ export async function loadFileStructure(): Promise<FileItem[]> {
       fileStructure.push(examplesFolder);
     }
     
-    // Add README.md at the top
-    fileStructure.push(
-      { path: 'README.md', name: 'README.md', type: 'file' }
-    );
-    
-    
-    // Add Notebooks directory with snippets and builder-ui as subdirectories
+    // Add Notebooks directory with snippets inside
     fileStructure.push(
       {
         path: 'notebooks/',
@@ -120,27 +119,7 @@ export async function loadFileStructure(): Promise<FileItem[]> {
                   { path: 'notebooks/snippets/analysis_templates/correlation_study.py', name: 'correlation_study.py', type: 'file' },
                   { path: 'notebooks/snippets/analysis_templates/risk_metrics.py', name: 'risk_metrics.py', type: 'file' }
                 ]
-              },
-              {
-                path: 'notebooks/snippets/saved_notebooks/',
-                name: 'saved_notebooks',
-                type: 'folder',
-                children: [
-                  { path: 'notebooks/snippets/saved_notebooks/ema_cross_research.ipynb', name: 'ema_cross_research.ipynb', type: 'file' },
-                  { path: 'notebooks/snippets/saved_notebooks/mean_reversion_analysis.ipynb', name: 'mean_reversion_analysis.ipynb', type: 'file' }
-                ]
               }
-            ]
-          },
-          {
-            path: 'notebooks/builder-ui/',
-            name: 'builder-ui',
-            type: 'folder',
-            children: [
-              { path: 'notebooks/builder-ui/signal_analysis.py', name: 'signal_analysis.py', type: 'file' },
-              { path: 'notebooks/builder-ui/strategy_workbench.py', name: 'strategy_workbench.py', type: 'file' },
-              { path: 'notebooks/builder-ui/components.py', name: 'components.py', type: 'file' },
-              { path: 'notebooks/builder-ui/config.json', name: 'config.json', type: 'file' }
             ]
           }
         ]
@@ -191,53 +170,141 @@ export async function loadFileStructure(): Promise<FileItem[]> {
         ]
       }
     );
+
+    // Add strategies directory
+    fileStructure.push(
+      {
+        path: 'strategies/',
+        name: 'strategies',
+        type: 'folder',
+        children: [
+          { path: 'strategies/ema_cross.py', name: 'ema_cross.py', type: 'file' },
+          { path: 'strategies/momentum.py', name: 'momentum.py', type: 'file' },
+          { path: 'strategies/mean_reversion.py', name: 'mean_reversion.py', type: 'file' }
+        ]
+      }
+    );
+
+    // Add docs directory
+    fileStructure.push(
+      {
+        path: 'docs/',
+        name: 'docs',
+        type: 'folder',
+        children: [
+          { path: 'docs/strategy_guide.md', name: 'strategy_guide.md', type: 'file' },
+          { path: 'docs/API.md', name: 'API.md', type: 'file' },
+          { path: 'docs/getting_started.md', name: 'getting_started.md', type: 'file' }
+        ]
+      }
+    );
+
+    // Add builder-ui directory
+    fileStructure.push(
+      {
+        path: 'builder-ui/',
+        name: 'builder-ui',
+        type: 'folder',
+        children: [
+          { path: 'builder-ui/signal_analysis.py', name: 'signal_analysis.py', type: 'file' },
+          { path: 'builder-ui/strategy_workbench.py', name: 'strategy_workbench.py', type: 'file' },
+          { path: 'builder-ui/components.py', name: 'components.py', type: 'file' },
+          { path: 'builder-ui/config.json', name: 'config.json', type: 'file' }
+        ]
+      }
+    );
     
     return fileStructure;
   } catch (error) {
     console.error('Failed to load files:', error);
-    // Return default file structure
-    return [
-      { path: 'README.md', name: 'README.md', type: 'file' },
-      {
-        path: 'notebooks/',
-        name: 'notebooks',
-        type: 'folder',
-        children: [
-          { path: 'notebooks/strategy_development.ipynb', name: 'strategy_development.ipynb', type: 'file' },
-          { path: 'notebooks/market_analysis.ipynb', name: 'market_analysis.ipynb', type: 'file' },
-          {
-            path: 'notebooks/snippets/',
-            name: 'snippets',
-            type: 'folder',
-            children: [
-              {
-                path: 'notebooks/snippets/data_loading/',
-                name: 'data_loading',
-                type: 'folder',
-                children: [
-                  { path: 'notebooks/snippets/data_loading/load_signals.py', name: 'load_signals.py', type: 'file' }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      {
-        path: 'tests/',
-        name: 'tests',
-        type: 'folder',
-        children: [
-          {
-            path: 'tests/strategies/',
-            name: 'strategies',
-            type: 'folder',
-            children: [
-              { path: 'strategies/ema_cross.py', name: 'ema_cross.py', type: 'file' },
-              { path: 'strategies/momentum.py', name: 'momentum.py', type: 'file' }
-            ]
-          }
-        ]
-      }
-    ];
+    // NO FALLBACK - return what we have
+    const fileStructure: FileItem[] = [];
+    
+    // Build the structure without API
+    fileStructure.push({ path: 'README.md', name: 'README.md', type: 'file' });
+    
+    fileStructure.push({
+      path: 'examples/',
+      name: 'examples',
+      type: 'folder',
+      children: [
+        { path: 'examples/ema_cross.py', name: 'ema_cross.py', type: 'file' },
+        { path: 'examples/momentum.py', name: 'momentum.py', type: 'file' }
+      ]
+    });
+    
+    fileStructure.push({
+      path: 'notebooks/',
+      name: 'notebooks',
+      type: 'folder',
+      children: [
+        { path: 'notebooks/strategy_development.ipynb', name: 'strategy_development.ipynb', type: 'file' },
+        { path: 'notebooks/market_analysis.ipynb', name: 'market_analysis.ipynb', type: 'file' },
+        {
+          path: 'notebooks/snippets/',
+          name: 'snippets',
+          type: 'folder',
+          children: [
+            {
+              path: 'notebooks/snippets/data_loading/',
+              name: 'data_loading',
+              type: 'folder',
+              children: [
+                { path: 'notebooks/snippets/data_loading/load_signals.py', name: 'load_signals.py', type: 'file' }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+    
+    fileStructure.push({
+      path: 'strategies/',
+      name: 'strategies',
+      type: 'folder',
+      children: [
+        { path: 'strategies/ema_cross.py', name: 'ema_cross.py', type: 'file' },
+        { path: 'strategies/momentum.py', name: 'momentum.py', type: 'file' }
+      ]
+    });
+    
+    fileStructure.push({
+      path: 'builder-ui/',
+      name: 'builder-ui',
+      type: 'folder',
+      children: [
+        { path: 'builder-ui/signal_analysis.py', name: 'signal_analysis.py', type: 'file' },
+        { path: 'builder-ui/strategy_workbench.py', name: 'strategy_workbench.py', type: 'file' }
+      ]
+    });
+    
+    fileStructure.push({
+      path: 'config/',
+      name: 'config',
+      type: 'folder',
+      children: [
+        { path: 'config/strategies.yaml', name: 'strategies.yaml', type: 'file' }
+      ]
+    });
+    
+    fileStructure.push({
+      path: 'docs/',
+      name: 'docs',
+      type: 'folder',
+      children: [
+        { path: 'docs/API.md', name: 'API.md', type: 'file' }
+      ]
+    });
+    
+    fileStructure.push({
+      path: 'tests/',
+      name: 'tests',
+      type: 'folder',
+      children: [
+        { path: 'tests/test_strategies.py', name: 'test_strategies.py', type: 'file' }
+      ]
+    });
+    
+    return fileStructure;
   }
 }
