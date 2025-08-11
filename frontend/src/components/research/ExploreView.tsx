@@ -11,12 +11,13 @@ import { EmptyState } from './EmptyState';
 import { TearsheetModal } from './TearsheetModal';
 import { ViewToggle } from './ViewToggle';
 import { DataDetailsModal } from './DataDetailsModal';
+import { type SortBy } from '../../hooks/useStrategyFiltering';
 
 interface ExploreViewProps {
   exploreSearchQuery: string;
   setExploreSearchQuery: (query: string) => void;
-  sortBy: string;
-  setSortBy: (sort: string) => void;
+  sortBy: SortBy;
+  setSortBy: (sort: SortBy) => void;
   sortDropdownOpen: boolean;
   setSortDropdownOpen: (open: boolean) => void;
   searchTerms: string[];
@@ -117,9 +118,15 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
 
       {!isDataView && (
         <TearsheetModal
-          tearsheet={tearsheet}
-          setTearsheet={setTearsheet}
+          isOpen={tearsheet?.isOpen || false}
+          strategy={tearsheet?.strategy}
+          styles={exploreStyles}
+          onClose={() => setTearsheet({ ...tearsheet, isOpen: false })}
           onNotebookClick={onNotebookClick}
+          onDeployClick={(strategy) => {
+            // Navigate to monitor page with strategy
+            window.location.href = '/monitor';
+          }}
         />
       )}
       

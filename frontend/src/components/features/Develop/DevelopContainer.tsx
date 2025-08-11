@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { FileExplorer, type FileItem } from './FileExplorer';
+// FileExplorer component not implemented yet
 import { CodeEditor } from './CodeEditor';
 import { TerminalEmulator } from './TerminalEmulator';
 import { GitPanel } from './GitPanel';
@@ -17,6 +17,15 @@ interface Tab {
   language: string;
   path: string;
   isDirty: boolean;
+}
+
+interface FileItem {
+  path: string;
+  name: string;
+  type: 'file' | 'folder';
+  children?: FileItem[];
+  content?: string;
+  language?: string;
 }
 
 export const DevelopContainer: React.FC = () => {
@@ -377,14 +386,11 @@ backtest:
     <div className={styles.developContainer}>
       {/* Left Panel - File Explorer */}
       <div className={styles.leftPanel} style={{ width: leftPanelWidth }}>
-        <FileExplorer
-          files={files}
-          selectedFile={selectedFile}
-          onFileSelect={handleFileSelect}
-          onFileCreate={handleFileCreate}
-          onFileDelete={handleFileDelete}
-          onFileRename={handleFileRename}
-        />
+        {/* FileExplorer component placeholder - TODO: implement */}
+        <div className={styles.fileExplorerPlaceholder}>
+          <h3>File Explorer</h3>
+          <p>Coming soon...</p>
+        </div>
       </div>
 
       {/* Center Panel - Editor */}

@@ -5,23 +5,7 @@
  */
 
 import React from 'react';
-
-interface Strategy {
-  id: string;
-  title: string;
-  description: string;
-  type: string;
-  creator?: string;
-  tags: string[];
-  metrics?: {
-    sharpe: number;
-    annualReturn: number;
-    maxDrawdown: number;
-    winRate: number;
-  };
-  comingSoon?: boolean;
-  color: string;
-}
+import type { Strategy } from '../../data/strategies';
 
 interface StrategyCardProps {
   strategy: Strategy;

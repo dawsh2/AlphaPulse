@@ -3,7 +3,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { createChart, type IChartApi, type ISeriesApi, type Time } from 'lightweight-charts';
 import { chartConfig } from '../../../config/charts';
 import type { MarketBar } from '../../../types';
 import styles from './Monitor.module.css';
@@ -63,9 +63,13 @@ export const LiveChart: React.FC<LiveChartProps> = ({
     // Handle crosshair
     if (onCrosshairMove) {
       chart.subscribeCrosshairMove((param) => {
-        if (param.seriesPrices.size > 0) {
-          const price = param.seriesPrices.get(candleSeries);
-          onCrosshairMove(price as number);
+        if (param.seriesData && param.seriesData.size > 0) {
+          const data = param.seriesData.get(candleSeries);
+          if (data && 'close' in data) {
+            onCrosshairMove(data.close as number);
+          } else {
+            onCrosshairMove(null);
+          }
         } else {
           onCrosshairMove(null);
         }
@@ -91,11 +95,14 @@ export const LiveChart: React.FC<LiveChartProps> = ({
   useEffect(() => {
     if (!candleSeriesRef.current || !data.length) return;
 
-    candleSeriesRef.current.setData(data);
+    candleSeriesRef.current.setData(data.map(d => ({
+      ...d,
+      time: d.time as Time
+    })));
 
     if (volumeSeriesRef.current) {
       const volumeData = data.map(d => ({
-        time: d.time,
+        time: d.time as Time,
         value: d.volume,
         color: d.close >= d.open 
           ? chartConfig.volume.upColor 

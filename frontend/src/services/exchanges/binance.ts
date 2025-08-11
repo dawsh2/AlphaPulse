@@ -75,27 +75,27 @@ export class BinanceService implements ExchangeService {
   }
   
   async fetchHistoricalData(symbol: string, limit: number = 30): Promise<MarketData[]> {
-    const binanceSymbol = this.symbolMap[symbol] || symbol.toUpperCase().replace('/', '');
-    
     try {
-      // Binance REST API for klines
+      // Use backend API instead of direct Binance API to avoid CORS
+      const backendSymbol = symbol.replace('/', '-'); // Convert BTC/USD to BTC-USD for URL
       const response = await fetch(
-        `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol.toUpperCase()}&interval=1m&limit=${limit}`
+        `http://localhost:5000/api/crypto-data/${backendSymbol}?exchange=coinbase&limit=${limit}`
       );
       
       if (!response.ok) {
-        throw new Error(`Binance API error: ${response.statusText}`);
+        throw new Error(`Backend API error: ${response.statusText}`);
       }
       
-      const data = await response.json();
+      const result = await response.json();
       
-      return data.map((candle: any[]) => ({
-        time: Math.floor(candle[0] / 1000), // Convert ms to seconds
-        open: parseFloat(candle[1]),
-        high: parseFloat(candle[2]),
-        low: parseFloat(candle[3]),
-        close: parseFloat(candle[4]),
-        volume: parseFloat(candle[5])
+      // Convert backend format to our MarketData format
+      return result.data.map((item: any) => ({
+        time: Math.floor(item.timestamp / 1000), // Convert ms to seconds if needed
+        open: item.open,
+        high: item.high,
+        low: item.low,
+        close: item.close,
+        volume: item.volume
       })).filter(this.validateCandle);
     } catch (error) {
       console.error('[Binance] Failed to fetch historical data:', error);

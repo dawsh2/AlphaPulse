@@ -34,6 +34,18 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Suppress clipboard errors globally
+    const originalError = window.onerror;
+    window.onerror = (message, source, lineno, colno, error) => {
+      if (error?.name === 'NotAllowedError' && message.includes('clipboard')) {
+        return true; // Prevent error from being logged
+      }
+      if (originalError) {
+        return originalError(message, source, lineno, colno, error);
+      }
+      return false;
+    };
+
     // Configure Python language
     monaco.languages.setMonarchTokensProvider('python', {
       defaultToken: '',
@@ -142,6 +154,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       roundedSelection: false,
       scrollBeyondLastLine: false,
       wordWrap: 'on',
+      contextmenu: false, // Disable context menu to prevent clipboard errors
       ...options,
     });
 

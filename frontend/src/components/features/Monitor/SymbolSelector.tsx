@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { exchangeManager } from '../../../services/exchanges';
 import type { ExchangeType } from '../../../services/exchanges';
 import styles from '../../MonitorPage/MonitorPage.module.css';
@@ -29,25 +29,58 @@ const SymbolSelector: React.FC<SymbolSelectorProps> = ({
   const [timeframeDropdownOpen, setTimeframeDropdownOpen] = useState(false);
   const [strategyDropdownOpen, setStrategyDropdownOpen] = useState(false);
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
+  const [exchangeDropdownOpen, setExchangeDropdownOpen] = useState(false);
+  
+  // Refs for timeout management
+  const exchangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeframeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const strategyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const strategies = ['Mean Reversion v2', 'Momentum Breakout', 'Market Making'];
   const timeframes = ['tick', '1m', '5m', '15m', '1h', '1d'];
+  const exchanges = exchangeManager.getAvailableExchanges();
 
   return (
     <>
       {/* Exchange Selector */}
       <div className={styles.controlGroup}>
         <label className={styles.controlLabel}>Exchange:</label>
-        <select 
-          className="form-input form-input-sm"
-          value={exchange}
-          onChange={(e) => onExchangeChange(e.target.value as ExchangeType)}
-          style={{ width: '100px' }}
+        <div 
+          className={styles.dropdownWrapper}
+          onMouseEnter={() => {
+            if (exchangeTimeoutRef.current) {
+              clearTimeout(exchangeTimeoutRef.current);
+              exchangeTimeoutRef.current = null;
+            }
+            setExchangeDropdownOpen(true);
+          }}
+          onMouseLeave={() => {
+            exchangeTimeoutRef.current = setTimeout(() => {
+              setExchangeDropdownOpen(false);
+            }, 200);
+          }}
         >
-          {exchangeManager.getAvailableExchanges().map(ex => (
-            <option key={ex.value} value={ex.value}>{ex.label}</option>
-          ))}
-        </select>
+          <button className={styles.dropdownButton} style={{ minWidth: '120px' }}>
+            {exchanges.find(ex => ex.value === exchange)?.label || exchange}
+            <span style={{ marginLeft: '8px' }}>▼</span>
+          </button>
+          {exchangeDropdownOpen && (
+            <div className={styles.dropdownMenu}>
+              {exchanges.map((ex) => (
+                <button
+                  key={ex.value}
+                  className={`${styles.dropdownOption} ${exchange === ex.value ? styles.active : ''}`}
+                  onClick={() => {
+                    onExchangeChange(ex.value as ExchangeType);
+                    setExchangeDropdownOpen(false);
+                  }}
+                >
+                  {ex.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Symbol & Timeframe */}
@@ -62,8 +95,18 @@ const SymbolSelector: React.FC<SymbolSelectorProps> = ({
         />
         <div 
           className={styles.dropdownWrapper}
-          onMouseEnter={() => setTimeframeDropdownOpen(true)}
-          onMouseLeave={() => setTimeframeDropdownOpen(false)}
+          onMouseEnter={() => {
+            if (timeframeTimeoutRef.current) {
+              clearTimeout(timeframeTimeoutRef.current);
+              timeframeTimeoutRef.current = null;
+            }
+            setTimeframeDropdownOpen(true);
+          }}
+          onMouseLeave={() => {
+            timeframeTimeoutRef.current = setTimeout(() => {
+              setTimeframeDropdownOpen(false);
+            }, 200);
+          }}
         >
           <button className={styles.dropdownButton}>
             {timeframe}
@@ -75,7 +118,10 @@ const SymbolSelector: React.FC<SymbolSelectorProps> = ({
                 <button
                   key={tf}
                   className={`${styles.dropdownOption} ${timeframe === tf ? styles.active : ''}`}
-                  onClick={() => onTimeframeChange(tf)}
+                  onClick={() => {
+                    onTimeframeChange(tf);
+                    setTimeframeDropdownOpen(false);
+                  }}
                 >
                   {tf}
                 </button>
@@ -90,8 +136,18 @@ const SymbolSelector: React.FC<SymbolSelectorProps> = ({
         <label className={styles.controlLabel}>Strategy:</label>
         <div 
           className={styles.dropdownWrapper}
-          onMouseEnter={() => setStrategyDropdownOpen(true)}
-          onMouseLeave={() => setStrategyDropdownOpen(false)}
+          onMouseEnter={() => {
+            if (strategyTimeoutRef.current) {
+              clearTimeout(strategyTimeoutRef.current);
+              strategyTimeoutRef.current = null;
+            }
+            setStrategyDropdownOpen(true);
+          }}
+          onMouseLeave={() => {
+            strategyTimeoutRef.current = setTimeout(() => {
+              setStrategyDropdownOpen(false);
+            }, 200);
+          }}
         >
           <button className={styles.dropdownButton} style={{ minWidth: '200px' }}>
             {selectedStrategy}
@@ -103,7 +159,10 @@ const SymbolSelector: React.FC<SymbolSelectorProps> = ({
                 <button
                   key={strat}
                   className={`${styles.dropdownOption} ${selectedStrategy === strat ? styles.active : ''}`}
-                  onClick={() => onStrategyChange(strat)}
+                  onClick={() => {
+                    onStrategyChange(strat);
+                    setStrategyDropdownOpen(false);
+                  }}
                 >
                   {strat}
                 </button>

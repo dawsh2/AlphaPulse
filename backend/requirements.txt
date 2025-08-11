@@ -9,3 +9,27 @@ python-dateutil==2.8.2
 
 # For Python 3.13 compatibility, we'll use requests for Alpaca API calls
 # instead of the problematic alpaca-trade-api package
+
+# Data Science & Analytics
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.11.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.15.0
+scikit-learn>=1.3.0
+statsmodels>=0.14.0
+
+# Jupyter Integration
+jupyter>=1.0.0
+jupyterlab>=4.0.0
+ipykernel>=6.25.0
+
+# Database & Storage
+duckdb>=0.9.0
+pyarrow>=14.0.0
+
+# Technical Analysis & Portfolio Analytics
+pandas-ta>=0.3.14b0  # Pure Python technical indicators
+quantstats>=0.0.62  # Portfolio performance analytics
+# ta-lib>=0.4.25  # Optional: C-based indicators (faster, requires compilation)

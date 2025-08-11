@@ -22,7 +22,7 @@ export async function generateFileContent(
   filePath: string, 
   fileName: string,
   options: FileContentOptions
-): Promise<void> {
+): Promise<string | null> {
   const { tabs, setTabs, setActiveTab, setEditorHidden } = options;
 
   // Open editor if it's hidden
@@ -34,7 +34,7 @@ export async function generateFileContent(
   const existingTab = tabs.find(tab => tab.id === filePath);
   if (existingTab) {
     setActiveTab(filePath);
-    return;
+    return existingTab.content;
   }
   
   // Generate content based on file type and location
@@ -750,4 +750,5 @@ if __name__ == "__main__":
   
   setTabs([...tabs, newTab]);
   setActiveTab(filePath);
+  return content;
 }

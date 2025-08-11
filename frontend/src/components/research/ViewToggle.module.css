@@ -55,6 +55,12 @@
   color: white;
 }
 
+.toggleOption:hover:not(.active) {
+  color: var(--color-bg-primary);
+  background: var(--color-text-primary);
+  border-radius: var(--radius-md);
+}
+
 .toggleOption svg {
   width: 16px;
   height: 16px;

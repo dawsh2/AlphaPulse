@@ -5,22 +5,7 @@
  */
 
 import React from 'react';
-
-interface Strategy {
-  id: string;
-  title: string;
-  description: string;
-  type: string;
-  creator?: string;
-  tags: string[];
-  metrics?: {
-    sharpe: number;
-    annualReturn: number;
-    maxDrawdown: number;
-    winRate: number;
-  };
-  comingSoon?: boolean;
-}
+import type { Strategy } from '../../data/strategies';
 
 interface TearsheetModalProps {
   isOpen: boolean;

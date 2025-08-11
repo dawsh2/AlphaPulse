@@ -3,9 +3,11 @@
  * Unified window that can display either editor or terminal tabs
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import CodeEditor from '../../CodeEditor/CodeEditor';
 import styles from '../../../pages/DevelopPage.module.css';
+import { terminalService } from '../../../services/terminalService';
+import { saveFileContent } from '../../../services/fileSystemService';
 
 export interface UnifiedTab {
   id: string;
@@ -48,6 +50,7 @@ export const DevelopWindow: React.FC<DevelopWindowProps> = ({
   const outputEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const initializedTerminals = useRef(new Set<string>());
+  const [isTerminalFocused, setIsTerminalFocused] = useState(false);
 
   const activeTabData = tabs.find(tab => tab.id === activeTab);
 
@@ -112,7 +115,8 @@ export const DevelopWindow: React.FC<DevelopWindowProps> = ({
     ));
   };
 
-  const handleTerminalCommand = (tabId: string) => {
+
+  const handleTerminalCommand = async (tabId: string) => {
     const tab = tabs.find(t => t.id === tabId);
     if (!tab || tab.type !== 'terminal') return;
 
@@ -120,9 +124,16 @@ export const DevelopWindow: React.FC<DevelopWindowProps> = ({
     const newContent = [...(tab.terminalContent || [])];
     
     // Add command to output
-    newContent.push(`${tab.cwd}$ ${command}`);
+    newContent.push(`${tab.cwd || '/'}$ ${command}`);
     
-    // Simple command processing
+    // Update tab to show command was sent
+    setTabs(tabs.map(t => 
+      t.id === tabId 
+        ? { ...t, terminalContent: newContent, currentInput: '' }
+        : t
+    ));
+    
+    // Special handling for clear command
     if (command === 'clear') {
       setTabs(tabs.map(t => 
         t.id === tabId 
@@ -130,45 +141,38 @@ export const DevelopWindow: React.FC<DevelopWindowProps> = ({
           : t
       ));
       return;
-    } else if (command === 'pwd') {
-      newContent.push(tab.cwd || '~/strategies');
-    } else if (command === 'ls') {
-      newContent.push('examples/          strategies/        indicators/');
-      newContent.push('config/           docs/             tests/');
-    } else if (command.startsWith('cd ')) {
-      const dir = command.substring(3).trim();
-      let newCwd = tab.cwd || '~/strategies';
-      if (dir === '..') {
-        const parts = newCwd.split('/');
-        parts.pop();
-        newCwd = parts.length > 1 ? parts.join('/') : '~';
-      } else if (dir.startsWith('/')) {
-        newCwd = dir;
-      } else {
-        newCwd = `${newCwd}/${dir}`;
-      }
-      setTabs(tabs.map(t => 
-        t.id === tabId 
-          ? { ...t, cwd: newCwd, name: newCwd, terminalContent: newContent, currentInput: '' }
-          : t
-      ));
-      return;
-    } else if (command === 'help') {
-      newContent.push('Available Commands:');
-      newContent.push('  help    - Show this help');
-      newContent.push('  clear   - Clear terminal');
-      newContent.push('  ls      - List files');
-      newContent.push('  cd      - Change directory');
-      newContent.push('  pwd     - Show current directory');
-    } else if (command) {
-      newContent.push(`bash: ${command}: command not found`);
     }
     
-    setTabs(tabs.map(t => 
-      t.id === tabId 
-        ? { ...t, terminalContent: newContent, currentInput: '' }
-        : t
-    ));
+    // Execute command via backend
+    try {
+      const result = await terminalService.execute(command);
+      
+      // Add output to terminal
+      const outputLines = result.output.split('\n');
+      const updatedContent = [...newContent, ...outputLines];
+      
+      // Update working directory if changed
+      const newCwd = result.cwd || tab.cwd || '/';
+      
+      setTabs(tabs.map(t => 
+        t.id === tabId 
+          ? { 
+              ...t, 
+              terminalContent: updatedContent, 
+              cwd: newCwd,
+              name: newCwd === '/' ? '~' : newCwd
+            }
+          : t
+      ));
+    } catch (error) {
+      // Add error to output
+      const errorContent = [...newContent, `Error: ${error}`];
+      setTabs(tabs.map(t => 
+        t.id === tabId 
+          ? { ...t, terminalContent: errorContent }
+          : t
+      ));
+    }
   };
 
   const renderTabContent = () => {
@@ -217,22 +221,56 @@ export const DevelopWindow: React.FC<DevelopWindowProps> = ({
           </div>
           <div className={styles.terminalInputLine}>
             <span className={styles.prompt}>
-              {activeTabData.cwd || '~/strategies'}$
+              {activeTabData.cwd || '~/strategies'}$ 
             </span>
-            <input
-              ref={inputRef}
-              type="text"
-              className={styles.terminalInput}
-              value={activeTabData.currentInput || ''}
-              onChange={(e) => handleTerminalInput(activeTabData.id, e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleTerminalCommand(activeTabData.id);
-                }
-              }}
-              autoFocus
-              spellCheck={false}
-            />
+            <div style={{ position: 'relative', flex: 1, height: '1.4em' }}>
+              {/* Visible text display - starts with a space after prompt */}
+              <span 
+                style={{
+                  color: '#00d4ff',
+                  fontFamily: 'var(--font-family-mono)',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  textShadow: '0 0 5px #00d4ff, 0 0 10px #00d4ff',
+                  position: 'absolute',
+                  top: '0',
+                  left: '0.6em', // Space after prompt
+                  whiteSpace: 'pre',
+                  pointerEvents: 'none',
+                  zIndex: 15
+                }}
+              >
+                {activeTabData.currentInput || ''}
+              </span>
+              {/* Hidden input for capturing keystrokes */}
+              <input
+                ref={inputRef}
+                type="text"
+                className={styles.terminalInput}
+                value={activeTabData.currentInput || ''}
+                onChange={(e) => handleTerminalInput(activeTabData.id, e.target.value)}
+                onFocus={() => setIsTerminalFocused(true)}
+                onBlur={() => setIsTerminalFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleTerminalCommand(activeTabData.id);
+                  }
+                }}
+                style={{ 
+                  color: 'transparent', // Make input text invisible
+                  paddingLeft: '0.6em' // Align input with visible text
+                }}
+                autoFocus
+                spellCheck={false}
+              />
+              {/* Fat cursor positioned exactly after the visible text with space */}
+              <div 
+                className={`${styles.fatCursor} ${isTerminalFocused ? styles.focused : ''}`}
+                style={{ 
+                  left: `${0.6 + (activeTabData.currentInput || '').length * 0.6}em`
+                }}
+              />
+            </div>
           </div>
         </div>
       );
@@ -269,6 +307,80 @@ export const DevelopWindow: React.FC<DevelopWindowProps> = ({
           </button>
         </div>
         <div className={styles.editorActions}>
+          {/* Run button for Python files */}
+          {activeTabData?.type === 'editor' && activeTabData.name.endsWith('.py') && (
+            <button 
+              className={styles.actionButton} 
+              onClick={async () => {
+                // Save file first
+                if (activeTabData.content) {
+                  await saveFileContent(activeTabData.id, activeTabData.content);
+                }
+                
+                // Create or switch to terminal tab
+                const terminalTab = tabs.find(t => t.type === 'terminal');
+                if (terminalTab) {
+                  setActiveTab(terminalTab.id);
+                } else {
+                  // Create new terminal tab
+                  const newTab: UnifiedTab = {
+                    id: `terminal-${Date.now()}`,
+                    name: '~',
+                    type: 'terminal',
+                    terminalContent: [],
+                    currentInput: '',
+                    cwd: '/'
+                  };
+                  setTabs([...tabs, newTab]);
+                  setActiveTab(newTab.id);
+                }
+                
+                // Execute the Python file
+                setTimeout(async () => {
+                  const result = await terminalService.execute(`python ${activeTabData.id}`);
+                  const terminalTab = tabs.find(t => t.type === 'terminal');
+                  if (terminalTab) {
+                    const outputLines = result.output.split('\n');
+                    setTabs(tabs.map(t => 
+                      t.id === terminalTab.id 
+                        ? { 
+                            ...t, 
+                            terminalContent: [
+                              ...(t.terminalContent || []),
+                              `$ python ${activeTabData.id}`,
+                              ...outputLines
+                            ]
+                          }
+                        : t
+                    ));
+                  }
+                }, 100);
+              }}
+              title="Run Python File"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </button>
+          )}
+          {/* Save button for editor files */}
+          {activeTabData?.type === 'editor' && onSaveFile && (
+            <button 
+              className={styles.actionButton} 
+              onClick={async () => {
+                if (activeTabData.content) {
+                  await saveFileContent(activeTabData.id, activeTabData.content);
+                }
+              }}
+              title="Save File (Cmd/Ctrl+S)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+            </button>
+          )}
           {/* Split horizontally button */}
           {onSplitWindow && (
             <button 

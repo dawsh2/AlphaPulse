@@ -1,23 +1,27 @@
 // Data fetcher for retrieving and storing historical market data
 import { CoinbaseService } from '../exchanges/coinbase';
+import { KrakenService } from '../exchanges/kraken';
 import { dataStorage } from './DataStorage';
 import type { StoredMarketData } from './DataTypes';
 import type { MarketData } from '../exchanges/types';
 
 export class DataFetcher {
   private coinbase = new CoinbaseService();
+  private kraken = new KrakenService();
   
   /**
-   * Fetch and store historical data from Coinbase
+   * Fetch and store historical data from specified exchange
    * @param symbol - Trading pair (e.g., 'BTC/USD')
    * @param days - Number of days to fetch (default 7)
+   * @param exchange - Exchange to fetch from ('coinbase' or 'kraken')
    */
   async fetchAndStoreHistoricalData(
     symbol: string, 
-    days: number = 7
+    days: number = 7,
+    exchange: 'coinbase' | 'kraken' = 'coinbase'
   ): Promise<{ success: boolean; candleCount: number; error?: string }> {
     try {
-      console.log(`[DataFetcher] Fetching ${days} days of ${symbol} from Coinbase...`);
+      console.log(`[DataFetcher] Fetching ${days} days of ${symbol} from ${exchange}...`);
       
       // Calculate time range
       const endTime = Date.now();
@@ -37,13 +41,15 @@ export class DataFetcher {
         const batchStart = currentEnd - (batchMinutes * 60);
         
         try {
-          // Fetch batch from Coinbase REST API
-          const response = await this.fetchCoinbaseBatch(symbol, batchStart, currentEnd);
+          // Fetch batch from appropriate exchange
+          const response = exchange === 'kraken' 
+            ? await this.fetchKrakenBatch(symbol, batchStart, currentEnd)
+            : await this.fetchCoinbaseBatch(symbol, batchStart, currentEnd);
           
           // Convert to storage format
           const storedCandles = response.map(candle => ({
             symbol,
-            exchange: 'coinbase',
+            exchange,
             interval: '1m',
             timestamp: candle.time,
             open: candle.open,
@@ -53,7 +59,7 @@ export class DataFetcher {
             volume: candle.volume,
             metadata: {
               fetchedAt: Date.now(),
-              source: 'coinbase-rest'
+              source: `${exchange}-rest`
             }
           }));
           
@@ -98,6 +104,60 @@ export class DataFetcher {
   /**
    * Fetch a batch of candles from Coinbase REST API
    */
+  private async fetchKrakenBatch(
+    symbol: string, 
+    startTime: number, 
+    endTime: number
+  ): Promise<MarketData[]> {
+    // Map symbols to Kraken format
+    const krakenSymbolMap: Record<string, string> = {
+      'BTC/USD': 'XBTUSD',
+      'ETH/USD': 'ETHUSD',
+      'SOL/USD': 'SOLUSD',
+      'LINK/USD': 'LINKUSD'
+    };
+    
+    const krakenPair = krakenSymbolMap[symbol] || symbol.replace('/', '');
+    
+    try {
+      // Kraken API expects 'since' parameter in seconds
+      const url = `https://api.kraken.com/0/public/OHLC?pair=${krakenPair}&interval=1&since=${startTime}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.error && data.error.length > 0) {
+        throw new Error(`Kraken API error: ${data.error.join(', ')}`);
+      }
+      
+      // Find the result key (Kraken returns data under a key like 'XXBTZUSD')
+      const pairKey = Object.keys(data.result).find(k => k !== 'last');
+      if (!pairKey) {
+        throw new Error('No data found for symbol');
+      }
+      
+      const ohlcData = data.result[pairKey];
+      
+      // Filter data within our time range and convert to MarketData format
+      return ohlcData
+        .filter((candle: any[]) => {
+          const timestamp = parseInt(candle[0]);
+          return timestamp >= startTime && timestamp <= endTime;
+        })
+        .map((candle: any[]) => ({
+          time: parseInt(candle[0]),
+          open: parseFloat(candle[1]),
+          high: parseFloat(candle[2]),
+          low: parseFloat(candle[3]),
+          close: parseFloat(candle[4]),
+          volume: parseFloat(candle[6]) // Volume is at index 6 in Kraken response
+        }));
+    } catch (error) {
+      console.error(`[DataFetcher] Kraken fetch error:`, error);
+      throw error;
+    }
+  }
+
   private async fetchCoinbaseBatch(
     symbol: string, 
     startTime: number, 
@@ -111,7 +171,7 @@ export class DataFetcher {
     
     // Use our backend proxy to avoid CORS issues
     const response = await fetch(
-      `http://localhost:5001/api/proxy/coinbase/products/${coinbaseSymbol}/candles?` +
+      `http://localhost:5002/api/proxy/coinbase/products/${coinbaseSymbol}/candles?` +
       `start=${start}&end=${end}&granularity=60`
     );
     
@@ -139,7 +199,7 @@ export class DataFetcher {
    */
   private async saveToBackend(candles: StoredMarketData[]): Promise<void> {
     try {
-      const response = await fetch('http://localhost:5001/api/market-data/save', {
+      const response = await fetch('http://localhost:5002/api/market-data/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,14 +208,14 @@ export class DataFetcher {
           symbol: candles[0]?.symbol,
           exchange: candles[0]?.exchange,
           interval: candles[0]?.interval,
-          candles: candles.map(c => ({
-            timestamp: c.timestamp,
-            open: c.open,
-            high: c.high,
-            low: c.low,
-            close: c.close,
-            volume: c.volume
-          }))
+          candles: candles.map(c => [
+            c.timestamp,  // timestamp
+            c.low,        // low
+            c.high,       // high
+            c.open,       // open
+            c.close,      // close
+            c.volume      // volume
+          ])
         })
       });
       
@@ -267,7 +327,7 @@ export class DataFetcher {
             volume: candle.volume,
             metadata: {
               fetchedAt: Date.now(),
-              source: 'coinbase-rest'
+              source: `${exchange}-rest`
             }
           }));
           

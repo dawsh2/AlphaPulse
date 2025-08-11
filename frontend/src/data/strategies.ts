@@ -14,12 +14,13 @@ export interface Strategy {
   risk?: string;
   timeframe?: string;
   comingSoon?: boolean;
-  metrics: {
+  metrics?: {
     sharpe: number;
     annualReturn: number;
     maxDrawdown: number;
     winRate: number;
   };
+  type?: string; // Added to match API Strategy type
 }
 
 export const coreStrategies: Strategy[] = [

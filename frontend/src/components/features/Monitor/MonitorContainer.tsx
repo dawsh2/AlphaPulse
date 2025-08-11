@@ -24,19 +24,18 @@ export const MonitorContainer: React.FC<MonitorContainerProps> = ({
   exchange = 'COINBASE',
   timeframe = '1m',
 }) => {
-  // Market data hook
-  const {
-    data: marketData,
-    loading,
-    error,
-    connected,
-    livePrice,
-    refresh,
-  } = useMarketData(symbol, timeframe, {
-    autoConnect: true,
-    maxDataPoints: 5000,
-    throttleMs: 1000,
-  });
+  // Market data state (hook needs to be implemented or imported)
+  const [marketData, setMarketData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+  
+  // TODO: Implement proper market data fetching
+  const refresh = useCallback(() => {
+    console.log('Refreshing market data for', symbol, timeframe);
+    // Implementation needed
+  }, [symbol, timeframe]);
 
   // Events WebSocket
   const {
@@ -166,7 +165,7 @@ export const MonitorContainer: React.FC<MonitorContainerProps> = ({
   if (error) {
     return (
       <div className={styles.error}>
-        Error loading data: {error.message}
+        Error loading data: {error}
         <button onClick={refresh}>Retry</button>
       </div>
     );

@@ -10,8 +10,8 @@ import { BuilderWelcome } from './BuilderWelcome';
 interface BuilderViewProps {
   selectedTemplate: string | null;
   setSelectedTemplate: (template: string | null) => void;
-  setActiveTab: (tab: string | null) => void;
-  setMainView: (view: string) => void;
+  setActiveTab: (tab: any) => void;
+  setMainView: (view: any) => void;
 }
 
 export const BuilderView: React.FC<BuilderViewProps> = ({

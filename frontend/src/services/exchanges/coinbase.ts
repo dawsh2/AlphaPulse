@@ -2,7 +2,7 @@
 import type { MarketData, ExchangeService } from './types';
 
 export class CoinbaseService implements ExchangeService {
-  private ws: WebSocket | null = null;
+  private connections: Map<string, WebSocket> = new Map();
   
   // Symbol mapping for Coinbase
   private symbolMap: Record<string, string> = {
@@ -14,14 +14,17 @@ export class CoinbaseService implements ExchangeService {
   };
 
   connect(symbol: string, onData: (data: MarketData) => void): WebSocket | null {
-    // Close existing connection
-    this.disconnect();
+    // Create a unique connection per symbol-callback pair
+    const connectionKey = `${symbol}_${Date.now()}`;
     
     const coinbaseSymbol = this.symbolMap[symbol] || symbol.replace('/', '-');
     
     // Using Coinbase Exchange WebSocket Feed
     const ws = new WebSocket('wss://ws-feed.exchange.coinbase.com');
-    this.ws = ws;
+    this.connections.set(connectionKey, ws);
+    
+    // Store connection key on WebSocket for cleanup
+    (ws as any).connectionKey = connectionKey;
     
     ws.onopen = () => {
       console.log('[Coinbase] Connected to WebSocket');
@@ -97,19 +100,25 @@ export class CoinbaseService implements ExchangeService {
     
     ws.onclose = () => {
       console.log('[Coinbase] WebSocket disconnected');
+      // Clean up this specific connection
+      const key = (ws as any).connectionKey;
+      if (key && this.connections.has(key)) {
+        this.connections.delete(key);
+      }
     };
     
     return ws;
   }
   
   disconnect(): void {
-    if (this.ws) {
-      if (this.ws.readyState === WebSocket.OPEN || 
-          this.ws.readyState === WebSocket.CONNECTING) {
-        this.ws.close();
+    // Close all connections
+    for (const [key, ws] of this.connections) {
+      if (ws.readyState === WebSocket.OPEN || 
+          ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
       }
-      this.ws = null;
     }
+    this.connections.clear();
   }
   
   async fetchHistoricalData(symbol: string, limit: number = 30): Promise<MarketData[]> {

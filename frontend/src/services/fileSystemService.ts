@@ -4,6 +4,9 @@
  * PURE EXTRACTION - No fallback code
  */
 
+// SECURITY: Check if running in production
+const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
 export interface FileItem {
   path: string;
   name: string;
@@ -12,7 +15,42 @@ export interface FileItem {
 }
 
 export async function loadFileStructure(): Promise<FileItem[]> {
+  // SECURITY: Return mock data in production
+  if (isProduction) {
+    return [
+      { path: 'README.md', name: 'README.md', type: 'file' },
+      { path: 'demo_files', name: 'demo_files', type: 'folder', children: [] }
+    ];
+  }
+  
   try {
+    // Try new workspace API first
+    const workspaceResponse = await fetch('http://localhost:5001/api/workspace/files');
+    if (workspaceResponse.ok) {
+      const workspaceData = await workspaceResponse.json();
+      
+      // Convert workspace format to FileItem format
+      const convertToFileItems = (files: any[], parentPath: string = ''): FileItem[] => {
+        return files.map(file => {
+          const item: FileItem = {
+            path: parentPath ? `${parentPath}/${file.name}` : file.path,
+            name: file.name,
+            type: file.type as 'file' | 'folder',
+          };
+          
+          // For folders, we'll lazy-load children
+          if (file.type === 'folder') {
+            item.children = [];
+          }
+          
+          return item;
+        });
+      };
+      
+      return convertToFileItems(workspaceData.files);
+    }
+    
+    // Fall back to NT reference API if workspace API fails
     const response = await fetch('http://localhost:5001/api/nt-reference/list-files');
     const data = await response.json();
     
@@ -332,5 +370,136 @@ export async function loadFileStructure(): Promise<FileItem[]> {
     });
     
     return fileStructure;
+  }
+}
+
+/**
+ * Load content of a file from the workspace
+ */
+export async function loadFileContent(filePath: string): Promise<string | null> {
+  // SECURITY: Disable in production
+  if (isProduction) {
+    console.warn('File loading is disabled in production');
+    return '// File operations are disabled in production for security';
+  }
+  
+  try {
+    // Clean the path - remove leading slash if present
+    const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+    
+    // Try workspace API first
+    const workspaceResponse = await fetch(`http://localhost:5001/api/workspace/file/${cleanPath}`);
+    if (workspaceResponse.ok) {
+      const data = await workspaceResponse.json();
+      return data.content;
+    }
+    
+    // Fall back to NT reference API
+    const ntResponse = await fetch(`http://localhost:5001/api/nt-reference/files/${cleanPath}`);
+    if (ntResponse.ok) {
+      const data = await ntResponse.json();
+      return data.content;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error loading file content:', error);
+    return null;
+  }
+}
+
+/**
+ * Save file content to the workspace
+ */
+export async function saveFileContent(filePath: string, content: string): Promise<boolean> {
+  // SECURITY: Disable in production
+  if (isProduction) {
+    console.warn('File saving is disabled in production');
+    alert('File saving is disabled in production for security reasons');
+    return false;
+  }
+  
+  try {
+    // Clean the path - remove leading slash if present
+    const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+    
+    const response = await fetch(`http://localhost:5001/api/workspace/file/${cleanPath}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content })
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('Error saving file:', error);
+    return false;
+  }
+}
+
+/**
+ * Create a new file or folder
+ */
+export async function createFile(path: string, isDirectory: boolean = false, content: string = ''): Promise<boolean> {
+  try {
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    
+    const response = await fetch(`http://localhost:5001/api/workspace/file/${cleanPath}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ is_directory: isDirectory, content })
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('Error creating file:', error);
+    return false;
+  }
+}
+
+/**
+ * Delete a file or folder
+ */
+export async function deleteFile(path: string): Promise<boolean> {
+  try {
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    
+    const response = await fetch(`http://localhost:5001/api/workspace/file/${cleanPath}`, {
+      method: 'DELETE'
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    return false;
+  }
+}
+
+/**
+ * Load folder contents (for lazy loading)
+ */
+export async function loadFolderContents(folderPath: string): Promise<FileItem[]> {
+  try {
+    const cleanPath = folderPath.startsWith('/') ? folderPath.slice(1) : folderPath;
+    
+    const response = await fetch(`http://localhost:5001/api/workspace/files?path=${encodeURIComponent(cleanPath)}`);
+    if (response.ok) {
+      const data = await response.json();
+      
+      return data.files.map((file: any) => ({
+        path: `${folderPath}/${file.name}`,
+        name: file.name,
+        type: file.type as 'file' | 'folder',
+        children: file.type === 'folder' ? [] : undefined
+      }));
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error loading folder contents:', error);
+    return [];
   }
 }

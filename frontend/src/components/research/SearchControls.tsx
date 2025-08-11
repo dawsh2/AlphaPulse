@@ -2,7 +2,7 @@
  * SearchControls Component - Search bar, sorting, and filter controls for strategy/data exploration
  * Extracted from ResearchPage explore view controls bar
  */
-import React from 'react';
+import React, { useRef } from 'react';
 import exploreStyles from '../../pages/ExplorePage.module.css';
 
 type SortBy = 'new' | 'sharpe' | 'returns' | 'name' | 'winrate' | 'size' | 'updated' | 'frequency';
@@ -33,6 +33,7 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
   viewType = 'strategies',
 }) => {
   const isDataView = viewType === 'data';
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const getSortLabel = () => {
     if (isDataView) {
@@ -64,8 +65,20 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
           
           <div 
             className={exploreStyles.sortDropdown}
-            onMouseEnter={() => setSortDropdownOpen(true)}
-            onMouseLeave={() => setSortDropdownOpen(false)}
+            onMouseEnter={() => {
+              // Clear any pending close timeout
+              if (closeTimeoutRef.current) {
+                clearTimeout(closeTimeoutRef.current);
+                closeTimeoutRef.current = null;
+              }
+              setSortDropdownOpen(true);
+            }}
+            onMouseLeave={(e) => {
+              // Add a small delay before closing to prevent flickering
+              closeTimeoutRef.current = setTimeout(() => {
+                setSortDropdownOpen(false);
+              }, 200);
+            }}
           >
             <button 
               className={exploreStyles.sortButton}
@@ -77,8 +90,19 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
           {sortDropdownOpen && (
             <div 
               className={exploreStyles.sortMenu}
-              onMouseEnter={() => setSortDropdownOpen(true)}
-              onMouseLeave={() => setSortDropdownOpen(false)}
+              onMouseEnter={() => {
+                // Clear any pending close timeout when hovering over menu
+                if (closeTimeoutRef.current) {
+                  clearTimeout(closeTimeoutRef.current);
+                  closeTimeoutRef.current = null;
+                }
+              }}
+              onMouseLeave={() => {
+                // Close menu when mouse leaves
+                closeTimeoutRef.current = setTimeout(() => {
+                  setSortDropdownOpen(false);
+                }, 200);
+              }}
             >
               {isDataView ? (
                 <>

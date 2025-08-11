@@ -264,6 +264,7 @@
   justify-content: space-between;
   gap: var(--space-2);
   white-space: nowrap;
+  min-width: 200px;
 }
 
 .dropdownButton:hover {
@@ -275,13 +276,36 @@
 .dropdownMenu {
   position: absolute;
   left: 0;
-  background: var(--color-bg-primary);
+  background: #faf8f3; /* Solid light background */
   border: 3px solid var(--color-text-primary);
   border-radius: var(--radius-md);
   box-shadow: -3px 5px var(--color-text-primary);
   min-width: 100%;
   z-index: 1000;
   overflow: hidden;
+  opacity: 1 !important;
+  pointer-events: auto;
+  /* Ensure no transparency */
+  background-color: #faf8f3 !important;
+  backdrop-filter: none !important;
+}
+
+/* Dark mode override for dropdown menu */
+@media (prefers-color-scheme: dark) {
+  .dropdownMenu {
+    background: #2a2d35 !important; /* Solid dark background */
+    background-color: #2a2d35 !important;
+    border-color: #f0f6fc;
+    box-shadow: -3px 5px #f0f6fc;
+  }
+}
+
+/* Explicit dark mode for data-theme */
+[data-theme="dark"] .dropdownMenu {
+  background: #2a2d35 !important;
+  background-color: #2a2d35 !important;
+  border-color: #f0f6fc;
+  box-shadow: -3px 5px #f0f6fc;
 }
 
 /* Default: drop down */
@@ -302,8 +326,8 @@
   font-weight: var(--font-weight-medium);
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--color-border-primary);
-  color: var(--color-text-secondary);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  color: #33332d; /* Solid color for light mode */
   cursor: pointer;
   transition: all var(--transition-fast);
   display: block;
@@ -312,19 +336,41 @@
   white-space: nowrap;
 }
 
+@media (prefers-color-scheme: dark) {
+  .dropdownOption {
+    color: #e8e8e8; /* Solid color for dark mode */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
 .dropdownOption:last-child {
   border-bottom: none;
 }
 
 .dropdownOption:hover {
-  background: var(--color-text-primary);
-  color: var(--color-bg-primary);
+  background: #33332d;
+  color: #faf8f3;
+  transform: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dropdownOption:hover {
+    background: #e8e8e8;
+    color: #2a2d35;
+  }
 }
 
 .dropdownOption.active {
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
+  background: rgba(51, 51, 45, 0.1);
+  color: #33332d;
   font-weight: var(--font-weight-bold);
+}
+
+@media (prefers-color-scheme: dark) {
+  .dropdownOption.active {
+    background: rgba(232, 232, 232, 0.1);
+    color: #e8e8e8;
+  }
 }
 
 /* Sidebar */
@@ -613,6 +659,348 @@
 
 [data-theme="dark"] .chartInfo {
   background: rgba(30, 32, 40, 0.9);
+}
+
+/* Chart Layout Container */
+.chartLayoutContainer {
+  flex: 1;
+  display: flex;
+  position: relative;
+  min-height: 400px;
+  background: var(--color-bg-primary);
+}
+
+/* Chart Window */
+.chartWindow {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  background: var(--color-bg-primary);
+}
+
+/* Chart Info Overlay - Embedded controls */
+.chartInfoOverlay {
+  position: absolute;
+  top: var(--space-3);
+  left: 80px; /* Move inward to avoid Y-axis overlap */
+  background: rgba(250, 248, 243, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 3px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -3px 5px var(--color-text-primary);
+  padding: var(--space-3);
+  z-index: 10;
+  transition: all var(--transition-fast);
+}
+
+@media (prefers-color-scheme: dark) {
+  .chartInfoOverlay {
+    background: rgba(42, 45, 53, 0.95);
+    border-color: #f0f6fc;
+    box-shadow: -3px 5px #f0f6fc;
+  }
+}
+
+[data-theme="dark"] .chartInfoOverlay {
+  background: rgba(42, 45, 53, 0.95);
+  border-color: #f0f6fc;
+  box-shadow: -3px 5px #f0f6fc;
+}
+
+/* Symbol Button for chart overlay */
+.symbolButton {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-primary);
+  border: 2px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -2px 3px var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 80px;
+}
+
+.symbolButton:hover {
+  transform: translate(1px, -1px);
+  box-shadow: -3px 4px var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+/* Dark mode override for symbol button */
+@media (prefers-color-scheme: dark) {
+  .symbolButton {
+    background: rgba(42, 45, 53, 0.9);
+    color: #f0f6fc;
+    border-color: #f0f6fc;
+    box-shadow: -2px 3px #f0f6fc;
+  }
+  
+  .symbolButton:hover {
+    background: rgba(52, 55, 63, 0.9);
+    box-shadow: -3px 4px #f0f6fc;
+  }
+}
+
+[data-theme="dark"] .symbolButton {
+  background: rgba(42, 45, 53, 0.9);
+  color: #f0f6fc;
+  border-color: #f0f6fc;
+  box-shadow: -2px 3px #f0f6fc;
+}
+
+[data-theme="dark"] .symbolButton:hover {
+  background: rgba(52, 55, 63, 0.9);
+  box-shadow: -3px 4px #f0f6fc;
+}
+
+.symbolRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.symbolDropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.metadataRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.inlineDropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.compactButton {
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all var(--transition-fast);
+}
+
+.compactButton:hover {
+  color: var(--color-accent-primary);
+}
+
+.dropdownArrow {
+  font-size: 10px;
+  opacity: 0.6;
+  transition: opacity var(--transition-fast);
+}
+
+.compactButton:hover .dropdownArrow,
+.symbolButton:hover .dropdownArrow {
+  opacity: 1;
+}
+
+/* Dark mode styles for compact buttons */
+@media (prefers-color-scheme: dark) {
+  .compactButton {
+    color: #f0f6fc !important;
+  }
+  
+  .compactButton:hover {
+    color: #6366f1 !important; /* Direct color instead of CSS var */
+  }
+  
+  .metadataRow {
+    color: rgba(240, 246, 252, 0.7) !important;
+  }
+  
+  .dropdownArrow {
+    color: inherit !important;
+  }
+  
+  /* Ensure chart overlay text is visible */
+  .chartInfoOverlay * {
+    color: #f0f6fc !important;
+  }
+  
+  .chartInfoOverlay .compactButton {
+    color: rgba(240, 246, 252, 0.8) !important;
+  }
+  
+  .chartInfoOverlay .compactButton:hover {
+    color: #6366f1 !important;
+  }
+}
+
+[data-theme="dark"] .compactButton {
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .compactButton:hover {
+  color: #6366f1 !important;
+}
+
+[data-theme="dark"] .metadataRow {
+  color: rgba(240, 246, 252, 0.7) !important;
+}
+
+[data-theme="dark"] .dropdownArrow {
+  color: inherit !important;
+}
+
+[data-theme="dark"] .chartInfoOverlay * {
+  color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .chartInfoOverlay .compactButton {
+  color: rgba(240, 246, 252, 0.8) !important;
+}
+
+[data-theme="dark"] .chartInfoOverlay .compactButton:hover {
+  color: #6366f1 !important;
+}
+
+.separator {
+  color: var(--color-text-secondary);
+  opacity: 0.5;
+  user-select: none;
+}
+
+/* Dark mode styles for separator */
+@media (prefers-color-scheme: dark) {
+  .separator {
+    color: rgba(240, 246, 252, 0.5);
+  }
+}
+
+[data-theme="dark"] .separator {
+  color: rgba(240, 246, 252, 0.5);
+}
+
+/* Floating Tile Controls Container */
+.tileControlsContainer {
+  position: absolute;
+  top: var(--space-3);
+  right: 80px; /* Move inward to avoid Y-axis overlap */
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-2);
+  z-index: 15;
+}
+
+/* Individual Tile Buttons with 3D shadow */
+.tileButton {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  background: var(--color-bg-primary);
+  border: 3px solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: -3px 5px var(--color-text-primary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tileButton:hover {
+  transform: translate(2px, -2px);
+  box-shadow: -5px 7px var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+.tileButton:active {
+  transform: translate(-1px, 2px);
+  box-shadow: -2px 3px var(--color-text-primary);
+}
+
+.tileButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tileButtonClose:hover {
+  background: rgba(248, 81, 73, 0.1);
+  border-color: #f85149;
+  color: #f85149;
+}
+
+/* Dark mode styles for tile controls */
+@media (prefers-color-scheme: dark) {
+  .tileButton {
+    background: rgba(42, 45, 53, 0.9);
+    border-color: #f0f6fc;
+    color: #f0f6fc;
+    box-shadow: -3px 5px #f0f6fc;
+  }
+  
+  .tileButton:hover {
+    background: rgba(52, 55, 63, 0.9);
+    box-shadow: -5px 7px #f0f6fc;
+  }
+  
+  .tileButton:active {
+    box-shadow: -2px 3px #f0f6fc;
+  }
+}
+
+[data-theme="dark"] .tileButton {
+  background: rgba(42, 45, 53, 0.9);
+  border-color: #f0f6fc;
+  color: #f0f6fc;
+  box-shadow: -3px 5px #f0f6fc;
+}
+
+[data-theme="dark"] .tileButton:hover {
+  background: rgba(52, 55, 63, 0.9);
+  box-shadow: -5px 7px #f0f6fc;
+}
+
+[data-theme="dark"] .tileButton:active {
+  box-shadow: -2px 3px #f0f6fc;
+}
+
+/* Splitter for resizing */
+.splitter {
+  background: var(--color-border-primary);
+  transition: background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.splitter:hover {
+  background: var(--color-accent-primary);
+}
+
+.splitterHorizontal {
+  height: 3px;
+  width: 100%;
+  cursor: row-resize;
+}
+
+.splitterVertical {
+  width: 3px;
+  height: 100%;
+  cursor: col-resize;
 }
 
 /* Loading Overlay */

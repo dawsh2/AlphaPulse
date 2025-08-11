@@ -490,7 +490,7 @@ Expectancy: $1,247 per trade`;
   };
 
   // AI Chat handlers
-  const handleCreateAiChat = (cell: NotebookCellData) => {
+  const handleCreateAiChat = (cell: NotebookCell) => {
     const newAiCell: NotebookCell = {
       id: `ai-chat-${Date.now()}`,
       type: 'ai-chat',
@@ -500,7 +500,7 @@ Expectancy: $1,247 per trade`;
       parentCellId: cell.id,
       aiMessages: [
         {
-          role: 'assistant',
+          role: 'assistant' as const,
           content: `I've analyzed your results. ${
             cell.output?.includes('Overview') 
               ? "Your strategies show interesting patterns. The Sharpe ratio of 1.87 is solid, but I notice the max drawdown of -12.4%. What's your main concern - risk management or performance optimization?"
@@ -527,7 +527,7 @@ Expectancy: $1,247 per trade`;
   };
 
   const handleSendAiMessage = (cellId: string, message: string) => {
-    const userMessage = { role: 'user', content: message };
+    const userMessage = { role: 'user' as const, content: message };
     
     // Generate AI response based on user input
     let aiResponse = '';
@@ -563,7 +563,7 @@ This will show where your returns are coming from. Ready to build the cell?`;
 Which area would you like to explore first?`;
     }
     
-    const aiMessage = { role: 'assistant', content: aiResponse };
+    const aiMessage = { role: 'assistant' as const, content: aiResponse };
     
     setNotebookCells(prev =>
       prev.map(c =>

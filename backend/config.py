@@ -17,7 +17,7 @@ class Config:
     
     # Frontend settings
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174,http://localhost:8000,http://localhost:5001').split(',')
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:8000,http://localhost:5001').split(',')
     
     # JWT settings
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-change-in-production')

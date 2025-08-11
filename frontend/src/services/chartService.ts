@@ -1,4 +1,4 @@
-import { createChart, IChartApi, ISeriesApi, CandlestickData, UTCTimestamp } from 'lightweight-charts';
+import { createChart, type IChartApi, type ISeriesApi, type CandlestickData, type UTCTimestamp } from 'lightweight-charts';
 import type { MarketData } from './exchanges';
 
 export interface ChartService {

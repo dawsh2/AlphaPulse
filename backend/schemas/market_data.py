@@ -72,6 +72,13 @@ class MarketDataRequest(BaseModel):
         return v.upper()
 
 
+class SaveDataRequest(BaseModel):
+    """Request to save market data"""
+    symbol: str = Field(..., description="Trading pair")
+    exchange: str = Field(..., description="Exchange name") 
+    interval: str = Field(..., description="Data interval")
+    candles: List[Dict[str, Any]] = Field(..., description="OHLCV candle data as raw dicts")
+
 class MarketDataset(BaseModel):
     """Complete market dataset"""
     symbol: str = Field(..., description="Trading pair")

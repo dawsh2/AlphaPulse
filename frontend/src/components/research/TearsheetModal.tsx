@@ -5,25 +5,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import exploreStyles from '../../pages/ExplorePage.module.css';
-
-interface Strategy {
-  id: string;
-  title: string;
-  description: string;
-  color: string;
-  tags: string[];
-  creator?: string;
-  comingSoon?: boolean;
-  metrics?: {
-    sharpe: number;
-    annualReturn: number;
-    maxDrawdown: number;
-    winRate: number;
-  };
-  behavior?: 'trending' | 'meanrev' | 'breakout' | 'volatility';
-  risk?: 'conservative' | 'moderate' | 'aggressive';
-  timeframe?: 'intraday' | 'swing' | 'position';
-}
+import type { Strategy } from '../../data/strategies';
 
 interface TearsheetData {
   strategy: Strategy;
@@ -31,43 +13,49 @@ interface TearsheetData {
 }
 
 interface TearsheetModalProps {
-  tearsheet: TearsheetData;
-  setTearsheet: (data: TearsheetData) => void;
-  onNotebookClick: (e: MouseEvent, strategy: Strategy) => void;
+  isOpen: boolean;
+  strategy: Strategy;
+  styles: any;
+  onClose: () => void;
+  onNotebookClick: (strategy: Strategy) => void;
+  onDeployClick: (strategy: Strategy) => void;
 }
 
 export const TearsheetModal: React.FC<TearsheetModalProps> = ({
-  tearsheet,
-  setTearsheet,
+  isOpen,
+  strategy,
+  styles,
+  onClose,
   onNotebookClick,
+  onDeployClick,
 }) => {
   const navigate = useNavigate();
 
-  if (!tearsheet.isOpen || !tearsheet.strategy) {
+  if (!isOpen || !strategy) {
     return null;
   }
 
   return (
-    <div className={exploreStyles.tearsheetModal} onClick={() => setTearsheet({ ...tearsheet, isOpen: false })}>
+    <div className={exploreStyles.tearsheetModal} onClick={onClose}>
       <div className={exploreStyles.tearsheetContent} onClick={(e) => e.stopPropagation()}>
-        <button className={exploreStyles.tearsheetClose} onClick={() => setTearsheet({ ...tearsheet, isOpen: false })}>×</button>
-        <h2 className={exploreStyles.tearsheetTitle}>{tearsheet.strategy.title}</h2>
+        <button className={exploreStyles.tearsheetClose} onClick={onClose}>×</button>
+        <h2 className={exploreStyles.tearsheetTitle}>{strategy.title}</h2>
         
         <div className={exploreStyles.tearsheetMetrics}>
           <div className={exploreStyles.tearsheetMetric}>
-            <span className={exploreStyles.tearsheetMetricValue}>{tearsheet.strategy.metrics?.sharpe.toFixed(2)}</span>
+            <span className={exploreStyles.tearsheetMetricValue}>{strategy.metrics?.sharpe.toFixed(2)}</span>
             <span className={exploreStyles.tearsheetMetricLabel}>Sharpe Ratio</span>
           </div>
           <div className={exploreStyles.tearsheetMetric}>
-            <span className={exploreStyles.tearsheetMetricValue}>{tearsheet.strategy.metrics?.annualReturn.toFixed(1)}%</span>
+            <span className={exploreStyles.tearsheetMetricValue}>{strategy.metrics?.annualReturn.toFixed(1)}%</span>
             <span className={exploreStyles.tearsheetMetricLabel}>Annual Return</span>
           </div>
           <div className={exploreStyles.tearsheetMetric}>
-            <span className={exploreStyles.tearsheetMetricValue}>{tearsheet.strategy.metrics?.maxDrawdown.toFixed(1)}%</span>
+            <span className={exploreStyles.tearsheetMetricValue}>{strategy.metrics?.maxDrawdown.toFixed(1)}%</span>
             <span className={exploreStyles.tearsheetMetricLabel}>Max Drawdown</span>
           </div>
           <div className={exploreStyles.tearsheetMetric}>
-            <span className={exploreStyles.tearsheetMetricValue}>{tearsheet.strategy.metrics?.winRate}%</span>
+            <span className={exploreStyles.tearsheetMetricValue}>{strategy.metrics?.winRate}%</span>
             <span className={exploreStyles.tearsheetMetricLabel}>Win Rate</span>
           </div>
         </div>
@@ -76,8 +64,8 @@ export const TearsheetModal: React.FC<TearsheetModalProps> = ({
           <button 
             className={exploreStyles.tearsheetIconBtn}
             onClick={() => {
-              onNotebookClick(new MouseEvent('click') as any, tearsheet.strategy);
-              setTearsheet({ ...tearsheet, isOpen: false });
+              onNotebookClick(strategy);
+              onClose();
             }}
             title="Open in Notebook"
           >
@@ -99,7 +87,7 @@ export const TearsheetModal: React.FC<TearsheetModalProps> = ({
           </button>
           <button 
             className={exploreStyles.tearsheetIconBtn}
-            onClick={() => navigate('/monitor', { state: { strategy: tearsheet.strategy } })}
+            onClick={() => onDeployClick(strategy)}
             title="Deploy Strategy"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>

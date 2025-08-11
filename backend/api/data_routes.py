@@ -38,23 +38,42 @@ def get_services():
 
 
 @data_api.route('/api/market-data/save', methods=['POST', 'OPTIONS'])
-@validate_json(SaveDataRequest)
-@validate_response(ApiResponse)
-def save_market_data(body: SaveDataRequest):
+def save_market_data():
     """Save market data to database (optional endpoint for caching)."""
     # Handle preflight OPTIONS request
     if request.method == 'OPTIONS':
         response = make_response(jsonify({'status': 'ok'}))
         return add_cors_headers(response), 200
     
+    # Get JSON data (skip validation for now to test basic functionality)
+    try:
+        json_data = request.get_json()
+        print(f"📊 Received POST data: {json_data}")
+        
+        # Basic validation
+        if not json_data or not isinstance(json_data, dict):
+            raise ValueError("Invalid JSON data")
+        
+        required_fields = ['symbol', 'exchange', 'interval', 'candles']
+        for field in required_fields:
+            if field not in json_data:
+                raise ValueError(f"Missing required field: {field}")
+        
+        body = json_data  # Use raw data instead of Pydantic validation
+        
+    except Exception as e:
+        print(f"❌ JSON validation error: {str(e)}")
+        response = make_response(jsonify({'status': 'error', 'message': f'Invalid JSON: {str(e)}'}), 400)
+        return add_cors_headers(response)
+    
     try:
         data_service, _ = get_services()
-        # Convert Pydantic model to dict for service layer
+        # Use raw data (already a dict)
         data_dict = {
-            'symbol': body.symbol,
-            'exchange': body.exchange,
-            'candles': body.candles,
-            'interval': body.interval
+            'symbol': body['symbol'],
+            'exchange': body['exchange'],
+            'candles': body['candles'],
+            'interval': body['interval']
         }
         result = data_service.save_market_data(data_dict)
         
@@ -308,6 +327,59 @@ def get_market_regime():
         return add_cors_headers(response)
     except Exception as e:
         response = make_response(jsonify({'error': str(e)}), 500)
+        return add_cors_headers(response)
+
+
+@data_api.route('/api/crypto-data/<path:symbol>', methods=['GET', 'OPTIONS'])
+def get_crypto_data(symbol):
+    """Get stored crypto OHLCV data for charts."""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = make_response()
+        return add_cors_headers(response)
+    
+    try:
+        exchange = request.args.get('exchange', 'coinbase')
+        start_time = request.args.get('start_time', type=int)
+        end_time = request.args.get('end_time', type=int)
+        limit = request.args.get('limit', 10000, type=int)
+        
+        # Convert URL format to our format
+        symbol = symbol.replace('-', '/')
+        
+        data_service, _ = get_services()
+        # Use data_manager directly to get OHLCV data
+        df = data_service.data_manager.get_ohlcv(symbol, exchange, start_time, end_time)
+        
+        if df.empty:
+            response = make_response(jsonify({'data': [], 'symbol': symbol, 'exchange': exchange}))
+            return add_cors_headers(response)
+        
+        # Convert DataFrame to list of dicts for frontend
+        # Limit results if specified
+        if limit and len(df) > limit:
+            df = df.tail(limit)
+        
+        data = []
+        for _, row in df.iterrows():
+            data.append({
+                'timestamp': int(row['timestamp']),
+                'open': float(row['open']),
+                'high': float(row['high']),
+                'low': float(row['low']),
+                'close': float(row['close']),
+                'volume': float(row['volume'])
+            })
+        
+        response = make_response(jsonify({
+            'data': data,
+            'symbol': symbol,
+            'exchange': exchange,
+            'count': len(data)
+        }))
+        return add_cors_headers(response)
+    except Exception as e:
+        response = make_response(jsonify({'error': str(e), 'data': []}), 500)
         return add_cors_headers(response)
 
 

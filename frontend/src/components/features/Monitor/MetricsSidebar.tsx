@@ -1,5 +1,6 @@
 import React from 'react';
 import styles from '../../MonitorPage/MonitorPage.module.css';
+import type { EventData } from '../../../types/monitor.types';
 
 type SidebarTab = 'metrics' | 'events' | 'strategies';
 
@@ -10,12 +11,6 @@ interface MetricData {
   maxDrawdown: number;
   totalTrades: number;
   avgTrade: number;
-}
-
-interface EventData {
-  time: string;
-  type: 'buy' | 'sell' | 'signal';
-  description: string;
 }
 
 interface Strategy {
@@ -124,7 +119,7 @@ const MetricsSidebar: React.FC<MetricsSidebarProps> = ({
             {getVisibleEvents().map((event, index) => (
               <div key={index} className={styles.eventItem}>
                 <span className={styles.eventTime}>{event.time}</span>
-                <span className={`${styles.eventType} ${event.type === 'buy' ? styles.buy : event.type === 'sell' ? styles.sell : ''}`}>
+                <span className={`${styles.eventType} ${event.type === 'signal' ? styles.signal : event.type === 'order' ? styles.order : ''}`}>
                   {event.type.toUpperCase()}
                 </span>
                 <span className={styles.eventMessage}>{event.description}</span>

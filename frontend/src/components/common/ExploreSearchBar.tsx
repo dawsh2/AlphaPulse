@@ -5,18 +5,19 @@
  */
 
 import React from 'react';
+import { type SortBy } from '../../hooks/useStrategyFiltering';
 
 interface ExploreSearchBarProps {
   styles: any; // CSS module styles from ExplorePage
   searchQuery: string;
-  sortBy: string;
+  sortBy: SortBy;
   sortDropdownOpen: boolean;
   searchTerms: string[];
   displayLimit: number;
   totalResults: number;
   filteredCount: number;
   onSearchChange: (value: string) => void;
-  onSortChange: (sortBy: string) => void;
+  onSortChange: (sortBy: SortBy) => void;
   onSortDropdownToggle: (open: boolean) => void;
   onTagClick: (tag: string) => void;
   onNewStrategy: () => void;

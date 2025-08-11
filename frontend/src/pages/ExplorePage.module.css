@@ -129,16 +129,26 @@
   position: absolute;
   top: calc(100% + var(--space-2));
   left: 0;
-  background: var(--color-bg-primary);
+  background: #faf8f3; /* Solid light background */
   border: 3px solid var(--color-text-primary);
   border-radius: var(--radius-md);
   box-shadow: -3px 5px var(--color-text-primary);
   min-width: 150px;
   z-index: 1000;
   overflow: hidden;
-  opacity: 1;
-  /* Fix transparency issue */
-  background-color: var(--color-bg-primary) !important;
+  opacity: 1 !important;
+  pointer-events: auto;
+  /* Ensure no transparency */
+  background-color: #faf8f3 !important;
+  backdrop-filter: none !important;
+}
+
+/* Dark mode override for dropdown menu */
+@media (prefers-color-scheme: dark) {
+  .sortMenu {
+    background: #2a2d35 !important; /* Solid dark background */
+    background-color: #2a2d35 !important;
+  }
 }
 
 .sortOption {
@@ -148,8 +158,8 @@
   font-weight: var(--font-weight-medium);
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--color-border-primary);
-  color: var(--color-text-secondary);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  color: #33332d; /* Solid color for light mode */
   cursor: pointer;
   transition: all var(--transition-fast);
   display: block;
@@ -157,20 +167,41 @@
   text-align: left;
 }
 
+@media (prefers-color-scheme: dark) {
+  .sortOption {
+    color: #e8e8e8; /* Solid color for dark mode */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
 .sortOption:last-child {
   border-bottom: none;
 }
 
 .sortOption:hover {
-  background: var(--color-text-primary);
-  color: var(--color-bg-primary);
+  background: #33332d;
+  color: #faf8f3;
   transform: none;
 }
 
+@media (prefers-color-scheme: dark) {
+  .sortOption:hover {
+    background: #e8e8e8;
+    color: #2a2d35;
+  }
+}
+
 .sortOption.active {
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
+  background: rgba(51, 51, 45, 0.1);
+  color: #33332d;
   font-weight: var(--font-weight-bold);
+}
+
+@media (prefers-color-scheme: dark) {
+  .sortOption.active {
+    background: rgba(232, 232, 232, 0.1);
+    color: #e8e8e8;
+  }
 }
 
 /* Strategy Cards */

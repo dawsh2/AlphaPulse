@@ -19,6 +19,8 @@ from nautilus_integration import nt_api
 
 # Import new service layer
 from api.data_routes import data_api
+from api.workspace_routes import workspace_api
+from api.terminal_routes import terminal_api
 
 # Validate configuration on startup
 if not Config.validate():
@@ -43,6 +45,8 @@ init_db(app)
 # Register blueprints
 app.register_blueprint(nt_api)
 app.register_blueprint(data_api)
+app.register_blueprint(workspace_api)
+app.register_blueprint(terminal_api)
 
 # Global Alpaca client
 alpaca_client = create_alpaca_client()

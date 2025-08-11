@@ -31,7 +31,7 @@ const TradingChart: React.FC<TradingChartProps> = ({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartServiceRef = useRef(createChartService());
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
-  const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize chart
   useEffect(() => {

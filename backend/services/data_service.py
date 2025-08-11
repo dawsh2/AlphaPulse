@@ -25,15 +25,28 @@ class DataService:
             # Log the save request
             print(f"📊 Market data save request: {symbol} from {exchange}, {len(candles)} candles")
             
-            return {
-                'status': 'success',
-                'message': f'Saved {len(candles)} candles for {symbol}',
-                'symbol': symbol,
-                'exchange': exchange,
-                'candle_count': len(candles)
-            }
+            # Actually save the data to Parquet/DuckDB
+            if candles:
+                save_result = self.data_manager.save_coinbase_data(candles, symbol, exchange)
+                print(f"✅ Saved to Parquet: {save_result}")
+                
+                return {
+                    'status': 'success',
+                    'message': f'Saved {save_result.get("bars_saved", 0)} candles for {symbol}',
+                    'symbol': symbol,
+                    'exchange': exchange,
+                    'candle_count': save_result.get('bars_saved', 0),
+                    'parquet_path': save_result.get('parquet_path', ''),
+                    'date_range': save_result.get('date_range', {})
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': 'No candles data provided'
+                }
             
         except Exception as e:
+            print(f"❌ Error saving market data: {str(e)}")
             return {
                 'status': 'error',
                 'message': str(e)

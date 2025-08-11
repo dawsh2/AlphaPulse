@@ -5,7 +5,30 @@
  * To switch backends, only the implementations in this file need to change.
  */
 
-import { ApiConfig, ApiResponse, ApiError } from './types';
+import { 
+  type ApiConfig, 
+  type ApiResponse, 
+  ApiError,
+  type AnalysisManifest,
+  type BacktestResult,
+  type BacktestParams,
+  type Strategy,
+  type Signal,
+  type SignalRequest,
+  type Position,
+  type Order,
+  type OrderRequest,
+  type OrderParams,
+  type MarketBar,
+  type ButtonTemplate,
+  type NotebookTemplate,
+  type Dataset,
+  type DatasetMetadata,
+  type Event,
+  type EventParams,
+  type AccountInfo,
+  type CompileResult
+} from './types';
 
 // Configuration - single source of truth for backend
 const API_CONFIG: ApiConfig = {
@@ -321,17 +344,25 @@ export const AlphaPulseAPI = {
   },
 };
 
-// Type exports (these would be in ./types.ts)
+// Re-export all types from types.ts
 export type {
   AnalysisManifest,
   BacktestResult,
+  BacktestParams,
   Strategy,
   Signal,
+  SignalRequest,
   Position,
   Order,
+  OrderRequest,
+  OrderParams,
   MarketBar,
   ButtonTemplate,
   NotebookTemplate,
   Dataset,
+  DatasetMetadata,
   Event,
+  EventParams,
+  AccountInfo,
+  CompileResult,
 } from './types';

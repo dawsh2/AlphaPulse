@@ -92,7 +92,7 @@ interface TearsheetData {
 }
 
 type SidebarTab = 'builder' | 'notebooks';
-type MainView = 'explore' | 'notebook' | 'builder';
+type MainView = 'explore' | 'notebook' | 'builder' | 'data';
 type SortBy = 'new' | 'sharpe' | 'returns' | 'name' | 'winrate';
 
 // Strategy data - matching ExplorePage
@@ -508,6 +508,15 @@ interface DataCard {
   frequency?: string;
   coverage?: string;
   dataType?: 'market' | 'economic' | 'alternative' | 'custom';
+  metrics?: {
+    dataPoints?: string;
+    dateRange?: string;
+    updateFreq?: string;
+    reliability?: string;
+    latency?: string;
+    coverage?: string;
+    frequency?: string;
+  };
 }
 
 const marketDataCards: DataCard[] = [
@@ -538,7 +547,7 @@ const marketDataCards: DataCard[] = [
     coverage: '2000-present',
     dataType: 'market',
     metrics: {
-      reliability: 99.9,
+      reliability: '99.9%',
       latency: '<10ms',
       coverage: '100%',
       frequency: '1min'
@@ -555,7 +564,7 @@ const marketDataCards: DataCard[] = [
     coverage: '2005-present',
     dataType: 'market',
     metrics: {
-      reliability: 99.5,
+      reliability: '99.5%',
       latency: '<20ms',
       coverage: '98%',
       frequency: '1min'
@@ -583,7 +592,7 @@ const marketDataCards: DataCard[] = [
     coverage: '2020-present',
     dataType: 'market',
     metrics: {
-      reliability: 99.8,
+      reliability: '99.8%',
       latency: '<5ms',
       coverage: '100%',
       frequency: 'Tick'
@@ -667,7 +676,7 @@ const cryptoDataCards: DataCard[] = [
     coverage: '2015-present',
     dataType: 'market',
     metrics: {
-      reliability: 99.9,
+      reliability: '99.9%',
       latency: '<1ms',
       coverage: '100%',
       frequency: '1sec'
@@ -684,7 +693,7 @@ const cryptoDataCards: DataCard[] = [
     coverage: '2020-present',
     dataType: 'market',
     metrics: {
-      reliability: 98.0,
+      reliability: '98.0%',
       latency: '<50ms',
       coverage: '90%',
       frequency: '5min'
@@ -1148,15 +1157,17 @@ const ResearchPage: React.FC = () => {
   }, []);
 
   // Handle window resize for mobile detection
-  // Load datasets when data tab is active
+  // Load datasets when data tab is active or when in explore view with data type selected
   useEffect(() => {
-    if (mainView === 'data') {
+    if (mainView === 'data' || (mainView === 'explore' && exploreViewType === 'data')) {
       // Load Parquet datasets from backend
-      if (datasets.length === 0) {
+      if (datasets.length === 0 && !loadingDatasets) {
         setLoadingDatasets(true);
+        console.log('Fetching datasets from backend...');
         fetch('http://localhost:5001/api/data/summary')
           .then(response => response.json())
           .then(data => {
+            console.log('Backend data received:', data);
             // Convert backend format to frontend DatasetInfo format
             const backendDatasets = data.symbols.map((symbol: any) => ({
               symbol: symbol.symbol,
@@ -1167,6 +1178,7 @@ const ResearchPage: React.FC = () => {
               candleCount: symbol.bar_count,
               lastUpdated: Date.now()
             }));
+            console.log('Setting datasets:', backendDatasets);
             setDatasets(backendDatasets);
             setLoadingDatasets(false);
           })
@@ -1200,7 +1212,7 @@ const ResearchPage: React.FC = () => {
           });
       }
     }
-  }, [mainView]);
+  }, [mainView, exploreViewType]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -1595,7 +1607,39 @@ print(df.describe())`
   };
 
   const filterAndSortDataCards = () => {
-    let filtered = allDataCards;
+    console.log('filterAndSortDataCards called with datasets:', datasets);
+    // Convert backend datasets to DataCard format
+    const backendDataCards: DataCard[] = datasets.map((dataset, index) => ({
+      id: `backend-${dataset.symbol}-${dataset.exchange}`,
+      title: `${dataset.symbol} (Live)`,
+      dataType: 'Market Data', 
+      description: `Live ${dataset.interval} market data from ${dataset.exchange} exchange`,
+      provider: dataset.exchange.charAt(0).toUpperCase() + dataset.exchange.slice(1),
+      tags: [
+        dataset.symbol.includes('BTC') || dataset.symbol.includes('ETH') || 
+        dataset.symbol.includes('SOL') || dataset.symbol.includes('LINK') ? 'crypto' : 'stocks',
+        dataset.exchange,
+        dataset.interval,
+        'live',
+        dataset.symbol.toLowerCase().includes('btc') ? 'bitcoin' : '',
+        dataset.symbol.toLowerCase().includes('btc') ? 'btc' : '',
+        dataset.symbol.toLowerCase().includes('eth') ? 'ethereum' : '',
+        dataset.symbol.toLowerCase().includes('sol') ? 'solana' : '',
+        dataset.symbol.toLowerCase().includes('link') ? 'chainlink' : ''
+      ].filter(tag => tag !== ''),
+      frequency: dataset.interval,
+      period: `${new Date(dataset.startTime * 1000).toLocaleDateString()} - ${new Date(dataset.endTime * 1000).toLocaleDateString()}`,
+      color: dataset.symbol.includes('BTC') ? '#f7931a' : 
+             dataset.symbol.includes('ETH') ? '#627eea' : 
+             dataset.symbol.includes('SOL') ? '#14f195' :
+             dataset.symbol.includes('LINK') ? '#2a5ada' : '#00c805',
+      records: dataset.candleCount.toLocaleString(),
+      size: `${(dataset.candleCount * 0.1).toFixed(1)} MB`, // Estimate
+      lastUpdated: new Date(dataset.lastUpdated).toLocaleDateString()
+    }));
+    
+    // Combine static cards with backend data
+    let filtered = [...allDataCards, ...backendDataCards];
 
     // Multi-tag filter
     const allSearchTerms = [...searchTerms];
@@ -1678,56 +1722,109 @@ print(df.describe())`
   };
 
   const renderSidebarContent = () => {
-    // When in explore view, show strategy directory
+    // When in explore view, check if we're showing strategies or data
     if (mainView === 'explore') {
-      const strategies = filterAndSortStrategies();
-      const strategyCategories = {
-        'Trending': strategies.filter(s => s.tags.includes('trending')),
-        'Mean Reversion': strategies.filter(s => s.tags.includes('mean-reversion')),
-        'Momentum': strategies.filter(s => s.tags.includes('momentum')),
-        'Machine Learning': strategies.filter(s => s.tags.includes('ml')),
-        'High Frequency': strategies.filter(s => s.tags.includes('high-frequency')),
-        'Options': strategies.filter(s => s.tags.includes('options')),
-        'Crypto': strategies.filter(s => s.tags.includes('crypto')),
-        'Forex': strategies.filter(s => s.tags.includes('forex'))
-      };
+      // If viewing data, show data categories
+      if (exploreViewType === 'data') {
+        const dataCards = filterAndSortDataCards();
+        const dataCategories = {
+          'Crypto': dataCards.filter(d => d.tags?.includes('crypto')),
+          'Stocks': dataCards.filter(d => d.tags?.includes('stocks')),
+          'Live Data': dataCards.filter(d => d.tags?.includes('live')),
+          'Historical': dataCards.filter(d => !d.tags?.includes('live')),
+          'Coinbase': dataCards.filter(d => d.tags?.includes('coinbase')),
+          'Kraken': dataCards.filter(d => d.tags?.includes('kraken')),
+          'High Frequency': dataCards.filter(d => d.frequency === '1m' || d.frequency === '5m'),
+          'Daily': dataCards.filter(d => d.frequency === '1d' || d.frequency === 'Daily')
+        };
 
-      return (
-        <div className={styles.tabContent}>
-          {/* Categories with strategies - no header text */}
-          {Object.entries(strategyCategories).map(([category, categoryStrategies]) => (
-            categoryStrategies.length > 0 && (
-              <div key={category} className={styles.strategyCategory}>
-                <div 
-                  className={`${styles.categoryHeader} ${collapsedCategories.has(category) ? styles.collapsed : ''}`}
-                  onClick={() => toggleCategory(category)}
-                >
-                  <span className={styles.categoryArrow}>▼</span>
-                  <span>{category} ({categoryStrategies.length})</span>
-                </div>
-                {!collapsedCategories.has(category) && (
-                  <div className={styles.strategyList}>
-                    {categoryStrategies.slice(0, 5).map(strategy => (
-                      <div 
-                        key={strategy.id}
-                        className={styles.strategyItem}
-                        onClick={() => {
-                          setTearsheet({ strategy, isOpen: true });
-                        }}
-                      >
-                        <div className={styles.strategyName}>{strategy.title}</div>
-                        <div className={styles.strategyDesc}>
-                          {strategy.metrics.sharpe.toFixed(2)} Sharpe • {strategy.metrics.winRate}% Win
-                        </div>
-                      </div>
-                    ))}
+        return (
+          <div className={styles.tabContent}>
+            {/* Categories with data cards */}
+            {Object.entries(dataCategories).map(([category, categoryData]) => (
+              categoryData.length > 0 && (
+                <div key={category} className={styles.strategyCategory}>
+                  <div 
+                    className={`${styles.categoryHeader} ${collapsedCategories.has(category) ? styles.collapsed : ''}`}
+                    onClick={() => toggleCategory(category)}
+                  >
+                    <span className={styles.categoryArrow}>▼</span>
+                    <span>{category} ({categoryData.length})</span>
                   </div>
-                )}
-              </div>
-            )
-          ))}
-        </div>
-      );
+                  {!collapsedCategories.has(category) && (
+                    <div className={styles.strategyList}>
+                      {categoryData.slice(0, 5).map(data => (
+                        <div 
+                          key={data.id}
+                          className={styles.strategyItem}
+                          onClick={() => {
+                            setDataDetails({ data, isOpen: true });
+                          }}
+                        >
+                          <div className={styles.strategyName}>{data.title}</div>
+                          <div className={styles.strategyDesc}>
+                            {data.provider} • {data.records || 'N/A'} records
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            ))}
+          </div>
+        );
+      } else {
+        // Show strategies when in strategy view
+        const strategies = filterAndSortStrategies();
+        const strategyCategories = {
+          'Trending': strategies.filter(s => s.tags.includes('trending')),
+          'Mean Reversion': strategies.filter(s => s.tags.includes('mean-reversion')),
+          'Momentum': strategies.filter(s => s.tags.includes('momentum')),
+          'Machine Learning': strategies.filter(s => s.tags.includes('ml')),
+          'High Frequency': strategies.filter(s => s.tags.includes('high-frequency')),
+          'Options': strategies.filter(s => s.tags.includes('options')),
+          'Crypto': strategies.filter(s => s.tags.includes('crypto')),
+          'Forex': strategies.filter(s => s.tags.includes('forex'))
+        };
+
+        return (
+          <div className={styles.tabContent}>
+            {/* Categories with strategies - no header text */}
+            {Object.entries(strategyCategories).map(([category, categoryStrategies]) => (
+              categoryStrategies.length > 0 && (
+                <div key={category} className={styles.strategyCategory}>
+                  <div 
+                    className={`${styles.categoryHeader} ${collapsedCategories.has(category) ? styles.collapsed : ''}`}
+                    onClick={() => toggleCategory(category)}
+                  >
+                    <span className={styles.categoryArrow}>▼</span>
+                    <span>{category} ({categoryStrategies.length})</span>
+                  </div>
+                  {!collapsedCategories.has(category) && (
+                    <div className={styles.strategyList}>
+                      {categoryStrategies.slice(0, 5).map(strategy => (
+                        <div 
+                          key={strategy.id}
+                          className={styles.strategyItem}
+                          onClick={() => {
+                            setTearsheet({ strategy, isOpen: true });
+                          }}
+                        >
+                          <div className={styles.strategyName}>{strategy.title}</div>
+                          <div className={styles.strategyDesc}>
+                            {strategy.metrics.sharpe.toFixed(2)} Sharpe • {strategy.metrics.winRate}% Win
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            ))}
+          </div>
+        );
+      }
     }
     
     // Data Explorer view
@@ -2197,7 +2294,7 @@ print(df.describe())`
           onShowAll={() => setDisplayLimit(strategies.length)}
           tearsheet={tearsheet}
           setTearsheet={setTearsheet}
-          onNotebookClick={handleNotebookClick}
+          onNotebookClick={(strategy) => handleNotebookClick(new MouseEvent('click') as any, strategy)}
           viewType={exploreViewType}
           setViewType={setExploreViewType}
           dataCards={dataCards}
@@ -2264,6 +2361,19 @@ print(df.describe())`
         </div>
         
         <div className={styles.sidebarContent}>
+          {/* Add a header when in explore mode to clarify what's shown */}
+          {mainView === 'explore' && (
+            <div style={{ 
+              padding: '8px 16px', 
+              borderBottom: '1px solid var(--border)',
+              marginBottom: '8px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: 'var(--text-secondary)'
+            }}>
+              {exploreViewType === 'data' ? 'Data Catalog' : 'Strategy Directory'}
+            </div>
+          )}
           {renderSidebarContent()}
         </div>
       </aside>

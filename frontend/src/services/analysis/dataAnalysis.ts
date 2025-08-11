@@ -3,7 +3,7 @@
  * Provides statistical analysis functions for market data
  */
 
-import { StoredMarketData } from '../data/DataTypes';
+import { type StoredMarketData } from '../data/DataTypes';
 
 export interface AnalysisResult {
   correlation?: number;

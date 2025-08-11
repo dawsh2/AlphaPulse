@@ -173,7 +173,7 @@ export const DevelopLayoutManager: React.FC<DevelopLayoutManagerProps> = ({
   };
 
   // Render the layout tree recursively
-  const renderNode = (node: LayoutNode): JSX.Element => {
+  const renderNode = (node: LayoutNode): React.ReactElement => {
     if (node.type === 'window') {
       return (
         <DevelopWindow

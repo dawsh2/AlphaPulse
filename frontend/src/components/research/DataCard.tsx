@@ -16,9 +16,13 @@ interface DataCard {
   coverage?: string;
   dataType?: 'market' | 'economic' | 'alternative' | 'custom';
   metrics?: {
-    dataPoints: string;
-    dateRange: string;
-    updateFreq: string;
+    dataPoints?: string;
+    dateRange?: string;
+    updateFreq?: string;
+    reliability?: string;
+    latency?: string;
+    coverage?: string;
+    frequency?: string;
   };
 }
 

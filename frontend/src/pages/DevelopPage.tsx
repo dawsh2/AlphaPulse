@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import styles from './DevelopPage.module.css';
 import CodeEditor from '../components/CodeEditor/CodeEditor';
 import { generateFileContent } from '../services/fileContentGenerator';
-import { loadFileStructure } from '../services/fileSystemService';
+import { loadFileStructure, loadFileContent, saveFileContent, loadFolderContents } from '../services/fileSystemService';
 import { Terminal } from '../components/features/Develop/Terminal';
 import { DevelopWindow } from '../components/features/Develop/DevelopWindow';
 import { DevelopLayoutManager, type LayoutNode, type WindowNode } from '../components/features/Develop/DevelopLayoutManager';
@@ -284,13 +284,18 @@ This environment provides everything you need to develop, test, and deploy tradi
       const firstWindow = findFirstWindow(layout);
       if (!firstWindow) return;
       
-      // Get or generate file content
-      const content = await generateFileContent(filePath, fileName, {
-        tabs: [],
-        setTabs: () => {},
-        setActiveTab: () => {},
-        setEditorHidden
-      });
+      // Try to load real file content first
+      let content = await loadFileContent(filePath);
+      
+      // If no real content, generate mock content
+      if (content === null) {
+        content = await generateFileContent(filePath, fileName, {
+          tabs: [],
+          setTabs: () => {},
+          setActiveTab: () => {},
+          setEditorHidden
+        }) || '';
+      }
       
       // Check if tab already exists in this window
       const existingTab = firstWindow.tabs.find(tab => tab.id === filePath);
@@ -392,31 +397,42 @@ This environment provides everything you need to develop, test, and deploy tradi
   };
 
   const saveFile = async () => {
-    const activeTabData = tabs.find(tab => tab.id === activeTab);
-    if (!activeTabData) return;
-    
-    addOutput(`Saving ${activeTabData.name}...`);
-    
-    try {
-      // Determine the file path - remove any leading slashes
-      let filePath = activeTabData.id;
-      if (filePath.startsWith('/')) {
-        filePath = filePath.substring(1);
+    // For layout manager mode, find the active tab in the layout
+    if (useLayoutManager) {
+      const findActiveTab = (node: LayoutNode): UnifiedTab | null => {
+        if (node.type === 'window') {
+          return node.tabs.find(tab => tab.id === node.activeTab) || null;
+        } else if (node.type === 'split') {
+          for (const child of node.children) {
+            const tab = findActiveTab(child);
+            if (tab) return tab;
+          }
+        }
+        return null;
+      };
+      
+      const activeTabData = findActiveTab(layout);
+      if (!activeTabData || activeTabData.type !== 'editor') return;
+      
+      console.log(`Saving ${activeTabData.name}...`);
+      
+      const success = await saveFileContent(activeTabData.id, activeTabData.content || '');
+      
+      if (success) {
+        console.log(`✓ ${activeTabData.name} saved successfully`);
+      } else {
+        console.error(`✗ Failed to save ${activeTabData.name}`);
       }
+    } else {
+      // Legacy mode
+      const activeTabData = tabs.find(tab => tab.id === activeTab);
+      if (!activeTabData) return;
       
-      // Save to backend
-      const response = await fetch(`http://localhost:5001/api/nt-reference/files/${filePath}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: activeTabData.content
-        })
-      });
+      addOutput(`Saving ${activeTabData.name}...`);
       
-      if (response.ok) {
-        const result = await response.json();
+      const success = await saveFileContent(activeTabData.id, activeTabData.content);
+      
+      if (success) {
         addOutput(`✓ ${activeTabData.name} saved successfully`);
         
         // Mark tab as saved (remove unsaved indicator if we add one later)
@@ -426,12 +442,8 @@ This environment provides everything you need to develop, test, and deploy tradi
             : tab
         ));
       } else {
-        const error = await response.json();
-        addOutput(`✗ Failed to save ${activeTabData.name}: ${error.error || 'Unknown error'}`);
+        addOutput(`✗ Failed to save ${activeTabData.name}`);
       }
-    } catch (error) {
-      console.error('Save error:', error);
-      addOutput(`✗ Failed to save ${activeTabData.name}: ${error}`);
     }
   };
 
@@ -1023,6 +1035,7 @@ This environment provides everything you need to develop, test, and deploy tradi
             setEditorHidden={setEditorHidden}
             onSplitDragStart={handleSplitDragStart}
             onInitializeConsole={initializeConsole}
+            onOpenFile={openFile}
             styles={styles}
           />
         )}

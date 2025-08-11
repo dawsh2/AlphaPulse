@@ -5,7 +5,7 @@
 import React from 'react';
 import styles from '../../pages/ResearchPage.module.css';
 
-type MainView = 'explore' | 'notebook' | 'builder';
+type MainView = 'explore' | 'notebook' | 'builder' | 'data';
 type SidebarTab = 'builder' | 'notebooks';
 
 interface SidebarTabsProps {

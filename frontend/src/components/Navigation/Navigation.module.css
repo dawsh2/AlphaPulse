@@ -122,6 +122,12 @@
   color: var(--color-text-primary);
 }
 
+/* Ensure active links maintain proper contrast on hover */
+.navLink.active:hover {
+  color: var(--color-bg-primary);
+  background-color: var(--color-text-primary);
+}
+
 .navLink.active::after {
   content: '';
   position: absolute;

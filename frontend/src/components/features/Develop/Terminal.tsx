@@ -6,6 +6,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { formatShortPath } from '../../../utils/format';
+import { terminalService } from '../../../services/terminalService';
 
 export interface TerminalTab {
   id: string;
@@ -23,7 +24,7 @@ interface TerminalProps {
   splitOrientation: 'horizontal' | 'vertical';
   splitSize: number;
   terminalTabCounter: number;
-  setTerminalTabs: (tabs: TerminalTab[]) => void;
+  setTerminalTabs: React.Dispatch<React.SetStateAction<TerminalTab[]>>;
   setActiveTerminalTab: (tabId: string) => void;
   setTerminalTabCounter: (counter: number) => void;
   setSplitOrientation: (orientation: 'horizontal' | 'vertical') => void;
@@ -32,6 +33,7 @@ interface TerminalProps {
   setEditorHidden?: (hidden: boolean) => void;
   onSplitDragStart: (e: React.MouseEvent) => void;
   onInitializeConsole: () => void;
+  onOpenFile?: (filePath: string, fileName: string) => void;
   styles: Record<string, string>;
 }
 
@@ -52,6 +54,7 @@ export const Terminal: React.FC<TerminalProps> = ({
   setEditorHidden,
   onSplitDragStart,
   onInitializeConsole,
+  onOpenFile,
   styles
 }) => {
   const getCurrentTerminalTab = () => {
@@ -295,7 +298,7 @@ export const Terminal: React.FC<TerminalProps> = ({
                     className={styles.terminalInput}
                     value={currentTab.currentInput}
                     onChange={(e) => updateTerminalInput(e.target.value)}
-                    onKeyDown={(e) => {
+                    onKeyDown={async (e) => {
                       if (e.key === 'Enter') {
                         const command = currentTab.currentInput.trim();
                         const timestamp = new Date().toLocaleTimeString();
@@ -303,57 +306,57 @@ export const Terminal: React.FC<TerminalProps> = ({
                         // Add command to output
                         addOutput(`${currentTab.cwd}$ ${command}`);
                         
+                        // Clear input immediately
+                        updateTerminalInput('');
+                        
+                        // Skip empty commands
+                        if (!command) {
+                          return;
+                        }
+                        
+                        // Handle Monaco command
+                        if (command.startsWith('monaco ') || command.startsWith('code ') || command.startsWith('edit ')) {
+                          const parts = command.split(' ');
+                          const filePath = parts.slice(1).join(' ');
+                          if (filePath && onOpenFile) {
+                            const fileName = filePath.split('/').pop() || filePath;
+                            onOpenFile(filePath, fileName);
+                            addOutput(`Opening ${filePath} in Monaco editor...`);
+                            if (setEditorHidden) {
+                              setEditorHidden(false); // Make sure editor is visible
+                            }
+                          } else {
+                            addOutput('Usage: monaco <file_path>');
+                          }
+                          return; // Important: stop processing here
+                        }
                         // Execute command
-                        if (command === 'help') {
+                        else if (command === 'help') {
                           addOutput('');
                           addOutput('Available Commands:');
                           addOutput('══════════════════');
                           addOutput('  help           - Show this help message');
                           addOutput('  clear          - Clear terminal output');
+                          addOutput('  monaco <file>  - Open file in Monaco editor');
+                          addOutput('  code <file>    - Alias for monaco');
+                          addOutput('  edit <file>    - Alias for monaco');
                           addOutput('  ls             - List directory contents');
                           addOutput('  cd <dir>       - Change directory');
                           addOutput('  pwd            - Show current directory');
-                          addOutput('  examples       - Show example strategies');
-                          addOutput('  python <file>  - Run Python strategy');
-                          addOutput('  claude [prompt]- Get AI assistance');
+                          addOutput('  python <file>  - Run Python script');
                           addOutput('  exit           - Close terminal tab');
                           addOutput('');
+                          addOutput('Backend Commands (via API):');
+                          addOutput('  Any valid shell command will be executed on the backend');
+                          addOutput('');
+                          return;
                         } else if (command === 'clear') {
                           setTerminalTabs(prev => prev.map(tab => 
                             tab.id === activeTerminalTab 
                               ? { ...tab, content: [] }
                               : tab
                           ));
-                        } else if (command === 'pwd') {
-                          addOutput(currentTab.cwd);
-                        } else if (command === 'ls') {
-                          addOutput('examples/          strategies/        indicators/');
-                          addOutput('config/           docs/             tests/');
-                          addOutput('README.md         requirements.txt  setup.py');
-                        } else if (command.startsWith('cd ')) {
-                          const dir = command.substring(3).trim();
-                          let newCwd: string;
-                          if (dir === '..') {
-                            const parts = currentTab.cwd.split('/');
-                            parts.pop();
-                            newCwd = parts.length > 1 ? parts.join('/') : '~';
-                          } else if (dir.startsWith('/')) {
-                            newCwd = dir;
-                          } else {
-                            newCwd = `${currentTab.cwd}/${dir}`;
-                          }
-                          
-                          setTerminalTabs(prev => prev.map(tab => 
-                            tab.id === activeTerminalTab 
-                              ? { ...tab, cwd: newCwd, name: newCwd }
-                              : tab
-                          ));
-                        } else if (command.startsWith('python ')) {
-                          const timestamp = new Date().toISOString();
-                          addOutput(`${timestamp} [INFO] Running ${command}...`);
-                          setTimeout(() => {
-                            addOutput(`${timestamp} [INFO] Strategy execution complete`);
-                          }, 1500);
+                          return;
                         } else if (command === 'claude') {
                           addOutput('');
                           addOutput('     ▄████▄   ██▓    ▄▄▄       █    ██ ▓█████▄ ▓█████ ');
@@ -383,6 +386,7 @@ export const Terminal: React.FC<TerminalProps> = ({
                             addOutput('');
                             addOutput('Ready to build some winning strategies? 🚀📈');
                           }, 500);
+                          return;
                         } else if (command.startsWith('claude ')) {
                           const prompt = command.substring(7).trim();
                           if (prompt) {
@@ -402,17 +406,40 @@ export const Terminal: React.FC<TerminalProps> = ({
                           } else {
                             addOutput('[Claude] Please provide a prompt. Usage: claude <your question>');
                           }
+                          return;
                         } else if (command === 'exit') {
                           if (terminalTabs.length > 1) {
                             closeTerminalTab(activeTerminalTab);
                           } else {
                             addOutput('Cannot close the last terminal. Use the × button to close the terminal panel.');
                           }
+                          return;
                         } else if (command) {
-                          addOutput(`bash: ${command}: command not found`);
+                          // Execute real command on backend
+                          try {
+                            const result = await terminalService.execute(command);
+                            if (result.output) {
+                              // Split output by newlines and add each line
+                              const lines = result.output.split('\n');
+                              lines.forEach(line => {
+                                if (line) addOutput(line);
+                              });
+                            }
+                            if (result.error) {
+                              addOutput(`Error: ${result.error}`);
+                            }
+                            // Update CWD if changed
+                            if (result.cwd && result.cwd !== currentTab.cwd) {
+                              setTerminalTabs(prev => prev.map(tab => 
+                                tab.id === activeTerminalTab 
+                                  ? { ...tab, cwd: result.cwd, name: result.cwd }
+                                  : tab
+                              ));
+                            }
+                          } catch (error) {
+                            addOutput(`Error executing command: ${error}`);
+                          }
                         }
-                        
-                        updateTerminalInput('');
                       }
                     }}
                     autoFocus
