@@ -4,6 +4,8 @@ import CodeEditor from '../components/CodeEditor/CodeEditor';
 import { generateFileContent } from '../services/fileContentGenerator';
 import { loadFileStructure } from '../services/fileSystemService';
 import { Terminal } from '../components/features/Develop/Terminal';
+import { DevelopWindow } from '../components/features/Develop/DevelopWindow';
+import { DevelopLayoutManager, type LayoutNode, type WindowNode } from '../components/features/Develop/DevelopLayoutManager';
 
 interface UnifiedTab {
   id: string;
@@ -45,11 +47,41 @@ export const DevelopPage: React.FC = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTab, setActiveTab] = useState<string>('README.md');
+  
+  // New unified tab system (will replace tabs above)
+  const [unifiedTabs, setUnifiedTabs] = useState<UnifiedTab[]>([]);
+  const [activeUnifiedTab, setActiveUnifiedTab] = useState<string>('');
+  const [useUnifiedWindow, setUseUnifiedWindow] = useState(true); // Now using unified window by default
+  
+  // Multi-window layout state
+  const [useLayoutManager, setUseLayoutManager] = useState(true);
+  const [layout, setLayout] = useState<LayoutNode>(() => {
+    // Initialize with a single window containing README
+    const readmeTab: UnifiedTab = {
+      id: 'README.md',
+      name: 'README.md',
+      type: 'editor',
+      content: '',
+      language: 'markdown'
+    };
+    
+    return {
+      type: 'window',
+      id: 'window-main',
+      tabs: [readmeTab],
+      activeTab: 'README.md'
+    } as WindowNode;
+  });
+  
+  // Second window tabs for split view (legacy - will be removed)
+  const [secondWindowTabs, setSecondWindowTabs] = useState<UnifiedTab[]>([]);
+  const [activeSecondWindowTab, setActiveSecondWindowTab] = useState<string>('');
+  
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarView, setSidebarView] = useState<'explorer' | 'search' | 'git'>('explorer');
   const [outputOpen, setOutputOpen] = useState(false);
   
-  // Terminal tabs state
+  // Terminal tabs state (will be removed after migration)
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([
     { id: 'terminal-1', name: '~/strategies', content: [], currentInput: '', cwd: '~/strategies' }
   ]);
@@ -89,7 +121,7 @@ export const DevelopPage: React.FC = () => {
     loadFiles();
     initializeConsole();
     
-    // Open README.md by default
+    // Initialize layout with README.md content
     const readmeContent = `# AlphaPulse Development Environment
 
 Welcome to the AlphaPulse integrated development environment for quantitative trading strategies.
@@ -142,10 +174,39 @@ This environment provides everything you need to develop, test, and deploy tradi
 
 *Happy Trading! 🚀*`;
     
+    // Update layout with README content
+    if (layout.type === 'window' && layout.id === 'window-main') {
+      setLayout({
+        ...layout,
+        tabs: [{
+          id: 'README.md',
+          name: 'README.md',
+          type: 'editor',
+          content: readmeContent,
+          language: 'markdown'
+        }]
+      });
+    }
+    
+    // Keep legacy initialization for fallback
+    if (unifiedTabs.length === 0) {
+      const readmeTab: UnifiedTab = {
+        id: 'README.md',
+        name: 'README.md',
+        type: 'editor',
+        content: readmeContent,
+        language: 'markdown'
+      };
+      
+      setUnifiedTabs([readmeTab]);
+      setActiveUnifiedTab('README.md');
+    }
+    
+    // Keep old system initialization for fallback
     setTabs([{ 
       id: 'README.md', 
       name: 'README.md', 
-      content: readmeContent, 
+      content: '', 
       language: 'markdown' 
     }]);
     setActiveTab('README.md');
@@ -207,12 +268,113 @@ This environment provides everything you need to develop, test, and deploy tradi
   };
 
   const openFile = async (filePath: string, fileName: string) => {
-    await generateFileContent(filePath, fileName, {
-      tabs,
-      setTabs,
-      setActiveTab,
-      setEditorHidden
-    });
+    if (useLayoutManager) {
+      // Open file in the first window found in the layout
+      const findFirstWindow = (node: LayoutNode): WindowNode | null => {
+        if (node.type === 'window') return node;
+        if (node.type === 'split') {
+          for (const child of node.children) {
+            const window = findFirstWindow(child);
+            if (window) return window;
+          }
+        }
+        return null;
+      };
+      
+      const firstWindow = findFirstWindow(layout);
+      if (!firstWindow) return;
+      
+      // Get or generate file content
+      const content = await generateFileContent(filePath, fileName, {
+        tabs: [],
+        setTabs: () => {},
+        setActiveTab: () => {},
+        setEditorHidden
+      });
+      
+      // Check if tab already exists in this window
+      const existingTab = firstWindow.tabs.find(tab => tab.id === filePath);
+      if (existingTab) {
+        // Just activate the existing tab
+        const updateLayout = (node: LayoutNode): LayoutNode => {
+          if (node.type === 'window' && node.id === firstWindow.id) {
+            return { ...node, activeTab: filePath };
+          } else if (node.type === 'split') {
+            return { ...node, children: node.children.map(updateLayout) };
+          }
+          return node;
+        };
+        setLayout(updateLayout(layout));
+        return;
+      }
+      
+      // Create new editor tab
+      const newTab: UnifiedTab = {
+        id: filePath,
+        name: fileName,
+        type: 'editor',
+        content: content || '',
+        language: fileName.endsWith('.py') ? 'python' : 
+                 fileName.endsWith('.js') ? 'javascript' : 
+                 fileName.endsWith('.ts') ? 'typescript' : 
+                 fileName.endsWith('.md') ? 'markdown' : 'plaintext'
+      };
+      
+      // Add tab to the first window
+      const updateLayout = (node: LayoutNode): LayoutNode => {
+        if (node.type === 'window' && node.id === firstWindow.id) {
+          return {
+            ...node,
+            tabs: [...node.tabs, newTab],
+            activeTab: newTab.id
+          };
+        } else if (node.type === 'split') {
+          return { ...node, children: node.children.map(updateLayout) };
+        }
+        return node;
+      };
+      
+      setLayout(updateLayout(layout));
+      setEditorHidden(false);
+    } else if (useUnifiedWindow) {
+      // Create an editor tab in the unified window
+      const content = await generateFileContent(filePath, fileName, {
+        tabs: unifiedTabs as any,
+        setTabs: () => {}, // We'll handle this manually
+        setActiveTab: () => {},
+        setEditorHidden
+      });
+      
+      // Check if tab already exists
+      const existingTab = unifiedTabs.find(tab => tab.id === filePath);
+      if (existingTab) {
+        setActiveUnifiedTab(existingTab.id);
+        return;
+      }
+      
+      // Create new editor tab
+      const newTab: UnifiedTab = {
+        id: filePath,
+        name: fileName,
+        type: 'editor',
+        content: content || '',
+        language: fileName.endsWith('.py') ? 'python' : 
+                 fileName.endsWith('.js') ? 'javascript' : 
+                 fileName.endsWith('.ts') ? 'typescript' : 
+                 fileName.endsWith('.md') ? 'markdown' : 'plaintext'
+      };
+      
+      setUnifiedTabs([...unifiedTabs, newTab]);
+      setActiveUnifiedTab(newTab.id);
+      setEditorHidden(false);
+    } else {
+      await generateFileContent(filePath, fileName, {
+        tabs,
+        setTabs,
+        setActiveTab,
+        setEditorHidden
+      });
+    }
   };
 
   const closeTab = (tabId: string, e: React.MouseEvent) => {
@@ -592,7 +754,7 @@ This environment provides everything you need to develop, test, and deploy tradi
         className={`${styles.mainArea} ${outputOpen ? (splitOrientation === 'horizontal' ? styles.splitHorizontal : styles.splitVertical) : ''}`}
       >
         <div className={`${styles.editorContainer} ${outputOpen && splitOrientation === 'vertical' ? styles.splitVertical : ''}`} style={{ display: editorHidden ? 'none' : 'flex', flexDirection: 'column' }}>
-          {!editorHidden && (
+          {!editorHidden && !useUnifiedWindow && (
             <div className={styles.tabsContainer}>
             <div className={styles.tabs}>
               {tabs.map(tab => (
@@ -612,16 +774,17 @@ This environment provides everything you need to develop, test, and deploy tradi
               ))}
               <button 
                 className={styles.newTabBtn} 
-                title="New File"
+                title="New Terminal"
                 onClick={() => {
-                  // Create a new untitled file
-                  const newTabId = `untitled-${Date.now()}`;
+                  // Create a new terminal tab by default
+                  const newTabId = `terminal-${Date.now()}`;
                   const newTab: Tab = {
                     id: newTabId,
-                    name: 'untitled.py',
-                    content: '# New Python Strategy\n# Start coding your strategy here\n\n',
-                    language: 'python'
+                    name: 'Terminal',
+                    content: '',
+                    language: undefined
                   };
+                  // For now, still use old Tab interface until we migrate
                   setTabs([...tabs, newTab]);
                   setActiveTab(newTabId);
                   setEditorHidden(false);
@@ -672,7 +835,7 @@ This environment provides everything you need to develop, test, and deploy tradi
           </div>
           )}
 
-          {!editorHidden && (
+          {!editorHidden && !useUnifiedWindow && (
             <div 
               className={`${styles.editorWrapper} ${outputOpen ? (splitOrientation === 'horizontal' ? styles.splitHorizontal : styles.splitVertical) : ''}`}
               style={{
@@ -712,27 +875,157 @@ This environment provides everything you need to develop, test, and deploy tradi
               )}
             </div>
           )}
+          
+          {/* Multi-window Layout Manager */}
+          {!editorHidden && useLayoutManager && (
+            <DevelopLayoutManager
+              layout={layout}
+              onLayoutChange={setLayout}
+              onOpenFile={(filePath, fileName, windowId) => {
+                // TODO: Implement file opening in specific window
+                console.log('Open file in window:', windowId, filePath);
+              }}
+              onSaveFile={saveFile}
+            />
+          )}
+          
+          {/* Legacy Unified Window */}
+          {!editorHidden && useUnifiedWindow && !useLayoutManager && (
+            <DevelopWindow
+              tabs={unifiedTabs}
+              activeTab={activeUnifiedTab}
+              setTabs={setUnifiedTabs}
+              setActiveTab={setActiveUnifiedTab}
+              onNewTab={() => {
+                const newTabId = `terminal-${Date.now()}`;
+                const newTab: UnifiedTab = {
+                  id: newTabId,
+                  name: '~/strategies',
+                  type: 'terminal',
+                  terminalContent: [], // Will be initialized with ASCII art by DevelopWindow
+                  currentInput: '',
+                  cwd: '~/strategies'
+                };
+                setUnifiedTabs([...unifiedTabs, newTab]);
+                setActiveUnifiedTab(newTabId);
+              }}
+              onCloseTab={(tabId, e) => {
+                e.stopPropagation();
+                const newTabs = unifiedTabs.filter(tab => tab.id !== tabId);
+                setUnifiedTabs(newTabs);
+                if (activeUnifiedTab === tabId && newTabs.length > 0) {
+                  setActiveUnifiedTab(newTabs[0].id);
+                }
+              }}
+              onSaveFile={saveFile}
+              onSplitWindow={(orientation) => {
+                // Open second window with a terminal tab
+                if (!outputOpen) {
+                  const newTab: UnifiedTab = {
+                    id: `terminal-${Date.now()}`,
+                    name: '~/strategies',
+                    type: 'terminal',
+                    terminalContent: [],
+                    currentInput: '',
+                    cwd: '~/strategies'
+                  };
+                  setSecondWindowTabs([newTab]);
+                  setActiveSecondWindowTab(newTab.id);
+                  setOutputOpen(true);
+                  setSplitOrientation(orientation);
+                  if (splitSize === 0) {
+                    setSplitSize(calculateDefaultSplitSize());
+                  }
+                }
+              }}
+              onCloseWindow={() => setEditorHidden(true)}
+              isSplit={false}
+            />
+          )}
         </div>
 
-        <Terminal
-          terminalTabs={terminalTabs}
-          activeTerminalTab={activeTerminalTab}
-          outputOpen={outputOpen}
-          editorHidden={editorHidden}
-          splitOrientation={splitOrientation}
-          splitSize={splitSize}
-          terminalTabCounter={terminalTabCounter}
-          setTerminalTabs={setTerminalTabs}
-          setActiveTerminalTab={setActiveTerminalTab}
-          setTerminalTabCounter={setTerminalTabCounter}
-          setSplitOrientation={setSplitOrientation}
-          setSplitSize={setSplitSize}
-          setOutputOpen={setOutputOpen}
-          setEditorHidden={setEditorHidden}
-          onSplitDragStart={handleSplitDragStart}
-          onInitializeConsole={initializeConsole}
-          styles={styles}
-        />
+        {/* Second Window (when split) - Legacy */}
+        {outputOpen && useUnifiedWindow && !useLayoutManager && (
+          <>
+            <div 
+              className={`${styles.splitter} ${splitOrientation === 'horizontal' ? styles.splitterHorizontal : styles.splitterVertical}`}
+              onMouseDown={handleSplitDragStart}
+            />
+            <div
+              style={{
+                flex: `0 0 ${splitSize || 300}px`,
+                minWidth: splitOrientation === 'vertical' ? '250px' : 'auto',
+                minHeight: splitOrientation === 'horizontal' ? '150px' : 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative'
+              }}
+            >
+              <DevelopWindow
+                tabs={secondWindowTabs}
+                activeTab={activeSecondWindowTab}
+                setTabs={setSecondWindowTabs}
+                setActiveTab={setActiveSecondWindowTab}
+                onNewTab={() => {
+                  const newTabId = `terminal-${Date.now()}`;
+                  const newTab: UnifiedTab = {
+                    id: newTabId,
+                    name: '~/strategies',
+                    type: 'terminal',
+                    terminalContent: [],
+                    currentInput: '',
+                    cwd: '~/strategies'
+                  };
+                  setSecondWindowTabs([...secondWindowTabs, newTab]);
+                  setActiveSecondWindowTab(newTabId);
+                }}
+                onCloseTab={(tabId, e) => {
+                  e.stopPropagation();
+                  const newTabs = secondWindowTabs.filter(tab => tab.id !== tabId);
+                  setSecondWindowTabs(newTabs);
+                  if (activeSecondWindowTab === tabId && newTabs.length > 0) {
+                    setActiveSecondWindowTab(newTabs[0].id);
+                  }
+                }}
+                onSaveFile={saveFile}
+                onSplitWindow={(newOrientation) => {
+                  // For now, prevent more than 2 windows to keep it simple
+                  // Could implement a more complex grid system in the future
+                  alert('Currently limited to 2 windows. Full tiling coming soon!');
+                }}
+                isSplit={true}
+                onCloseWindow={() => {
+                  setOutputOpen(false);
+                  setSecondWindowTabs([]);
+                  setActiveSecondWindowTab('');
+                }}
+              />
+            </div>
+          </>
+        )}
+        
+        {/* Keep old Terminal for fallback */}
+        {outputOpen && !useUnifiedWindow && (
+          <Terminal
+            terminalTabs={terminalTabs}
+            activeTerminalTab={activeTerminalTab}
+            outputOpen={outputOpen}
+            editorHidden={editorHidden}
+            splitOrientation={splitOrientation}
+            splitSize={splitSize}
+            terminalTabCounter={terminalTabCounter}
+            setTerminalTabs={setTerminalTabs}
+            setActiveTerminalTab={setActiveTerminalTab}
+            setTerminalTabCounter={setTerminalTabCounter}
+            setSplitOrientation={setSplitOrientation}
+            setSplitSize={setSplitSize}
+            setOutputOpen={setOutputOpen}
+            setEditorHidden={setEditorHidden}
+            onSplitDragStart={handleSplitDragStart}
+            onInitializeConsole={initializeConsole}
+            styles={styles}
+          />
+        )}
       </div>
     </div>
   );
