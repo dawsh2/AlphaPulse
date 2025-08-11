@@ -740,16 +740,11 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--space-3);
-  background: #0a0e1a;
+  background: #0a0e1a !important; /* Always dark mode for terminal */
   font-family: var(--font-family-mono);
   font-size: 12px;
   line-height: 1.5;
   min-height: 0;
-}
-
-/* Light theme terminal background */
-[data-theme="light"] .outputContent {
-  background: #faf7f0; /* Cream/eggshell matching Monaco */
 }
 
 /* Terminal text - dark mode (cyan) */
@@ -766,25 +761,7 @@
   color: #00f5ff;
 }
 
-/* Light theme terminal text - default to black for regular content */
-[data-theme="light"] .outputLine {
-  color: #33332d; /* Dark text for regular terminal output */
-}
-
-[data-theme="light"] .outputLine:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: #000;
-}
-
-/* For NautilusTrader branding lines, they need to be marked with class="nautilus-branding" */
-[data-theme="light"] .outputLine.nautilus-branding {
-  color: #00d4db !important; /* NautilusTrader blue for branding content */
-}
-
-[data-theme="light"] .outputLine.nautilus-branding:hover {
-  background: rgba(0, 212, 219, 0.05);
-  color: #00f5ff !important;
-}
+/* Terminal always uses dark theme colors regardless of app theme */
 
 /* Terminal Input Line */
 .terminalInputLine {
@@ -808,16 +785,6 @@
   padding: 0;
   margin: 0;
   caret-color: #00d4db;
-}
-
-/* Light theme terminal input */
-[data-theme="light"] .terminalInput {
-  color: #33332d;
-  caret-color: #33332d;
-}
-
-[data-theme="light"] .terminalInputLine {
-  color: #33332d;
 }
 
 /* Search Panel */

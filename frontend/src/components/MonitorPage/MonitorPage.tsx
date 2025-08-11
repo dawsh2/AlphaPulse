@@ -1,9 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createChart } from 'lightweight-charts';
+import MetricsSidebar from '../features/Monitor/MetricsSidebar';
+import type { SidebarTab } from '../features/Monitor/MetricsSidebar';
+import PlaybackControls from '../features/Monitor/PlaybackControls';
+import type { PlaybackSpeed } from '../features/Monitor/PlaybackControls';
+import SymbolSelector from '../features/Monitor/SymbolSelector';
 import styles from './MonitorPage.module.css';
 import { exchangeManager } from '../../services/exchanges';
 import type { MarketData, ExchangeType } from '../../services/exchanges';
 import { dataStorage, dataFetcher } from '../../services/data';
+import { topOffStoredData } from '../../services/exchanges/dataTopOff';
 
 interface KrakenOHLC {
   channel: string;
@@ -22,31 +28,6 @@ interface KrakenOHLC {
   }[];
 }
 
-interface EventData {
-  time: string;
-  type: 'buy' | 'sell' | 'signal';
-  description: string;
-}
-
-interface MetricData {
-  totalPnL: number;
-  winRate: number;
-  sharpeRatio: number;
-  maxDrawdown: number;
-  totalTrades: number;
-  avgTrade: number;
-}
-
-interface Strategy {
-  id: string;
-  name: string;
-  winRate: number;
-  pnl: number;
-  active?: boolean;
-}
-
-type SidebarTab = 'metrics' | 'events' | 'strategies';
-type PlaybackSpeed = 1 | 2 | 5 | 10;
 
 interface DropdownOption {
   value: string;
@@ -64,11 +45,9 @@ const MonitorPage: React.FC = () => {
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [timeframe, setTimeframe] = useState('1m');
   const [selectedStrategy, setSelectedStrategy] = useState('Mean Reversion v2');
-  const [timeframeDropdownOpen, setTimeframeDropdownOpen] = useState(false);
-  const [strategyDropdownOpen, setStrategyDropdownOpen] = useState(false);
-  const [speedDropdownOpen, setSpeedDropdownOpen] = useState(false);
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Refs
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -83,7 +62,7 @@ const MonitorPage: React.FC = () => {
 
   // Mock data and strategies remain unchanged
 
-  const mockMetrics: MetricData = {
+  const mockMetrics = {
     totalPnL: 2345.67,
     winRate: 68.4,
     sharpeRatio: 1.82,
@@ -92,7 +71,7 @@ const MonitorPage: React.FC = () => {
     avgTrade: 9.49
   };
 
-  const mockStrategies: Strategy[] = [
+  const mockStrategies = [
     { id: '1', name: 'Mean Reversion v2', winRate: 68, pnl: 12.3, active: true },
     { id: '2', name: 'Momentum Breakout', winRate: 52, pnl: 8.7 },
     { id: '3', name: 'Market Making', winRate: 71, pnl: 5.2 }
@@ -122,25 +101,25 @@ const MonitorPage: React.FC = () => {
       height: containerHeight,
       layout: {
         background: { color: 'transparent' },
-        textColor: isDark ? '#f0f6fc' : '#33332d',
+        textColor: isDark ? '#f0f6fc' : '#1c1c1c',
       },
       grid: {
-        vertLines: { color: isDark ? '#383c45' : '#e5e0d5' },
-        horzLines: { color: isDark ? '#383c45' : '#e5e0d5' },
+        vertLines: { color: isDark ? '#2d3139' : '#e0e3eb' },
+        horzLines: { color: isDark ? '#2d3139' : '#e0e3eb' },
       },
       crosshair: {
         mode: 0, // Normal
         vertLine: {
-          color: isDark ? '#4d525b' : '#d8d2c4',
+          color: isDark ? '#505862' : '#9598a1',
           width: 1,
           style: 3,
-          labelBackgroundColor: isDark ? '#262931' : '#f5f2ea'
+          labelBackgroundColor: isDark ? '#2d3139' : '#ffffff'
         },
         horzLine: {
-          color: isDark ? '#4d525b' : '#d8d2c4',
+          color: isDark ? '#505862' : '#9598a1',
           width: 1,
           style: 3,
-          labelBackgroundColor: isDark ? '#262931' : '#f5f2ea'
+          labelBackgroundColor: isDark ? '#2d3139' : '#ffffff'
         }
       },
       handleScroll: {
@@ -158,7 +137,8 @@ const MonitorPage: React.FC = () => {
         pinch: true
       },
       rightPriceScale: {
-        borderColor: isDark ? '#383c45' : '#e5e0d5',
+        borderColor: isDark ? '#2d3139' : '#e0e3eb',
+        textColor: isDark ? '#d1d4dc' : '#131722',
         mode: 0, // Normal mode (not logarithmic)
         autoScale: true, // Keep auto-scale for now
         invertScale: false,
@@ -172,7 +152,8 @@ const MonitorPage: React.FC = () => {
         }
       },
       timeScale: {
-        borderColor: isDark ? '#383c45' : '#e5e0d5',
+        borderColor: isDark ? '#2d3139' : '#e0e3eb',
+        textColor: isDark ? '#d1d4dc' : '#131722',
         timeVisible: true,
         secondsVisible: false,
       },
@@ -327,12 +308,17 @@ const MonitorPage: React.FC = () => {
 
   // Effects
   useEffect(() => {
+    // Show loading state when switching symbols
+    setIsLoadingData(true);
+    setMarketData([]); // Clear old data immediately
+    
     // Set the exchange
     exchangeManager.setExchange(exchange);
     const service = exchangeManager.getService();
     
     if (!service) {
       console.error('No exchange service available');
+      setIsLoadingData(false);
       return;
     }
 
@@ -364,80 +350,46 @@ const MonitorPage: React.FC = () => {
           
           console.log(`[${exchange}] Loaded ${marketData.length} candles from cache`);
           
-          // Check if we need to top off the data before displaying
-          const lastCandle = marketData[marketData.length - 1];
-          const now = Math.floor(Date.now() / 1000);
-          const gapMinutes = Math.floor((now - lastCandle.time) / 60);
+          // Check if we should fetch more historical data to build up our dataset
+          const oldestCandle = marketData[0];
+          const daysOfData = (Date.now() / 1000 - oldestCandle.time) / (60 * 60 * 24);
           
-          console.log(`[${exchange}] Last cached candle: ${new Date(lastCandle.time * 1000).toISOString()}, Gap: ${gapMinutes} minutes`);
-          
-          // If there's a gap, try to fill it with recent data
-          if (gapMinutes > 5 && gapMinutes < 200) {
-            console.log(`[${exchange}] Fetching recent ${gapMinutes} minutes to fill gap...`);
-            try {
-              const recentData = await service.fetchHistoricalData(symbol, gapMinutes + 5); // Get a bit extra
-              console.log(`[${exchange}] Got ${recentData.length} recent candles`);
-              
-              // Filter to only add candles newer than what we have
-              const newCandles = recentData.filter(c => c.time > lastCandle.time);
-              if (newCandles.length > 0) {
-                marketData = [...marketData, ...newCandles];
-                console.log(`[${exchange}] Added ${newCandles.length} candles to fill gap`);
-                
-                // Store the recent candles
-                const storedCandles = newCandles.map(candle => ({
-                  symbol,
-                  exchange,
-                  interval: '1m' as const,
-                  timestamp: candle.time,
-                  open: candle.open,
-                  high: candle.high,
-                  low: candle.low,
-                  close: candle.close,
-                  volume: candle.volume,
-                  metadata: {
-                    fetchedAt: Date.now(),
-                    source: 'coinbase-rest-recent'
-                  }
-                }));
-                await dataStorage.saveCandles(storedCandles);
-                
-                setEventData(prev => [...prev, {
-                  time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                  type: 'signal',
-                  description: `[${exchange}] Loaded ${marketData.length} candles (gap filled)`
-                }]);
-              } else {
-                setEventData(prev => [...prev, {
-                  time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                  type: 'signal',
-                  description: `[${exchange}] Loaded ${marketData.length} candles (${gapMinutes}min gap remains)`
-                }]);
-              }
-            } catch (error) {
-              console.error(`[${exchange}] Failed to fetch recent data:`, error);
-              setEventData(prev => [...prev, {
-                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                type: 'signal',
-                description: `[${exchange}] Loaded ${marketData.length} candles (couldn't fill ${gapMinutes}min gap)`
-              }]);
-            }
-          } else {
-            setEventData(prev => [...prev, {
-              time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-              type: 'signal',
-              description: `[${exchange}] Loaded ${marketData.length} candles from cache`
-            }]);
+          // If we have less than 30 days of data, try to fetch more historical data
+          if (daysOfData < 30 && exchange === 'coinbase') {
+            console.log(`[${exchange}] Only have ${daysOfData.toFixed(1)} days of data, fetching more history...`);
+            // Fetch another 7 days of older data
+            const olderDataEndTime = oldestCandle.time;
+            const olderDataStartTime = olderDataEndTime - (7 * 24 * 60 * 60);
+            
+            // TODO: Add method to fetch specific date range
+            // For now, we'll just work with what we have
           }
+          
+          // Top off the stored data to fill any gaps
+          const { data: toppedOffData, result } = await topOffStoredData(
+            symbol,
+            exchange,
+            service,
+            marketData
+          );
+          
+          marketData = toppedOffData;
+          
+          setEventData(prev => [...prev, {
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            type: 'signal',
+            description: `[${exchange}] ${result.message}`
+          }]);
           
           // Always set the market data
           setMarketData(marketData);
           setCurrentBar(marketData.length);
+          setIsLoadingData(false);
         } else {
           // No cached data, fetch from exchange
           console.log(`[${exchange}] No cached data, fetching from API...`);
           
-          // For initial load, fetch and store 7 days of data
+          // Fetch initial data - start with 7 days for good historical context
           if (exchange === 'coinbase' && (symbol === 'BTC/USD' || symbol === 'ETH/USD')) {
             const result = await dataFetcher.fetchAndStoreHistoricalData(symbol, 7);
             if (result.success) {
@@ -460,51 +412,22 @@ const MonitorPage: React.FC = () => {
                   volume: candle.volume
                 }));
               
-              // Check for gap and fetch recent data to fill it
+              // Top off the newly fetched data
               if (marketData.length > 0) {
-                const lastCandle = marketData[marketData.length - 1];
-                const now = Math.floor(Date.now() / 1000);
-                const gapMinutes = Math.floor((now - lastCandle.time) / 60);
+                const { data: toppedOffData, result } = await topOffStoredData(
+                  symbol,
+                  exchange,
+                  service,
+                  marketData
+                );
                 
-                if (gapMinutes > 5 && gapMinutes < 200) {
-                  console.log(`[${exchange}] Fetching recent ${gapMinutes} minutes to fill gap...`);
-                  try {
-                    // Use the service's fetchHistoricalData which gets more recent data
-                    const recentData = await service.fetchHistoricalData(symbol, gapMinutes);
-                    console.log(`[${exchange}] Got ${recentData.length} recent candles`);
-                    
-                    // Filter to only add candles newer than what we have
-                    const newCandles = recentData.filter(c => c.time > lastCandle.time);
-                    if (newCandles.length > 0) {
-                      marketData = [...marketData, ...newCandles];
-                      console.log(`[${exchange}] Added ${newCandles.length} candles to fill gap`);
-                      
-                      // Store the recent candles too
-                      const storedCandles = newCandles.map(candle => ({
-                        symbol,
-                        exchange,
-                        interval: '1m' as const,
-                        timestamp: candle.time,
-                        open: candle.open,
-                        high: candle.high,
-                        low: candle.low,
-                        close: candle.close,
-                        volume: candle.volume,
-                        metadata: {
-                          fetchedAt: Date.now(),
-                          source: 'coinbase-rest-recent'
-                        }
-                      }));
-                      await dataStorage.saveCandles(storedCandles);
-                    }
-                  } catch (error) {
-                    console.error(`[${exchange}] Failed to fetch recent data:`, error);
-                  }
-                }
+                marketData = toppedOffData;
+                console.log(`[${exchange}] Top-off result: ${result.message}`);
               }
               
               setMarketData(marketData);
               setCurrentBar(marketData.length);
+              setIsLoadingData(false);
               
               setEventData(prev => [...prev, {
                 time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -519,6 +442,7 @@ const MonitorPage: React.FC = () => {
             
             setMarketData(historicalData);
             setCurrentBar(historicalData.length);
+            setIsLoadingData(false);
             
             setEventData(prev => [...prev, {
               time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -529,51 +453,16 @@ const MonitorPage: React.FC = () => {
         }
       } catch (error) {
         console.error(`[${exchange}] Failed to backfill data:`, error);
+        setIsLoadingData(false);
       }
     };
 
     // Connect to exchange WebSocket  
-    const connectToExchange = async () => {
+    const connectToExchange = async (currentMarketData: MarketData[]) => {
       let lastUpdateTime = 0;
       
-      // First, fetch the last 3 minutes to ensure we have complete candles
-      // This prevents the issue where WebSocket creates incomplete candles
-      try {
-        const recentCandles = await service.fetchHistoricalData(symbol, 3);
-        if (recentCandles.length > 0) {
-          console.log(`[${exchange}] Fetched ${recentCandles.length} recent complete candles for proper OHLC`);
-          
-          // Update market data with these complete candles
-          setMarketData(prev => {
-            const updated = [...prev];
-            
-            // Replace or add the recent complete candles
-            recentCandles.forEach(candle => {
-              const existingIndex = updated.findIndex(d => d.time === candle.time);
-              if (existingIndex >= 0) {
-                // Replace with complete candle from REST API
-                // This fixes the issue where WebSocket might have created an incomplete candle
-                updated[existingIndex] = candle;
-              } else {
-                // Add new candle in the right position
-                const insertIndex = updated.findIndex(d => d.time > candle.time);
-                if (insertIndex >= 0) {
-                  updated.splice(insertIndex, 0, candle);
-                } else {
-                  updated.push(candle);
-                }
-              }
-            });
-            
-            // Sort by time to ensure correct order
-            updated.sort((a, b) => a.time - b.time);
-            
-            return updated;
-          });
-        }
-      } catch (error) {
-        console.error(`[${exchange}] Failed to fetch recent candles:`, error);
-      }
+      // Don't fetch recent candles here - let topOffStoredData handle gap filling
+      // This was causing the gap issue by only fetching 3 minutes
       
       // Now connect WebSocket for live updates
       const ws = service.connect(symbol, (newCandle: MarketData) => {
@@ -650,9 +539,11 @@ const MonitorPage: React.FC = () => {
         await backfillData();
         if (!cancelled) {
           // Small delay to avoid rapid connect/disconnect in dev
+          // Note: We can't pass marketData here as it's in state and async
+          // The connectToExchange will work with live updates only
           setTimeout(() => {
             if (!cancelled) {
-              connectToExchange();
+              connectToExchange([]);
             }
           }, 100);
         }
@@ -677,6 +568,10 @@ const MonitorPage: React.FC = () => {
         service.disconnect();
       }
       if (wsRef.current) {
+        if (wsRef.current.readyState === WebSocket.OPEN || 
+            wsRef.current.readyState === WebSocket.CONNECTING) {
+          wsRef.current.close();
+        }
         wsRef.current = null;
       }
     };
@@ -686,6 +581,7 @@ const MonitorPage: React.FC = () => {
   useEffect(() => {
     let retryCount = 0;
     const maxRetries = 5;
+    let themeObserver: MutationObserver | null = null;
     
     const tryInitChart = () => {
       if (!chartRef.current && chartContainerRef.current) {
@@ -696,6 +592,20 @@ const MonitorPage: React.FC = () => {
         
         if (width > 0 && height > 0) {
           initChart();
+          
+          // Set up theme observer to update chart colors when theme changes
+          themeObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                updateChartTheme();
+              }
+            });
+          });
+          
+          themeObserver.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-theme']
+          });
         } else if (retryCount < maxRetries) {
           retryCount++;
           setTimeout(tryInitChart, 200);
@@ -705,11 +615,58 @@ const MonitorPage: React.FC = () => {
       }
     };
     
+    // Function to update chart theme
+    const updateChartTheme = () => {
+      if (!chartRef.current) return;
+      
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+                     window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      // Update all chart colors
+      chartRef.current.applyOptions({
+        layout: {
+          background: { color: 'transparent' },
+          textColor: isDark ? '#f0f6fc' : '#1c1c1c',
+        },
+        grid: {
+          vertLines: { color: isDark ? '#2d3139' : '#e0e3eb' },
+          horzLines: { color: isDark ? '#2d3139' : '#e0e3eb' },
+        },
+        crosshair: {
+          mode: 0,
+          vertLine: {
+            color: isDark ? '#505862' : '#9598a1',
+            width: 1,
+            style: 3,
+            labelBackgroundColor: isDark ? '#2d3139' : '#ffffff'
+          },
+          horzLine: {
+            color: isDark ? '#505862' : '#9598a1',
+            width: 1,
+            style: 3,
+            labelBackgroundColor: isDark ? '#2d3139' : '#ffffff'
+          }
+        },
+        rightPriceScale: {
+          borderColor: isDark ? '#2d3139' : '#e0e3eb',
+          textColor: isDark ? '#d1d4dc' : '#131722',
+        },
+        timeScale: {
+          borderColor: isDark ? '#2d3139' : '#e0e3eb',
+          textColor: isDark ? '#d1d4dc' : '#131722',
+        },
+      });
+    };
+    
     // Start initialization after a small delay
     const timer = setTimeout(tryInitChart, 100);
 
     return () => {
       clearTimeout(timer);
+      // Disconnect theme observer
+      if (themeObserver) {
+        themeObserver.disconnect();
+      }
       // Remove wheel handler
       if (chartContainerRef.current && (chartContainerRef.current as any)._wheelHandler) {
         chartContainerRef.current.removeEventListener('wheel', (chartContainerRef.current as any)._wheelHandler);
@@ -800,113 +757,23 @@ const MonitorPage: React.FC = () => {
   // Get current bar data for price display
   const currentBarData = marketData[currentBar - 1];
 
-  // Get visible events based on current bar
-  const getVisibleEvents = (): EventData[] => {
-    const eventsToShow = Math.floor(currentBar / 50);
-    return eventData.slice(0, eventsToShow).reverse();
-  };
 
   return (
     <div className={styles.monitorContainer}>
       {/* Content Area */}
       <div className={styles.contentArea}>
         {/* Sidebar */}
-        <div className={styles.sidebar}>
-          <div className={styles.sidebarHeader}>
-            <div className={styles.sidebarTabs}>
-              <button
-                className={`${styles.sidebarTab} ${sidebarTab === 'metrics' ? styles.active : ''}`}
-                onClick={() => setSidebarTab('metrics')}
-              >
-                Metrics
-              </button>
-              <button
-                className={`${styles.sidebarTab} ${sidebarTab === 'events' ? styles.active : ''}`}
-                onClick={() => setSidebarTab('events')}
-              >
-                Events
-              </button>
-              <button
-                className={`${styles.sidebarTab} ${sidebarTab === 'strategies' ? styles.active : ''}`}
-                onClick={() => setSidebarTab('strategies')}
-              >
-                Strategies
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.sidebarContent}>
-            {/* Metrics Tab */}
-            {sidebarTab === 'metrics' && (
-              <div className={styles.metricsGrid}>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Total P&L</div>
-                  <div className={`${styles.metricValue} ${mockMetrics.totalPnL > 0 ? styles.positive : styles.negative}`}>
-                    {mockMetrics.totalPnL > 0 ? '+' : ''}${mockMetrics.totalPnL.toFixed(2)}
-                  </div>
-                </div>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Win Rate</div>
-                  <div className={styles.metricValue}>{mockMetrics.winRate.toFixed(1)}%</div>
-                </div>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Sharpe Ratio</div>
-                  <div className={styles.metricValue}>{mockMetrics.sharpeRatio.toFixed(2)}</div>
-                </div>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Max Drawdown</div>
-                  <div className={`${styles.metricValue} ${styles.negative}`}>
-                    {mockMetrics.maxDrawdown.toFixed(1)}%
-                  </div>
-                </div>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Total Trades</div>
-                  <div className={styles.metricValue}>{mockMetrics.totalTrades}</div>
-                </div>
-                <div className={styles.metricCard}>
-                  <div className={styles.metricLabel}>Avg Trade</div>
-                  <div className={`${styles.metricValue} ${mockMetrics.avgTrade > 0 ? styles.positive : styles.negative}`}>
-                    {mockMetrics.avgTrade > 0 ? '+' : ''}${mockMetrics.avgTrade.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Events Tab */}
-            {sidebarTab === 'events' && (
-              <div className={styles.eventLog}>
-                {getVisibleEvents().map((event, index) => (
-                  <div key={index} className={styles.eventItem}>
-                    <span className={styles.eventTime}>{event.time}</span>
-                    <span className={`${styles.eventType} ${event.type === 'buy' ? styles.buy : event.type === 'sell' ? styles.sell : ''}`}>
-                      {event.type.toUpperCase()}
-                    </span>
-                    <span className={styles.eventMessage}>{event.description}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Strategies Tab */}
-            {sidebarTab === 'strategies' && (
-              <div className={styles.strategyList}>
-                {mockStrategies.map((strategy) => (
-                  <div
-                    key={strategy.id}
-                    className={`${styles.strategyItem} ${strategy.active ? styles.active : ''}`}
-                    onClick={() => setSelectedStrategy(strategy.name)}
-                  >
-                    <div className={styles.strategyName}>{strategy.name}</div>
-                    <div className={styles.strategyStats}>
-                      <span>Win: {strategy.winRate}%</span>
-                      <span>P&L: +{strategy.pnl.toFixed(1)}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <MetricsSidebar
+          sidebarTab={sidebarTab}
+          setSidebarTab={setSidebarTab}
+          mockMetrics={mockMetrics}
+          eventData={eventData}
+          mockStrategies={mockStrategies}
+          currentBar={currentBar}
+          selectedStrategy={selectedStrategy}
+          setSelectedStrategy={setSelectedStrategy}
+          styles={styles}
+        />
 
         <div className={styles.mainContent}>
           {/* Chart */}
@@ -927,8 +794,6 @@ const MonitorPage: React.FC = () => {
                   <button 
                     className={styles.symbolButton}
                     onClick={() => setSymbolDropdownOpen(!symbolDropdownOpen)}
-                    onMouseEnter={() => setSymbolDropdownOpen(true)}
-                    onMouseLeave={() => setTimeout(() => setSymbolDropdownOpen(false), 100)}
                   >
                     {symbol}
                     <span style={{ marginLeft: '8px', fontSize: '10px' }}>▼</span>
@@ -936,8 +801,17 @@ const MonitorPage: React.FC = () => {
                   {symbolDropdownOpen && (
                     <div 
                       className={styles.symbolDropdownMenu}
-                      onMouseEnter={() => setSymbolDropdownOpen(true)}
-                      onMouseLeave={() => setSymbolDropdownOpen(false)}
+                      onMouseEnter={() => {
+                        if (dropdownTimeoutRef.current) {
+                          clearTimeout(dropdownTimeoutRef.current);
+                          dropdownTimeoutRef.current = null;
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        dropdownTimeoutRef.current = setTimeout(() => {
+                          setSymbolDropdownOpen(false);
+                        }, 300);
+                      }}
                     >
                       {exchangeManager.getSupportedSymbols().map((sym) => (
                         <button
@@ -959,157 +833,35 @@ const MonitorPage: React.FC = () => {
                   </span>
                 )}
               </div>
-              {currentBarData && (
-                <div className={styles.priceInfo}>
-                  <span className={styles.priceLabel}>O</span>
-                  <span className={styles.priceValue}>{currentBarData.open.toFixed(2)}</span>
-                  <span className={styles.priceLabel}>H</span>
-                  <span className={styles.priceValue}>{currentBarData.high.toFixed(2)}</span>
-                  <span className={styles.priceLabel}>L</span>
-                  <span className={styles.priceValue}>{currentBarData.low.toFixed(2)}</span>
-                  <span className={styles.priceLabel}>C</span>
-                  <span className={styles.priceValue}>{currentBarData.close.toFixed(2)}</span>
-                </div>
-              )}
             </div>
           </div>
 
           {/* Controls Bar */}
           <div className={styles.controlsBar}>
             {/* Replay Controls */}
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Replay:</label>
-              <div className={styles.replayControls}>
-                <button className={styles.replayBtn} onClick={skipBackward}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="11 19 2 12 11 5 11 19"></polygon>
-                    <polygon points="22 19 13 12 22 5 22 19"></polygon>
-                  </svg>
-                </button>
-                <button
-                  className={`${styles.replayBtn} ${isPlaying ? styles.active : ''}`}
-                  onClick={togglePlay}
-                >
-                  {isPlaying ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="6" y="4" width="4" height="16"></rect>
-                      <rect x="14" y="4" width="4" height="16"></rect>
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                  )}
-                </button>
-                <button className={styles.replayBtn} onClick={skipForward}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="13 19 22 12 13 5 13 19"></polygon>
-                    <polygon points="2 19 11 12 2 5 2 19"></polygon>
-                  </svg>
-                </button>
-                <div 
-                  className={styles.dropdownWrapper}
-                  onMouseEnter={() => setSpeedDropdownOpen(true)}
-                  onMouseLeave={() => setSpeedDropdownOpen(false)}
-                >
-                  <button className={styles.dropdownButton}>
-                    {playbackSpeed}x
-                    <span style={{ marginLeft: '8px' }}>▼</span>
-                  </button>
-                  {speedDropdownOpen && (
-                    <div className={styles.dropdownMenu}>
-                      {[1, 2, 5, 10].map((speed) => (
-                        <button
-                          key={speed}
-                          className={`${styles.dropdownOption} ${playbackSpeed === speed ? styles.active : ''}`}
-                          onClick={() => setPlaybackSpeed(speed as PlaybackSpeed)}
-                        >
-                          {speed}x
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <PlaybackControls
+              isPlaying={isPlaying}
+              playbackSpeed={playbackSpeed}
+              currentBar={currentBar}
+              maxBars={marketData.length}
+              onTogglePlay={togglePlay}
+              onSkipBackward={skipBackward}
+              onSkipForward={skipForward}
+              onSpeedChange={setPlaybackSpeed}
+              styles={styles}
+            />
 
-            {/* Exchange Selector */}
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Exchange:</label>
-              <select 
-                className="form-input form-input-sm"
-                value={exchange}
-                onChange={(e) => setExchange(e.target.value as ExchangeType)}
-                style={{ width: '100px' }}
-              >
-                {exchangeManager.getAvailableExchanges().map(ex => (
-                  <option key={ex.value} value={ex.value}>{ex.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Symbol & Timeframe */}
-            <div className={styles.controlGroup}>
-              <input
-                type="text"
-                className="form-input form-input-sm"
-                placeholder="Symbol"
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                style={{ width: '100px' }}
-              />
-              <div 
-                className={styles.dropdownWrapper}
-                onMouseEnter={() => setTimeframeDropdownOpen(true)}
-                onMouseLeave={() => setTimeframeDropdownOpen(false)}
-              >
-                <button className={styles.dropdownButton}>
-                  {timeframe}
-                  <span style={{ marginLeft: '8px' }}>▼</span>
-                </button>
-                {timeframeDropdownOpen && (
-                  <div className={styles.dropdownMenu}>
-                    {['tick', '1m', '5m', '15m', '1h', '1d'].map((tf) => (
-                      <button
-                        key={tf}
-                        className={`${styles.dropdownOption} ${timeframe === tf ? styles.active : ''}`}
-                        onClick={() => setTimeframe(tf)}
-                      >
-                        {tf}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Strategy Selector */}
-            <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Strategy:</label>
-              <div 
-                className={styles.dropdownWrapper}
-                onMouseEnter={() => setStrategyDropdownOpen(true)}
-                onMouseLeave={() => setStrategyDropdownOpen(false)}
-              >
-                <button className={styles.dropdownButton} style={{ minWidth: '200px' }}>
-                  {selectedStrategy}
-                  <span style={{ marginLeft: '8px' }}>▼</span>
-                </button>
-                {strategyDropdownOpen && (
-                  <div className={styles.dropdownMenu}>
-                    {['Mean Reversion v2', 'Momentum Breakout', 'Market Making'].map((strat) => (
-                      <button
-                        key={strat}
-                        className={`${styles.dropdownOption} ${selectedStrategy === strat ? styles.active : ''}`}
-                        onClick={() => setSelectedStrategy(strat)}
-                      >
-                        {strat}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <SymbolSelector
+              symbol={symbol}
+              exchange={exchange}
+              timeframe={timeframe}
+              selectedStrategy={selectedStrategy}
+              onSymbolChange={setSymbol}
+              onExchangeChange={setExchange}
+              onTimeframeChange={setTimeframe}
+              onStrategyChange={setSelectedStrategy}
+              styles={styles}
+            />
           </div>
         </div>
       </div>

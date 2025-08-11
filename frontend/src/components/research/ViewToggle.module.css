@@ -1,0 +1,73 @@
+.viewToggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggleTrack {
+  position: relative;
+  display: flex;
+  background: var(--color-bg-primary);
+  border: 2px solid var(--color-text-primary);
+  border-radius: var(--radius-lg);
+  padding: 3px;
+  height: 44px;
+  box-shadow: 0 4px 0 0 var(--color-text-primary);
+  transition: all 0.15s ease;
+}
+
+.toggleTrack:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 var(--color-text-primary);
+}
+
+.toggleSlider {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  background: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+
+.toggleSlider.sliderRight {
+  transform: translateX(calc(100% + 1px));
+}
+
+.toggleOption {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.toggleOption.active {
+  color: white;
+}
+
+.toggleOption svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .toggleTrack {
+    padding: 6px;
+  }
+  
+  .toggleOption {
+    padding: 0 10px;
+  }
+}

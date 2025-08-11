@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 import json
 import importlib.util
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, make_response
 
 # Path to nautilus-trader source for accessing examples
 NAUTILUS_PATH = Path(__file__).parent.parent / "nautilus-trader"
@@ -28,9 +28,17 @@ NT_EXAMPLES_PATH = NAUTILUS_PATH / "nautilus_trader" / "examples"
 NT_INDICATORS_PATH = NAUTILUS_PATH / "nautilus_trader" / "indicators"
 
 
-@nt_api.route('/files/<path:filepath>', methods=['GET'])
+@nt_api.route('/files/<path:filepath>', methods=['GET', 'OPTIONS'])
 def get_file(filepath):
     """Serve NT files from examples or indicators"""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        return response
+    
     try:
         # Determine which base path to use
         if filepath.startswith('indicators/'):
@@ -58,17 +66,28 @@ def get_file(filepath):
             with open(safe_path, 'r') as f:
                 content = f.read()
             
-        return jsonify({
+        response = make_response(jsonify({
             'content': content,
             'path': filepath
-        })
+        }))
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
-@nt_api.route('/list-files', methods=['GET'])
+@nt_api.route('/list-files', methods=['GET', 'OPTIONS'])
 def list_files():
     """List available NT files"""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        return response
+    
     try:
         files = {
             'examples': {
@@ -112,7 +131,10 @@ def list_files():
             files['examples'][key].sort()
         files['indicators'].sort()
                     
-        return jsonify(files)
+        response = make_response(jsonify(files))
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

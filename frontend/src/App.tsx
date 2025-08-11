@@ -5,7 +5,6 @@ import { NewsPage } from './pages/NewsPage';
 import { DevelopPage } from './pages/DevelopPage';
 import ResearchPage from './pages/ResearchPage';
 import MonitorPage from './pages/MonitorPage';
-import ComparisonPage from './pages/ComparisonPage';
 import './styles/theme.css';
 
 function App() {
@@ -17,7 +16,6 @@ function App() {
           <Route path="/develop" element={<DevelopPage />} />
           <Route path="/research" element={<ResearchPage />} />
           <Route path="/monitor" element={<MonitorPage />} />
-          <Route path="/compare" element={<ComparisonPage />} />
           <Route path="/login" element={<div style={{ padding: '2rem' }}>Login page coming soon...</div>} />
         </Routes>
       </Layout>

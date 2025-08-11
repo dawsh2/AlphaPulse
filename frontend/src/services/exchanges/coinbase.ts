@@ -120,10 +120,10 @@ export class CoinbaseService implements ExchangeService {
       const end = new Date();
       const start = new Date(end.getTime() - limit * 60 * 1000);
       
-      // Coinbase REST API for candles
+      // Use backend proxy to avoid CORS issues
       // Granularity 60 = 1 minute
       const response = await fetch(
-        `https://api.exchange.coinbase.com/products/${coinbaseSymbol}/candles?` +
+        `http://localhost:5001/api/proxy/coinbase/products/${coinbaseSymbol}/candles?` +
         `start=${start.toISOString()}&end=${end.toISOString()}&granularity=60`
       );
       

@@ -2,7 +2,7 @@
 AlphaPulse API Server - Real Alpaca Integration
 Event-driven trading system using OS environment variables
 """
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, make_response
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import jwt
@@ -17,6 +17,9 @@ from models import db, init_db, User, Strategy, EventLog
 from alpaca_client import create_alpaca_client
 from nautilus_integration import nt_api
 
+# Import new service layer
+from api.data_routes import data_api
+
 # Validate configuration on startup
 if not Config.validate():
     print("❌ Configuration validation failed. Please set your Alpaca API keys.")
@@ -28,12 +31,18 @@ app.config['SECRET_KEY'] = Config.SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = Config.DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialize extensions
-CORS(app, origins=Config.CORS_ORIGINS, supports_credentials=True)
+# Initialize extensions with better CORS configuration
+CORS(app, 
+    resources={r"/api/*": {"origins": Config.CORS_ORIGINS}},
+    supports_credentials=True,
+    allow_headers=['Content-Type', 'Authorization'],
+    methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+)
 init_db(app)
 
 # Register blueprints
 app.register_blueprint(nt_api)
+app.register_blueprint(data_api)
 
 # Global Alpaca client
 alpaca_client = create_alpaca_client()
@@ -328,84 +337,9 @@ def get_market_data(symbol):
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/api/market-data/save', methods=['POST', 'OPTIONS'])
-def save_market_data():
-    """Save market data to database (optional endpoint for caching)."""
-    # Handle preflight OPTIONS request
-    if request.method == 'OPTIONS':
-        response = jsonify({'status': 'ok'})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        return response, 200
-    
-    try:
-        data = request.get_json()
-        
-        # Log the save request (optional - you can implement actual storage if needed)
-        symbol = data.get('symbol')
-        exchange = data.get('exchange')
-        candles = data.get('candles', [])
-        
-        # For now, just log and return success
-        # You could implement actual database storage here if needed
-        print(f"📊 Market data save request: {symbol} from {exchange}, {len(candles)} candles")
-        
-        # Log as event
-        import json
-        event = EventLog(
-            id=str(uuid.uuid4()),
-            user_id='system',  # System event, not user-specific
-            event_type='data_cache',
-            event_data=json.dumps({
-                'symbol': symbol,
-                'exchange': exchange,
-                'candle_count': len(candles),
-                'interval': data.get('interval', '1m')
-            })
-        )
-        db.session.add(event)
-        db.session.commit()
-        
-        return jsonify({
-            'status': 'success',
-            'message': f'Saved {len(candles)} candles for {symbol}',
-            'event_id': event.id
-        })
-        
-    except Exception as e:
-        print(f"❌ Error saving market data: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+# Market data save endpoint moved to api/data_routes.py service layer
 
-# ================================================================================
-# Coinbase Proxy Endpoint
-# ================================================================================
-
-@app.route('/api/proxy/coinbase/<path:endpoint>', methods=['GET'])
-def proxy_coinbase(endpoint):
-    """Proxy requests to Coinbase API to avoid CORS issues."""
-    import requests
-    
-    try:
-        # Build the Coinbase API URL
-        base_url = 'https://api.exchange.coinbase.com'
-        url = f"{base_url}/{endpoint}"
-        
-        # Forward query parameters
-        params = request.args.to_dict()
-        
-        # Make the request to Coinbase
-        response = requests.get(url, params=params, timeout=10)
-        
-        # Return the response with proper CORS headers
-        return jsonify(response.json()), response.status_code
-        
-    except requests.exceptions.Timeout:
-        return jsonify({'error': 'Request to Coinbase timed out'}), 504
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'Error proxying to Coinbase: {str(e)}'}), 502
-    except Exception as e:
-        return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+# Coinbase proxy endpoint moved to api/data_routes.py service layer
 
 # ================================================================================
 # Trading Operations (Paper Trading Safe)
@@ -742,9 +676,17 @@ def internal_error(error):
 # NT Reference File Management
 # ================================================================================
 
-@app.route('/api/nt-reference/list-files', methods=['GET'])
+@app.route('/api/nt-reference/list-files', methods=['GET', 'OPTIONS'])
 def list_nt_reference_files():
     """List all files in the nt_reference directory."""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        return response
+    
     try:
         nt_ref_path = Path(__file__).parent / 'nt_reference'
         
@@ -791,14 +733,25 @@ def list_nt_reference_files():
                 f.name for f in tutorials_path.glob('*.ipynb')
             ]
         
-        return jsonify(result)
+        response = make_response(jsonify(result))
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/nt-reference/files/<path:filepath>', methods=['GET'])
+@app.route('/api/nt-reference/files/<path:filepath>', methods=['GET', 'OPTIONS'])
 def get_nt_reference_file(filepath):
     """Get content of a specific file from nt_reference."""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        return response
+    
     try:
         # Security: ensure the path doesn't escape nt_reference
         nt_ref_path = Path(__file__).parent / 'nt_reference'
@@ -822,14 +775,69 @@ def get_nt_reference_file(filepath):
         
         content = file_path.read_text()
         
-        return jsonify({
+        response = make_response(jsonify({
             'content': content,
             'filename': file_path.name,
             'path': filepath
-        })
+        }))
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/nt-reference/files/<path:filepath>', methods=['PUT', 'OPTIONS'])
+def save_nt_reference_file(filepath):
+    """Save/update content of a specific file in nt_reference."""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS')
+        response.headers.add('Access-Control-Max-Age', '3600')
+        return response
+    
+    try:
+        # Security: ensure the path doesn't escape nt_reference
+        nt_ref_path = Path(__file__).parent / 'nt_reference'
+        
+        # Clean the filepath and ensure it's within nt_reference
+        if filepath.startswith('strategies/') or filepath.startswith('algorithms/') or filepath.startswith('indicators/'):
+            file_path = nt_ref_path / 'examples' / filepath
+        elif filepath.startswith('tutorials/'):
+            file_path = nt_ref_path / filepath
+        else:
+            # For other files like README.md, save to nt_reference root
+            file_path = nt_ref_path / filepath
+        
+        # Ensure the parent directory exists
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Get content from request
+        data = request.get_json()
+        if not data or 'content' not in data:
+            return jsonify({'error': 'No content provided'}), 400
+        
+        # Write the file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(data['content'])
+        
+        response = jsonify({
+            'success': True,
+            'message': f'File {filepath} saved successfully',
+            'path': filepath
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS')
+        return response
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Data catalog management endpoints moved to api/data_routes.py service layer
 
 # ================================================================================
 # Development Seeding

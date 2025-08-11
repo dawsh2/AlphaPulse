@@ -45,6 +45,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, languag
     return isDark ? 'vs-dark' : 'cream-light';
   });
   
+  // Check if we're in a secure context (HTTPS or localhost exception)
+  // Note: localhost is considered secure for some APIs but not clipboard in all browsers
+  const isSecureContext = window.isSecureContext && !window.location.hostname.includes('localhost');
+  
+  
   useEffect(() => {
     // Check if monaco is available before defining theme
     if (typeof monaco !== 'undefined' && monaco.editor) {
@@ -145,7 +150,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, languag
           renderWhitespace: 'boundary',
           smoothScrolling: true,
           cursorBlinking: 'smooth',
-          cursorSmoothCaretAnimation: 'on'
+          cursorSmoothCaretAnimation: 'on',
+          // Enable empty selection clipboard only in production (HTTPS)
+          // In development (HTTP localhost), this causes permission errors
+          emptySelectionClipboard: isSecureContext,
+          // Keep drag and drop and links enabled for better UX
+          dragAndDrop: true,
+          links: true
         }}
       />
     </div>

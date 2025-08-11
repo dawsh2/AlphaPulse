@@ -5,12 +5,17 @@ import { generateFileContent } from '../services/fileContentGenerator';
 import { loadFileStructure } from '../services/fileSystemService';
 import { Terminal } from '../components/features/Develop/Terminal';
 
-interface TerminalTab {
+interface UnifiedTab {
   id: string;
   name: string;
-  content: string[];
-  currentInput: string;
-  cwd: string;
+  type: 'editor' | 'terminal';
+  // Editor-specific properties
+  content?: string;
+  language?: string;
+  // Terminal-specific properties
+  terminalContent?: string[];
+  currentInput?: string;
+  cwd?: string;
 }
 
 interface FileItem {
@@ -18,6 +23,15 @@ interface FileItem {
   name: string;
   type: 'file' | 'folder';
   children?: FileItem[];
+}
+
+// Keep old interfaces for now during migration
+interface TerminalTab {
+  id: string;
+  name: string;
+  content: string[];
+  currentInput: string;
+  cwd: string;
 }
 
 interface Tab {
@@ -36,7 +50,6 @@ export const DevelopPage: React.FC = () => {
   const [outputOpen, setOutputOpen] = useState(false);
   
   // Terminal tabs state
-  
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([
     { id: 'terminal-1', name: '~/strategies', content: [], currentInput: '', cwd: '~/strategies' }
   ]);
@@ -52,6 +65,25 @@ export const DevelopPage: React.FC = () => {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['examples/']));
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth > 768);
+
+  // Add keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + S to save
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        saveFile();
+      }
+      // Cmd/Ctrl + Shift + E to toggle editor
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        setEditorHidden(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [tabs, activeTab]);
 
   useEffect(() => {
     loadFiles();
@@ -197,14 +229,47 @@ This environment provides everything you need to develop, test, and deploy tradi
     }
   };
 
-  const saveFile = () => {
+  const saveFile = async () => {
     const activeTabData = tabs.find(tab => tab.id === activeTab);
-    if (activeTabData) {
-      addOutput(`Saving ${activeTabData.name}...`);
-      // TODO: Implement actual save logic
-      setTimeout(() => {
+    if (!activeTabData) return;
+    
+    addOutput(`Saving ${activeTabData.name}...`);
+    
+    try {
+      // Determine the file path - remove any leading slashes
+      let filePath = activeTabData.id;
+      if (filePath.startsWith('/')) {
+        filePath = filePath.substring(1);
+      }
+      
+      // Save to backend
+      const response = await fetch(`http://localhost:5001/api/nt-reference/files/${filePath}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: activeTabData.content
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
         addOutput(`✓ ${activeTabData.name} saved successfully`);
-      }, 500);
+        
+        // Mark tab as saved (remove unsaved indicator if we add one later)
+        setTabs(prev => prev.map(tab => 
+          tab.id === activeTab 
+            ? { ...tab, unsaved: false }
+            : tab
+        ));
+      } else {
+        const error = await response.json();
+        addOutput(`✗ Failed to save ${activeTabData.name}: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      addOutput(`✗ Failed to save ${activeTabData.name}: ${error}`);
     }
   };
 
@@ -526,7 +591,7 @@ This environment provides everything you need to develop, test, and deploy tradi
       <div 
         className={`${styles.mainArea} ${outputOpen ? (splitOrientation === 'horizontal' ? styles.splitHorizontal : styles.splitVertical) : ''}`}
       >
-        <div className={`${styles.editorContainer} ${outputOpen && splitOrientation === 'vertical' ? styles.splitVertical : ''}`}>
+        <div className={`${styles.editorContainer} ${outputOpen && splitOrientation === 'vertical' ? styles.splitVertical : ''}`} style={{ display: editorHidden ? 'none' : 'flex', flexDirection: 'column' }}>
           {!editorHidden && (
             <div className={styles.tabsContainer}>
             <div className={styles.tabs}>
@@ -545,10 +610,28 @@ This environment provides everything you need to develop, test, and deploy tradi
                   </button>
                 </div>
               ))}
-              <button className={styles.newTabBtn} title="New File">+</button>
+              <button 
+                className={styles.newTabBtn} 
+                title="New File"
+                onClick={() => {
+                  // Create a new untitled file
+                  const newTabId = `untitled-${Date.now()}`;
+                  const newTab: Tab = {
+                    id: newTabId,
+                    name: 'untitled.py',
+                    content: '# New Python Strategy\n# Start coding your strategy here\n\n',
+                    language: 'python'
+                  };
+                  setTabs([...tabs, newTab]);
+                  setActiveTab(newTabId);
+                  setEditorHidden(false);
+                }}
+              >
+                +
+              </button>
             </div>
             <div className={styles.editorActions}>
-              <button className={styles.actionButton} onClick={saveFile} title="Save File">
+              <button className={styles.actionButton} onClick={saveFile} title="Save File (Cmd/Ctrl+S)">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                   <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -580,7 +663,7 @@ This environment provides everything you need to develop, test, and deploy tradi
                     }
                   }, 100);
                 }
-              }} title="Close Editor">
+              }} title="Hide Editor (Ctrl+Shift+E)">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6L6 18M6 6l12 12"></path>
                 </svg>
@@ -645,6 +728,7 @@ This environment provides everything you need to develop, test, and deploy tradi
           setSplitOrientation={setSplitOrientation}
           setSplitSize={setSplitSize}
           setOutputOpen={setOutputOpen}
+          setEditorHidden={setEditorHidden}
           onSplitDragStart={handleSplitDragStart}
           onInitializeConsole={initializeConsole}
           styles={styles}

@@ -199,6 +199,21 @@ export async function loadFileStructure(): Promise<FileItem[]> {
       }
     );
 
+    // Add data directory
+    fileStructure.push(
+      {
+        path: 'data/',
+        name: 'data',
+        type: 'folder',
+        children: [
+          { path: 'data/btc_usd_1m.csv', name: 'btc_usd_1m.csv', type: 'file' },
+          { path: 'data/eth_usd_1m.csv', name: 'eth_usd_1m.csv', type: 'file' },
+          { path: 'data/market_depth.json', name: 'market_depth.json', type: 'file' },
+          { path: 'data/orderbook_snapshots.parquet', name: 'orderbook_snapshots.parquet', type: 'file' }
+        ]
+      }
+    );
+
     // Add builder-ui directory
     fileStructure.push(
       {
@@ -216,7 +231,8 @@ export async function loadFileStructure(): Promise<FileItem[]> {
     
     return fileStructure;
   } catch (error) {
-    console.error('Failed to load files:', error);
+    // Silently fall back to static file structure since API is optional
+    // console.log('Using static file structure (API not available)');
     // NO FALLBACK - return what we have
     const fileStructure: FileItem[] = [];
     
@@ -265,6 +281,16 @@ export async function loadFileStructure(): Promise<FileItem[]> {
       children: [
         { path: 'strategies/ema_cross.py', name: 'ema_cross.py', type: 'file' },
         { path: 'strategies/momentum.py', name: 'momentum.py', type: 'file' }
+      ]
+    });
+    
+    fileStructure.push({
+      path: 'data/',
+      name: 'data',
+      type: 'folder',
+      children: [
+        { path: 'data/sample_data.csv', name: 'sample_data.csv', type: 'file' },
+        { path: 'data/market_data.json', name: 'market_data.json', type: 'file' }
       ]
     });
     

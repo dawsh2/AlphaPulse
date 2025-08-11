@@ -60,13 +60,23 @@ export class DataStorage {
   async saveCandles(candles: StoredMarketData[]): Promise<void> {
     if (!this.db) await this.init();
     
+    // First, load existing dataset info before starting transaction
+    const existingDatasets = await this.getDatasets();
+    const datasets = new Map<string, DatasetInfo>();
+    for (const dataset of existingDatasets) {
+      const key = `${dataset.symbol}-${dataset.exchange}-${dataset.interval}`;
+      datasets.set(key, dataset);
+    }
+    
+    // Now start the transaction
     const transaction = this.db!.transaction(['marketData', 'datasets'], 'readwrite');
     const marketStore = transaction.objectStore('marketData');
     const datasetStore = transaction.objectStore('datasets');
     
-    // Group by symbol/exchange/interval for dataset info
-    const datasets = new Map<string, DatasetInfo>();
+    let newCandlesAdded = 0;
+    const promises: Promise<boolean>[] = [];
     
+    // First, create all the requests without awaiting
     for (const candle of candles) {
       const key = `${candle.symbol}-${candle.exchange}-${candle.interval}`;
       
@@ -79,12 +89,12 @@ export class DataStorage {
         candle.timestamp
       ]);
       
-      await new Promise((resolve, reject) => {
+      const promise = new Promise<boolean>((resolve, reject) => {
         existingRequest.onsuccess = () => {
           if (!existingRequest.result) {
             // Add new candle
             const addRequest = marketStore.add(candle);
-            addRequest.onsuccess = resolve;
+            addRequest.onsuccess = () => resolve(true);
             addRequest.onerror = reject;
           } else {
             // Update existing candle
@@ -93,40 +103,68 @@ export class DataStorage {
               ...candle,
               id: existingRequest.result.id
             });
-            updateRequest.onsuccess = resolve;
+            updateRequest.onsuccess = () => resolve(false);
             updateRequest.onerror = reject;
           }
         };
         existingRequest.onerror = reject;
       });
       
+      promises.push(promise);
+    }
+    
+    // Now wait for all operations to complete
+    const results = await Promise.all(promises);
+    
+    // Process results and update dataset info
+    for (let i = 0; i < candles.length; i++) {
+      const candle = candles[i];
+      const isNewCandle = results[i];
+      const key = `${candle.symbol}-${candle.exchange}-${candle.interval}`;
+      
+      if (isNewCandle) {
+        newCandlesAdded++;
+      }
+      
       // Update dataset info
       if (!datasets.has(key)) {
+        // This is a new dataset we haven't seen before
         datasets.set(key, {
           symbol: candle.symbol,
           exchange: candle.exchange,
           interval: candle.interval || '1m',
           startTime: candle.timestamp,
           endTime: candle.timestamp,
-          candleCount: 1,
+          candleCount: 1, // Start with 1 since we're adding this candle
           lastUpdated: Date.now()
         });
       } else {
         const info = datasets.get(key)!;
+        // Update time range
         info.startTime = Math.min(info.startTime, candle.timestamp);
         info.endTime = Math.max(info.endTime, candle.timestamp);
-        info.candleCount++;
+        // Only increment count if this is actually a new candle
+        if (isNewCandle) {
+          info.candleCount++;
+        }
+        info.lastUpdated = Date.now();
       }
     }
     
-    // Update dataset info
-    for (const info of datasets.values()) {
-      await new Promise((resolve, reject) => {
+    // Update dataset info in database - do this in a batch too
+    const datasetPromises: Promise<void>[] = [];
+    for (const [key, info] of datasets.entries()) {
+      const promise = new Promise<void>((resolve, reject) => {
         const request = datasetStore.put(info);
-        request.onsuccess = resolve;
-        request.onerror = reject;
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
       });
+      datasetPromises.push(promise);
     }
+    
+    await Promise.all(datasetPromises);
+    
+    console.log(`Saved ${candles.length} candles, ${newCandlesAdded} were new. Total datasets: ${datasets.size}`);
     
     // Cleanup old data if needed
     await this.cleanupOldData();
@@ -195,6 +233,68 @@ export class DataStorage {
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
+  }
+  
+  async refreshDatasetInfo(): Promise<void> {
+    if (!this.db) await this.init();
+    
+    console.log('Refreshing dataset info...');
+    
+    // Get all unique symbol/exchange/interval combinations
+    const datasets = new Map<string, DatasetInfo>();
+    
+    const transaction = this.db!.transaction(['marketData'], 'readonly');
+    const store = transaction.objectStore('marketData');
+    
+    const allCandles = await new Promise<StoredMarketData[]>((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    
+    // Group candles by dataset
+    for (const candle of allCandles) {
+      const key = `${candle.symbol}-${candle.exchange}-${candle.interval || '1m'}`;
+      
+      if (!datasets.has(key)) {
+        datasets.set(key, {
+          symbol: candle.symbol,
+          exchange: candle.exchange,
+          interval: candle.interval || '1m',
+          startTime: candle.timestamp,
+          endTime: candle.timestamp,
+          candleCount: 1,
+          lastUpdated: Date.now()
+        });
+      } else {
+        const info = datasets.get(key)!;
+        info.startTime = Math.min(info.startTime, candle.timestamp);
+        info.endTime = Math.max(info.endTime, candle.timestamp);
+        info.candleCount++;
+      }
+    }
+    
+    // Update dataset store
+    const updateTransaction = this.db!.transaction(['datasets'], 'readwrite');
+    const datasetStore = updateTransaction.objectStore('datasets');
+    
+    // Clear existing datasets
+    await new Promise((resolve, reject) => {
+      const clearRequest = datasetStore.clear();
+      clearRequest.onsuccess = () => resolve(undefined);
+      clearRequest.onerror = () => reject(clearRequest.error);
+    });
+    
+    // Add refreshed datasets
+    for (const info of datasets.values()) {
+      await new Promise((resolve, reject) => {
+        const request = datasetStore.put(info);
+        request.onsuccess = resolve;
+        request.onerror = reject;
+      });
+    }
+    
+    console.log(`Refreshed ${datasets.size} datasets with total ${allCandles.length} candles`);
   }
   
   async getLatestCandle(symbol: string, exchange: string): Promise<StoredMarketData | null> {

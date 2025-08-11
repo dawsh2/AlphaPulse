@@ -8,8 +8,8 @@ set -e  # Exit on any error
 echo "🚀 Deploying AlphaPulse React UI to Site..."
 
 # Check if source directory exists
-if [ ! -d "/Users/daws/alphapulse/ap/alphapulse-ui" ]; then
-    echo "❌ Error: Source directory /Users/daws/alphapulse/ap/alphapulse-ui not found"
+if [ ! -d "/Users/daws/alphapulse/frontend" ]; then
+    echo "❌ Error: Source directory /Users/daws/alphapulse/frontend not found"
     exit 1
 fi
 
@@ -20,7 +20,7 @@ if [ ! -d "/Users/daws/alphapulse-site" ]; then
 fi
 
 # Navigate to source directory
-cd /Users/daws/alphapulse/ap/alphapulse-ui
+cd /Users/daws/alphapulse/frontend
 
 # Check if node_modules exists
 if [ ! -d "node_modules" ]; then
@@ -66,7 +66,7 @@ find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name 'CNAME' -exec rm -rf {} \;
 # Copy new files from build output
 echo "📂 Copying new files from React build..."
 # Use rsync for more reliable copying
-rsync -av --exclude='.git' /Users/daws/alphapulse/ap/alphapulse-ui/dist/ ./
+rsync -av --exclude='.git' /Users/daws/alphapulse/frontend/dist/ ./
 
 # Restore CNAME file if it was backed up
 if [ ! -z "$CNAME_BACKUP" ]; then
@@ -114,4 +114,4 @@ fi
 echo ""
 echo "🔗 Site should be available at your GitHub Pages URL"
 echo "📁 Local site directory: /Users/daws/alphapulse-site"
-echo "📦 React build output: /Users/daws/alphapulse/ap/alphapulse-ui/dist"
+echo "📦 React build output: /Users/daws/alphapulse/frontend/dist"

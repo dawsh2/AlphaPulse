@@ -1,147 +1,147 @@
 /**
- * Hook for managing market data subscriptions
+ * useMarketData Hook - Custom hook for market data operations
+ * Provides data fetching, caching, and state management
  */
+import { useState, useEffect, useCallback } from 'react';
+import { dataService, type DataSummary, type QueryResult } from '../services/api/dataService';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { AlphaPulseAPI } from '../services/api';
-import type { MarketBar } from '../types';
-
-interface UseMarketDataOptions {
-  autoConnect?: boolean;
-  maxDataPoints?: number;
-  throttleMs?: number;
+interface UseMarketDataResult {
+  datasets: DataSummary['symbols'];
+  loading: boolean;
+  error: string | null;
+  refreshDatasets: () => Promise<void>;
+  queryData: (query: string) => Promise<QueryResult>;
+  queryLoading: boolean;
 }
 
-export function useMarketData(
-  symbol: string,
-  timeframe: string = '1m',
-  options: UseMarketDataOptions = {}
-) {
-  const {
-    autoConnect = true,
-    maxDataPoints = 10000,
-    throttleMs = 1000,
-  } = options;
-
-  const [data, setData] = useState<MarketBar[]>([]);
+export const useMarketData = (): UseMarketDataResult => {
+  const [datasets, setDatasets] = useState<DataSummary['symbols']>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [livePrice, setLivePrice] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [queryLoading, setQueryLoading] = useState(false);
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const lastUpdateRef = useRef<number>(0);
-
-  // Load historical data
-  const loadHistoricalData = useCallback(async () => {
+  const refreshDatasets = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const historicalData = await AlphaPulseAPI.marketData.getBars(
-        symbol,
-        timeframe,
-        500 // Load last 500 bars
-      );
-      
-      setData(historicalData);
-      
-      if (historicalData.length > 0) {
-        setLivePrice(historicalData[historicalData.length - 1].close);
-      }
+      const summary = await dataService.getDataSummary();
+      setDatasets(summary.symbols);
     } catch (err) {
-      setError(err as Error);
+      setError(err instanceof Error ? err.message : 'Failed to fetch datasets');
+      console.error('Error fetching datasets:', err);
     } finally {
       setLoading(false);
     }
-  }, [symbol, timeframe]);
+  }, []);
 
-  // Connect to WebSocket
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      return;
-    }
-
+  const queryData = useCallback(async (query: string): Promise<QueryResult> => {
+    setQueryLoading(true);
     try {
-      const ws = AlphaPulseAPI.marketData.connectLive(
-        [symbol],
-        (newData) => {
-          const now = Date.now();
-          
-          // Throttle updates
-          if (throttleMs && now - lastUpdateRef.current < throttleMs) {
-            return;
-          }
-          lastUpdateRef.current = now;
-
-          // Update live price
-          if ('price' in newData) {
-            setLivePrice(newData.price);
-          }
-
-          // Update or add candle
-          if ('time' in newData && 'close' in newData) {
-            setData(prev => {
-              const updated = [...prev];
-              const existingIndex = updated.findIndex(d => d.time === newData.time);
-              
-              if (existingIndex >= 0) {
-                updated[existingIndex] = newData as MarketBar;
-              } else {
-                updated.push(newData as MarketBar);
-                
-                // Limit data points
-                if (updated.length > maxDataPoints) {
-                  updated.shift();
-                }
-              }
-              
-              return updated;
-            });
-          }
-        }
-      );
-
-      ws.onopen = () => setConnected(true);
-      ws.onclose = () => setConnected(false);
-      ws.onerror = (err) => setError(new Error('WebSocket error'));
-
-      wsRef.current = ws;
+      const result = await dataService.queryData(query);
+      return result;
     } catch (err) {
-      setError(err as Error);
-    }
-  }, [symbol, throttleMs, maxDataPoints]);
-
-  // Disconnect from WebSocket
-  const disconnect = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-      setConnected(false);
+      const error = err instanceof Error ? err.message : 'Query failed';
+      throw new Error(error);
+    } finally {
+      setQueryLoading(false);
     }
   }, []);
 
-  // Auto-connect on mount if enabled
+  // Load datasets on mount
   useEffect(() => {
-    if (autoConnect) {
-      loadHistoricalData().then(() => {
-        connect();
-      });
-    }
-
-    return () => {
-      disconnect();
-    };
-  }, [symbol, timeframe, autoConnect]);
+    refreshDatasets();
+  }, [refreshDatasets]);
 
   return {
-    data,
+    datasets,
     loading,
     error,
-    connected,
-    livePrice,
-    connect,
-    disconnect,
-    refresh: loadHistoricalData,
+    refreshDatasets,
+    queryData,
+    queryLoading,
   };
+};
+
+interface UseCorrelationResult {
+  correlation: number | null;
+  loading: boolean;
+  error: string | null;
+  getCorrelation: (symbol1: string, symbol2: string) => Promise<void>;
+  symbol1Stats: Record<string, any> | null;
+  symbol2Stats: Record<string, any> | null;
 }
+
+export const useCorrelation = (): UseCorrelationResult => {
+  const [correlation, setCorrelation] = useState<number | null>(null);
+  const [symbol1Stats, setSymbol1Stats] = useState<Record<string, any> | null>(null);
+  const [symbol2Stats, setSymbol2Stats] = useState<Record<string, any> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const getCorrelation = useCallback(async (symbol1: string, symbol2: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await dataService.getCorrelation(symbol1, symbol2);
+      setCorrelation(result.correlation);
+      setSymbol1Stats(result.symbol1_stats);
+      setSymbol2Stats(result.symbol2_stats);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get correlation');
+      setCorrelation(null);
+      setSymbol1Stats(null);
+      setSymbol2Stats(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return {
+    correlation,
+    loading,
+    error,
+    getCorrelation,
+    symbol1Stats,
+    symbol2Stats,
+  };
+};
+
+// Hook for correlation matrix
+interface UseCorrelationMatrixResult {
+  correlations: Record<string, Record<string, number>> | null;
+  statistics: Record<string, any> | null;
+  loading: boolean;
+  error: string | null;
+  getCorrelationMatrix: (symbols: string[], exchange?: string) => Promise<void>;
+}
+
+export const useCorrelationMatrix = (): UseCorrelationMatrixResult => {
+  const [correlations, setCorrelations] = useState<Record<string, Record<string, number>> | null>(null);
+  const [statistics, setStatistics] = useState<Record<string, any> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const getCorrelationMatrix = useCallback(async (symbols: string[], exchange = 'coinbase') => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await dataService.getCorrelationMatrix(symbols, exchange);
+      setCorrelations(result.correlations);
+      setStatistics(result.statistics);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get correlation matrix');
+      setCorrelations(null);
+      setStatistics(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return {
+    correlations,
+    statistics,
+    loading,
+    error,
+    getCorrelationMatrix,
+  };
+};

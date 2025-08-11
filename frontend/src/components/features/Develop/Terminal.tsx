@@ -29,6 +29,7 @@ interface TerminalProps {
   setSplitOrientation: (orientation: 'horizontal' | 'vertical') => void;
   setSplitSize: (size: number) => void;
   setOutputOpen: (open: boolean) => void;
+  setEditorHidden?: (hidden: boolean) => void;
   onSplitDragStart: (e: React.MouseEvent) => void;
   onInitializeConsole: () => void;
   styles: Record<string, string>;
@@ -48,6 +49,7 @@ export const Terminal: React.FC<TerminalProps> = ({
   setSplitOrientation,
   setSplitSize,
   setOutputOpen,
+  setEditorHidden,
   onSplitDragStart,
   onInitializeConsole,
   styles
@@ -229,6 +231,18 @@ export const Terminal: React.FC<TerminalProps> = ({
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {editorHidden && setEditorHidden && (
+              <button 
+                className={styles.outputClose}
+                onClick={() => setEditorHidden(false)}
+                title="Show Editor (Ctrl+Shift+E)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="9" y1="3" x2="9" y2="21"></line>
+                </svg>
+              </button>
+            )}
             <button 
               className={styles.outputClose}
               onClick={() => {
