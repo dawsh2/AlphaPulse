@@ -21,6 +21,7 @@ from nautilus_integration import nt_api
 from api.data_routes import data_api
 from api.workspace_routes import workspace_api
 from api.terminal_routes import terminal_api
+from api.notebook_routes import notebook_bp
 
 # Validate configuration on startup
 if not Config.validate():
@@ -47,6 +48,7 @@ app.register_blueprint(nt_api)
 app.register_blueprint(data_api)
 app.register_blueprint(workspace_api)
 app.register_blueprint(terminal_api)
+app.register_blueprint(notebook_bp)
 
 # Global Alpaca client
 alpaca_client = create_alpaca_client()

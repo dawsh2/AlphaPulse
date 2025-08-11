@@ -69,7 +69,7 @@ export const NotebookView: React.FC<NotebookViewProps> = ({
     : notebookCells;
   
   return (
-    <div className={styles.notebookView} style={{ paddingBottom: '100px' }}>
+    <div className={styles.notebookView}>
       {/* Search Bar */}
       <div className={styles.notebookSearchBar}>
         <input

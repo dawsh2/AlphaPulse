@@ -7,6 +7,7 @@ import Editor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import { dataStorage } from '../services/data';
 import type { DatasetInfo } from '../services/data';
+import { notebookService } from '../services/notebookService';
 import { SqlQueryInterface } from '../components/research/SqlQueryInterface';
 import { StrategyCard } from '../components/research/StrategyCard';
 import { TearsheetModal } from '../components/research/TearsheetModal';
@@ -1382,63 +1383,47 @@ const ResearchPage: React.FC = () => {
   };
 
   const executeCell = async (cellId: string) => {
-    setNotebookCells(prev => 
-      prev.map(cell => 
-        cell.id === cellId ? { ...cell, isExecuting: true } : cell
-      )
-    );
-
-    // Simulate code execution
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Generate different outputs based on cell content
+    // Find the cell to execute
     const cell = notebookCells.find(c => c.id === cellId);
-    let output = 'Execution completed successfully.\nOutput: Sample analysis results...';
-    
-    if (cell?.content.includes('admf.load_signals')) {
-      output = `=== Overview ===
-Total Strategies Loaded: 3
-Time Range: 2023-01-01 to 2025-01-15
-Universe: US Equities (S&P 500)
+    if (!cell) return;
 
-=== Temporal Analysis ===
-Best Performing Period: Q2 2024 (+18.5%)
-Worst Performing Period: Q3 2023 (-7.2%)
-Average Monthly Return: 2.3%
-Volatility: 15.8%
-
-=== Performance Metrics ===
-Sharpe Ratio: 1.87
-Max Drawdown: -12.4%
-Win Rate: 62.3%
-Profit Factor: 1.92`;
-    } else if (cell?.content.includes('plot') || cell?.content.includes('chart')) {
-      output = `[Chart Output]
-📊 Strategy Performance Chart Generated
-- Equity curve plotted with confidence bands
-- Drawdown periods highlighted in red
-- Key statistics overlaid`;
-    } else if (cell?.content.includes('backtest')) {
-      output = `=== Backtest Results ===
-Total Trades: 142
-Winning Trades: 89 (62.7%)
-Losing Trades: 53 (37.3%)
-Average Win: +3.2%
-Average Loss: -1.8%
-Expectancy: $1,247 per trade`;
-    }
-
+    // Mark cell as executing
     setNotebookCells(prev => 
-      prev.map(cell => 
-        cell.id === cellId 
-          ? { 
-              ...cell, 
-              isExecuting: false, 
-              output
-            } 
-          : cell
+      prev.map(c => 
+        c.id === cellId ? { ...c, isExecuting: true } : c
       )
     );
+
+    try {
+      // Execute the code through Jupyter backend
+      const result = await notebookService.executeCode(cell.content);
+      
+      // Update cell with output or error
+      setNotebookCells(prev => 
+        prev.map(c => 
+          c.id === cellId 
+            ? { 
+                ...c, 
+                isExecuting: false, 
+                output: result.error || result.output || 'No output'
+              } 
+            : c
+        )
+      );
+    } catch (error) {
+      // Handle execution error
+      setNotebookCells(prev => 
+        prev.map(c => 
+          c.id === cellId 
+            ? { 
+                ...c, 
+                isExecuting: false, 
+                output: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              } 
+            : c
+        )
+      );
+    }
     
     // Auto-scroll to the cell with output
     setTimeout(() => {
