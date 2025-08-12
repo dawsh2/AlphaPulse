@@ -53,6 +53,7 @@ interface NotebookCell {
   type: 'code' | 'markdown' | 'ai-chat';
   content: string;
   output?: string;
+  images?: string[] | null;
   isExecuting?: boolean;
   showAiAnalysis?: boolean;
   isAiChat?: boolean;
@@ -508,6 +509,7 @@ interface DataCard {
   provider?: string;
   frequency?: string;
   coverage?: string;
+  records?: string;
   dataType?: 'market' | 'economic' | 'alternative' | 'custom';
   metrics?: {
     dataPoints?: string;
@@ -985,6 +987,7 @@ const ResearchPage: React.FC = () => {
   const [loadingBackendData, setLoadingBackendData] = useState(false);
   const [notebookCells, setNotebookCells] = useState<NotebookCell[]>([]);
   const [activeCell, setActiveCell] = useState<string | null>(null);
+  const [notebookName, setNotebookName] = useState<string>('Untitled Notebook');
   const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile sidebar state
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -1052,7 +1055,7 @@ const ResearchPage: React.FC = () => {
     ]
   };
 
-  const notebookTemplates: NotebookTemplate[] = [
+  const [notebookTemplates, setNotebookTemplates] = useState<NotebookTemplate[]>([
     {
       id: 'strategy_comparison',
       title: 'Strategy Comparison Analysis',
@@ -1082,22 +1085,20 @@ const ResearchPage: React.FC = () => {
         }
       ]
     }
-  ];
+  ]);
 
-  const savedNotebooks: SavedNotebook[] = [
-    {
-      id: 'notebook-1',
-      name: 'NVDA Momentum Analysis',
-      lastModified: '2025-01-15',
-      cells: []
-    },
-    {
-      id: 'notebook-2',
-      name: 'Portfolio Optimization',
-      lastModified: '2025-01-14',
-      cells: []
+  const [savedNotebooks, setSavedNotebooks] = useState<SavedNotebook[]>(() => {
+    // Load from localStorage on mount
+    const stored = localStorage.getItem('savedNotebooks');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return [];
+      }
     }
-  ];
+    return [];
+  });
 
   // Theme detection
   useEffect(() => {
@@ -1139,6 +1140,33 @@ const ResearchPage: React.FC = () => {
     });
     
     return () => observer.disconnect();
+  }, []);
+
+  // Fetch templates from backend
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const response = await fetch('http://localhost:5002/api/notebook/templates');
+        const data = await response.json();
+        if (data.templates) {
+          // Fetch full template details for each
+          const fullTemplates = await Promise.all(
+            data.templates.map(async (t: any) => {
+              const templateResponse = await fetch(`http://localhost:5002/api/notebook/templates/${t.id}`);
+              return templateResponse.json();
+            })
+          );
+          
+          // Update templates state with fetched templates
+          setNotebookTemplates(prevTemplates => [...fullTemplates, ...prevTemplates]);
+          console.log('Loaded templates from backend:', fullTemplates);
+        }
+      } catch (error) {
+        console.error('Failed to fetch templates:', error);
+      }
+    };
+    
+    fetchTemplates();
   }, []);
 
   // Initialize with default notebook cells
@@ -1324,8 +1352,34 @@ const ResearchPage: React.FC = () => {
   };
 
   const loadTemplate = (template: NotebookTemplate) => {
-    setNotebookCells(template.cells);
+    // Add unique IDs to template cells if they don't have them
+    const cellsWithIds = template.cells.map((cell, index) => ({
+      ...cell,
+      id: cell.id || `cell-${Date.now()}-${index}`
+    }));
+    setNotebookCells(cellsWithIds);
+    setNotebookName(template.title);
     setMainView('notebook');
+  };
+
+  const saveNotebook = () => {
+    const notebook: SavedNotebook = {
+      id: `notebook-${Date.now()}`,
+      name: notebookName,
+      lastModified: new Date().toISOString().split('T')[0],
+      cells: notebookCells
+    };
+    
+    // Update state
+    setSavedNotebooks(prev => {
+      const updated = [...prev, notebook];
+      // Save to localStorage
+      localStorage.setItem('savedNotebooks', JSON.stringify(updated));
+      return updated;
+    });
+    
+    // Optional: Show success message
+    console.log('Notebook saved:', notebook.name);
   };
 
   const addCell = (type: 'code' | 'markdown', afterId?: string) => {
@@ -1382,12 +1436,27 @@ const ResearchPage: React.FC = () => {
     );
   };
 
-  const executeCell = async (cellId: string) => {
+  const executeCell = async (cellId: string | undefined) => {
+    console.log('executeCell called with cellId:', cellId);
+    if (!cellId) {
+      console.error('executeCell called with undefined cellId');
+      return;
+    }
     // Find the cell to execute
     const cell = notebookCells.find(c => c.id === cellId);
-    if (!cell) return;
+    if (!cell) {
+      console.log('Cell not found:', cellId, 'Available cells:', notebookCells.map(c => c.id));
+      return;
+    }
 
-    // Mark cell as executing
+    // Don't execute markdown cells
+    if (cell.type === 'markdown') {
+      console.log('Skipping markdown cell');
+      return;
+    }
+
+    console.log('Executing code:', cell.content);
+    // Mark ONLY this cell as executing
     setNotebookCells(prev => 
       prev.map(c => 
         c.id === cellId ? { ...c, isExecuting: true } : c
@@ -1396,21 +1465,27 @@ const ResearchPage: React.FC = () => {
 
     try {
       // Execute the code through Jupyter backend
+      console.log('Calling notebookService.executeCode...');
       const result = await notebookService.executeCode(cell.content);
+      console.log('Execution result:', result);
       
       // Update cell with output or error
-      setNotebookCells(prev => 
-        prev.map(c => 
+      setNotebookCells(prev => {
+        const updatedCells = prev.map(c => 
           c.id === cellId 
             ? { 
                 ...c, 
                 isExecuting: false, 
-                output: result.error || result.output || 'No output'
+                output: result.error || result.output || 'No output',
+                images: result.images || null
               } 
             : c
-        )
-      );
+        );
+        console.log('Updated cells with output:', updatedCells.find(c => c.id === cellId));
+        return updatedCells;
+      });
     } catch (error) {
+      console.error('Execution error:', error);
       // Handle execution error
       setNotebookCells(prev => 
         prev.map(c => 
@@ -1597,7 +1672,7 @@ print(df.describe())`
     const backendDataCards: DataCard[] = datasets.map((dataset, index) => ({
       id: `backend-${dataset.symbol}-${dataset.exchange}`,
       title: `${dataset.symbol} (Live)`,
-      dataType: 'Market Data', 
+      dataType: 'market' as const, 
       description: `Live ${dataset.interval} market data from ${dataset.exchange} exchange`,
       provider: dataset.exchange.charAt(0).toUpperCase() + dataset.exchange.slice(1),
       tags: [
@@ -2315,6 +2390,9 @@ print(df.describe())`
         toggleAiAnalysis={toggleAiAnalysis}
         editorTheme={editorTheme}
         addCell={addCell}
+        notebookName={notebookName}
+        setNotebookName={setNotebookName}
+        onSaveNotebook={saveNotebook}
       />
     );
   };

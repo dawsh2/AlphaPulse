@@ -32,9 +32,9 @@ const SymbolSelector: React.FC<SymbolSelectorProps> = ({
   const [exchangeDropdownOpen, setExchangeDropdownOpen] = useState(false);
   
   // Refs for timeout management
-  const exchangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const timeframeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const strategyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const exchangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeframeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const strategyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const strategies = ['Mean Reversion v2', 'Momentum Breakout', 'Market Making'];
   const timeframes = ['tick', '1m', '5m', '15m', '1h', '1d'];

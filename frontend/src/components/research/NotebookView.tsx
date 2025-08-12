@@ -18,6 +18,7 @@ interface NotebookCell {
   type: 'code' | 'markdown' | 'ai-chat';
   content: string;
   output?: string;
+  images?: string[] | null;
   isExecuting?: boolean;
   showAiAnalysis?: boolean;
   isAiChat?: boolean;
@@ -38,6 +39,9 @@ interface NotebookViewProps {
   toggleAiAnalysis: (id: string) => void;
   editorTheme: string;
   addCell: (type: 'code' | 'markdown') => void;
+  notebookName?: string;
+  setNotebookName?: (name: string) => void;
+  onSaveNotebook?: () => void;
 }
 
 export const NotebookView: React.FC<NotebookViewProps> = ({
@@ -51,9 +55,79 @@ export const NotebookView: React.FC<NotebookViewProps> = ({
   addCellAfter,
   toggleAiAnalysis,
   editorTheme,
-  addCell
+  addCell,
+  notebookName = 'Untitled Notebook',
+  setNotebookName,
+  onSaveNotebook
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [shiftHeld, setShiftHeld] = useState(false);
+  const notebookRef = React.useRef<HTMLDivElement>(null);
+  const cellsContainerRef = React.useRef<HTMLDivElement>(null);
+  
+  // Track shift key state
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift' && !e.repeat) {
+        setShiftHeld(true);
+      }
+    };
+    
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setShiftHeld(false);
+      }
+    };
+    
+    // Reset on blur to handle alt-tab etc
+    const handleBlur = () => {
+      setShiftHeld(false);
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+  
+  // Handle wheel events when shift is held
+  React.useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.shiftKey) {
+        const target = e.target as HTMLElement;
+        console.log('Shift+scroll detected on:', target.className, target);
+        
+        // Check if we're anywhere in the notebook view
+        const isInNotebook = target.closest(`.${styles.notebookView}`);
+        if (isInNotebook) {
+          console.log('Inside notebook view, preventing default');
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Scroll the notebook container instead
+          if (cellsContainerRef.current) {
+            console.log('Scrolling container by', e.deltaY);
+            cellsContainerRef.current.scrollTop += e.deltaY;
+          } else {
+            console.log('No container ref!');
+          }
+          return false;
+        }
+      }
+    };
+    
+    // Add to window with capture to intercept before Monaco
+    window.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+    
+    return () => {
+      window.removeEventListener('wheel', handleWheel, { capture: true });
+    };
+  }, []);
   
   // Filter cells based on search query
   const filteredCells = searchQuery.trim() 
@@ -68,13 +142,100 @@ export const NotebookView: React.FC<NotebookViewProps> = ({
       })
     : notebookCells;
   
+  // Debug: Log cells to see if they have IDs
+  React.useEffect(() => {
+    console.log('Current notebook cells:', notebookCells.map(c => ({ id: c.id, type: c.type })));
+  }, [notebookCells]);
+  
   return (
-    <div className={styles.notebookView}>
-      {/* Search Bar */}
-      <div className={styles.notebookSearchBar}>
+    <div 
+      ref={notebookRef}
+      className={`${styles.notebookView} ${shiftHeld ? styles.shiftScrollMode : ''}`}
+    >
+      {/* Shift+Scroll indicator */}
+      {shiftHeld && (
+        <div className={styles.scrollModeIndicator}>
+          Shift+Scroll: Page scrolling enabled
+        </div>
+      )}
+      
+      {/* Header with notebook name and search */}
+      <div className={styles.notebookHeader}>
+        <div className={styles.notebookTitle}>
+          {setNotebookName ? (
+            <>
+              <input
+                type="text"
+                value={notebookName}
+                onChange={(e) => setNotebookName(e.target.value)}
+                className={styles.notebookNameInput}
+                placeholder="Notebook name"
+              />
+              <button
+                className={styles.saveNotebookButton}
+                onClick={() => {
+                  if (onSaveNotebook) {
+                    onSaveNotebook();
+                  } else {
+                    // Fallback save logic
+                    const savedNotebook = {
+                      id: `notebook-${Date.now()}`,
+                      name: notebookName,
+                      lastModified: new Date().toISOString().split('T')[0],
+                      cells: notebookCells
+                    };
+                    
+                    // Save to localStorage
+                    const existingNotebooks = JSON.parse(localStorage.getItem('savedNotebooks') || '[]');
+                    existingNotebooks.push(savedNotebook);
+                    localStorage.setItem('savedNotebooks', JSON.stringify(existingNotebooks));
+                    
+                    console.log('Notebook saved:', savedNotebook);
+                  }
+                }}
+                title="Save notebook"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+              </button>
+              <button
+                className={styles.cleanupKernelButton}
+                onClick={async () => {
+                  try {
+                    const response = await fetch('http://localhost:5002/api/notebook/cleanup', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' }
+                    });
+                    const data = await response.json();
+                    console.log('Kernel cleanup:', data);
+                    // Show a toast or notification
+                    alert(data.message || 'Kernel cleaned up');
+                  } catch (error) {
+                    console.error('Failed to cleanup kernel:', error);
+                    alert('Failed to cleanup kernel');
+                  }
+                }}
+                title="Cleanup kernel (releases DuckDB locks)"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18"/>
+                  <path d="M8 6V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2"/>
+                  <path d="M19 6v14c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+              </button>
+            </>
+          ) : (
+            <span className={styles.notebookNameDisplay}>{notebookName}</span>
+          )}
+        </div>
         <input
           type="text"
-          placeholder="Search cells... (content, output, or AI messages)"
+          placeholder="Search cells..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className={styles.notebookSearchInput}
@@ -95,7 +256,10 @@ export const NotebookView: React.FC<NotebookViewProps> = ({
         )}
       </div>
       
-      <div className={styles.notebookCells}>
+      <div 
+        ref={cellsContainerRef} 
+        className={styles.notebookCells}
+      >
         {filteredCells.map(cell => {
           // Render AI chat cells differently
           if (cell.type === 'ai-chat') {
@@ -316,7 +480,11 @@ print(attribution)`;
                 <span className={styles.cellType}>{cell.type}</span>
                 <div className={styles.cellActions}>
                   <button 
-                    onClick={() => executeCell(cell.id)} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Execute button clicked for cell:', cell.id);
+                      executeCell(cell.id);
+                    }} 
                     disabled={cell.isExecuting}
                     className={styles.cellActionBtn}
                     title="Run cell"
@@ -360,7 +528,13 @@ print(attribution)`;
                         fontSize: 13,
                         lineNumbers: 'on',
                         folding: true,
-                        padding: { top: 10, bottom: 10 }
+                        padding: { top: 10, bottom: 10 },
+                        scrollBeyondLastLine: false,
+                        scrollbar: {
+                          alwaysConsumeMouseWheel: false,
+                          vertical: 'auto',
+                          horizontal: 'auto'
+                        }
                       }}
                     />
                   </div>
@@ -374,6 +548,12 @@ print(attribution)`;
                       theme={editorTheme}
                       options={{
                         minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        scrollbar: {
+                          alwaysConsumeMouseWheel: false,
+                          vertical: 'auto',
+                          horizontal: 'auto'
+                        },
                         lineNumbers: 'off',
                         folding: false,
                         fontSize: 14,
@@ -385,7 +565,7 @@ print(attribution)`;
                 )}
               </div>
               
-              {cell.output && (
+              {(cell.output || cell.images) && (
                 <div className={styles.cellOutput}>
                   <div className={styles.outputHeader}>
                     <span className={styles.outputLabel}>Output</span>
@@ -457,7 +637,15 @@ print(attribution)`;
                       <span>AI Analysis</span>
                     </button>
                   </div>
-                  <pre>{cell.output}</pre>
+                  {cell.output && <pre>{cell.output}</pre>}
+                  {cell.images && cell.images.map((imageData, idx) => (
+                    <img 
+                      key={idx}
+                      src={`data:image/png;base64,${imageData}`}
+                      alt={`Plot ${idx + 1}`}
+                      style={{ maxWidth: '100%', marginTop: '10px' }}
+                    />
+                  ))}
                 </div>
               )}
             </div>

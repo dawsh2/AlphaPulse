@@ -14,6 +14,7 @@ interface DataCard {
   provider?: string;
   frequency?: string;
   coverage?: string;
+  records?: string;
   dataType?: 'market' | 'economic' | 'alternative' | 'custom';
   metrics?: {
     dataPoints?: string;

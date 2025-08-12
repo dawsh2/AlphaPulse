@@ -37,7 +37,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     // Suppress clipboard errors globally
     const originalError = window.onerror;
     window.onerror = (message, source, lineno, colno, error) => {
-      if (error?.name === 'NotAllowedError' && message.includes('clipboard')) {
+      if (error?.name === 'NotAllowedError' && typeof message === 'string' && message.includes('clipboard')) {
         return true; // Prevent error from being logged
       }
       if (originalError) {

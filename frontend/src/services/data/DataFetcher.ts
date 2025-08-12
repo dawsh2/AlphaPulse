@@ -120,10 +120,10 @@ export class DataFetcher {
     const krakenPair = krakenSymbolMap[symbol] || symbol.replace('/', '');
     
     try {
-      // Kraken API expects 'since' parameter in seconds
-      const url = `https://api.kraken.com/0/public/OHLC?pair=${krakenPair}&interval=1&since=${startTime}`;
+      // Use proxy to avoid CORS issues
+      const proxyUrl = `http://localhost:5001/api/proxy/kraken/0/public/OHLC?pair=${krakenPair}&interval=1&since=${startTime}`;
       
-      const response = await fetch(url);
+      const response = await fetch(proxyUrl);
       const data = await response.json();
       
       if (data.error && data.error.length > 0) {

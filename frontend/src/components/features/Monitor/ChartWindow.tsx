@@ -50,7 +50,7 @@ export const ChartWindow: React.FC<ChartWindowProps> = ({
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
   const [exchangeDropdownOpen, setExchangeDropdownOpen] = useState(false);
   const [timeframeDropdownOpen, setTimeframeDropdownOpen] = useState(false);
-  const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
   const exchanges = exchangeManager.getAvailableExchanges();

@@ -33,7 +33,7 @@ export const SearchControls: React.FC<SearchControlsProps> = ({
   viewType = 'strategies',
 }) => {
   const isDataView = viewType === 'data';
-  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const getSortLabel = () => {
     if (isDataView) {

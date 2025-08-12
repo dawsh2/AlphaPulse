@@ -103,6 +103,44 @@ class DataService:
                 'status_code': 500
             }
     
+    def proxy_kraken_data(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Proxy requests to Kraken API to avoid CORS issues"""
+        try:
+            import requests
+            
+            # Construct Kraken API URL
+            base_url = "https://api.kraken.com"
+            url = f"{base_url}/{endpoint}"
+            
+            # Make request to Kraken
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    'status': 'success',
+                    'data': data,
+                    'status_code': 200
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': f'Kraken API error: {response.status_code}',
+                    'status_code': response.status_code
+                }
+        except requests.exceptions.Timeout:
+            return {
+                'status': 'error',
+                'message': 'Kraken API request timeout',
+                'status_code': 504
+            }
+        except Exception as e:
+            return {
+                'status': 'error',
+                'message': f'Unexpected error: {str(e)}',
+                'status_code': 500
+            }
+    
     def get_data_summary(self) -> Dict[str, Any]:
         """Get summary of all stored Parquet data"""
         try:

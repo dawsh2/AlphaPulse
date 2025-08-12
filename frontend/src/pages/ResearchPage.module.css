@@ -266,9 +266,140 @@
   flex: 1;
   min-height: 0;
   position: relative;
+  overflow-y: auto;
+}
+
+/* Shift+Scroll Mode Styles */
+.scrollModeIndicator {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: rgba(76, 175, 80, 0.95);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notebookView.shiftScrollMode {
+  /* Visual indicator that shift mode is active */
+  box-shadow: inset 0 0 0 2px rgba(76, 175, 80, 0.3);
+  transition: box-shadow 0.2s ease;
 }
 
 /* Notebook Search Bar */
+.notebookHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-secondary);
+  border-bottom: 2px solid var(--color-border-primary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.notebookTitle {
+  flex: 0 0 auto;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.notebookNameInput {
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  outline: none;
+  transition: all var(--transition-fast);
+  min-width: 200px;
+}
+
+.notebookNameInput:hover {
+  background: var(--color-bg-primary);
+  border-color: var(--color-border-secondary);
+}
+
+.notebookNameInput:focus {
+  background: var(--color-bg-primary);
+  border-color: var(--color-primary);
+}
+
+.notebookNameDisplay {
+  padding: var(--space-1) var(--space-2);
+}
+
+.saveNotebookButton {
+  padding: var(--space-2);
+  background: transparent;
+  border: 2px solid var(--color-border-secondary);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.saveNotebookButton:hover {
+  background: var(--color-bg-primary);
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.saveNotebookButton:active {
+  transform: scale(0.95);
+}
+
+.cleanupKernelButton {
+  padding: var(--space-2);
+  background: transparent;
+  border: 2px solid var(--color-border-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: var(--space-2);
+  color: var(--color-text-secondary);
+}
+
+.cleanupKernelButton:hover {
+  background: var(--color-bg-primary);
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+.cleanupKernelButton:active {
+  transform: scale(0.95);
+}
+
 .notebookSearchBar {
   display: flex;
   align-items: center;
@@ -375,6 +506,24 @@
   padding-bottom: var(--space-6);
   box-sizing: border-box;
   min-height: 0;
+  scroll-behavior: smooth;
+}
+
+/* When shift is held, show visual indicator */
+.shiftScrollMode .notebookCells {
+  box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.3);
+  transition: box-shadow 0.2s ease;
+}
+
+/* When notebook cells are focused */
+.notebookCells:focus {
+  outline: none;
+}
+
+/* When shift is held, blur Monaco editors to release focus */
+.shiftScrollMode .monaco-editor {
+  filter: brightness(0.95);
+  user-select: none;
 }
 
 .notebookCell {

@@ -113,6 +113,33 @@ def proxy_coinbase(endpoint):
         return add_cors_headers(response)
 
 
+@data_api.route('/api/proxy/kraken/<path:endpoint>', methods=['GET', 'OPTIONS'])
+def proxy_kraken(endpoint):
+    """Proxy requests to Kraken API to avoid CORS issues."""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = make_response()
+        return add_cors_headers(response)
+    
+    try:
+        # Forward query parameters
+        params = request.args.to_dict()
+        
+        data_service, _ = get_services()
+        result = data_service.proxy_kraken_data(endpoint, params)
+        
+        if result['status'] == 'error':
+            response = make_response(jsonify({'error': result['message']}), result['status_code'])
+        else:
+            response = make_response(jsonify(result['data']), result['status_code'])
+        
+        return add_cors_headers(response)
+        
+    except Exception as e:
+        response = make_response(jsonify({'error': f'Unexpected error: {str(e)}'}), 500)
+        return add_cors_headers(response)
+
+
 @data_api.route('/api/data/summary', methods=['GET', 'OPTIONS'])
 def get_data_summary():
     """Get summary of all data stored in Parquet files."""

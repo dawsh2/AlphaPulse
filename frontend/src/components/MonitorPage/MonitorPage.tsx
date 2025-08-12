@@ -330,7 +330,7 @@ const MonitorPage: React.FC = () => {
       
       // In development, React StrictMode calls cleanup immediately after effect
       // This breaks our async data loading, so skip cleanup in dev
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('[MonitorPage] Skipping cleanup in development mode (React StrictMode)');
         return;
       }

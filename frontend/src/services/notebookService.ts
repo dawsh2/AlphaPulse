@@ -5,6 +5,7 @@
 interface ExecuteResult {
   output: string | null;
   error: string | null;
+  images?: string[] | null;
 }
 
 interface KernelStatus {
@@ -17,7 +18,7 @@ class NotebookService {
   private baseUrl: string;
 
   constructor() {
-    // Use the same base URL as other services
+    // Use Flask backend with notebook routes on port 5002
     this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5002';
   }
 
