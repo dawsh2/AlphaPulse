@@ -146,8 +146,8 @@ impl OrderBookWriter {
                         "timestamp": latest.timestamp,
                         "symbol": latest.symbol,
                         "exchange": latest.exchange,
-                        "bids": latest.bids.iter().take(20).collect::<Vec<_>>(), // Top 20 levels
-                        "asks": latest.asks.iter().take(20).collect::<Vec<_>>(), // Top 20 levels
+                        "bids": &latest.bids, // ALL levels
+                        "asks": &latest.asks, // ALL levels
                         "sequence": latest.sequence,
                         "update_type": latest.update_type,
                     });

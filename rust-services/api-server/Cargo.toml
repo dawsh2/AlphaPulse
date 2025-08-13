@@ -21,3 +21,4 @@ metrics = { workspace = true }
 metrics-exporter-prometheus = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
+futures-util = { workspace = true }

@@ -1,8 +1,8 @@
-# AlphaPulse 📈
+# AlphaPulse
 
 > High-performance quantitative trading platform with event-driven architecture, real-time market data processing, and integrated research environment.
 
-## 🎯 Overview
+## Overview
 
 AlphaPulse is a hybrid Python/Rust trading system designed for cryptocurrency and equity markets. It combines the performance of Rust for data collection with Python's rich ecosystem for analytics and machine learning.
 
@@ -13,7 +13,7 @@ AlphaPulse is a hybrid Python/Rust trading system designed for cryptocurrency an
 │                                                                 │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
 │  │   Home   │  │  Develop │  │ Research │  │ Monitor  │     │
-│  │  📰 News │  │ 💻 IDE   │  │ 📊 Jupyter│  │ 📈 Charts│     │
+│  │    News  │  │    IDE   │  │  Jupyter │  │  Charts  │     │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
 │                                                                 │
 │  ┌───────────────────────────────────────────────────────┐    │
@@ -41,7 +41,7 @@ AlphaPulse is a hybrid Python/Rust trading system designed for cryptocurrency an
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## 🏗️ Architecture
+## Architecture
 
 ### Data Flow Architecture
 
@@ -108,7 +108,7 @@ else:
     repo = PythonMarketDataRepo()  # Current Python implementation
 ```
 
-## 🚀 Key Engineering Decisions
+## Key Engineering Decisions
 
 ### 1. **Hybrid Python/Rust Architecture**
 
@@ -188,7 +188,7 @@ class TradingService:
                     └─────────────┘     └─────────────┘
 ```
 
-## 📊 Performance Targets
+## Performance Targets
 
 | Metric | Current (Python) | Target (Rust) | Improvement |
 |--------|-----------------|---------------|-------------|
@@ -198,7 +198,7 @@ class TradingService:
 | Memory Usage | 2GB | 200MB | 10x |
 | Database Writes | 1,000/s | 10,000/s | 10x |
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
 - **Framework**: React 18 + TypeScript
@@ -232,7 +232,7 @@ class TradingService:
 - **Container**: Docker + docker-compose
 - **CI/CD**: GitHub Actions
 
-## 🚦 Getting Started
+## Getting Started
 
 ### Prerequisites
 ```bash
@@ -269,7 +269,7 @@ npm run dev
 # Access at http://localhost:5173
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 alphapulse/
@@ -295,19 +295,19 @@ alphapulse/
 └── docs/                   # Documentation
 ```
 
-## 🔄 Migration Status
+## Migration Status
 
 Currently migrating from Python to Rust for performance-critical components:
 
 | Phase | Status | Timeline | Description |
 |-------|--------|----------|-------------|
-| Phase 0 | 🟡 In Progress | 4 weeks | Service layer, monitoring setup |
-| Phase 1 | ⏳ Pending | 2 weeks | Rust PoC with single collector |
-| Phase 2 | ⏳ Pending | 4 weeks | All collectors in Rust |
-| Phase 3 | ⏳ Pending | 3 weeks | WebSocket infrastructure |
-| Phase 4 | ⏳ Pending | 2 weeks | Production deployment |
+| Phase 0 | In Progress | 4 weeks | Service layer, monitoring setup |
+| Phase 1 | Pending | 2 weeks | Rust PoC with single collector |
+| Phase 2 | Pending | 4 weeks | All collectors in Rust |
+| Phase 3 | Pending | 3 weeks | WebSocket infrastructure |
+| Phase 4 | Pending | 2 weeks | Production deployment |
 
-## 📈 Roadmap
+## Roadmap
 
 - [x] FastAPI migration from Flask
 - [x] Repository pattern implementation
@@ -318,15 +318,15 @@ Currently migrating from Python to Rust for performance-critical components:
 - [ ] Production deployment
 - [ ] ML strategy development
 
-## 🤝 Contributing
+## Contributing
 
 See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development guidelines.
 
-## 📄 License
+## License
 
 Proprietary - All rights reserved
 
-## 🔗 Links
+## Links
 
 - [Architecture Documentation](docs/architecture.md)
 - [API Documentation](docs/api.md)

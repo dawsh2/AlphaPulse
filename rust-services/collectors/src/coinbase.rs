@@ -187,7 +187,7 @@ impl CoinbaseCollector {
         let mut asks = Vec::new();
         
         if let Some(bid_array) = snapshot["bids"].as_array() {
-            for bid in bid_array.iter().take(20) { // Top 20 levels
+            for bid in bid_array.iter() { // ALL levels
                 if let Some(bid_data) = bid.as_array() {
                     if bid_data.len() >= 2 {
                         let price = bid_data[0].as_str().unwrap_or("0").parse().unwrap_or(0.0);
@@ -199,7 +199,7 @@ impl CoinbaseCollector {
         }
         
         if let Some(ask_array) = snapshot["asks"].as_array() {
-            for ask in ask_array.iter().take(20) { // Top 20 levels
+            for ask in ask_array.iter() { // ALL levels
                 if let Some(ask_data) = ask.as_array() {
                     if ask_data.len() >= 2 {
                         let price = ask_data[0].as_str().unwrap_or("0").parse().unwrap_or(0.0);
@@ -260,7 +260,7 @@ impl CoinbaseCollector {
                             } else {
                                 orderbook.bids.push(OrderBookLevel { price, size });
                                 orderbook.bids.sort_by(|a, b| b.price.partial_cmp(&a.price).unwrap());
-                                orderbook.bids.truncate(20); // Keep top 20
+                                // Keep ALL levels - no truncation
                             }
                         }
                     } else if side == "sell" {
@@ -275,7 +275,7 @@ impl CoinbaseCollector {
                             } else {
                                 orderbook.asks.push(OrderBookLevel { price, size });
                                 orderbook.asks.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
-                                orderbook.asks.truncate(20); // Keep top 20
+                                // Keep ALL levels - no truncation
                             }
                         }
                     }

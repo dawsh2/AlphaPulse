@@ -12,7 +12,7 @@ tokio = { version = "1.0", features = ["full"] }
 tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
 
 # Web framework
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 
@@ -50,3 +50,6 @@ url = "2.0"
 
 # UUID
 uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Futures utilities
+futures-util = { version = "0.3" }

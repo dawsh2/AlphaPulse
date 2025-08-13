@@ -57,3 +57,26 @@ ap/catalog/
 # Instance directories
 instance/
 ap/instance/
+
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Rust workspace
+rust-services/target/
+collectors/target/
+
+# Coverage reports  
+htmlcov/
+.coverage
+
+# Backup files
+*.backup
+*~
+\#*#
+
+# Frontend
+frontend/dist/
+frontend/backups/

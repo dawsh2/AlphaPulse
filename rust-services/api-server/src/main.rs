@@ -2,6 +2,7 @@
 use alphapulse_api_server::{
     handlers::{health, trades, metrics as metrics_handler},
     state::AppState,
+    websocket,
 };
 use axum::{
     routing::get,
@@ -51,6 +52,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         // Metrics endpoint for Prometheus
         .route("/metrics", get(metrics_handler::prometheus_metrics))
+        
+        // WebSocket endpoint for real-time data
+        .route("/ws", get(websocket::websocket_handler))
         
         // Add state
         .with_state(app_state)

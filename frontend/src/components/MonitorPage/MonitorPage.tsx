@@ -4,6 +4,7 @@ import type { SidebarTab, PrimaryTab, ChartTab } from '../features/Monitor/Metri
 import SystemDashboard from '../features/Monitor/SystemDashboard';
 import CryptoDashboard from '../features/Monitor/CryptoDashboard';
 import GreeksDashboard from '../features/Monitor/GreeksDashboard';
+import RealTimeMarketData from '../features/Monitor/RealTimeMarketData';
 import PlaybackControls from '../features/Monitor/PlaybackControls';
 import type { PlaybackSpeed } from '../features/Monitor/PlaybackControls';
 import SymbolSelector from '../features/Monitor/SymbolSelector';
@@ -18,7 +19,7 @@ import type { EventData } from '../../types/monitor.types';
 const MonitorPage: React.FC = () => {
   // State management
   const [primaryTab, setPrimaryTab] = useState<PrimaryTab>('charts');
-  const [dashboardView, setDashboardView] = useState<'system' | 'crypto' | 'greeks'>('system');
+  const [dashboardView, setDashboardView] = useState<'system' | 'crypto' | 'greeks' | 'realtime'>('system');
   const [chartTab, setChartTab] = useState<ChartTab>('metrics');
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('metrics'); // Keep for backward compatibility
   const [isPlaying, setIsPlaying] = useState(false);
@@ -535,6 +536,12 @@ const MonitorPage: React.FC = () => {
                 >
                   Market Greeks
                 </button>
+                <button 
+                  className={`${styles.dashboardTab} ${dashboardView === 'realtime' ? styles.active : ''}`}
+                  onClick={() => setDashboardView('realtime')}
+                >
+                  Real-Time Data
+                </button>
               </div>
               
               {/* Dashboard Content */}
@@ -546,6 +553,11 @@ const MonitorPage: React.FC = () => {
               )}
               {dashboardView === 'greeks' && (
                 <GreeksDashboard className={styles.systemDashboardMain} />
+              )}
+              {dashboardView === 'realtime' && (
+                <div className={styles.systemDashboardMain}>
+                  <RealTimeMarketData symbols={['BTC-USD', 'ETH-USD']} channels={['trades', 'orderbook']} />
+                </div>
               )}
             </>
           )}

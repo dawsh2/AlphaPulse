@@ -17,6 +17,10 @@ impl RedisClient {
         Ok(Self { connection })
     }
     
+    pub fn get_connection(&self) -> MultiplexedConnection {
+        self.connection.clone()
+    }
+    
     pub async fn get_recent_trades(
         &self, 
         symbol: &str, 

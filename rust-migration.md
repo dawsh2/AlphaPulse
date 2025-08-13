@@ -692,3 +692,51 @@ The hybrid Rust/Python architecture leverages the strengths of both ecosystems:
 - **Python**: Data science and rapid business logic development
 
 This migration will position AlphaPulse for significant scale while maintaining development velocity for trading strategies and analytics.
+
+---
+
+## Appendix: Developer Dashboard for Migration Monitoring
+
+During the migration, developers need real-time visibility into data flows to verify the Rust services are working correctly. Since Grafana doesn't support WebSockets natively and we need to see raw orderbook depth and trade flows, a custom developer dashboard is recommended.
+
+### Implementation Strategy
+
+**Separate Dev Dashboard on Different Port**
+```bash
+# Main app runs on port 5173
+npm run dev:app
+
+# Developer dashboard runs on port 5174  
+npm run dev:dashboard
+
+# Or both together
+npm run dev  # Launches both via concurrently
+```
+
+**Architecture**
+```
+Development Environment:
+├── Main Frontend (5173)
+│   └── User-facing features (filtered data)
+└── Dev Dashboard (5174)
+    ├── WebSocket firehose connection
+    ├── Full orderbook visualization (all levels)
+    ├── Real-time data flow monitoring
+    ├── Exchange status panels
+    └── Latency/throughput metrics
+```
+
+**Key Components**
+- `/ws/dev/firehose` - Unfiltered WebSocket endpoint (dev only)
+- Full orderbook depth viewer (100+ levels)
+- Data flow visualization (Exchange → Rust → Storage)
+- Real-time metrics (trades/sec, latency histograms)
+
+**Benefits**
+1. Complete visibility during migration
+2. Verify Rust collectors are capturing all data
+3. Monitor performance improvements in real-time
+4. Debug data inconsistencies
+5. Not deployed to production (dev only)
+
+This approach provides the deep visibility needed during migration while keeping production frontend clean and performant.
