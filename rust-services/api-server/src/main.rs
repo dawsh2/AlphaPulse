@@ -1,8 +1,8 @@
 // AlphaPulse API Server - HTTP interface compatible with Python repository pattern
 use alphapulse_api_server::{
-    handlers::{health, trades, metrics as metrics_handler},
+    handlers::{health, trades, metrics as metrics_handler, candles, delta_stats},
     state::AppState,
-    websocket,
+    realtime_websocket_discovery::{initialize_discovery_websocket, discovery_websocket_handler},
 };
 use axum::{
     routing::get,
@@ -38,6 +38,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create application state
     let app_state = AppState::new().await?;
     
+    // Initialize service discovery WebSocket server
+    initialize_discovery_websocket().await?;
+    info!("🚀 Service discovery WebSocket server initialized (dynamic feeds)");
+    
     // Build the router
     let app = Router::new()
         // Health check
@@ -50,11 +54,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/summary", get(trades::get_data_summary))
         .route("/symbols/:exchange", get(trades::get_symbols))
         
+        // Candle/chart data endpoints (compatible with frontend)
+        .route("/api/market-data/:symbol/candles", get(candles::get_candles))
+        .route("/api/market-data/batch", axum::routing::post(candles::get_candles_batch))
+        .route("/api/market-data/save", axum::routing::post(candles::save_market_data))
+        
         // Metrics endpoint for Prometheus
         .route("/metrics", get(metrics_handler::prometheus_metrics))
         
-        // WebSocket endpoint for real-time data
-        .route("/ws", get(websocket::websocket_handler))
+        // Delta statistics endpoints (new in v1.0)
+        .route("/api/v1/delta-stats/:exchange/:symbol", get(delta_stats::get_delta_stats))
+        .route("/api/v1/delta-stats/summary", get(delta_stats::get_delta_summary))
+        .route("/api/v1/exchanges", get(delta_stats::get_exchanges))
+        .route("/api/v1/system/health", get(delta_stats::get_system_health))
+        .route("/api/v1/arbitrage/opportunities", get(delta_stats::get_arbitrage_opportunities))
+        
+        // WebSocket endpoints - Service discovery real-time streaming
+        .route("/ws", get(discovery_websocket_handler)) // Service discovery WebSocket (standardized route)
+        .route("/realtime", get(discovery_websocket_handler)) // Service discovery WebSocket (legacy compatibility)
         
         // Add state
         .with_state(app_state)

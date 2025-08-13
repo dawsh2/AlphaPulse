@@ -3,7 +3,7 @@ use alphapulse_common::{Result, Trade};
 use redis::{aio::MultiplexedConnection, AsyncCommands};
 use serde_json::Value;
 use std::collections::HashMap;
-use tracing::{debug, warn};
+use tracing::debug;
 
 pub struct RedisClient {
     connection: MultiplexedConnection,
@@ -27,49 +27,56 @@ impl RedisClient {
         exchange: &str, 
         limit: usize
     ) -> Result<Vec<Trade>> {
-        // Convert symbol format for Redis key (BTC/USD -> BTC-USD for Coinbase)
-        let redis_symbol = if exchange == "coinbase" {
-            symbol.replace("/", "-")
-        } else {
-            symbol.to_string()
-        };
-        
-        let pattern = format!("trade:trades:{}:{}:*", exchange, redis_symbol);
+        // Build the stream key: trades:exchange:symbol
+        let stream_key = format!("trades:{}:{}", exchange, symbol);
         
         let mut conn = self.connection.clone();
-        let keys: Vec<String> = conn
-            .keys(&pattern)
+        
+        // Read from Redis Stream using XREVRANGE (newest first)
+        // Format: XREVRANGE stream_key + - COUNT limit
+        let entries: Vec<(String, HashMap<String, String>)> = redis::cmd("XREVRANGE")
+            .arg(&stream_key)
+            .arg("+")  // Start from newest
+            .arg("-")  // To oldest
+            .arg("COUNT")
+            .arg(limit)
+            .query_async(&mut conn)
             .await
-            .unwrap_or_else(|_| Vec::new());
+            .unwrap_or_else(|e| {
+                debug!("Failed to read from stream {}: {}", stream_key, e);
+                Vec::new()
+            });
         
-        // Sort keys by timestamp (newest first) and limit
-        let mut timestamp_keys: Vec<(f64, String)> = keys
-            .into_iter()
-            .filter_map(|key| {
-                // Extract timestamp from key: trade:trades:exchange:symbol:timestamp
-                let parts: Vec<&str> = key.split(':').collect();
-                if parts.len() == 5 {
-                    parts[4].parse::<f64>().ok().map(|ts| (ts, key))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        
-        // Sort by timestamp descending (newest first)
-        timestamp_keys.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-        
-        // Get trade data for the most recent trades
+        // Convert stream entries to Trade objects
         let mut trades = Vec::new();
-        for (_, key) in timestamp_keys.into_iter().take(limit) {
-            if let Ok(Some(trade_json)) = conn.get::<String, Option<String>>(key).await {
+        for (_id, fields) in entries {
+            if let (Some(timestamp), Some(price), Some(volume)) = 
+                (fields.get("timestamp"), fields.get("price"), fields.get("volume")) {
+                
+                let trade = Trade {
+                    timestamp: timestamp.parse().unwrap_or(0.0),
+                    price: price.parse().unwrap_or(0.0),
+                    volume: volume.parse().unwrap_or(0.0),
+                    side: fields.get("side").cloned(),
+                    trade_id: fields.get("trade_id").cloned(),
+                    symbol: fields.get("symbol").cloned().unwrap_or_else(|| symbol.to_string()),
+                    exchange: fields.get("exchange").cloned().unwrap_or_else(|| exchange.to_string()),
+                };
+                trades.push(trade);
+            }
+        }
+        
+        // If no trades in stream, try the latest key as fallback
+        if trades.is_empty() {
+            let latest_key = format!("latest:{}:{}", exchange, symbol);
+            if let Ok(Some(trade_json)) = conn.get::<_, Option<String>>(&latest_key).await {
                 if let Ok(trade) = serde_json::from_str::<Trade>(&trade_json) {
                     trades.push(trade);
                 }
             }
         }
         
-        debug!("Retrieved {} trades for {}:{}", trades.len(), exchange, symbol);
+        debug!("Retrieved {} trades for {}:{} from stream", trades.len(), exchange, symbol);
         Ok(trades)
     }
     
@@ -81,21 +88,57 @@ impl RedisClient {
         end_timestamp: Option<f64>,
         limit: Option<usize>,
     ) -> Result<Vec<Trade>> {
-        // For now, use the same logic as get_recent_trades with filtering
-        let trades = self.get_recent_trades(symbol, exchange, limit.unwrap_or(1000)).await?;
+        let stream_key = format!("trades:{}:{}", exchange, symbol);
+        let mut conn = self.connection.clone();
         
-        let filtered_trades: Vec<Trade> = trades
-            .into_iter()
-            .filter(|trade| {
-                let ts = trade.timestamp;
-                let after_start = start_timestamp.map_or(true, |start| ts >= start);
-                let before_end = end_timestamp.map_or(true, |end| ts <= end);
-                after_start && before_end
-            })
-            .collect();
+        // Convert timestamps to Redis Stream IDs (milliseconds-sequence)
+        // If not provided, use full range
+        let start_id = start_timestamp
+            .map(|ts| format!("{}-0", (ts * 1000.0) as i64))
+            .unwrap_or_else(|| "-".to_string());
+        let end_id = end_timestamp
+            .map(|ts| format!("{}-9999", (ts * 1000.0) as i64))
+            .unwrap_or_else(|| "+".to_string());
         
-        debug!("Retrieved {} trades in range for {}:{}", filtered_trades.len(), exchange, symbol);
-        Ok(filtered_trades)
+        // Use XRANGE for chronological order with time range
+        let mut cmd = redis::cmd("XRANGE");
+        cmd.arg(&stream_key)
+           .arg(&start_id)
+           .arg(&end_id);
+        
+        if let Some(count) = limit {
+            cmd.arg("COUNT").arg(count);
+        }
+        
+        let entries: Vec<(String, HashMap<String, String>)> = cmd
+            .query_async(&mut conn)
+            .await
+            .unwrap_or_else(|e| {
+                debug!("Failed to read range from stream {}: {}", stream_key, e);
+                Vec::new()
+            });
+        
+        // Convert stream entries to Trade objects
+        let mut trades = Vec::new();
+        for (_id, fields) in entries {
+            if let (Some(timestamp), Some(price), Some(volume)) = 
+                (fields.get("timestamp"), fields.get("price"), fields.get("volume")) {
+                
+                let trade = Trade {
+                    timestamp: timestamp.parse().unwrap_or(0.0),
+                    price: price.parse().unwrap_or(0.0),
+                    volume: volume.parse().unwrap_or(0.0),
+                    side: fields.get("side").cloned(),
+                    trade_id: fields.get("trade_id").cloned(),
+                    symbol: fields.get("symbol").cloned().unwrap_or_else(|| symbol.to_string()),
+                    exchange: fields.get("exchange").cloned().unwrap_or_else(|| exchange.to_string()),
+                };
+                trades.push(trade);
+            }
+        }
+        
+        debug!("Retrieved {} trades in range for {}:{}", trades.len(), exchange, symbol);
+        Ok(trades)
     }
     
     pub async fn get_stream_info(&self, symbol: &str, exchange: &str) -> Result<HashMap<String, Value>> {

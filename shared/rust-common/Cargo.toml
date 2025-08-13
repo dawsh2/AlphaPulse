@@ -1,0 +1,23 @@
+[package]
+name = "alphapulse-common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+metrics = { workspace = true }
+redis = { workspace = true }
+reqwest = { workspace = true }
+sqlx = { workspace = true }
+url = { workspace = true }
+axum = { workspace = true }
+toml = "0.8"
+memmap2 = "0.9"

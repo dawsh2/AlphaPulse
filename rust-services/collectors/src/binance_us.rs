@@ -1,6 +1,12 @@
-// Binance.US WebSocket collector for USDT pairs
-use alphapulse_common::{Result, Trade, MetricsCollector};
+// Binance.US WebSocket collector for USDT pairs with L2 orderbook support
+use alphapulse_common::{
+    Result, Trade, MetricsCollector,
+    OrderBookUpdate, OrderBookLevel, OrderBookTracker,
+    OrderBookSnapshot, OrderBookDelta,
+    shared_memory::{OrderBookDeltaWriter, SharedOrderBookDelta}
+};
 use crate::collector_trait::MarketDataCollector;
+use std::collections::HashMap;
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -56,6 +62,11 @@ pub struct BinanceUSCollector {
     ws_url: String,
     healthy: Arc<AtomicBool>,
     metrics: Arc<MetricsCollector>,
+    orderbook_tx: Option<mpsc::Sender<OrderBookUpdate>>,
+    delta_tx: Option<mpsc::Sender<OrderBookDelta>>,
+    orderbooks: Arc<tokio::sync::RwLock<HashMap<String, OrderBookUpdate>>>,
+    orderbook_tracker: OrderBookTracker,
+    delta_writer: Option<Arc<tokio::sync::Mutex<OrderBookDeltaWriter>>>,
 }
 
 impl BinanceUSCollector {
@@ -71,6 +82,11 @@ impl BinanceUSCollector {
             ws_url: "wss://stream.binance.us:9443/ws".to_string(),
             healthy: Arc::new(AtomicBool::new(false)),
             metrics: Arc::new(MetricsCollector::new()),
+            orderbook_tx: None,
+            delta_tx: None,
+            orderbooks: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            orderbook_tracker: OrderBookTracker::new(50), // Track top 50 levels
+            delta_writer: None,
         }
     }
     
@@ -97,6 +113,55 @@ impl BinanceUSCollector {
         }
     }
     
+    pub fn with_orderbook_sender(mut self, tx: mpsc::Sender<OrderBookUpdate>) -> Self {
+        self.orderbook_tx = Some(tx);
+        self
+    }
+    
+    pub fn with_delta_sender(mut self, tx: mpsc::Sender<OrderBookDelta>) -> Self {
+        self.delta_tx = Some(tx);
+        self
+    }
+    
+    pub fn with_shared_memory_writer(mut self) -> Result<Self> {
+        // Create shared memory writer for orderbook deltas
+        let writer = OrderBookDeltaWriter::create(
+            "/tmp/alphapulse_shm/binance_orderbook_deltas", 
+            10000 // 10k capacity
+        )?;
+        self.delta_writer = Some(Arc::new(tokio::sync::Mutex::new(writer)));
+        Ok(self)
+    }
+    
+    fn convert_to_shared_delta(&self, delta: &OrderBookDelta) -> SharedOrderBookDelta {
+        let timestamp_ns = (delta.timestamp * 1_000_000_000.0) as u64;
+        let mut shared_delta = SharedOrderBookDelta::new(
+            timestamp_ns,
+            &delta.symbol,
+            &delta.exchange,
+            delta.version,
+            delta.prev_version
+        );
+        
+        // Add bid changes
+        for change in &delta.bid_changes {
+            if !shared_delta.add_change(change.price, change.volume, false, 0) {
+                warn!("Delta buffer full, some bid changes dropped");
+                break;
+            }
+        }
+        
+        // Add ask changes
+        for change in &delta.ask_changes {
+            if !shared_delta.add_change(change.price, change.volume, true, 0) {
+                warn!("Delta buffer full, some ask changes dropped");
+                break;
+            }
+        }
+        
+        shared_delta
+    }
+    
     async fn handle_message(&self, msg: Message, tx: &mpsc::Sender<Trade>) -> Result<()> {
         match msg {
             Message::Text(text) => {
@@ -121,7 +186,17 @@ impl BinanceUSCollector {
                         self.metrics.record_trade_processed("binance_us", &symbol_for_metrics);
                         self.metrics.record_websocket_message("binance_us", "trade");
                     }
-                } else {
+                }
+                // Try parsing as orderbook depth message
+                else if text.contains("\"e\":\"depthUpdate\"") || text.contains("@depth") {
+                    if let Ok(depth_msg) = serde_json::from_str::<serde_json::Value>(&text) {
+                        if self.orderbook_tx.is_some() || self.delta_tx.is_some() || self.delta_writer.is_some() {
+                            self.handle_binance_orderbook(depth_msg).await?;
+                            self.metrics.record_websocket_message("binance_us", "orderbook_update");
+                        }
+                    }
+                }
+                else {
                     // Handle other message types
                     if text.contains("\"result\":null") && text.contains("\"id\":") {
                         info!("Binance.US subscription confirmed");
@@ -214,6 +289,20 @@ impl BinanceUSCollector {
             info!("Subscribed to Binance.US trades for symbol: {}", symbol);
         }
         
+        // Subscribe to orderbook streams if we have orderbook handlers
+        if self.orderbook_tx.is_some() || self.delta_tx.is_some() || self.delta_writer.is_some() {
+            for (id, symbol) in self.symbols.iter().enumerate() {
+                let book_subscribe_msg = json!({
+                    "method": "SUBSCRIBE",
+                    "params": [format!("{}@depth20@100ms", symbol)], // 20-level depth at 100ms updates
+                    "id": id + 1000 // Offset IDs to avoid conflicts
+                });
+                
+                write.send(Message::Text(book_subscribe_msg.to_string())).await?;
+                info!("Subscribed to Binance.US orderbook for symbol: {}", symbol);
+            }
+        }
+        
         self.healthy.store(true, Ordering::Relaxed);
         self.metrics.record_websocket_connection_status("binance_us", true);
         
@@ -236,6 +325,117 @@ impl BinanceUSCollector {
         
         self.healthy.store(false, Ordering::Relaxed);
         self.metrics.record_websocket_connection_status("binance_us", false);
+        
+        Ok(())
+    }
+    
+    async fn handle_binance_orderbook(&self, msg: serde_json::Value) -> Result<()> {
+        // Parse Binance depth stream message format
+        if let Some(stream) = msg.get("stream").and_then(|s| s.as_str()) {
+            if let Some(data) = msg.get("data") {
+                // Extract symbol from stream name (e.g., "btcusdt@depth20@100ms" -> "btcusdt")
+                let symbol = stream.split('@').next().unwrap_or("");
+                let standard_symbol = Self::convert_symbol_from_binance(symbol);
+                
+                let timestamp = chrono::Utc::now().timestamp() as f64;
+                
+                // Parse bids and asks
+                let mut bids = Vec::new();
+                let mut asks = Vec::new();
+                
+                if let Some(bid_array) = data.get("bids").and_then(|b| b.as_array()) {
+                    for bid in bid_array.iter() {
+                        if let Some(bid_data) = bid.as_array() {
+                            if bid_data.len() >= 2 {
+                                let price = bid_data[0].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+                                let size = bid_data[1].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+                                if size > 0.0 { // Only include non-zero volumes
+                                    bids.push([price, size]);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if let Some(ask_array) = data.get("asks").and_then(|a| a.as_array()) {
+                    for ask in ask_array.iter() {
+                        if let Some(ask_data) = ask.as_array() {
+                            if ask_data.len() >= 2 {
+                                let price = ask_data[0].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+                                let size = ask_data[1].as_str().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+                                if size > 0.0 { // Only include non-zero volumes
+                                    asks.push([price, size]);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Create OrderBookSnapshot for delta tracking
+                let snapshot = OrderBookSnapshot {
+                    symbol: standard_symbol.clone(),
+                    exchange: "binance_us".to_string(),
+                    version: chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default() as u64,
+                    timestamp,
+                    bids: bids.clone(),
+                    asks: asks.clone(),
+                };
+                
+                // Update OrderBookTracker with snapshot
+                self.orderbook_tracker.update_snapshot(&standard_symbol, "binance_us", snapshot.clone()).await;
+                
+                // Compute delta if this is an update (not first snapshot)
+                if let Some(delta) = self.orderbook_tracker.compute_delta(&snapshot, &standard_symbol).await {
+                    // Send delta update via channel
+                    if let Some(tx) = &self.delta_tx {
+                        if let Err(e) = tx.send(delta.clone()).await {
+                            warn!("Failed to send Binance.US orderbook delta: {}", e);
+                        }
+                    }
+                    
+                    // Write delta to shared memory for ultra-low latency access
+                    if let Some(writer) = &self.delta_writer {
+                        let shared_delta = self.convert_to_shared_delta(&delta);
+                        let mut writer_guard = writer.lock().await;
+                        if let Err(e) = writer_guard.write_delta(&shared_delta) {
+                            warn!("Failed to write Binance.US delta to shared memory: {}", e);
+                        } else {
+                            info!(
+                                "🚀 Binance.US delta written to shared memory for {}: {} bid changes, {} ask changes (vs {} full levels)", 
+                                standard_symbol,
+                                delta.bid_changes.len(),
+                                delta.ask_changes.len(),
+                                bids.len() + asks.len()
+                            );
+                        }
+                    }
+                }
+                
+                // Create legacy OrderBookUpdate for backward compatibility
+                let orderbook = OrderBookUpdate {
+                    symbol: standard_symbol.clone(),
+                    exchange: "binance_us".to_string(),
+                    timestamp,
+                    bids,
+                    asks,
+                    sequence: None,
+                    update_type: Some("snapshot".to_string()),
+                };
+                
+                // Store in local cache
+                let mut orderbooks = self.orderbooks.write().await;
+                orderbooks.insert(standard_symbol.clone(), orderbook.clone());
+                
+                // Send to channel if available (backward compatibility)
+                if let Some(tx) = &self.orderbook_tx {
+                    if let Err(e) = tx.send(orderbook).await {
+                        warn!("Failed to send Binance.US orderbook update: {}", e);
+                    }
+                }
+                
+                info!("Processed orderbook for Binance.US symbol: {}", standard_symbol);
+            }
+        }
         
         Ok(())
     }

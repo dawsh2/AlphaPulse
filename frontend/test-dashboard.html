@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Test</title>
+</head>
+<body>
+    <h1>Testing Dashboard WebSocket</h1>
+    <div id="status">Connecting...</div>
+    <div id="data"></div>
+    <script>
+        const ws = new WebSocket('ws://localhost:8080/ws/dev/test');
+        const status = document.getElementById('status');
+        const data = document.getElementById('data');
+        let messageCount = 0;
+        
+        ws.onopen = () => {
+            status.textContent = 'Connected!';
+            ws.send(JSON.stringify({
+                type: 'subscribe',
+                streams: ['trades:*', 'orderbook:*', 'metrics', 'system']
+            }));
+        };
+        
+        ws.onmessage = (event) => {
+            messageCount++;
+            const msg = JSON.parse(event.data);
+            data.innerHTML = `
+                <p>Messages received: ${messageCount}</p>
+                <p>Last message type: ${msg.type}</p>
+                <pre>${JSON.stringify(msg.data || {}, null, 2).slice(0, 500)}</pre>
+            `;
+        };
+        
+        ws.onerror = (error) => {
+            status.textContent = 'Error: ' + error;
+        };
+        
+        ws.onclose = () => {
+            status.textContent = 'Disconnected';
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+# AlphaPulse Configuration File
+# Environment variables override these settings
+
+[server]
+api_port = 3001
+websocket_update_interval_ms = 500  # Reduced from 100ms
+health_check_interval_secs = 30
+
+[redis]
+url = "redis://localhost:6379"
+buffer_size = 1000
+batch_timeout_ms = 100
+
+[data]
+# Base directory for all data files
+base_dir = "/Users/daws/alphapulse/backend"
+parquet_dir = "market_data/parquet"
+
+[collectors]
+# Reconnection settings
+reconnect_delay_secs = 5
+max_reconnect_attempts = 10
+exponential_backoff = true
+backoff_multiplier = 2.0
+max_backoff_secs = 300
+
+# Symbol configuration
+# Internal format matches Coinbase (most common) for consistency
+[[collectors.symbols]]
+internal = "BTC-USD"
+coinbase = "BTC-USD"
+kraken = "XBT/USD"
+binance = "BTCUSDT"
+
+[[collectors.symbols]]
+internal = "ETH-USD"
+coinbase = "ETH-USD"
+kraken = "ETH/USD"
+binance = "ETHUSDT"
+
+[[collectors.symbols]]
+internal = "BTC-USDT"
+coinbase = "BTC-USDT"
+kraken = "XBT/USDT"
+binance = "BTCUSDT"
+
+[[collectors.symbols]]
+internal = "ETH-USDT"
+coinbase = "ETH-USDT"
+kraken = "ETH/USDT"
+binance = "ETHUSDT"
+
+[orderbook]
+# Performance settings
+max_depth = 1000  # Limit orderbook depth to top N levels
+delta_updates_enabled = true
+snapshot_interval_secs = 30
+compression_enabled = false  # Future: enable MessagePack
+
+[monitoring]
+prometheus_enabled = true
+prometheus_port = 9090
+jaeger_enabled = false
+jaeger_endpoint = "http://localhost:14268/api/traces"

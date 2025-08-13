@@ -4,7 +4,7 @@ use crate::state::AppState;
 
 pub async fn prometheus_metrics(State(state): State<AppState>) -> Result<Response<String>, StatusCode> {
     // Record the metrics request
-    state.metrics.record_http_request("GET", "/metrics", 200);
+    state.metrics.record_http_request("/metrics", 200);
     
     // Get metrics from the Prometheus registry
     let metrics_output = metrics_exporter_prometheus::PrometheusBuilder::new()

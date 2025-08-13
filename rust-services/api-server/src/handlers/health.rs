@@ -18,7 +18,7 @@ pub async fn health_check(State(state): State<AppState>) -> Json<Value> {
     });
     
     // Record health check metric
-    state.metrics.record_http_request("GET", "/health", 200);
+    state.metrics.record_http_request("/health", 200);
     
     Json(response)
 }

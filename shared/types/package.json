@@ -1,0 +1,13 @@
+{
+  "name": "@alphapulse/shared-types",
+  "version": "0.1.0",
+  "description": "Shared TypeScript type definitions for AlphaPulse",
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "build": "tsc --declaration --outDir dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

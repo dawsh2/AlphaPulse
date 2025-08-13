@@ -18,7 +18,7 @@ from httpx import AsyncClient
 import aiohttp
 
 # Import the FastAPI app
-from app import app
+from app_fastapi import app
 
 # Test configuration
 TEST_BASE_URL = "http://localhost:8080"

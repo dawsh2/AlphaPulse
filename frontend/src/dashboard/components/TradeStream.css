@@ -1,0 +1,120 @@
+.trade-stream {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.trade-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 11px;
+}
+
+.trade-stats .stat {
+  color: var(--text-muted);
+}
+
+.trade-stats .value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.trades-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.trades-header {
+  display: grid;
+  grid-template-columns: 80px 80px 80px 20px;
+  padding: 0.5rem;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+}
+
+.trades-list {
+  padding: 0.25rem 0;
+}
+
+.trade-row {
+  display: grid;
+  grid-template-columns: 80px 80px 80px 20px;
+  padding: 2px 0.5rem;
+  font-size: 11px;
+  font-family: 'SF Mono', monospace;
+  transition: background 0.1s;
+}
+
+.trade-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.trade-time {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.trade-price {
+  font-weight: 600;
+}
+
+.trade-row.buy .trade-price {
+  color: var(--accent-green);
+}
+
+.trade-row.sell .trade-price {
+  color: var(--accent-red);
+}
+
+.trade-volume {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.trade-indicator {
+  text-align: center;
+  font-size: 9px;
+}
+
+.trade-indicator.buy {
+  color: var(--accent-green);
+}
+
+.trade-indicator.sell {
+  color: var(--accent-red);
+}
+
+.trade-stream-footer {
+  padding: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: center;
+}
+
+.auto-scroll-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.auto-scroll-btn:hover {
+  border-color: var(--text-primary);
+}
+
+.auto-scroll-btn.active {
+  background: var(--accent-green);
+  color: var(--bg-primary);
+  border-color: var(--accent-green);
+}

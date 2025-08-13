@@ -1,0 +1,47 @@
+# Prometheus configuration for AlphaPulse monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'alphapulse'
+
+scrape_configs:
+  # Rust collectors metrics
+  - job_name: 'rust-collectors'
+    static_configs:
+      - targets: ['host.docker.internal:9000']
+        labels:
+          service: 'collectors'
+          language: 'rust'
+    metrics_path: '/metrics'
+    
+  # Rust API server metrics  
+  - job_name: 'rust-api'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+        labels:
+          service: 'api-server'
+          language: 'rust'
+    metrics_path: '/metrics'
+    
+  # Python FastAPI backend metrics
+  - job_name: 'python-backend'
+    static_configs:
+      - targets: ['host.docker.internal:5000']
+        labels:
+          service: 'backend'
+          language: 'python'
+    metrics_path: '/api/metrics'
+    
+  # Redis exporter (optional but useful)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+          
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

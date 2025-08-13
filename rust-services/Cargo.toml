@@ -2,7 +2,9 @@
 members = [
     "common",
     "collectors", 
-    "api-server"
+    "api-server",
+    "websocket-server",
+    "load-tester"
 ]
 resolver = "2"
 

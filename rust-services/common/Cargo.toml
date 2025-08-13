@@ -18,3 +18,56 @@ redis = { workspace = true }
 reqwest = { workspace = true }
 sqlx = { workspace = true }
 url = { workspace = true }
+axum = { workspace = true }
+toml = "0.8"
+memmap2 = "0.9"
+async-trait = "0.1"
+array-init = "2.1"
+
+[[bin]]
+name = "test_shared_memory"
+path = "src/bin/test_shared_memory.rs"
+
+[[bin]]
+name = "memory_layout_analysis"
+path = "src/bin/memory_layout_analysis.rs"
+
+[[bin]]
+name = "alignment_test"
+path = "src/bin/alignment_test.rs"
+
+[[bin]]
+name = "test_async_reader"
+path = "src/bin/test_async_reader.rs"
+
+[[bin]]
+name = "sigbus_investigation"
+path = "src/bin/sigbus_investigation.rs"
+
+[[bin]]
+name = "reader_investigation"
+path = "src/bin/reader_investigation.rs"
+
+[[bin]]
+name = "write_then_read_test"
+path = "src/bin/write_then_read_test.rs"
+
+[[bin]]
+name = "volatile_vs_normal_test"
+path = "src/bin/volatile_vs_normal_test.rs"
+
+[[bin]]
+name = "exact_api_server_test"
+path = "src/bin/exact_api_server_test.rs"
+
+[[bin]]
+name = "debug_event_driven_layout"
+path = "src/bin/debug_event_driven_layout.rs"
+
+[[bin]]
+name = "cross_process_atomic_test"
+path = "src/bin/cross_process_atomic_test.rs"
+
+[[bin]]
+name = "test_real_event_memory"
+path = "src/bin/test_real_event_memory.rs"

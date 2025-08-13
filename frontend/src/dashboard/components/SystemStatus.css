@@ -1,0 +1,70 @@
+.system-status {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.uptime {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.status-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.status-item {
+  display: grid;
+  grid-template-columns: 60px 1fr 50px;
+  align-items: center;
+  gap: 1rem;
+}
+
+.status-item .label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.progress-bar {
+  height: 20px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 10px;
+}
+
+.progress-fill.cpu {
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-yellow));
+}
+
+.progress-fill.memory {
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-yellow));
+}
+
+.progress-fill.disk {
+  background: linear-gradient(90deg, var(--accent-yellow), var(--accent-red));
+}
+
+.status-item .value {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.network-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 11px;
+  color: var(--text-secondary);
+}

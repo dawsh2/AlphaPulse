@@ -1,0 +1,250 @@
+.dashboard {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.header-left h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.header-right {
+  display: flex;
+  gap: 1rem;
+}
+
+.select-input {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.select-input:hover {
+  border-color: var(--text-primary);
+}
+
+.dashboard-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: minmax(200px, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+  overflow: auto;
+}
+
+.grid-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-item.span-2 {
+  grid-column: span 2;
+}
+
+.grid-item.span-3 {
+  grid-column: span 3;
+}
+
+.grid-item.span-4 {
+  grid-column: span 4;
+}
+
+/* Tab Navigation */
+.dashboard-tabs {
+  display: flex;
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-color);
+  padding: 0 2rem;
+  gap: 1px;
+}
+
+.tab-button {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tab-button:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.tab-button.active {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border-bottom-color: #4dabf7;
+}
+
+/* Content Area */
+.dashboard-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.todo-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary);
+  z-index: 10;
+  display: none;
+  padding: 1rem;
+  overflow: auto;
+}
+
+.todo-overlay.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.file-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary);
+  z-index: 10;
+  display: none;
+  padding: 1rem;
+  overflow: auto;
+}
+
+.file-overlay.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-content {
+  flex: 1;
+  padding: 1rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tab-content .grid-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-content .grid-item.span-4 {
+  grid-column: span 4;
+}
+
+/* Status indicator improvements */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6b6b;
+  transition: background-color 0.3s ease;
+}
+
+.status-dot.connected {
+  background: #51cf66;
+  box-shadow: 0 0 8px rgba(81, 207, 102, 0.4);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .grid-item.span-3 {
+    grid-column: span 2;
+  }
+  
+  .dashboard-tabs {
+    padding: 0 1rem;
+  }
+  
+  .tab-button {
+    padding: 0.75rem 1rem;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .header-left,
+  .header-right {
+    justify-content: center;
+  }
+  
+  .dashboard-tabs {
+    overflow-x: auto;
+    padding: 0 0.5rem;
+  }
+  
+  .tab-content {
+    padding: 0.5rem;
+  }
+}

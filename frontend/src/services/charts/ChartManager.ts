@@ -153,17 +153,17 @@ class ChartManager {
       
       // First try to get data from backend
       try {
-        const response = await fetch(`http://localhost:5001/api/crypto-data/${chart.symbol}?exchange=${chart.exchange}`);
+        const response = await fetch(`http://localhost:3001/api/market-data/${chart.symbol.replace('/', '-')}/candles?exchange=${chart.exchange}&granularity=60`);
         if (response.ok) {
           const backendData = await response.json();
-          if (backendData && backendData.data && backendData.data.length > 0) {
-            console.log(`[ChartManager] Loaded ${backendData.data.length} candles from backend`);
+          if (backendData && backendData.candles && backendData.candles.length > 0) {
+            console.log(`[ChartManager] Loaded ${backendData.candles.length} candles from backend`);
             
             // Convert backend data to MarketData format
-            const backendCandles = backendData.data
-              .sort((a: any, b: any) => a.timestamp - b.timestamp)
+            const backendCandles = backendData.candles
+              .sort((a: any, b: any) => a.time - b.time)
               .map((candle: any) => ({
-                time: candle.timestamp,
+                time: candle.time,
                 open: candle.open,
                 high: candle.high,
                 low: candle.low,
@@ -202,14 +202,14 @@ class ChartManager {
                   console.log(`[ChartManager] Fetched ${result.candleCount} gap candles`);
                   
                   // Reload data from backend to get the updated dataset
-                  const updatedResponse = await fetch(`http://localhost:5001/api/crypto-data/${chart.symbol}?exchange=${chart.exchange}`);
+                  const updatedResponse = await fetch(`http://localhost:3001/api/market-data/${chart.symbol.replace('/', '-')}/candles?exchange=${chart.exchange}&granularity=60`);
                   if (updatedResponse.ok) {
                     const updatedData = await updatedResponse.json();
-                    if (updatedData && updatedData.data && updatedData.data.length > 0) {
-                      chart.marketData = updatedData.data
-                        .sort((a: any, b: any) => a.timestamp - b.timestamp)
+                    if (updatedData && updatedData.candles && updatedData.candles.length > 0) {
+                      chart.marketData = updatedData.candles
+                        .sort((a: any, b: any) => a.time - b.time)
                         .map((candle: any) => ({
-                          time: candle.timestamp,
+                          time: candle.time,
                           open: candle.open,
                           high: candle.high,
                           low: candle.low,
@@ -465,7 +465,7 @@ class ChartManager {
       try {
         const candlesToStore = buffer.splice(0); // Clear buffer
         
-        const response = await fetch(`http://localhost:5001/api/market-data/save`, {
+        const response = await fetch(`http://localhost:3001/api/market-data/save`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -473,9 +473,8 @@ class ChartManager {
           body: JSON.stringify({
             symbol,
             exchange,
-            interval: '1m',
-            candles: candlesToStore.map(c => ({
-              timestamp: c.time,
+            data: candlesToStore.map(c => ({
+              time: c.time,
               open: c.open,
               high: c.high,
               low: c.low,

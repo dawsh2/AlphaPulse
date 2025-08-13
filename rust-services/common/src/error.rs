@@ -3,44 +3,59 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AlphaPulseError {
-    #[error("WebSocket connection error: {0}")]
-    WebSocketError(#[from] tokio_tungstenite::tungstenite::Error),
-    
     #[error("Redis error: {0}")]
     RedisError(#[from] redis::RedisError),
     
-    #[error("JSON serialization error: {0}")]
+    #[error("WebSocket error: {0}")]
+    WebSocketError(#[from] tokio_tungstenite::tungstenite::Error),
+    
+    #[error("JSON error: {0}")]
     JsonError(#[from] serde_json::Error),
     
-    #[error("HTTP client error: {0}")]
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+    
+    #[error("HTTP error: {0}")]
     HttpError(#[from] reqwest::Error),
-    
-    #[error("URL parse error: {0}")]
-    UrlParseError(#[from] url::ParseError),
-    
-    #[error("Parse error: {0}")]
-    ParseError(String),
-    
-    #[error("Configuration error: {0}")]
-    ConfigError(String),
-    
-    #[error("Network error: {0}")]
-    NetworkError(String),
-    
-    #[error("Exchange API error: {exchange} - {message}")]
-    ExchangeError {
-        exchange: String,
-        message: String,
-    },
-    
-    #[error("Buffer overflow: {0}")]
-    BufferOverflow(String),
     
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
     
-    #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
+    #[error("Parse error: {0}")]
+    ParseError(String),
+    
+    #[error("Config error: {0}")]
+    ConfigError(String),
+    
+    #[error("Channel send error")]
+    ChannelSendError,
+    
+    #[error("Service unavailable: {0}")]
+    ServiceUnavailable(String),
+    
+    #[error("Invalid data: {0}")]
+    InvalidData(String),
+    
+    #[error("Unknown error: {0}")]
+    Unknown(String),
+    
+    #[error("URL parse error: {0}")]
+    UrlParseError(#[from] url::ParseError),
+    
+    #[error("Buffer overflow: index {index} >= capacity {capacity}")]
+    BufferOverflow { index: usize, capacity: usize },
+    
+    #[error("System time error: {0}")]
+    SystemTimeError(#[from] std::time::SystemTimeError),
+    
+    #[error("Memory mapping error: {0}")]
+    MemoryMappingError(String),
+    
+    #[error("Invalid memory layout: expected size {expected}, got {actual}")]
+    InvalidMemoryLayout { expected: usize, actual: usize },
+    
+    #[error("Shared memory corruption detected")]
+    MemoryCorruption,
 }
 
 pub type Result<T> = std::result::Result<T, AlphaPulseError>;

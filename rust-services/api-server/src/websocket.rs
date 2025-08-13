@@ -17,16 +17,14 @@ use tracing::{info, warn, error, debug};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubscriptionRequest {
-    #[serde(rename = "type")]
-    pub msg_type: String,
+    pub msg_type: String,  // Frontend sends msg_type, not type
     pub channels: Vec<String>,
     pub symbols: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MarketDataUpdate {
-    #[serde(rename = "type")]
-    pub msg_type: String,
+    pub msg_type: String,  // Keep consistent with frontend expectations
     pub channel: String,
     pub symbol: String,
     pub data: serde_json::Value,
@@ -55,7 +53,12 @@ async fn handle_socket(socket: WebSocket, state: crate::state::AppState) {
     // Start real-time data pusher
     let state_clone = state.clone();
     let send_task = tokio::spawn(async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(100));
+        // Load config for update interval
+        let config = alphapulse_common::Config::load()
+            .unwrap_or_else(|_| alphapulse_common::Config::default());
+        let interval_ms = config.server.websocket_update_interval_ms;
+        
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(interval_ms));
         
         loop {
             interval.tick().await;
@@ -91,19 +94,32 @@ async fn handle_socket(socket: WebSocket, state: crate::state::AppState) {
             // Send orderbook snapshots if subscribed
             if subs.channels.contains(&"orderbook".to_string()) {
                 for symbol in &subs.symbols {
-                    if let Ok(orderbook) = get_orderbook(&state_clone, symbol).await {
-                        let update = MarketDataUpdate {
-                            msg_type: "orderbook".to_string(),
-                            channel: "orderbook".to_string(),
-                            symbol: symbol.clone(),
-                            data: orderbook,
-                            timestamp: chrono::Utc::now().timestamp() as f64,
-                        };
-                        
-                        if let Ok(json_str) = serde_json::to_string(&update) {
-                            if sender.send(Message::Text(json_str)).await.is_err() {
-                                return; // Client disconnected
+                    match get_orderbook(&state_clone, symbol).await {
+                        Ok(orderbook) => {
+                            // Check if we actually have data
+                            if let Some(bids) = orderbook.get("bids").and_then(|v| v.as_array()) {
+                                if !bids.is_empty() {
+                                    debug!("Sending orderbook for {} with {} bids", symbol, bids.len());
+                                    let update = MarketDataUpdate {
+                                        msg_type: "orderbook".to_string(),
+                                        channel: "orderbook".to_string(),
+                                        symbol: symbol.clone(),
+                                        data: orderbook,
+                                        timestamp: chrono::Utc::now().timestamp() as f64,
+                                    };
+                                    
+                                    if let Ok(json_str) = serde_json::to_string(&update) {
+                                        if sender.send(Message::Text(json_str)).await.is_err() {
+                                            return; // Client disconnected
+                                        }
+                                    }
+                                } else {
+                                    debug!("Orderbook for {} is empty", symbol);
+                                }
                             }
+                        }
+                        Err(e) => {
+                            debug!("Failed to get orderbook for {}: {}", symbol, e);
                         }
                     }
                 }
@@ -198,7 +214,33 @@ async fn get_orderbook(
     match conn.get::<_, Option<String>>(&key).await {
         Ok(Some(orderbook_json)) => {
             match serde_json::from_str::<serde_json::Value>(&orderbook_json) {
-                Ok(orderbook) => Ok(orderbook),
+                Ok(mut orderbook) => {
+                    // Transform the orderbook format from objects to arrays
+                    // Frontend expects [[price, volume], ...] format
+                    if let Some(bids) = orderbook.get("bids").and_then(|v| v.as_array()) {
+                        let transformed_bids: Vec<Vec<f64>> = bids.iter()
+                            .filter_map(|bid| {
+                                let price = bid.get("price")?.as_f64()?;
+                                let size = bid.get("size")?.as_f64()?;
+                                Some(vec![price, size])
+                            })
+                            .collect();
+                        orderbook["bids"] = json!(transformed_bids);
+                    }
+                    
+                    if let Some(asks) = orderbook.get("asks").and_then(|v| v.as_array()) {
+                        let transformed_asks: Vec<Vec<f64>> = asks.iter()
+                            .filter_map(|ask| {
+                                let price = ask.get("price")?.as_f64()?;
+                                let size = ask.get("size")?.as_f64()?;
+                                Some(vec![price, size])
+                            })
+                            .collect();
+                        orderbook["asks"] = json!(transformed_asks);
+                    }
+                    
+                    Ok(orderbook)
+                },
                 Err(e) => {
                     error!("Failed to parse orderbook JSON: {}", e);
                     Ok(json!({}))

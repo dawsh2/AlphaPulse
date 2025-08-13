@@ -1,0 +1,11 @@
+{
+  "feed_id": "coinbase_orderbook_deltas",
+  "feed_type": "OrderBookDeltas",
+  "path": "./shm/coinbase_orderbook_deltas",
+  "exchange": "coinbase",
+  "symbol": null,
+  "created_at": 1755125953,
+  "last_heartbeat": 1755126773,
+  "capacity": 10000,
+  "producer_pid": 3765
+}

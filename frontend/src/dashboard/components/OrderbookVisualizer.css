@@ -1,0 +1,156 @@
+.orderbook-visualizer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.orderbook-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 11px;
+}
+
+.orderbook-stats .stat {
+  color: var(--text-muted);
+}
+
+.orderbook-stats .value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.orderbook-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.orderbook-header {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 0 0.5rem;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.orderbook-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.asks-section,
+.bids-section {
+  position: relative;
+}
+
+.orderbook-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 2px 0.5rem;
+  font-size: 11px;
+  position: relative;
+  transition: background 0.1s;
+}
+
+.orderbook-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.volume-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  opacity: 0.2;
+  transition: width 0.3s ease;
+}
+
+.ask-bar {
+  background: var(--accent-red);
+}
+
+.bid-bar {
+  background: var(--accent-green);
+}
+
+.orderbook-row.ask .price {
+  color: #ff6666;
+}
+
+.orderbook-row.bid .price {
+  color: #66ff66;
+}
+
+.orderbook-row .size,
+.orderbook-row .total {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.spread-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 11px;
+}
+
+.spread-label {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.spread-value {
+  color: var(--accent-yellow);
+  font-weight: 600;
+}
+
+.spread-percent {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.orderbook-footer {
+  padding: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.volume-summary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.bid-volume {
+  color: var(--accent-green);
+}
+
+.ask-volume {
+  color: var(--accent-red);
+}
+
+.imbalance {
+  color: var(--accent-yellow);
+}
+
+.no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-style: italic;
+}

@@ -21,7 +21,14 @@
     "noUnusedParameters": false,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    
+    /* Path mappings for shared libraries */
+    "baseUrl": ".",
+    "paths": {
+      "@shared/types": ["../shared/types/index.ts"],
+      "@shared/*": ["../shared/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "../shared/types"]
 }

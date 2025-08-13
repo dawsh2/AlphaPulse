@@ -1,5 +1,5 @@
-// Redis Streams writer for trade data
-use alphapulse_common::{Result, Trade, MetricsCollector};
+// Redis Streams writer for trade data with shared memory support
+use alphapulse_common::{Result, Trade, MetricsCollector, SharedMemoryWriter, SharedTrade};
 use redis::{aio::MultiplexedConnection, AsyncCommands};
 use serde_json::json;
 use std::collections::VecDeque;
@@ -16,10 +16,25 @@ pub struct RedisStreamsWriter {
     buffer_size: usize,
     batch_timeout: Duration,
     metrics: Arc<MetricsCollector>,
+    shared_memory: Arc<RwLock<Option<SharedMemoryWriter>>>,
 }
 
 impl RedisStreamsWriter {
     pub fn new(redis_url: String, buffer_size: usize, batch_timeout_ms: u64) -> Self {
+        // Initialize shared memory writer
+        // Note: Using /tmp for compatibility (macOS doesn't have /dev/shm)
+        let shared_mem_path = "/tmp/alphapulse_shm/trades";
+        let shared_mem = match SharedMemoryWriter::create(shared_mem_path, 100_000) {
+            Ok(writer) => {
+                info!("Created shared memory buffer at {}", shared_mem_path);
+                Some(writer)
+            }
+            Err(e) => {
+                warn!("Failed to create shared memory: {}. Falling back to Redis only.", e);
+                None
+            }
+        };
+        
         Self {
             connection: Arc::new(RwLock::new(None)),
             redis_url,
@@ -27,6 +42,7 @@ impl RedisStreamsWriter {
             buffer_size,
             batch_timeout: Duration::from_millis(batch_timeout_ms),
             metrics: Arc::new(MetricsCollector::new()),
+            shared_memory: Arc::new(RwLock::new(shared_mem)),
         }
     }
     
@@ -72,6 +88,27 @@ impl RedisStreamsWriter {
     }
     
     async fn add_trade(&self, trade: Trade) -> Result<()> {
+        // Write to shared memory immediately for ultra-low latency
+        if let Some(ref mut writer) = *self.shared_memory.write().await {
+            let shared_trade = SharedTrade::new(
+                (trade.timestamp * 1_000_000.0) as u64,  // Convert to nanoseconds
+                &trade.symbol,
+                &trade.exchange,
+                trade.price,
+                trade.volume,
+                trade.side.as_ref().map_or(true, |s| s == "buy"),
+                trade.trade_id.as_deref().unwrap_or(""),
+            );
+            
+            if let Err(e) = writer.write_trade(&shared_trade) {
+                debug!("Failed to write to shared memory: {}", e);
+                // Continue - Redis will still work
+            } else {
+                self.metrics.record_redis_operation("shared_memory_write", true);
+            }
+        }
+        
+        // Also buffer for Redis (for persistence)
         let mut buffer = self.buffer.write().await;
         
         if buffer.len() >= self.buffer_size {
@@ -182,7 +219,39 @@ impl RedisStreamsWriter {
         let mut count = 0;
         
         for trade in trades {
-            let trade_data = json!({
+            // Use individual fields for Redis Streams (more efficient for consumers)
+            let fields = vec![
+                ("timestamp", trade.timestamp.to_string()),
+                ("price", trade.price.to_string()),
+                ("volume", trade.volume.to_string()),
+                ("side", trade.side.clone().unwrap_or_else(|| "unknown".to_string())),
+                ("trade_id", trade.trade_id.clone().unwrap_or_else(|| "".to_string())),
+                ("symbol", trade.symbol.clone()),
+                ("exchange", trade.exchange.clone()),
+                ("ingested_at", chrono::Utc::now().timestamp_millis().to_string()),
+            ];
+            
+            // Use XADD to write to Redis Stream
+            // "*" means auto-generate the entry ID
+            debug!("XADD to stream: {} with fields: {:?}", stream_key, fields);
+            let result: std::result::Result<String, redis::RedisError> = redis::cmd("XADD")
+                .arg(stream_key)
+                .arg("*")  // Auto-generate ID
+                .arg(&fields)
+                .query_async(conn)
+                .await;
+            
+            match result {
+                Ok(id) => debug!("Successfully added to stream {} with ID: {}", stream_key, id),
+                Err(e) => {
+                    error!("Failed XADD to {}: {}", stream_key, e);
+                    return Err(alphapulse_common::AlphaPulseError::RedisError(e));
+                }
+            }
+            
+            // Also store latest trade in regular key for fast lookup
+            let latest_key = format!("latest:{}:{}", trade.exchange, trade.symbol);
+            let trade_json = json!({
                 "timestamp": trade.timestamp,
                 "price": trade.price,
                 "volume": trade.volume,
@@ -191,18 +260,21 @@ impl RedisStreamsWriter {
                 "symbol": trade.symbol,
                 "exchange": trade.exchange
             });
+            let _: () = conn.set(&latest_key, trade_json.to_string()).await?;
             
-            // Convert to Redis stream fields
-            let fields = vec![
-                ("data", trade_data.to_string()),
-                ("ingested_at", chrono::Utc::now().timestamp().to_string()),
-            ];
-            
-            // For now, store as simple key-value until streams are fully implemented
-            let key = format!("trade:{}:{}", stream_key, trade.timestamp);
-            let _: () = conn.set(&key, trade_data.to_string()).await?;
             count += 1;
         }
+        
+        // Trim stream to keep only recent data (e.g., last 100k entries)
+        // XTRIM stream MAXLEN ~ 100000
+        let _: () = redis::cmd("XTRIM")
+            .arg(stream_key)
+            .arg("MAXLEN")
+            .arg("~")  // Approximate trimming for performance
+            .arg("100000")
+            .query_async(conn)
+            .await
+            .unwrap_or(()); // Don't fail if trim fails
         
         Ok(count)
     }
@@ -217,6 +289,7 @@ impl Clone for RedisStreamsWriter {
             buffer_size: self.buffer_size,
             batch_timeout: self.batch_timeout,
             metrics: self.metrics.clone(),
+            shared_memory: self.shared_memory.clone(),
         }
     }
 }

@@ -129,11 +129,11 @@ export class CoinbaseService implements ExchangeService {
       const end = new Date();
       const start = new Date(end.getTime() - limit * 60 * 1000);
       
-      // Use backend proxy to avoid CORS issues
+      // Use Rust API server for candle data
       // Granularity 60 = 1 minute
       const response = await fetch(
-        `http://localhost:5001/api/proxy/coinbase/products/${coinbaseSymbol}/candles?` +
-        `start=${start.toISOString()}&end=${end.toISOString()}&granularity=60`
+        `http://localhost:3001/api/market-data/${coinbaseSymbol}/candles?` +
+        `start=${Math.floor(start.getTime() / 1000)}&end=${Math.floor(end.getTime() / 1000)}&granularity=60&exchange=coinbase`
       );
       
       if (!response.ok) {
@@ -142,17 +142,15 @@ export class CoinbaseService implements ExchangeService {
       
       const data = await response.json();
       
-      // Coinbase returns data in reverse chronological order
-      // Format: [timestamp, low, high, open, close, volume]
-      return data
-        .reverse()
-        .map((candle: number[]) => ({
-          time: candle[0],
-          open: candle[3],
-          high: candle[2],
-          low: candle[1],
-          close: candle[4],
-          volume: candle[5]
+      // Rust API returns { candles: [...], symbol, exchange, granularity }
+      return data.candles
+        .map((candle: any) => ({
+          time: candle.time,
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close,
+          volume: candle.volume
         }))
         .filter(this.validateCandle);
     } catch (error) {

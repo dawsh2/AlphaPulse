@@ -1,0 +1,55 @@
+.prometheus-metrics {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.prometheus-link {
+  color: var(--accent-blue);
+  text-decoration: none;
+  font-size: 11px;
+  transition: color 0.2s;
+}
+
+.prometheus-link:hover {
+  color: var(--text-primary);
+}
+
+.metrics-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.metric-name {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-style: italic;
+}

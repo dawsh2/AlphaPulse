@@ -1,0 +1,25 @@
+[package]
+name = "alphapulse-websocket-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+alphapulse-common = { path = "../common" }
+tokio = { version = "1.40", features = ["full"] }
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors"] }
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+anyhow = "1.0"
+metrics = "0.24"
+metrics-exporter-prometheus = "0.15"
+url = "2.5"
+crossbeam = "0.8"
+arc-swap = "1.7"
+chrono = "0.4"

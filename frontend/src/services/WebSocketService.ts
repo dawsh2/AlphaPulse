@@ -1,14 +1,13 @@
 // WebSocket service for real-time market data streaming
-import { EventEmitter } from 'events';
 
 export interface SubscriptionRequest {
-  type: 'subscribe' | 'unsubscribe';
+  msg_type: 'subscribe' | 'unsubscribe';  // Server expects msg_type
   channels: string[];
   symbols: string[];
 }
 
 export interface MarketDataUpdate {
-  type: 'trade' | 'orderbook';
+  msg_type: 'trade' | 'orderbook';  // Server sends msg_type, not type
   channel: string;
   symbol: string;
   data: any;
@@ -31,7 +30,9 @@ export interface OrderBook {
   timestamp: number;
 }
 
-class WebSocketService extends EventEmitter {
+type EventHandler = (...args: any[]) => void;
+
+class WebSocketService {
   private ws: WebSocket | null = null;
   private url: string;
   private reconnectAttempts = 0;
@@ -39,10 +40,38 @@ class WebSocketService extends EventEmitter {
   private reconnectDelay = 1000;
   private subscriptions: SubscriptionRequest | null = null;
   private isConnecting = false;
+  private listeners: Map<string, Set<EventHandler>> = new Map();
 
   constructor(url: string = 'ws://localhost:3001/ws') {
-    super();
     this.url = url;
+  }
+
+  // EventEmitter-like interface
+  on(event: string, handler: EventHandler) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event)!.add(handler);
+  }
+
+  off(event: string, handler: EventHandler) {
+    const handlers = this.listeners.get(event);
+    if (handlers) {
+      handlers.delete(handler);
+    }
+  }
+
+  private emit(event: string, ...args: any[]) {
+    const handlers = this.listeners.get(event);
+    if (handlers) {
+      handlers.forEach(handler => {
+        try {
+          handler(...args);
+        } catch (error) {
+          console.error(`Error in event handler for ${event}:`, error);
+        }
+      });
+    }
   }
 
   connect(): Promise<void> {
@@ -117,15 +146,16 @@ class WebSocketService extends EventEmitter {
 
   private handleUpdate(update: MarketDataUpdate) {
     // Emit specific events based on update type
-    switch (update.type) {
+    switch (update.msg_type) {  // Changed from update.type to update.msg_type
       case 'trade':
         this.emit('trade', update.symbol, update.data as Trade);
         break;
       case 'orderbook':
+        console.log('Received orderbook for', update.symbol, 'with', update.data?.bids?.length || 0, 'bids and', update.data?.asks?.length || 0, 'asks');
         this.emit('orderbook', update.symbol, update.data as OrderBook);
         break;
       default:
-        console.warn('Unknown update type:', update.type);
+        console.warn('Unknown update type:', update.msg_type);
     }
     
     // Also emit a general update event
@@ -134,7 +164,7 @@ class WebSocketService extends EventEmitter {
 
   subscribe(channels: string[], symbols: string[]) {
     const request: SubscriptionRequest = {
-      type: 'subscribe',
+      msg_type: 'subscribe',  // Changed from type to msg_type
       channels,
       symbols
     };
@@ -145,7 +175,7 @@ class WebSocketService extends EventEmitter {
 
   unsubscribe() {
     const request: SubscriptionRequest = {
-      type: 'unsubscribe',
+      msg_type: 'unsubscribe',  // Changed from type to msg_type
       channels: [],
       symbols: []
     };

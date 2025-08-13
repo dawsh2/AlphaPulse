@@ -22,3 +22,5 @@ metrics-exporter-prometheus = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 futures-util = { workspace = true }
+arrow = "53.0"
+parquet = "53.0"

@@ -44,10 +44,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create collectors based on exchange configuration
     let symbols = config.symbols.clone();
     
-    // Add Coinbase collector with orderbook support
+    // Add Coinbase collector with orderbook and shared memory support
     let coinbase_collector = CoinbaseCollector::new(
         symbols.iter().map(|s| s.replace("/", "-")).collect() // Coinbase uses BTC-USD format
-    ).with_orderbook_sender(orderbook_sender.clone());
+    )
+    .with_orderbook_sender(orderbook_sender.clone())
+    .with_shared_memory_writer()
+    .expect("Failed to create shared memory writer for orderbook deltas");
+    
     manager.add_collector(Arc::new(coinbase_collector) as Arc<dyn MarketDataCollector>);
     
     // Add Kraken collector  

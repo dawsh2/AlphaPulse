@@ -81,8 +81,8 @@ pub async fn get_trades(
     let processing_time = start_time.elapsed().as_millis() as f64;
     
     // Record metrics
-    state.metrics.record_http_request("GET", "/trades", 200);
-    state.metrics.record_http_latency(processing_time, "GET", "/trades");
+    state.metrics.record_http_request("/trades", 200);
+    state.metrics.record_http_latency(processing_time, "/trades");
     
     let response = TradeResponse {
         data: trades.clone(),
@@ -114,8 +114,8 @@ pub async fn get_recent_trades(
     let processing_time = start_time.elapsed().as_millis() as f64;
     
     // Record metrics
-    state.metrics.record_http_request("GET", "/trades/recent", 200);
-    state.metrics.record_http_latency(processing_time, "GET", "/trades/recent");
+    state.metrics.record_http_request("/trades/recent", 200);
+    state.metrics.record_http_latency(processing_time, "/trades/recent");
     
     let response = TradeResponse {
         data: trades.clone(),
@@ -157,8 +157,8 @@ pub async fn get_ohlcv(
     let processing_time = start_time.elapsed().as_millis() as f64;
     
     // Record metrics
-    state.metrics.record_http_request("GET", "/ohlcv", 200);
-    state.metrics.record_http_latency(processing_time, "GET", "/ohlcv");
+    state.metrics.record_http_request("/ohlcv", 200);
+    state.metrics.record_http_latency(processing_time, "/ohlcv");
     
     let response = OhlcvResponse {
         data: ohlcv_bars.clone(),
@@ -186,8 +186,8 @@ pub async fn get_symbols(
     let processing_time = start_time.elapsed().as_millis() as f64;
     
     // Record metrics
-    state.metrics.record_http_request("GET", "/symbols", 200);
-    state.metrics.record_http_latency(processing_time, "GET", "/symbols");
+    state.metrics.record_http_request("/symbols", 200);
+    state.metrics.record_http_latency(processing_time, "/symbols");
     
     let response = json!({
         "symbols": symbols,
@@ -235,16 +235,18 @@ pub async fn get_data_summary(
     let processing_time = start_time.elapsed().as_millis() as f64;
     
     // Record metrics
-    state.metrics.record_http_request("GET", "/summary", 200);
-    state.metrics.record_http_latency(processing_time, "GET", "/summary");
+    state.metrics.record_http_request("/summary", 200);
+    state.metrics.record_http_latency(processing_time, "/summary");
     
     let summary = DataSummary {
-        total_symbols: total_symbols as i32,
-        total_exchanges: total_exchanges,
-        total_records: 0, // Placeholder
-        date_range: json!({}), // Placeholder
-        symbols_by_exchange: json!(symbols_by_exchange),
-        record_count_by_symbol: json!(record_count_by_symbol),
+        total_trades: 0,
+        total_orderbooks: 0, 
+        start_time: 0.0,
+        end_time: 0.0,
+        total_symbols: Some(total_symbols as u64),
+        total_exchanges: Some(total_exchanges),
+        total_records: Some(0),
+        date_range: Some("{}".to_string()),
     };
     
     Ok(Json(summary))

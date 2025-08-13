@@ -257,12 +257,16 @@ from api.notebook_routes_fastapi import router as notebook_router
 from api.workspace_routes_fastapi import router as workspace_router
 from api.terminal_routes_fastapi import router as terminal_router
 from api.data_routes_fastapi import router as data_router
+from api.metrics_routes import router as metrics_router
+from api.dev_routes import router as dev_router
 
 # Include routers
 app.include_router(notebook_router)
 app.include_router(workspace_router)
 app.include_router(terminal_router)
 app.include_router(data_router)
+app.include_router(metrics_router, prefix="/api")
+app.include_router(dev_router)  # WebSocket routes at /ws/dev/*
 
 # ================================================================================
 # Deprecated Routes (Will move to Rust/Tokio)
@@ -295,7 +299,7 @@ if __name__ == "__main__":
     # Run with: python app_fastapi.py
     # Or better: uvicorn app_fastapi:app --reload --port 8001
     uvicorn.run(
-        "app_fastapi:app",
+        "app:app",
         host="0.0.0.0",
         port=8080,  # Using 8080 to avoid conflicts
         reload=True,

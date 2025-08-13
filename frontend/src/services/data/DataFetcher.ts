@@ -169,10 +169,10 @@ export class DataFetcher {
     const start = new Date(startTime * 1000).toISOString();
     const end = new Date(endTime * 1000).toISOString();
     
-    // Use our backend proxy to avoid CORS issues
+    // Use Rust API server for candle data
     const response = await fetch(
-      `http://localhost:5001/api/proxy/coinbase/products/${coinbaseSymbol}/candles?` +
-      `start=${start}&end=${end}&granularity=60`
+      `http://localhost:3001/api/market-data/${coinbaseSymbol}/candles?` +
+      `start=${startTime}&end=${endTime}&granularity=60&exchange=coinbase`
     );
     
     if (!response.ok) {
@@ -181,17 +181,15 @@ export class DataFetcher {
     
     const data = await response.json();
     
-    // Coinbase returns: [timestamp, low, high, open, close, volume]
-    return data
-      .reverse() // Coinbase returns in reverse chronological order
-      .map((candle: number[]) => ({
-        time: candle[0],
-        open: candle[3],
-        high: candle[2],
-        low: candle[1],
-        close: candle[4],
-        volume: candle[5]
-      }));
+    // Rust API returns { candles: [...], symbol, exchange, granularity }
+    return data.candles.map((candle: any) => ({
+      time: candle.time,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+      volume: candle.volume
+    }));
   }
   
   /**
@@ -199,7 +197,7 @@ export class DataFetcher {
    */
   private async saveToBackend(candles: StoredMarketData[]): Promise<void> {
     try {
-      const response = await fetch('http://localhost:5001/api/market-data/save', {
+      const response = await fetch('http://localhost:3001/api/market-data/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

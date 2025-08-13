@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head><title>WebSocket Test</title></head>
+<body>
+<h1>WebSocket Test</h1>
+<div id="status">Connecting...</div>
+<div id="messages"></div>
+<script>
+const ws = new WebSocket('ws://localhost:3001/ws');
+const status = document.getElementById('status');
+const messages = document.getElementById('messages');
+
+ws.onopen = () => {
+  status.textContent = 'Connected!';
+  // Send subscription
+  ws.send(JSON.stringify({
+    msg_type: 'subscribe',
+    channels: ['trades', 'orderbook'],
+    symbols: ['BTC-USD', 'ETH-USD']
+  }));
+};
+
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  const div = document.createElement('div');
+  div.textContent = `${msg.msg_type} for ${msg.symbol}: ${JSON.stringify(msg.data).substring(0, 100)}...`;
+  messages.appendChild(div);
+  if (messages.children.length > 10) {
+    messages.removeChild(messages.firstChild);
+  }
+};
+
+ws.onerror = (err) => {
+  status.textContent = 'Error: ' + err;
+};
+
+ws.onclose = () => {
+  status.textContent = 'Disconnected';
+};
+</script>
+</body>
+</html>
