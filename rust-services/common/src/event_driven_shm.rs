@@ -3,7 +3,7 @@
 // Provides true real-time performance for both dev dashboard and trading algorithms
 
 use crate::{Result, AlphaPulseError, shared_memory::SharedTrade};
-use memmap2::{Mmap, MmapMut, MmapOptions};
+use memmap2::{MmapMut, MmapOptions};
 use std::fs::OpenOptions;
 use std::mem;
 use std::ptr;
@@ -446,7 +446,7 @@ impl EventDrivenTradeWriter {
 
 // Event-driven trade reader that waits for notifications
 pub struct EventDrivenTradeReader {
-    mmap: Mmap,
+    mmap: MmapMut,  // Changed to MmapMut for atomic RMW operations
     header: *const EventDrivenHeader,
     data_start: *const EventDrivenTrade,
     cursor_blocks: *const EventDrivenReaderCursor,
@@ -465,9 +465,14 @@ impl EventDrivenTradeReader {
     pub fn open(path: &str) -> Result<Self> {
         let file = OpenOptions::new()
             .read(true)
+            .write(true)  // CRITICAL: Need write access for atomic RMW operations on macOS ARM64
             .open(path)?;
             
-        let mmap = unsafe { Mmap::map(&file)? };
+        let mmap = unsafe { 
+            MmapOptions::new()
+                .len(file.metadata()?.len() as usize)
+                .map_mut(&file)?  // Use map_mut for write access
+        };
         
         let header_size = mem::size_of::<EventDrivenHeader>();
         let cursor_blocks_size = MAX_READERS * mem::size_of::<EventDrivenReaderCursor>();

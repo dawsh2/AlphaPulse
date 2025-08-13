@@ -5,7 +5,7 @@
 use alphapulse_common::event_driven_shm::*;
 use std::fs::OpenOptions;
 use std::sync::atomic::Ordering;
-use memmap2::{Mmap, MmapOptions};
+use memmap2::{MmapOptions};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔍 Testing access to real event-driven shared memory");
@@ -19,7 +19,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .write(true)
         .open(path)?;
     
-    let mmap = unsafe { Mmap::map(&file)? };
+    let mmap = unsafe { 
+        MmapOptions::new()
+            .len(file.metadata()?.len() as usize)
+            .map_mut(&file)?  // Use map_mut for write access to enable atomic RMW operations
+    };
     
     println!("✅ Successfully mapped file");
     println!("   Base address: {:p}", mmap.as_ptr());

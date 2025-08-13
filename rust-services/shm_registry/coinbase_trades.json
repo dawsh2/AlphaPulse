@@ -5,7 +5,7 @@
   "exchange": "coinbase",
   "symbol": null,
   "created_at": 1755125953,
-  "last_heartbeat": 1755126773,
+  "last_heartbeat": 1755127713,
   "capacity": 10000,
   "producer_pid": 3765
 }
