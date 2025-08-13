@@ -1,0 +1,66 @@
+# Docker Compose extension for Rust services
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.rust.yml up
+version: '3.8'
+
+services:
+  # Rust WebSocket collectors
+  rust-collectors:
+    build:
+      context: ./rust-services
+      dockerfile: Dockerfile
+      target: builder
+    command: ["alphapulse-collectors"]
+    container_name: alphapulse-rust-collectors
+    environment:
+      RUST_LOG: "alphapulse_collectors=info,alphapulse_common=info"
+      REDIS_URL: "redis://redis:6379"
+      BUFFER_SIZE: "1000"
+      BATCH_TIMEOUT_MS: "100"
+    depends_on:
+      redis:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - alphapulse-network
+
+  # Rust API server
+  rust-api-server:
+    build:
+      context: ./rust-services
+      dockerfile: Dockerfile
+      target: builder
+    command: ["alphapulse-api-server"]
+    container_name: alphapulse-rust-api
+    environment:
+      RUST_LOG: "alphapulse_api_server=info,alphapulse_common=info"
+      REDIS_URL: "redis://redis:6379"
+      API_PORT: "3001"
+    ports:
+      - "3001:3001"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - alphapulse-network
+
+  # Update backend to use Rust services
+  backend:
+    environment:
+      USE_RUST_SERVICES: "true"
+      RUST_API_URL: "http://rust-api-server:3001"
+    depends_on:
+      rust-api-server:
+        condition: service_healthy
+
+networks:
+  alphapulse-network:
+    external: true

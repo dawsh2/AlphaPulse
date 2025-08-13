@@ -9,6 +9,7 @@ import logging
 from repositories.implementations.python.duckdb_market import DuckDBMarketRepository
 from repositories.implementations.python.memory_analysis import MemoryAnalysisRepository
 from repositories.implementations.python.redis_cache import RedisCacheRepository
+from repositories.implementations.rust.market_data import RustMarketDataRepository
 
 from services.data_service import MarketDataService
 from services.analysis_service import MarketAnalysisService
@@ -86,15 +87,17 @@ class ServiceContainer:
         self.container.config.redis.db.from_env('REDIS_DB', default=0)
         self.container.config.redis.password.from_env('REDIS_PASSWORD', default=None)
         
-        # Future: Add Rust service configuration
+        # Rust service configuration
         use_rust = os.getenv('USE_RUST_SERVICES', 'false').lower() == 'true'
+        rust_api_url = os.getenv('RUST_API_URL', 'http://localhost:3001')
         
         if use_rust:
-            logger.info("Rust services enabled - will use RustMarketRepository when available")
-            # TODO: Switch to RustMarketRepository when implemented
-            # self.container.market_data_repository.override(
-            #     providers.Singleton(RustMarketRepository, ...)
-            # )
+            logger.info(f"Rust services enabled - switching to RustMarketDataRepository at {rust_api_url}")
+            self.container.market_data_repository.override(
+                providers.Singleton(RustMarketDataRepository, rust_api_url=rust_api_url)
+            )
+        else:
+            logger.info("Using Python DuckDB repository for market data")
         
         logger.info(f"ServiceContainer configured for {env} environment")
     

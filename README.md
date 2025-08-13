@@ -1,137 +1,338 @@
-# AlphaPulse
+# AlphaPulse 📈
 
-Event-driven quantitative trading platform with microservices architecture.
+> High-performance quantitative trading platform with event-driven architecture, real-time market data processing, and integrated research environment.
 
-## Quick Start
+## 🎯 Overview
 
-```bash
-# Initial setup
-make setup
+AlphaPulse is a hybrid Python/Rust trading system designed for cryptocurrency and equity markets. It combines the performance of Rust for data collection with Python's rich ecosystem for analytics and machine learning.
 
-# Start development environment
-make dev
-
-# View logs
-make dev-logs
-
-# Stop environment
-make dev-stop
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      AlphaPulse Platform                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │   Home   │  │  Develop │  │ Research │  │ Monitor  │     │
+│  │  📰 News │  │ 💻 IDE   │  │ 📊 Jupyter│  │ 📈 Charts│     │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
+│                                                                 │
+│  ┌───────────────────────────────────────────────────────┐    │
+│  │              React + TypeScript Frontend              │    │
+│  └───────────────────────────────────────────────────────┘    │
+│                            │                                   │
+│                            ↓ REST + WebSocket                  │
+│  ┌───────────────────────────────────────────────────────┐    │
+│  │              FastAPI Backend (Python)                 │    │
+│  │  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐ │    │
+│  │  │  Services   │  │ Repositories │  │   Analytics │ │    │
+│  │  │  Business   │←→│   Data       │  │   Jupyter   │ │    │
+│  │  │   Logic     │  │   Access     │  │  Backtests  │ │    │
+│  │  └─────────────┘  └──────────────┘  └─────────────┘ │    │
+│  └───────────────────────────────────────────────────────┘    │
+│                            │                                   │
+│  ┌───────────────────────────────────────────────────────┐    │
+│  │          Data Collection Layer (Migrating to Rust)    │    │
+│  │                                                       │    │
+│  │  Exchange → Rust Collectors → TimescaleDB → Parquet  │    │
+│  │                                      ↓                │    │
+│  │                                   DuckDB              │    │
+│  │                                 (Analytics)           │    │
+│  └───────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## Architecture
+## 🏗️ Architecture
 
-AlphaPulse uses a microservices architecture for scalability and maintainability:
+### Data Flow Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     RESEARCH WORKFLOW                        │
+│                                                              │
+│  Exchanges          Rust Services        Storage            │
+│  ┌────────┐        ┌────────────┐      ┌──────────┐       │
+│  │Coinbase│───────→│            │      │TimescaleDB│       │
+│  └────────┘   WS   │  Collectors│─────→│  (Buffer) │       │
+│  ┌────────┐        │            │      └─────┬────┘       │
+│  │ Kraken │───────→│  - Trades  │            │ Batch       │
+│  └────────┘        │  - Orders  │            ↓ Export      │
+│  ┌────────┐        │  - L2 Book │      ┌──────────┐       │
+│  │ Alpaca │───────→│            │      │  Parquet │       │
+│  └────────┘        └────────────┘      │   Files  │       │
+│                                         └─────┬────┘       │
+│                                               ↓             │
+│                                         ┌──────────┐       │
+│                                         │  DuckDB  │       │
+│                                         │(Analytics)│       │
+│                                         └──────────┘       │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                     TRADING WORKFLOW                         │
+│                                                              │
+│  Exchanges        NautilusTrader        Execution           │
+│  ┌────────┐      ┌──────────────┐     ┌──────────┐        │
+│  │Exchange│─────→│   WebSocket   │────→│ Strategy │        │
+│  └────────┘  WS  │   Adapters    │     │  Engine  │        │
+│                  └──────────────┘     └─────┬────┘        │
+│                                              ↓              │
+│                                        ┌──────────┐        │
+│                                        │  Orders  │        │
+│                                        │   Out    │        │
+│                                        └──────────┘        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Service Layer Architecture (Repository Pattern)
+
+```python
+# Clean separation enables Python → Rust migration without changing business logic
+
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   FastAPI    │────→│   Service    │────→│ Repository   │
+│   Routes     │     │   Layer      │     │  Interface   │
+└──────────────┘     └──────────────┘     └──────┬───────┘
+                                                  │
+                           ┌──────────────────────┼──────────────────────┐
+                           ↓                      ↓                      ↓
+                    ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+                    │   Python     │      │    Rust      │      │   Mock       │
+                    │   Impl       │      │    Impl      │      │   Impl       │
+                    │  (Current)   │      │  (Future)    │      │  (Tests)     │
+                    └──────────────┘      └──────────────┘      └──────────────┘
+
+# Example: Swapping implementations with feature flags
+if settings.USE_RUST_MARKET_DATA:
+    repo = RustMarketDataRepo()  # Fast Rust implementation
+else:
+    repo = PythonMarketDataRepo()  # Current Python implementation
+```
+
+## 🚀 Key Engineering Decisions
+
+### 1. **Hybrid Python/Rust Architecture**
+
+**Decision**: Keep Python for business logic, migrate performance-critical paths to Rust
+
+```
+Performance Requirements by Component:
+
+Component               Language    Latency Target    Throughput
+─────────────────────────────────────────────────────────────
+WebSocket Collectors    Rust        <1ms             10,000 msg/s
+Orderbook Processing    Rust        <100μs           100,000 updates/s
+Business Logic          Python      <100ms           100 req/s
+Analytics/ML            Python      <1s              Batch processing
+Jupyter Integration     Python      N/A              Interactive
+```
+
+### 2. **Database Strategy: Streaming → Batch → Analytics**
+
+**Decision**: TimescaleDB for streaming buffer, Parquet for storage, DuckDB for analytics
+
+```
+┌────────────────────────────────────────────────────────┐
+│              Storage Cost & Performance                 │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│  TimescaleDB (7-day window)                           │
+│  ├─ Role: Streaming buffer                            │
+│  ├─ Size: ~50GB                                       │
+│  └─ Query: <10ms for recent data                      │
+│                                                        │
+│  Parquet Files (permanent)                            │
+│  ├─ Role: Long-term storage                           │
+│  ├─ Size: ~5GB (10x compression)                      │
+│  └─ Cost: $0.023/GB/month (S3)                        │
+│                                                        │
+│  DuckDB (in-process)                                  │
+│  ├─ Role: Fast analytics                              │
+│  ├─ Performance: 100x faster than Postgres            │
+│  └─ Location: Runs in Jupyter/Python process          │
+└────────────────────────────────────────────────────────┘
+```
+
+### 3. **Repository Pattern for Clean Migration**
+
+**Decision**: Abstract data access to enable gradual Python → Rust migration
+
+```python
+# Repository interface (unchanged during migration)
+class MarketDataRepository(Protocol):
+    async def get_trades(self, symbol: str) -> List[Trade]: ...
+    async def get_orderbook(self, symbol: str) -> OrderBook: ...
+
+# Service layer (unchanged during migration)
+class TradingService:
+    def __init__(self, repo: MarketDataRepository):
+        self.repo = repo  # Can be Python OR Rust implementation
+    
+    async def analyze_market(self, symbol: str):
+        trades = await self.repo.get_trades(symbol)
+        # Business logic remains identical
+        return compute_signals(trades)
+```
+
+### 4. **Event-Driven Architecture**
+
+**Decision**: All actions logged as events for audit and replay
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Action    │────→│    Event    │────→│  Event Log  │
+└─────────────┘     └─────────────┘     └─────────────┘
+                           │                    │
+                           ↓                    ↓
+                    ┌─────────────┐     ┌─────────────┐
+                    │  Handlers   │     │   Replay    │
+                    └─────────────┘     └─────────────┘
+```
+
+## 📊 Performance Targets
+
+| Metric | Current (Python) | Target (Rust) | Improvement |
+|--------|-----------------|---------------|-------------|
+| WebSocket Throughput | 1,000 msg/s | 10,000 msg/s | 10x |
+| Orderbook Updates | 10,000/s | 100,000/s | 10x |
+| Message Latency | 10ms | <1ms | 10x |
+| Memory Usage | 2GB | 200MB | 10x |
+| Database Writes | 1,000/s | 10,000/s | 10x |
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Framework**: React 18 + TypeScript
+- **Build**: Vite
+- **Charts**: TradingView Lightweight Charts
+- **Editor**: Monaco Editor (VSCode)
+- **State**: React Context + Hooks
+
+### Backend (Current)
+- **API**: FastAPI (migrating from Flask)
+- **Async**: asyncio + aiohttp
+- **Database**: SQLAlchemy + Alembic
+- **WebSocket**: websockets library
+- **Auth**: JWT tokens
+
+### Backend (Future)
+- **Performance**: Rust + Tokio
+- **WebSocket**: tokio-tungstenite
+- **Serialization**: Serde + JSON
+- **Database**: tokio-postgres + duckdb-rs
+
+### Data Storage
+- **Time-Series**: TimescaleDB (7-day buffer)
+- **Analytics**: DuckDB + Parquet files
+- **Cache**: Redis
+- **Application**: SQLite / PostgreSQL
+
+### Infrastructure
+- **Monitoring**: Prometheus + Grafana
+- **Tracing**: OpenTelemetry
+- **Container**: Docker + docker-compose
+- **CI/CD**: GitHub Actions
+
+## 🚦 Getting Started
+
+### Prerequisites
+```bash
+# Python 3.8+ (3.13 compatible)
+python --version
+
+# Node.js 18+
+node --version
+
+# Rust 1.70+ (for future services)
+rustc --version
+```
+
+### Environment Setup
+```bash
+# Required environment variables
+export ALPACA_API_KEY="your_key"
+export ALPACA_API_SECRET="your_secret"
+export ALPACA_BASE_URL="https://paper-api.alpaca.markets"
+```
+
+### Quick Start
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+python app.py
+
+# Frontend (new terminal)
+cd frontend
+npm install
+npm run dev
+
+# Access at http://localhost:5173
+```
+
+## 📁 Project Structure
 
 ```
 alphapulse/
-├── frontend/           # React/TypeScript UI
-├── services/          # Microservices
-│   ├── gateway/       # API Gateway (Nginx)
-│   ├── auth/          # Authentication service
-│   ├── market-data/   # Market data service
-│   ├── news/          # News & sentiment service
-│   ├── social/        # Comments & social features
-│   └── nautilus-core/ # NautilusTrader engine
-├── infrastructure/    # Docker, K8s configs
-├── shared/           # Shared libraries
-└── data/            # Persistent data (git-ignored)
+├── backend/
+│   ├── api/                 # FastAPI routes
+│   ├── services/            # Business logic
+│   ├── repositories/        # Data access layer
+│   ├── analytics/           # Jupyter, ML, backtesting
+│   ├── core/               # Models, schemas, config
+│   └── tests/              # Test suite
+│
+├── frontend/
+│   ├── src/
+│   │   ├── pages/          # Page components
+│   │   ├── components/     # Reusable UI
+│   │   └── services/       # API clients
+│   └── public/             # Static assets
+│
+├── rust-services/          # Future Rust services
+│   ├── collectors/         # Market data collectors
+│   └── streaming/          # WebSocket servers
+│
+└── docs/                   # Documentation
 ```
 
-## Services
+## 🔄 Migration Status
 
-### Frontend
-- **URL**: http://localhost:3000
-- **Tech**: React, TypeScript, Vite
-- **Features**: Research workbench, strategy builder, backtesting UI
+Currently migrating from Python to Rust for performance-critical components:
 
-### API Gateway
-- **URL**: http://localhost:80
-- **Purpose**: Routes requests to appropriate microservices
-- **Tech**: Nginx
+| Phase | Status | Timeline | Description |
+|-------|--------|----------|-------------|
+| Phase 0 | 🟡 In Progress | 4 weeks | Service layer, monitoring setup |
+| Phase 1 | ⏳ Pending | 2 weeks | Rust PoC with single collector |
+| Phase 2 | ⏳ Pending | 4 weeks | All collectors in Rust |
+| Phase 3 | ⏳ Pending | 3 weeks | WebSocket infrastructure |
+| Phase 4 | ⏳ Pending | 2 weeks | Production deployment |
 
-### Auth Service
-- **Purpose**: User authentication and management
-- **Tech**: Python FastAPI, PostgreSQL, JWT
+## 📈 Roadmap
 
-### Market Data Service
-- **Purpose**: Real-time and historical market data
-- **Tech**: Python, Alpaca API, Redis cache
-- **Features**: WebSocket feeds, data caching
+- [x] FastAPI migration from Flask
+- [x] Repository pattern implementation
+- [ ] Prometheus + Grafana monitoring
+- [ ] Rust trade collector PoC
+- [ ] Complete Rust migration
+- [ ] NautilusTrader integration
+- [ ] Production deployment
+- [ ] ML strategy development
 
-### NautilusTrader Core
-- **Purpose**: Trading engine for backtesting and live trading
-- **Tech**: NautilusTrader, Python
-- **Features**: Strategy execution, risk management, performance analytics
+## 🤝 Contributing
 
-## Development
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development guidelines.
 
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 18+ (for frontend development)
-- Python 3.11+ (for backend development)
-
-### Environment Variables
-Copy `.env.example` to `.env` and configure:
-```bash
-ALPACA_API_KEY=your_key_here
-ALPACA_API_SECRET=your_secret_here
-ALPACA_BASE_URL=https://paper-api.alpaca.markets
-JWT_SECRET=your-secret-key
-```
-
-### Common Commands
-
-```bash
-# Build all services
-make build
-
-# Run tests
-make test
-
-# Format code
-make format
-
-# Shell into service
-make shell-nautilus
-make shell-auth
-
-# Database access
-make db-shell    # PostgreSQL
-make mongo-shell # MongoDB
-make redis-cli   # Redis
-
-# Backup data
-make backup
-```
-
-## Migration from Old Structure
-
-The project has been migrated from `ap/` directory structure to a proper microservices architecture. Old code remains in `ap/` for reference during migration.
-
-### Migration Status
-- ✅ Frontend moved to `/frontend`
-- ✅ Service directories created
-- ✅ Docker Compose configuration
-- ✅ Makefile for common commands
-- ⏳ Backend service extraction
-- ⏳ API Gateway configuration
-- ⏳ Service implementations
-
-## Documentation
-
-- [Architecture Overview](./ARCHITECTURE.md)
-- [API Documentation](./docs/api/)
-- [Development Setup](./docs/development/)
-- [Deployment Guide](./docs/deployment/)
-
-## Contributing
-
-1. Create feature branch
-2. Make changes
-3. Run tests: `make test`
-4. Format code: `make format`
-5. Submit PR
-
-## License
+## 📄 License
 
 Proprietary - All rights reserved
+
+## 🔗 Links
+
+- [Architecture Documentation](docs/architecture.md)
+- [API Documentation](docs/api.md)
+- [Rust Migration Plan](rust-migration.md)
+- [Deployment Guide](docs/deployment.md)
+
+---
+
+*Built for speed. Designed for scale. Optimized for profit.*
