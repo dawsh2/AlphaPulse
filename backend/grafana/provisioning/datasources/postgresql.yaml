@@ -1,0 +1,17 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL Market Data
+    type: postgres
+    access: proxy
+    url: localhost:5432
+    database: market_data
+    user: daws
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 10
+      maxIdleConns: 10
+      connMaxLifetime: 14400
+      postgresVersion: 1600  # PostgreSQL 16
+      timescaledb: false  # We're using plain PostgreSQL for now
+    editable: true

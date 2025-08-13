@@ -888,6 +888,72 @@ This environment provides everything you need to develop, test, and deploy tradi
             </div>
           )}
           
+          {/* XTerm Controls for Layout Manager */}
+          {!editorHidden && useLayoutManager && (
+            <div style={{ 
+              padding: '8px 16px', 
+              borderBottom: '1px solid var(--color-border-primary)',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+              background: 'var(--color-bg-secondary)'
+            }}>
+              <button 
+                onClick={() => {
+                  // Add XTerm tab to the first window in layout
+                  const newTabId = `xterm-${Date.now()}`;
+                  const newTab: UnifiedTab = {
+                    id: newTabId,
+                    name: 'XTerm',
+                    type: 'terminal',
+                    terminalContent: [],
+                    currentInput: '',
+                    cwd: '~/strategies',
+                    useXTerm: true // Use new XTerminal
+                  };
+                  
+                  // Add to first window in layout
+                  const updateLayout = (node: LayoutNode): LayoutNode => {
+                    if (node.type === 'window') {
+                      return {
+                        ...node,
+                        tabs: [...node.tabs, newTab],
+                        activeTab: newTab.id
+                      };
+                    } else if (node.type === 'split') {
+                      // Add to first child window
+                      return {
+                        ...node,
+                        children: [updateLayout(node.children[0]), ...node.children.slice(1)]
+                      };
+                    }
+                    return node;
+                  };
+                  
+                  setLayout(updateLayout(layout));
+                }}
+                style={{
+                  padding: '6px 12px',
+                  background: 'linear-gradient(135deg, #00d4ff, #0099cc)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 10px rgba(0, 212, 255, 0.3)',
+                  textShadow: '0 0 5px rgba(0, 212, 255, 0.8)'
+                }}
+                title="Create new XTerm terminal (full PTY support)"
+              >
+                📟 New XTerm
+              </button>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                XTerm = Full terminal with Python, vim, interactive commands
+              </span>
+            </div>
+          )}
+
           {/* Multi-window Layout Manager */}
           {!editorHidden && useLayoutManager && (
             <DevelopLayoutManager
@@ -901,6 +967,53 @@ This environment provides everything you need to develop, test, and deploy tradi
             />
           )}
           
+          {/* XTerm Controls */}
+          {!editorHidden && useUnifiedWindow && !useLayoutManager && (
+            <div style={{ 
+              padding: '8px 16px', 
+              borderBottom: '1px solid var(--color-border-primary)',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+              background: 'var(--color-bg-secondary)'
+            }}>
+              <button 
+                onClick={() => {
+                  const newTabId = `xterm-${Date.now()}`;
+                  const newTab: UnifiedTab = {
+                    id: newTabId,
+                    name: 'XTerm',
+                    type: 'terminal',
+                    terminalContent: [],
+                    currentInput: '',
+                    cwd: '~/strategies',
+                    useXTerm: true // Use new XTerminal
+                  };
+                  setUnifiedTabs([...unifiedTabs, newTab]);
+                  setActiveUnifiedTab(newTabId);
+                }}
+                style={{
+                  padding: '6px 12px',
+                  background: 'linear-gradient(135deg, #00d4ff, #0099cc)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 10px rgba(0, 212, 255, 0.3)',
+                  textShadow: '0 0 5px rgba(0, 212, 255, 0.8)'
+                }}
+                title="Create new XTerm terminal (full PTY support)"
+              >
+                📟 New XTerm
+              </button>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                XTerm = Full terminal with Python, vim, interactive commands
+              </span>
+            </div>
+          )}
+
           {/* Legacy Unified Window */}
           {!editorHidden && useUnifiedWindow && !useLayoutManager && (
             <DevelopWindow
@@ -916,7 +1029,8 @@ This environment provides everything you need to develop, test, and deploy tradi
                   type: 'terminal',
                   terminalContent: [], // Will be initialized with ASCII art by DevelopWindow
                   currentInput: '',
-                  cwd: '~/strategies'
+                  cwd: '~/strategies',
+                  useXTerm: false // Default to legacy terminal for now
                 };
                 setUnifiedTabs([...unifiedTabs, newTab]);
                 setActiveUnifiedTab(newTabId);

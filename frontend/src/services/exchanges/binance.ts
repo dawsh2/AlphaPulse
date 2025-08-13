@@ -79,7 +79,7 @@ export class BinanceService implements ExchangeService {
       // Use backend API instead of direct Binance API to avoid CORS
       const backendSymbol = symbol.replace('/', '-'); // Convert BTC/USD to BTC-USD for URL
       const response = await fetch(
-        `http://localhost:5000/api/crypto-data/${backendSymbol}?exchange=coinbase&limit=${limit}`
+        `http://localhost:8080/api/crypto-data/${backendSymbol}?exchange=coinbase&limit=${limit}`
       );
       
       if (!response.ok) {

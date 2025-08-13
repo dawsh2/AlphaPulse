@@ -1,0 +1,361 @@
+/* CryptoDashboard - Grafana-style dark theme with phosphor green accents */
+
+.cryptoDashboard {
+  width: 100%;
+  height: 100%;
+  background: #0b0e14;
+  color: #00ff88;
+  padding: 20px;
+  overflow-y: auto;
+  font-family: 'IBM Plex Mono', 'SF Mono', Monaco, Consolas, monospace;
+}
+
+/* Header */
+.dashboardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 16px 24px;
+  background: linear-gradient(90deg, rgba(0, 255, 136, 0.05), transparent);
+  border-left: 3px solid #00ff88;
+}
+
+.dashboardHeader h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #00ff88;
+  text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+}
+
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 20px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #666;
+}
+
+.dot.connected {
+  background: #00ff88;
+  animation: pulse 2s infinite;
+  box-shadow: 0 0 10px #00ff88;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Metrics Bar */
+.metricsBar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.metricCard {
+  flex: 1;
+  min-width: 150px;
+  padding: 16px;
+  background: rgba(0, 255, 136, 0.05);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metricLabel {
+  font-size: 11px;
+  color: rgba(0, 255, 136, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.metricValue {
+  font-size: 24px;
+  font-weight: 600;
+  color: #00ff88;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+.metricValue.positive {
+  color: #00ff88;
+}
+
+.metricValue.negative {
+  color: #ff4444;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+/* Main Grid */
+.mainGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.panel {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 8px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.panel h2 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #00ff88;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Arbitrage Table */
+.arbTable {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tableHeader {
+  display: grid;
+  grid-template-columns: 80px 80px 80px 100px 1fr;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(0, 255, 136, 0.1);
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: rgba(0, 255, 136, 0.8);
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 80px 80px 80px 100px 1fr;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  font-size: 13px;
+}
+
+.tableRow:hover {
+  background: rgba(0, 255, 136, 0.05);
+  transform: translateX(4px);
+}
+
+.tableRow.profitable {
+  border-left: 2px solid #00ff88;
+}
+
+.arbType {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: rgba(0, 255, 136, 0.2);
+  border-radius: 3px;
+  text-align: center;
+}
+
+.confidenceBar {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.confidenceFill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+/* Flash Metrics */
+.flashMetrics {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.liquidityPool {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+}
+
+.liquidityPool h3 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: rgba(0, 255, 136, 0.8);
+}
+
+.poolAmount {
+  font-size: 20px;
+  font-weight: 600;
+  color: #00ff88;
+  margin-bottom: 8px;
+}
+
+.poolBar {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.poolFill {
+  height: 100%;
+  background: linear-gradient(90deg, #00ff88, #00cc6a);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+.flashStats {
+  display: flex;
+  justify-content: space-around;
+  padding: 12px;
+  background: rgba(0, 255, 136, 0.05);
+  border-radius: 6px;
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+/* MEV List */
+.mevList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mevCard {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.mevCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+}
+
+.mevHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.mevType {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(255, 170, 0, 0.2);
+  color: #ffaa00;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.mevProtocol {
+  font-size: 13px;
+  color: rgba(0, 255, 136, 0.8);
+}
+
+.mevMetrics {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(0, 255, 136, 0.6);
+}
+
+/* AMM List */
+.ammList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ammCard {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 6px;
+}
+
+.ammHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.ammPair {
+  color: rgba(0, 255, 136, 0.8);
+}
+
+.ammStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 11px;
+  color: rgba(0, 255, 136, 0.6);
+}
+
+.apy {
+  color: #00ff88;
+  font-weight: 600;
+}
+
+/* Chart Panel */
+.chartPanel {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 8px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.chartPanel h2 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #00ff88;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.chartContainer {
+  height: 200px;
+  position: relative;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .metricsBar {
+    flex-direction: column;
+  }
+  
+  .metricCard {
+    min-width: 100%;
+  }
+}

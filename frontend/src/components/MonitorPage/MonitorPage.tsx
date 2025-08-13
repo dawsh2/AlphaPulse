@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import MetricsSidebar from '../features/Monitor/MetricsSidebar';
-import type { SidebarTab } from '../features/Monitor/MetricsSidebar';
+import type { SidebarTab, PrimaryTab, ChartTab } from '../features/Monitor/MetricsSidebar';
+import SystemDashboard from '../features/Monitor/SystemDashboard';
+import CryptoDashboard from '../features/Monitor/CryptoDashboard';
+import GreeksDashboard from '../features/Monitor/GreeksDashboard';
 import PlaybackControls from '../features/Monitor/PlaybackControls';
 import type { PlaybackSpeed } from '../features/Monitor/PlaybackControls';
 import SymbolSelector from '../features/Monitor/SymbolSelector';
@@ -14,7 +17,10 @@ import type { EventData } from '../../types/monitor.types';
 
 const MonitorPage: React.FC = () => {
   // State management
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('metrics');
+  const [primaryTab, setPrimaryTab] = useState<PrimaryTab>('charts');
+  const [dashboardView, setDashboardView] = useState<'system' | 'crypto' | 'greeks'>('system');
+  const [chartTab, setChartTab] = useState<ChartTab>('metrics');
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('metrics'); // Keep for backward compatibility
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentBar, setCurrentBar] = useState(50);
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
@@ -418,8 +424,10 @@ const MonitorPage: React.FC = () => {
       <div className={styles.contentArea}>
         {/* Sidebar */}
         <MetricsSidebar
-          sidebarTab={sidebarTab}
-          setSidebarTab={setSidebarTab}
+          primaryTab={primaryTab}
+          setPrimaryTab={setPrimaryTab}
+          chartTab={chartTab}
+          setChartTab={setChartTab}
           mockMetrics={mockMetrics}
           eventData={eventData}
           mockStrategies={mockStrategies}
@@ -427,27 +435,33 @@ const MonitorPage: React.FC = () => {
           selectedStrategy={selectedStrategy}
           setSelectedStrategy={setSelectedStrategy}
           styles={styles}
+          // Legacy props for backward compatibility
+          sidebarTab={sidebarTab}
+          setSidebarTab={setSidebarTab}
         />
 
         <div className={styles.mainContent}>
-          {/* Chart Layout Manager */}
-          <ChartLayoutManager
-            layout={layout}
-            onLayoutChange={setLayout}
-            onSymbolChange={handleSymbolChange}
-            onExchangeChange={handleExchangeChange}
-            onTimeframeChange={handleTimeframeChange}
-            playbackControls={
-              isPlaying ? {
-                isPlaying,
-                currentBar,
-                playbackSpeed
-              } : undefined
-            }
-          />
+          {/* Show Chart or System Dashboard based on primary tab */}
+          {primaryTab === 'charts' ? (
+            <>
+              {/* Chart Layout Manager */}
+              <ChartLayoutManager
+                layout={layout}
+                onLayoutChange={setLayout}
+                onSymbolChange={handleSymbolChange}
+                onExchangeChange={handleExchangeChange}
+                onTimeframeChange={handleTimeframeChange}
+                playbackControls={
+                  isPlaying ? {
+                    isPlaying,
+                    currentBar,
+                    playbackSpeed
+                  } : undefined
+                }
+              />
 
-          {/* Controls Bar - Only Replay and Strategy */}
-          <div className={styles.controlsBar}>
+              {/* Controls Bar - Only Replay and Strategy */}
+              <div className={styles.controlsBar}>
             {/* Replay Controls */}
             <PlaybackControls
               isPlaying={isPlaying}
@@ -497,6 +511,44 @@ const MonitorPage: React.FC = () => {
               </div>
             </div>
           </div>
+            </>
+          ) : (
+            /* Dashboard Views - Professional metrics dashboards */
+            <>
+              {/* Dashboard Tab Selector */}
+              <div className={styles.dashboardTabs}>
+                <button 
+                  className={`${styles.dashboardTab} ${dashboardView === 'system' ? styles.active : ''}`}
+                  onClick={() => setDashboardView('system')}
+                >
+                  System Metrics
+                </button>
+                <button 
+                  className={`${styles.dashboardTab} ${dashboardView === 'crypto' ? styles.active : ''}`}
+                  onClick={() => setDashboardView('crypto')}
+                >
+                  Crypto Trading
+                </button>
+                <button 
+                  className={`${styles.dashboardTab} ${dashboardView === 'greeks' ? styles.active : ''}`}
+                  onClick={() => setDashboardView('greeks')}
+                >
+                  Market Greeks
+                </button>
+              </div>
+              
+              {/* Dashboard Content */}
+              {dashboardView === 'system' && (
+                <SystemDashboard className={styles.systemDashboardMain} />
+              )}
+              {dashboardView === 'crypto' && (
+                <CryptoDashboard className={styles.systemDashboardMain} />
+              )}
+              {dashboardView === 'greeks' && (
+                <GreeksDashboard className={styles.systemDashboardMain} />
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

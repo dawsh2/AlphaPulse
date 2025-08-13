@@ -375,6 +375,36 @@
 .saveNotebookButton:active {
   transform: scale(0.95);
 }
+.runAllButton {
+  padding: var(--space-2);
+  background: transparent;
+  border: 2px solid var(--color-border-secondary);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: var(--space-2);
+}
+.runAllButton:hover {
+  background: var(--color-bg-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.runAllButton:active {
+  transform: scale(0.95);
+}
+.runAllButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.runAllButton:disabled:hover {
+  border-color: var(--color-border-secondary);
+  color: var(--color-text-primary);
+  background: transparent;
+}
 
 .cleanupKernelButton {
   padding: var(--space-2);

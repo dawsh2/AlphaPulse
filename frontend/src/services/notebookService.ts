@@ -14,12 +14,27 @@ interface KernelStatus {
   error?: string;
 }
 
+interface NotebookTemplate {
+  title: string;
+  description: string;
+  cells: Array<{
+    type: 'code' | 'markdown';
+    content: string;
+  }>;
+}
+
+interface TemplateInfo {
+  id: string;
+  title: string;
+  description: string;
+}
+
 class NotebookService {
   private baseUrl: string;
 
   constructor() {
-    // Use Flask backend with notebook routes on port 5002
-    this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5002';
+    // Use FastAPI backend with notebook routes on port 8080
+    this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
   }
 
   /**
@@ -88,6 +103,43 @@ class NotebookService {
     } catch (error) {
       console.error('Error restarting kernel:', error);
       return false;
+    }
+  }
+
+  /**
+   * Get available notebook templates
+   */
+  async getTemplates(): Promise<TemplateInfo[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/notebook/templates`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.templates || [];
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Load a specific template
+   */
+  async loadTemplate(templateId: string): Promise<NotebookTemplate | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/notebook/templates/${templateId}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error loading template:', error);
+      return null;
     }
   }
 }

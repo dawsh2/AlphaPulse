@@ -8,6 +8,7 @@ import CodeEditor from '../../CodeEditor/CodeEditor';
 import styles from '../../../pages/DevelopPage.module.css';
 import { terminalService } from '../../../services/terminalService';
 import { saveFileContent } from '../../../services/fileSystemService';
+import { XTerminal } from './XTerminal';
 
 export interface UnifiedTab {
   id: string;
@@ -20,6 +21,7 @@ export interface UnifiedTab {
   terminalContent?: string[];
   currentInput?: string;
   cwd?: string;
+  useXTerm?: boolean; // Flag to use new XTerminal vs old terminal
 }
 
 interface DevelopWindowProps {
@@ -202,78 +204,90 @@ export const DevelopWindow: React.FC<DevelopWindowProps> = ({
         </div>
       );
     } else {
-      // Terminal tab
-      return (
-        <div 
-          className={styles.outputContent}
-          style={{
-            borderBottom: '3px solid var(--color-border-primary)',
-            borderRight: '3px solid var(--color-border-primary)'
-          }}
-        >
-          <div className={styles.outputLines}>
-            {(activeTabData.terminalContent || []).map((line, index) => (
-              <div key={index} className={styles.outputLine}>
-                {line}
-              </div>
-            ))}
-            <div ref={outputEndRef} />
-          </div>
-          <div className={styles.terminalInputLine}>
-            <span className={styles.prompt}>
-              {activeTabData.cwd || '~/strategies'}$ 
-            </span>
-            <div style={{ position: 'relative', flex: 1, height: '1.4em' }}>
-              {/* Visible text display - starts with a space after prompt */}
-              <span 
-                style={{
-                  color: '#00d4ff',
-                  fontFamily: 'var(--font-family-mono)',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  textShadow: '0 0 5px #00d4ff, 0 0 10px #00d4ff',
-                  position: 'absolute',
-                  top: '0',
-                  left: '0.6em', // Space after prompt
-                  whiteSpace: 'pre',
-                  pointerEvents: 'none',
-                  zIndex: 15
-                }}
-              >
-                {activeTabData.currentInput || ''}
+      // Terminal tab - choose between XTerminal (new) or legacy terminal
+      if (activeTabData.useXTerm) {
+        return (
+          <XTerminal 
+            className={styles.outputContent}
+            onCommand={(command) => {
+              console.log('Terminal command:', command);
+            }}
+          />
+        );
+      } else {
+        // Legacy terminal implementation
+        return (
+          <div 
+            className={styles.outputContent}
+            style={{
+              borderBottom: '3px solid var(--color-border-primary)',
+              borderRight: '3px solid var(--color-border-primary)'
+            }}
+          >
+            <div className={styles.outputLines}>
+              {(activeTabData.terminalContent || []).map((line, index) => (
+                <div key={index} className={styles.outputLine}>
+                  {line}
+                </div>
+              ))}
+              <div ref={outputEndRef} />
+            </div>
+            <div className={styles.terminalInputLine}>
+              <span className={styles.prompt}>
+                {activeTabData.cwd || '~/strategies'}$ 
               </span>
-              {/* Hidden input for capturing keystrokes */}
-              <input
-                ref={inputRef}
-                type="text"
-                className={styles.terminalInput}
-                value={activeTabData.currentInput || ''}
-                onChange={(e) => handleTerminalInput(activeTabData.id, e.target.value)}
-                onFocus={() => setIsTerminalFocused(true)}
-                onBlur={() => setIsTerminalFocused(false)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleTerminalCommand(activeTabData.id);
-                  }
-                }}
-                style={{ 
-                  color: 'transparent', // Make input text invisible
-                  paddingLeft: '0.6em' // Align input with visible text
-                }}
-                autoFocus
-                spellCheck={false}
-              />
-              {/* Fat cursor positioned exactly after the visible text with space */}
-              <div 
-                className={`${styles.fatCursor} ${isTerminalFocused ? styles.focused : ''}`}
-                style={{ 
-                  left: `${0.6 + (activeTabData.currentInput || '').length * 0.6}em`
-                }}
-              />
+              <div style={{ position: 'relative', flex: 1, height: '1.4em' }}>
+                {/* Visible text display - starts with a space after prompt */}
+                <span 
+                  style={{
+                    color: '#00d4ff',
+                    fontFamily: 'var(--font-family-mono)',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    textShadow: '0 0 5px #00d4ff, 0 0 10px #00d4ff',
+                    position: 'absolute',
+                    top: '0',
+                    left: '0.6em', // Space after prompt
+                    whiteSpace: 'pre',
+                    pointerEvents: 'none',
+                    zIndex: 15
+                  }}
+                >
+                  {activeTabData.currentInput || ''}
+                </span>
+                {/* Hidden input for capturing keystrokes */}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  className={styles.terminalInput}
+                  value={activeTabData.currentInput || ''}
+                  onChange={(e) => handleTerminalInput(activeTabData.id, e.target.value)}
+                  onFocus={() => setIsTerminalFocused(true)}
+                  onBlur={() => setIsTerminalFocused(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleTerminalCommand(activeTabData.id);
+                    }
+                  }}
+                  style={{ 
+                    color: 'transparent', // Make input text invisible
+                    paddingLeft: '0.6em' // Align input with visible text
+                  }}
+                  autoFocus
+                  spellCheck={false}
+                />
+                {/* Fat cursor positioned exactly after the visible text with space */}
+                <div 
+                  className={`${styles.fatCursor} ${isTerminalFocused ? styles.focused : ''}`}
+                  style={{ 
+                    left: `${0.6 + (activeTabData.currentInput || '').length * 0.6}em`
+                  }}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      );
+        );
+      }
     }
   };
 

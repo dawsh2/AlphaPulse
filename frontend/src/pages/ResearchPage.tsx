@@ -1055,37 +1055,7 @@ const ResearchPage: React.FC = () => {
     ]
   };
 
-  const [notebookTemplates, setNotebookTemplates] = useState<NotebookTemplate[]>([
-    {
-      id: 'strategy_comparison',
-      title: 'Strategy Comparison Analysis',
-      description: 'Compare multiple strategies across key performance metrics',
-      cells: [
-        {
-          id: 'cell-1',
-          type: 'markdown',
-          content: '# Strategy Comparison Analysis\n\nComparing multiple strategies across key performance metrics and risk characteristics.'
-        },
-        {
-          id: 'cell-2',
-          type: 'code',
-          content: `import admf\nfrom analysis_lib import *\n\n# Load strategies to compare\nstrategies = admf.load_signals(['momentum', 'mean_reversion'], min_sharpe=1.0)\nprint(f"Loaded {len(strategies)} strategies for comparison")`
-        }
-      ]
-    },
-    {
-      id: 'performance_summary',
-      title: 'Complete Performance Analysis',
-      description: 'Comprehensive analysis of strategy performance',
-      cells: [
-        {
-          id: 'cell-1',
-          type: 'markdown',
-          content: '# Performance Summary Report\n\nComprehensive analysis of strategy performance including returns, risk metrics, and trade statistics.'
-        }
-      ]
-    }
-  ]);
+  const [notebookTemplates, setNotebookTemplates] = useState<NotebookTemplate[]>([]);
 
   const [savedNotebooks, setSavedNotebooks] = useState<SavedNotebook[]>(() => {
     // Load from localStorage on mount
@@ -1146,20 +1116,22 @@ const ResearchPage: React.FC = () => {
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const response = await fetch('http://localhost:5002/api/notebook/templates');
-        const data = await response.json();
-        if (data.templates) {
+        // Get list of available templates
+        const templateList = await notebookService.getTemplates();
+        
+        if (templateList.length > 0) {
           // Fetch full template details for each
           const fullTemplates = await Promise.all(
-            data.templates.map(async (t: any) => {
-              const templateResponse = await fetch(`http://localhost:5002/api/notebook/templates/${t.id}`);
-              return templateResponse.json();
+            templateList.map(async (t) => {
+              const template = await notebookService.loadTemplate(t.id);
+              return template ? { id: t.id, ...template } : null;
             })
           );
           
-          // Update templates state with fetched templates
-          setNotebookTemplates(prevTemplates => [...fullTemplates, ...prevTemplates]);
-          console.log('Loaded templates from backend:', fullTemplates);
+          // Filter out null templates and update state (replace entirely, don't merge)
+          const validTemplates = fullTemplates.filter(t => t !== null) as NotebookTemplate[];
+          setNotebookTemplates(validTemplates);
+          console.log('Loaded templates from backend:', validTemplates);
         }
       } catch (error) {
         console.error('Failed to fetch templates:', error);

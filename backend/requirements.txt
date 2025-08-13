@@ -1,11 +1,27 @@
-flask==2.3.3
-flask-cors==4.0.0
-flask-sqlalchemy==3.0.5
+# Web Framework (migrating from Flask to FastAPI)
+flask==2.3.3  # To be removed after migration
+flask-cors==4.0.0  # To be removed after migration
+flask-sqlalchemy==3.0.5  # To be removed after migration
+flask-socketio==5.3.6  # To be removed after migration
+
+# FastAPI and dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+dependency-injector==4.48.1
+
+# Database
+sqlalchemy==2.0.23
+bcrypt==4.1.1
+
+# Common utilities
 python-dotenv==1.0.0
 requests==2.31.0
 PyJWT==2.8.0
 websocket-client==1.6.4
 python-dateutil==2.8.2
+psutil==5.9.6
 
 # For Python 3.13 compatibility, we'll use requests for Alpaca API calls
 # instead of the problematic alpaca-trade-api package
@@ -33,3 +49,17 @@ pyarrow>=14.0.0
 pandas-ta>=0.3.14b0  # Pure Python technical indicators
 quantstats>=0.0.62  # Portfolio performance analytics
 # ta-lib>=0.4.25  # Optional: C-based indicators (faster, requires compilation)
+
+# Async and Real-time Data Collection
+asyncpg>=0.29.0  # Async PostgreSQL driver for TimescaleDB
+aioredis>=2.0.1  # Async Redis client
+websockets>=12.0  # WebSocket client for market data feeds
+aiohttp>=3.9.0  # Async HTTP client
+
+# Monitoring and Observability
+prometheus-client>=0.19.0  # Prometheus metrics
+pyyaml>=6.0.1  # YAML configuration parsing
+
+# Data Processing
+orjson>=3.9.10  # Fast JSON parsing
+msgpack>=1.0.7  # Binary serialization for Redis

@@ -28,7 +28,7 @@ print("TICK-LEVEL ARBITRAGE & MARKET MAKING ANALYSIS")
 print("="*80)
 
 # Connect to our live trade database
-conn = duckdb.connect('../market_data/market_data.duckdb', read_only=True)
+conn = duckdb.connect('market_data/market_data.duckdb', read_only=True)
 
 # =============================================================================
 # 1. DATA OVERVIEW & QUALITY CHECK
@@ -108,7 +108,7 @@ spread_query = """
 WITH price_windows AS (
     SELECT
         DATE_TRUNC('second', datetime) + 
-        INTERVAL (EXTRACT(second FROM datetime)::int / 5) * 5 SECOND as time_window,
+        (EXTRACT(second FROM datetime)::int / 5) * 5 * INTERVAL 1 SECOND as time_window,
         exchange,
         symbol,
         AVG(price) as avg_price,
@@ -118,7 +118,7 @@ WITH price_windows AS (
         SUM(size) as volume_in_window
     FROM trades
     WHERE symbol = 'BTC/USD'  -- Focus on BTC first
-        AND datetime >= CURRENT_TIMESTAMP - INTERVAL '30 minutes'  -- Recent data
+        AND datetime >= CURRENT_TIMESTAMP - INTERVAL 30 MINUTE  -- Recent data
     GROUP BY time_window, exchange, symbol
     HAVING COUNT(*) >= 1  -- At least 1 trade in window
 ),
@@ -203,7 +203,7 @@ WITH trade_sequences AS (
         EXTRACT(EPOCH FROM (datetime - LAG(datetime) OVER (PARTITION BY exchange, symbol ORDER BY datetime))) as time_gap
     FROM trades
     WHERE symbol = 'BTC/USD'
-        AND datetime >= CURRENT_TIMESTAMP - INTERVAL '30 minutes'
+        AND datetime >= CURRENT_TIMESTAMP - INTERVAL 30 MINUTE
 ),
 spread_estimates AS (
     SELECT
@@ -308,7 +308,7 @@ WITH price_comparison AS (
         SUM(size) as volume
     FROM trades
     WHERE symbol = 'BTC/USD'
-        AND datetime >= CURRENT_TIMESTAMP - INTERVAL '30 minutes'
+        AND datetime >= CURRENT_TIMESTAMP - INTERVAL 30 MINUTE
     GROUP BY minute, exchange, symbol
 ),
 hedge_analysis AS (
@@ -393,7 +393,7 @@ WITH price_changes AS (
         LAG(price) OVER (PARTITION BY exchange, symbol ORDER BY datetime) as prev_price
     FROM trades
     WHERE symbol = 'BTC/USD'
-        AND datetime >= CURRENT_TIMESTAMP - INTERVAL '30 minutes'
+        AND datetime >= CURRENT_TIMESTAMP - INTERVAL 30 MINUTE
 ),
 returns AS (
     SELECT

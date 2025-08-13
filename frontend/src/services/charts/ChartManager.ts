@@ -153,7 +153,7 @@ class ChartManager {
       
       // First try to get data from backend
       try {
-        const response = await fetch(`http://localhost:5002/api/crypto-data/${chart.symbol}?exchange=${chart.exchange}`);
+        const response = await fetch(`http://localhost:5001/api/crypto-data/${chart.symbol}?exchange=${chart.exchange}`);
         if (response.ok) {
           const backendData = await response.json();
           if (backendData && backendData.data && backendData.data.length > 0) {
@@ -202,7 +202,7 @@ class ChartManager {
                   console.log(`[ChartManager] Fetched ${result.candleCount} gap candles`);
                   
                   // Reload data from backend to get the updated dataset
-                  const updatedResponse = await fetch(`http://localhost:5002/api/crypto-data/${chart.symbol}?exchange=${chart.exchange}`);
+                  const updatedResponse = await fetch(`http://localhost:5001/api/crypto-data/${chart.symbol}?exchange=${chart.exchange}`);
                   if (updatedResponse.ok) {
                     const updatedData = await updatedResponse.json();
                     if (updatedData && updatedData.data && updatedData.data.length > 0) {
@@ -465,7 +465,7 @@ class ChartManager {
       try {
         const candlesToStore = buffer.splice(0); // Clear buffer
         
-        const response = await fetch(`http://localhost:5002/api/market-data/save`, {
+        const response = await fetch(`http://localhost:5001/api/market-data/save`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -1,28 +1,49 @@
 """
-Analysis Service - Statistical analysis and calculations
-Business logic layer for market data analysis
+Analysis Service Layer - Business logic for market data analysis
+Handles statistical analysis, risk metrics, and backtesting
 """
 from typing import Dict, Any, Optional, List
 import numpy as np
 import pandas as pd
+import logging
+
 from data_manager import DataManager
 
+logger = logging.getLogger(__name__)
 
-class AnalysisService:
-    """Service layer for statistical analysis operations"""
+class MarketAnalysisService:
+    """Service layer for market analysis operations"""
     
     def __init__(self, data_manager: DataManager = None):
         self.data_manager = data_manager or DataManager()
     
-    def calculate_basic_statistics(self, symbol: str, exchange: str = "coinbase") -> Dict[str, float]:
-        """Calculate basic statistics for a symbol"""
+    async def calculate_basic_statistics(self, symbol: str, exchange: str = "coinbase") -> Dict[str, float]:
+        """Calculate basic statistics for a symbol
+        
+        Args:
+            symbol: Trading symbol
+            exchange: Exchange name
+            
+        Returns:
+            Dictionary of statistics
+        """
         try:
-            return self.data_manager.calculate_statistics(symbol, exchange)
+            stats = self.data_manager.calculate_statistics(symbol, exchange)
+            return stats
         except Exception as e:
-            raise Exception(f"Statistics calculation failed for {symbol}: {str(e)}")
+            logger.error(f"Statistics calculation failed for {symbol}: {e}")
+            raise
     
-    def calculate_correlation_matrix(self, symbols: List[str], exchange: str = "coinbase") -> Dict[str, Any]:
-        """Calculate correlation matrix for multiple symbols"""
+    async def calculate_correlation_matrix(self, symbols: List[str], exchange: str = "coinbase") -> Dict[str, Any]:
+        """Calculate correlation matrix for multiple symbols
+        
+        Args:
+            symbols: List of symbols
+            exchange: Exchange name
+            
+        Returns:
+            Correlation matrix and statistics
+        """
         try:
             correlations = {}
             statistics = {}
@@ -30,7 +51,7 @@ class AnalysisService:
             # Calculate pairwise correlations
             for i, symbol1 in enumerate(symbols):
                 correlations[symbol1] = {}
-                statistics[symbol1] = self.calculate_basic_statistics(symbol1, exchange)
+                statistics[symbol1] = await self.calculate_basic_statistics(symbol1, exchange)
                 
                 for j, symbol2 in enumerate(symbols):
                     if i == j:
@@ -46,85 +67,125 @@ class AnalysisService:
             return {
                 'correlations': correlations,
                 'statistics': statistics,
-                'symbols': symbols
+                'symbols': symbols,
+                'exchange': exchange
             }
-            
         except Exception as e:
-            raise Exception(f"Correlation matrix calculation failed: {str(e)}")
+            logger.error(f"Correlation matrix calculation failed: {e}")
+            raise
     
-    def calculate_rolling_statistics(self, symbol: str, window: int = 20, exchange: str = "coinbase") -> Dict[str, Any]:
-        """Calculate rolling statistics for a symbol"""
+    async def calculate_rolling_statistics(
+        self, 
+        symbol: str, 
+        window: int = 20, 
+        exchange: str = "coinbase"
+    ) -> Dict[str, Any]:
+        """Calculate rolling statistics for a symbol
+        
+        Args:
+            symbol: Trading symbol
+            window: Rolling window size
+            exchange: Exchange name
+            
+        Returns:
+            Rolling statistics data
+        """
         try:
-            # Get OHLCV data with returns
-            df = self.data_manager.get_returns(symbol, exchange)
+            df = self.data_manager.get_ohlcv(symbol, exchange)
             
             if df.empty:
-                raise ValueError(f"No data available for {symbol}")
+                return {
+                    'status': 'error',
+                    'message': 'No data available for symbol'
+                }
+            
+            # Calculate returns
+            df['returns'] = df['close'].pct_change()
             
             # Calculate rolling statistics
-            rolling_stats = {
-                'rolling_mean': df['log_returns'].rolling(window).mean().tolist(),
-                'rolling_std': df['log_returns'].rolling(window).std().tolist(),
-                'rolling_sharpe': (df['log_returns'].rolling(window).mean() / df['log_returns'].rolling(window).std()).tolist(),
-                'rolling_min': df['log_returns'].rolling(window).min().tolist(),
-                'rolling_max': df['log_returns'].rolling(window).max().tolist(),
-                'timestamps': df['timestamp'].tolist()
-            }
+            df['rolling_mean'] = df['close'].rolling(window=window).mean()
+            df['rolling_std'] = df['returns'].rolling(window=window).std()
+            df['rolling_sharpe'] = (df['returns'].rolling(window=window).mean() / 
+                                   df['returns'].rolling(window=window).std()) * np.sqrt(252)
             
-            # Remove NaN values for JSON serialization
-            for key in rolling_stats:
-                if key != 'timestamps':
-                    rolling_stats[key] = [x if pd.notna(x) else None for x in rolling_stats[key]]
+            # Upper and lower bands (Bollinger Bands)
+            df['upper_band'] = df['rolling_mean'] + (2 * df['close'].rolling(window=window).std())
+            df['lower_band'] = df['rolling_mean'] - (2 * df['close'].rolling(window=window).std())
+            
+            # Convert to output format
+            result = []
+            for _, row in df.dropna().iterrows():
+                result.append({
+                    'timestamp': int(row['timestamp']),
+                    'close': float(row['close']),
+                    'rolling_mean': float(row['rolling_mean']),
+                    'rolling_std': float(row['rolling_std']),
+                    'rolling_sharpe': float(row['rolling_sharpe']) if not pd.isna(row['rolling_sharpe']) else 0,
+                    'upper_band': float(row['upper_band']),
+                    'lower_band': float(row['lower_band'])
+                })
             
             return {
                 'symbol': symbol,
+                'exchange': exchange,
                 'window': window,
-                'data_points': len(df),
-                'rolling_stats': rolling_stats
+                'data': result
             }
-            
         except Exception as e:
-            raise Exception(f"Rolling statistics calculation failed: {str(e)}")
+            logger.error(f"Rolling statistics calculation failed: {e}")
+            raise
     
-    def calculate_risk_metrics(self, symbol: str, exchange: str = "coinbase", risk_free_rate: float = 0.02) -> Dict[str, Any]:
-        """Calculate comprehensive risk metrics"""
+    async def calculate_risk_metrics(
+        self, 
+        symbol: str, 
+        exchange: str = "coinbase", 
+        risk_free_rate: float = 0.02
+    ) -> Dict[str, Any]:
+        """Calculate comprehensive risk metrics
+        
+        Args:
+            symbol: Trading symbol
+            exchange: Exchange name
+            risk_free_rate: Annual risk-free rate
+            
+        Returns:
+            Risk metrics dictionary
+        """
         try:
-            df = self.data_manager.get_returns(symbol, exchange)
+            df = self.data_manager.get_ohlcv(symbol, exchange)
             
             if df.empty:
-                raise ValueError(f"No data available for {symbol}")
+                return {
+                    'status': 'error',
+                    'message': 'No data available for symbol'
+                }
             
-            returns = df['log_returns'].dropna()
+            # Calculate returns
+            df['returns'] = df['close'].pct_change()
+            returns = df['returns'].dropna()
             
-            if len(returns) == 0:
-                raise ValueError(f"No valid returns data for {symbol}")
-            
-            # Basic statistics
+            # Basic metrics
             mean_return = returns.mean()
-            volatility = returns.std()
+            std_return = returns.std()
             
-            # Risk metrics
-            var_95 = returns.quantile(0.05)  # Value at Risk (95%)
-            var_99 = returns.quantile(0.01)  # Value at Risk (99%)
+            # Annualized metrics (assuming daily data)
+            annual_return = mean_return * 252
+            annual_volatility = std_return * np.sqrt(252)
             
-            # Expected Shortfall (Conditional VaR)
-            es_95 = returns[returns <= var_95].mean()
-            es_99 = returns[returns <= var_99].mean()
+            # Sharpe ratio
+            sharpe_ratio = (annual_return - risk_free_rate) / annual_volatility if annual_volatility > 0 else 0
             
-            # Maximum Drawdown calculation
-            cumulative_returns = (1 + returns).cumprod()
-            running_max = cumulative_returns.expanding().max()
-            drawdown = (cumulative_returns - running_max) / running_max
+            # Maximum drawdown
+            cumulative = (1 + returns).cumprod()
+            running_max = cumulative.expanding().max()
+            drawdown = (cumulative - running_max) / running_max
             max_drawdown = drawdown.min()
             
-            # Sharpe Ratio (annualized)
-            excess_return = mean_return - (risk_free_rate / 365 / 24 / 60)  # Convert to per-minute
-            sharpe_ratio = (excess_return / volatility) * np.sqrt(365 * 24 * 60) if volatility > 0 else 0
+            # Value at Risk (95% confidence)
+            var_95 = np.percentile(returns, 5)
             
-            # Sortino Ratio (downside deviation)
-            downside_returns = returns[returns < 0]
-            downside_deviation = downside_returns.std()
-            sortino_ratio = (excess_return / downside_deviation) * np.sqrt(365 * 24 * 60) if downside_deviation > 0 else 0
+            # Conditional Value at Risk (CVaR)
+            cvar_95 = returns[returns <= var_95].mean()
             
             # Skewness and Kurtosis
             skewness = returns.skew()
@@ -132,131 +193,163 @@ class AnalysisService:
             
             return {
                 'symbol': symbol,
-                'data_points': len(returns),
-                'mean_return_annualized': mean_return * 365 * 24 * 60,
-                'volatility_annualized': volatility * np.sqrt(365 * 24 * 60),
-                'sharpe_ratio': sharpe_ratio,
-                'sortino_ratio': sortino_ratio,
-                'var_95': var_95,
-                'var_99': var_99,
-                'expected_shortfall_95': es_95,
-                'expected_shortfall_99': es_99,
-                'max_drawdown': max_drawdown,
-                'skewness': skewness,
-                'kurtosis': kurtosis,
-                'risk_free_rate': risk_free_rate
-            }
-            
-        except Exception as e:
-            raise Exception(f"Risk metrics calculation failed: {str(e)}")
-    
-    def perform_backtesting_analysis(self, strategy_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform backtesting analysis on a strategy"""
-        try:
-            # This is a placeholder for backtesting logic
-            # In a real implementation, this would execute the strategy
-            # against historical data and calculate performance metrics
-            
-            symbol = strategy_config.get('symbol', 'BTC/USD')
-            
-            # Get historical data
-            df = self.data_manager.get_returns(symbol)
-            
-            if df.empty:
-                raise ValueError(f"No data available for backtesting {symbol}")
-            
-            # Mock backtesting results for now
-            # In practice, this would run the actual strategy logic
-            returns = df['log_returns'].dropna()
-            
-            # Simulate strategy returns (random example)
-            np.random.seed(42)  # For reproducible results
-            strategy_returns = returns * (1 + np.random.normal(0, 0.1, len(returns)))
-            
-            # Calculate performance metrics
-            total_return = strategy_returns.sum()
-            annualized_return = total_return * 365 * 24 * 60 / len(returns)
-            volatility = strategy_returns.std() * np.sqrt(365 * 24 * 60)
-            sharpe_ratio = annualized_return / volatility if volatility > 0 else 0
-            
-            # Calculate drawdown
-            cumulative_returns = (1 + strategy_returns).cumprod()
-            running_max = cumulative_returns.expanding().max()
-            drawdown = (cumulative_returns - running_max) / running_max
-            max_drawdown = drawdown.min()
-            
-            return {
-                'symbol': symbol,
-                'strategy': strategy_config,
-                'total_return': total_return,
-                'annualized_return': annualized_return,
-                'volatility': volatility,
-                'sharpe_ratio': sharpe_ratio,
-                'max_drawdown': max_drawdown,
-                'total_trades': len(returns),
-                'data_points': len(df),
-                'backtest_period': {
-                    'start': df['datetime'].min().isoformat() if not df.empty else None,
-                    'end': df['datetime'].max().isoformat() if not df.empty else None
+                'exchange': exchange,
+                'risk_free_rate': risk_free_rate,
+                'metrics': {
+                    'annual_return': float(annual_return),
+                    'annual_volatility': float(annual_volatility),
+                    'sharpe_ratio': float(sharpe_ratio),
+                    'max_drawdown': float(max_drawdown),
+                    'var_95': float(var_95),
+                    'cvar_95': float(cvar_95),
+                    'skewness': float(skewness),
+                    'kurtosis': float(kurtosis),
+                    'mean_daily_return': float(mean_return),
+                    'std_daily_return': float(std_return)
                 }
             }
+        except Exception as e:
+            logger.error(f"Risk metrics calculation failed: {e}")
+            raise
+    
+    async def perform_backtesting_analysis(self, strategy_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Perform backtesting analysis
+        
+        Args:
+            strategy_config: Strategy configuration
+            
+        Returns:
+            Backtest results
+        """
+        try:
+            # This is a placeholder for more complex backtesting logic
+            # In production, this would integrate with a backtesting engine
+            
+            symbol = strategy_config.get('symbol')
+            exchange = strategy_config.get('exchange', 'coinbase')
+            strategy_type = strategy_config.get('type', 'simple_ma_cross')
+            
+            df = self.data_manager.get_ohlcv(symbol, exchange)
+            
+            if df.empty:
+                return {
+                    'status': 'error',
+                    'message': 'No data available for backtesting'
+                }
+            
+            # Simple moving average crossover strategy as example
+            if strategy_type == 'simple_ma_cross':
+                fast_period = strategy_config.get('fast_period', 10)
+                slow_period = strategy_config.get('slow_period', 20)
+                
+                df['ma_fast'] = df['close'].rolling(window=fast_period).mean()
+                df['ma_slow'] = df['close'].rolling(window=slow_period).mean()
+                
+                # Generate signals
+                df['signal'] = 0
+                df.loc[df['ma_fast'] > df['ma_slow'], 'signal'] = 1
+                df.loc[df['ma_fast'] < df['ma_slow'], 'signal'] = -1
+                
+                # Calculate returns
+                df['returns'] = df['close'].pct_change()
+                df['strategy_returns'] = df['signal'].shift(1) * df['returns']
+                
+                # Calculate metrics
+                total_return = (1 + df['strategy_returns'].dropna()).prod() - 1
+                sharpe = df['strategy_returns'].mean() / df['strategy_returns'].std() * np.sqrt(252)
+                max_dd = self._calculate_max_drawdown(df['strategy_returns'].dropna())
+                
+                return {
+                    'status': 'success',
+                    'strategy': strategy_type,
+                    'parameters': {
+                        'fast_period': fast_period,
+                        'slow_period': slow_period
+                    },
+                    'results': {
+                        'total_return': float(total_return),
+                        'sharpe_ratio': float(sharpe),
+                        'max_drawdown': float(max_dd),
+                        'num_trades': int(df['signal'].diff().abs().sum() / 2)
+                    }
+                }
+            
+            return {
+                'status': 'error',
+                'message': f'Unknown strategy type: {strategy_type}'
+            }
             
         except Exception as e:
-            raise Exception(f"Backtesting analysis failed: {str(e)}")
+            logger.error(f"Backtesting failed: {e}")
+            raise
     
-    def get_market_regime_analysis(self, symbols: List[str], exchange: str = "coinbase") -> Dict[str, Any]:
-        """Analyze market regimes across multiple symbols"""
+    async def get_market_regime_analysis(self, symbols: List[str], exchange: str = "coinbase") -> Dict[str, Any]:
+        """Analyze market regime for multiple symbols
+        
+        Args:
+            symbols: List of symbols
+            exchange: Exchange name
+            
+        Returns:
+            Market regime analysis
+        """
         try:
             regime_data = {}
             
             for symbol in symbols:
-                df = self.data_manager.get_returns(symbol, exchange)
+                df = self.data_manager.get_ohlcv(symbol, exchange)
                 
                 if df.empty:
+                    regime_data[symbol] = {'status': 'no_data'}
                     continue
                 
-                returns = df['log_returns'].dropna()
+                # Calculate returns and volatility
+                df['returns'] = df['close'].pct_change()
                 
-                # Simple regime classification based on volatility and returns
-                volatility = returns.rolling(20).std()
-                mean_return = returns.rolling(20).mean()
+                # 20-day and 50-day moving averages
+                df['ma20'] = df['close'].rolling(window=20).mean()
+                df['ma50'] = df['close'].rolling(window=50).mean()
                 
-                # Classify regimes
-                high_vol = volatility > volatility.quantile(0.7)
-                positive_trend = mean_return > 0
+                # Current regime
+                latest = df.iloc[-1]
+                trend = 'bullish' if latest['close'] > latest['ma50'] else 'bearish'
+                momentum = 'strong' if abs(latest['close'] - latest['ma20']) / latest['ma20'] > 0.05 else 'weak'
                 
-                regimes = []
-                for i in range(len(returns)):
-                    if pd.isna(volatility.iloc[i]) or pd.isna(mean_return.iloc[i]):
-                        regimes.append('unknown')
-                    elif high_vol.iloc[i] and positive_trend.iloc[i]:
-                        regimes.append('bull_volatile')
-                    elif high_vol.iloc[i] and not positive_trend.iloc[i]:
-                        regimes.append('bear_volatile')
-                    elif not high_vol.iloc[i] and positive_trend.iloc[i]:
-                        regimes.append('bull_stable')
-                    else:
-                        regimes.append('bear_stable')
-                
-                # Calculate regime statistics
-                regime_counts = pd.Series(regimes).value_counts()
+                # Volatility regime
+                recent_vol = df['returns'].tail(20).std() * np.sqrt(252)
+                vol_regime = 'high' if recent_vol > 0.5 else 'normal' if recent_vol > 0.2 else 'low'
                 
                 regime_data[symbol] = {
-                    'regime_counts': regime_counts.to_dict(),
-                    'current_regime': regimes[-1] if regimes else 'unknown',
-                    'data_points': len(returns)
+                    'trend': trend,
+                    'momentum': momentum,
+                    'volatility_regime': vol_regime,
+                    'current_price': float(latest['close']),
+                    'ma20': float(latest['ma20']) if not pd.isna(latest['ma20']) else None,
+                    'ma50': float(latest['ma50']) if not pd.isna(latest['ma50']) else None,
+                    'annualized_volatility': float(recent_vol)
                 }
             
             return {
                 'symbols': symbols,
-                'regime_analysis': regime_data,
-                'regimes': ['bull_volatile', 'bear_volatile', 'bull_stable', 'bear_stable', 'unknown']
+                'exchange': exchange,
+                'regime_analysis': regime_data
             }
             
         except Exception as e:
-            raise Exception(f"Market regime analysis failed: {str(e)}")
+            logger.error(f"Market regime analysis failed: {e}")
+            raise
+    
+    def _calculate_max_drawdown(self, returns: pd.Series) -> float:
+        """Calculate maximum drawdown from returns series"""
+        cumulative = (1 + returns).cumprod()
+        running_max = cumulative.expanding().max()
+        drawdown = (cumulative - running_max) / running_max
+        return float(drawdown.min())
     
     def close(self):
-        """Close connections"""
-        if hasattr(self.data_manager, 'close'):
+        """Cleanup resources"""
+        if self.data_manager:
             self.data_manager.close()
+
+# The dependency function is now in core.container
+# Import it from there when needed in route files

@@ -1,0 +1,177 @@
+# Data Sources Configuration
+# This file configures all market data collection sources
+
+redis:
+  host: ${REDIS_HOST:-localhost}
+  port: ${REDIS_PORT:-6379}
+  db: 0
+  max_connections: 50
+  queue_ttl: 3600  # 1 hour TTL for queued items
+
+timescale:
+  host: ${POSTGRES_HOST:-localhost}
+  port: ${POSTGRES_PORT:-5432}
+  database: ${POSTGRES_DB:-market_data}
+  user: ${POSTGRES_USER:-alphapulse}
+  password: ${POSTGRES_PASSWORD:-alphapulse_secure_password}
+  pool_size_min: 10
+  pool_size_max: 50
+
+exchanges:
+  coinbase:
+    enabled: true
+    symbols:
+      - BTC-USD
+      - ETH-USD
+      - SOL-USD
+      - LINK-USD
+    collect_trades: true
+    collect_orderbook: true
+    orderbook_levels: 25
+    api_key: ${COINBASE_API_KEY:-}
+    api_secret: ${COINBASE_API_SECRET:-}
+    websocket_url: wss://ws-feed.exchange.coinbase.com
+    rest_url: https://api.exchange.coinbase.com
+    rate_limits:
+      public: 10  # requests per second
+      private: 5
+    
+  kraken:
+    enabled: true
+    symbols:
+      - BTC/USD
+      - ETH/USD
+      - SOL/USD
+    collect_trades: true
+    collect_orderbook: true
+    orderbook_levels: 25
+    api_key: ${KRAKEN_API_KEY:-}
+    api_secret: ${KRAKEN_API_SECRET:-}
+    websocket_url: wss://ws.kraken.com
+    rest_url: https://api.kraken.com
+    rate_limits:
+      public: 5
+      private: 2
+      
+  binance:
+    enabled: true  # Enabled for data collection
+    symbols:
+      - BTCUSDT
+      - ETHUSDT
+      - SOLUSDT
+    collect_trades: true
+    collect_orderbook: true
+    orderbook_levels: 20
+    api_key: ${BINANCE_API_KEY:-}
+    api_secret: ${BINANCE_API_SECRET:-}
+    websocket_url: wss://stream.binance.com:9443
+    rest_url: https://api.binance.com
+    rate_limits:
+      weight: 1200  # per minute
+      orders: 10    # per second
+
+monitoring:
+  prometheus_port: 9091
+  health_check_interval: 30  # seconds
+  restart_on_failure: true
+  max_restart_attempts: 3
+  alert_webhooks:
+    - ${ALERT_WEBHOOK_URL:-}
+  
+  thresholds:
+    max_data_age_seconds: 300  # Alert if no new data for 5 minutes
+    min_trades_per_minute: 10
+    max_error_rate: 0.01  # 1% error rate threshold
+    max_queue_size: 10000
+
+data_validation:
+  enabled: true
+  
+  # Price validation
+  max_price_deviation: 0.1  # 10% max deviation from last price
+  min_price: 0.00000001
+  max_price: 10000000
+  
+  # Size validation
+  min_trade_size: 0.00000001
+  max_trade_size: 1000000
+  
+  # Time validation
+  max_future_timestamp: 60  # seconds
+  max_past_timestamp: 3600  # seconds
+  
+  # Duplicate detection
+  duplicate_window: 60  # seconds to check for duplicates
+  duplicate_fields:
+    - exchange
+    - symbol
+    - trade_id
+
+storage:
+  # Hot storage (TimescaleDB)
+  hot_retention_days: 30
+  
+  # Warm storage (compressed TimescaleDB)
+  warm_retention_days: 90
+  compression_after_days: 7
+  
+  # Cold storage (Parquet files)
+  cold_storage_enabled: true
+  cold_storage_path: ./market_data/parquet
+  archive_after_days: 90
+  
+  # Backup
+  backup_enabled: true
+  backup_schedule: "0 2 * * *"  # 2 AM daily
+  backup_destination: s3://alphapulse-backups/market-data
+  backup_retention_days: 30
+
+performance:
+  # Batching
+  trade_batch_size: 100
+  orderbook_batch_size: 50
+  batch_timeout_ms: 1000
+  
+  # Threading
+  collector_threads: 4
+  processor_threads: 8
+  writer_threads: 4
+  
+  # Memory limits
+  max_queue_memory_mb: 1024
+  max_buffer_size_mb: 512
+
+features:
+  # Advanced features
+  calculate_vwap: true
+  calculate_spread: true
+  detect_arbitrage: true
+  track_whale_trades: true
+  whale_threshold_usd: 100000
+  
+  # Analytics
+  generate_1m_candles: true
+  generate_5m_candles: true
+  generate_15m_candles: true
+  generate_1h_candles: true
+  generate_1d_candles: true
+  
+  # Order flow
+  track_order_flow: true
+  calculate_imbalance: true
+  detect_momentum: true
+
+logging:
+  level: ${LOG_LEVEL:-INFO}
+  format: json
+  output:
+    - console
+    - file
+  file_path: ./logs/data_orchestrator.log
+  max_file_size_mb: 100
+  max_files: 10
+  
+  # Separate logs for different components
+  collectors_log: ./logs/collectors.log
+  processors_log: ./logs/processors.log
+  errors_log: ./logs/errors.log

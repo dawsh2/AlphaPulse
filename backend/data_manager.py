@@ -357,6 +357,43 @@ class DataManager:
         
         return summary
     
+    def get_data_summary(self) -> Dict[str, Any]:
+        """Alias for get_summary() for API compatibility"""
+        return self.get_summary()
+    
+    def list_available_data(self) -> Dict[str, Any]:
+        """List all available data in the catalog"""
+        try:
+            # Get list of parquet files
+            parquet_files = []
+            for exchange_dir in self.parquet_dir.iterdir():
+                if exchange_dir.is_dir():
+                    for symbol_dir in exchange_dir.iterdir():
+                        if symbol_dir.is_dir():
+                            files = list(symbol_dir.glob("*.parquet"))
+                            parquet_files.extend([{
+                                'exchange': exchange_dir.name,
+                                'symbol': symbol_dir.name,
+                                'file': f.name,
+                                'size_mb': f.stat().st_size / (1024 * 1024)
+                            } for f in files])
+            
+            # Get database summary
+            db_summary = self.get_summary()
+            
+            return {
+                'parquet_files': parquet_files,
+                'database': db_summary,
+                'total_files': len(parquet_files)
+            }
+        except Exception as e:
+            return {
+                'error': str(e),
+                'parquet_files': [],
+                'database': {'total_bars': 0, 'symbols': []},
+                'total_files': 0
+            }
+    
     def close(self):
         """Close database connection"""
         if self.conn:

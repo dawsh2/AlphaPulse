@@ -1,133 +1,227 @@
 version: '3.8'
 
 services:
-  # Frontend - React application
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
+  # TimescaleDB for time-series market data
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: alphapulse-timescaledb
     environment:
-      - VITE_API_URL=http://localhost:80/api
+      POSTGRES_DB: alphapulse
+      POSTGRES_USER: alphapulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alphapulse_secure_password}
+      POSTGRES_MULTIPLE_DATABASES: market_data,auth,nautilus
+      TS_TUNE_MAX_CONNS: 100
+      TS_TUNE_MAX_BG_WORKERS: 8
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./backend/migrations/init_timescale.sql:/docker-entrypoint-initdb.d/001_init.sql
+      - ./backend/migrations/init_multi_db.sh:/docker-entrypoint-initdb.d/002_multi_db.sh
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alphapulse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for message queuing and caching
+  redis:
+    image: redis:7-alpine
+    container_name: alphapulse-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server 
+      --appendonly yes 
+      --save 60 1 
+      --loglevel warning
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # DuckDB for analytics (separate from streaming)
+  duckdb-server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.duckdb
+    container_name: alphapulse-duckdb
+    ports:
+      - "5433:5433"
+    volumes:
+      - ./backend/market_data:/data
+      - ./backend/market_data/parquet:/parquet
+    environment:
+      DUCKDB_DATABASE: /data/market_data.duckdb
+    restart: unless-stopped
+
+  # Data Orchestrator Service
+  data-orchestrator:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.orchestrator
+    container_name: alphapulse-orchestrator
+    environment:
+      POSTGRES_HOST: timescaledb
+      POSTGRES_DB: market_data
+      POSTGRES_USER: alphapulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alphapulse_secure_password}
+      REDIS_URL: redis://redis:6379/0
+      COINBASE_API_KEY: ${COINBASE_API_KEY}
+      COINBASE_API_SECRET: ${COINBASE_API_SECRET}
+      KRAKEN_API_KEY: ${KRAKEN_API_KEY}
+      KRAKEN_API_SECRET: ${KRAKEN_API_SECRET}
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/services:/app/services
+      - ./backend/config:/app/config
+    restart: unless-stopped
+
+  # Backend Flask API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alphapulse-backend
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_ENV: ${FLASK_ENV:-development}
+      FLASK_PORT: 5000
+      DATABASE_URL: postgresql://alphapulse:${POSTGRES_PASSWORD:-alphapulse_secure_password}@timescaledb:5432/alphapulse
+      REDIS_URL: redis://redis:6379/1
+      ALPACA_API_KEY: ${ALPACA_API_KEY}
+      ALPACA_API_SECRET: ${ALPACA_API_SECRET}
+      ALPACA_BASE_URL: ${ALPACA_BASE_URL:-https://paper-api.alpaca.markets}
+    depends_on:
+      - timescaledb
+      - redis
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+  # Frontend React Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: alphapulse-frontend
+    ports:
+      - "3001:5173"
+    environment:
+      VITE_API_URL: http://localhost:5000/api
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: npm run dev
+    restart: unless-stopped
 
-  # API Gateway - Nginx
-  gateway:
+  # Grafana for monitoring dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: alphapulse-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel
+      GF_SERVER_ROOT_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./backend/monitoring/grafana/provisioning:/etc/grafana/provisioning
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - timescaledb
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: alphapulse-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./backend/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  # Redis Commander for Redis GUI (development only)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: alphapulse-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    profiles: ["dev"]
+
+  # pgAdmin for PostgreSQL management (development only)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: alphapulse-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@alphapulse.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - timescaledb
+    restart: unless-stopped
+    profiles: ["dev"]
+
+  # Nginx API Gateway (production)
+  nginx:
     image: nginx:alpine
+    container_name: alphapulse-nginx
     ports:
       - "80:80"
+      - "443:443"
     volumes:
-      - ./services/gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./backend/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./backend/nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
-      - auth
-      - nautilus-core
-      - market-data
-
-  # Authentication Service
-  auth:
-    build: ./services/auth
-    environment:
-      - DATABASE_URL=postgresql://alphapulse:alphapulse@postgres:5432/auth
-      - REDIS_URL=redis://redis:6379/0
-      - JWT_SECRET=${JWT_SECRET:-your-secret-key-here}
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - ./services/auth:/app
-
-  # Market Data Service
-  market-data:
-    build: ./services/market-data
-    environment:
-      - ALPACA_API_KEY=${ALPACA_API_KEY}
-      - ALPACA_API_SECRET=${ALPACA_API_SECRET}
-      - ALPACA_BASE_URL=${ALPACA_BASE_URL:-https://paper-api.alpaca.markets}
-      - REDIS_URL=redis://redis:6379/1
-    depends_on:
-      - redis
-    volumes:
-      - ./services/market-data:/app
-
-  # News Service
-  news:
-    build: ./services/news
-    environment:
-      - MONGODB_URL=mongodb://mongodb:27017/news
-      - REDIS_URL=redis://redis:6379/2
-    depends_on:
-      - mongodb
-      - redis
-    volumes:
-      - ./services/news:/app
-
-  # Social Service (Comments)
-  social:
-    build: ./services/social
-    environment:
-      - MONGODB_URL=mongodb://mongodb:27017/social
-      - AUTH_SERVICE_URL=http://auth:8000
-    depends_on:
-      - mongodb
-      - auth
-    volumes:
-      - ./services/social:/app
-
-  # NautilusTrader Core Service
-  nautilus-core:
-    build: ./services/nautilus-core
-    environment:
-      - CATALOG_PATH=/catalog
-      - WORKSPACE_PATH=/workspace
-      - REDIS_URL=redis://redis:6379/3
-      - DATABASE_URL=postgresql://alphapulse:alphapulse@postgres:5432/nautilus
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - ./services/nautilus-core:/app
-      - ./data/parquet:/catalog
-      - ./data/user-files:/workspace
-
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_USER=alphapulse
-      - POSTGRES_PASSWORD=alphapulse
-      - POSTGRES_MULTIPLE_DATABASES=auth,nautilus
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-      - ./infrastructure/postgres/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh
-    ports:
-      - "5432:5432"
-
-  # MongoDB Database
-  mongodb:
-    image: mongo:6-jammy
-    volumes:
-      - ./data/mongodb:/data/db
-    ports:
-      - "27017:27017"
-
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    command: redis-server --save 60 1 --loglevel warning
-    volumes:
-      - ./data/redis:/data
-    ports:
-      - "6379:6379"
+      - backend
+      - frontend
+    restart: unless-stopped
+    profiles: ["prod"]
 
 volumes:
-  postgres_data:
-  mongodb_data:
+  timescale_data:
+    driver: local
   redis_data:
-  parquet_catalog:
-  user_workspaces:
+    driver: local
+  grafana_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  pgadmin_data:
+    driver: local
 
 networks:
   default:
-    name: alphapulse_network
+    name: alphapulse-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

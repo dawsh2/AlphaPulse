@@ -171,7 +171,7 @@ export class DataFetcher {
     
     // Use our backend proxy to avoid CORS issues
     const response = await fetch(
-      `http://localhost:5002/api/proxy/coinbase/products/${coinbaseSymbol}/candles?` +
+      `http://localhost:5001/api/proxy/coinbase/products/${coinbaseSymbol}/candles?` +
       `start=${start}&end=${end}&granularity=60`
     );
     
@@ -199,7 +199,7 @@ export class DataFetcher {
    */
   private async saveToBackend(candles: StoredMarketData[]): Promise<void> {
     try {
-      const response = await fetch('http://localhost:5002/api/market-data/save', {
+      const response = await fetch('http://localhost:5001/api/market-data/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

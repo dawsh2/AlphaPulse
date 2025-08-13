@@ -1,0 +1,155 @@
+groups:
+  - name: data_collection
+    interval: 30s
+    rules:
+      # Alert if no trades received for 5 minutes
+      - alert: NoTradesReceived
+        expr: rate(trades_received_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No trades received from {{ $labels.exchange }}"
+          description: "{{ $labels.exchange }} has not received any trades for 5 minutes"
+
+      # Alert if error rate is too high
+      - alert: HighErrorRate
+        expr: rate(data_errors_total[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate for {{ $labels.exchange }}"
+          description: "Error rate for {{ $labels.exchange }} is {{ $value }} errors/sec"
+
+      # Alert if WebSocket connections are down
+      - alert: WebSocketDown
+        expr: active_websocket_connections == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "WebSocket connection down for {{ $labels.exchange }}"
+          description: "No active WebSocket connections for {{ $labels.exchange }}"
+
+      # Alert if Redis queue is too large
+      - alert: RedisQueueBacklog
+        expr: redis_queue_size > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Large Redis queue backlog"
+          description: "Queue {{ $labels.queue_name }} has {{ $value }} items"
+
+      # Alert if data latency is too high
+      - alert: HighDataLatency
+        expr: histogram_quantile(0.95, rate(data_latency_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High data latency for {{ $labels.exchange }}"
+          description: "95th percentile latency is {{ $value }}s for {{ $labels.operation }}"
+
+  - name: database
+    interval: 30s
+    rules:
+      # Alert if database connection pool is exhausted
+      - alert: DatabaseConnectionPoolExhausted
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of connections are in use"
+
+      # Alert if database is growing too fast
+      - alert: DatabaseGrowthRate
+        expr: rate(pg_database_size_bytes[1h]) > 1073741824  # 1GB/hour
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database growing rapidly"
+          description: "Database is growing at {{ $value | humanize }}/hour"
+
+      # Alert if TimescaleDB chunks are not being compressed
+      - alert: UncompressedChunks
+        expr: timescaledb_chunks_uncompressed > 100
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many uncompressed chunks"
+          description: "{{ $value }} chunks are uncompressed"
+
+  - name: system
+    interval: 30s
+    rules:
+      # Alert if CPU usage is too high
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.service }}"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+      # Alert if memory usage is too high
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / node_memory_MemTotal_bytes > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.service }}"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+
+      # Alert if disk space is running low
+      - alert: LowDiskSpace
+        expr: node_filesystem_avail_bytes / node_filesystem_size_bytes < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space on {{ $labels.mountpoint }}"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining"
+
+  - name: data_quality
+    interval: 1m
+    rules:
+      # Alert if price deviation is too high
+      - alert: AbnormalPriceDeviation
+        expr: |
+          abs(
+            (trades_price_current - trades_price_avg_5m) / trades_price_avg_5m
+          ) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Abnormal price deviation for {{ $labels.symbol }}"
+          description: "Price deviation is {{ $value | humanizePercentage }} from 5-minute average"
+
+      # Alert if trade volume drops significantly
+      - alert: LowTradeVolume
+        expr: rate(trades_volume_total[5m]) < 10
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low trade volume for {{ $labels.symbol }}"
+          description: "Trade volume is only {{ $value }} trades/minute"
+
+      # Alert if duplicate trades are detected
+      - alert: DuplicateTrades
+        expr: rate(duplicate_trades_detected_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Duplicate trades detected"
+          description: "{{ $value }} duplicate trades/sec from {{ $labels.exchange }}"

@@ -119,6 +119,8 @@ from backend.services.analysis_service import AnalysisService
 **Architecture Decision**: Reuse and expand existing services rather than creating separate `alphapulse_analytics` library. Services are already importable from notebooks.
 
 #### 2.2 Data Access Pattern
+
+IMPORTANT - ACCESS DUCKDB IN READ ONLY!!!
 ```python
 from backend.services.data_service import DataService
 from backend.services.analysis_service import AnalysisService

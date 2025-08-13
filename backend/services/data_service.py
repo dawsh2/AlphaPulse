@@ -1,265 +1,316 @@
 """
-Data Service - Handles all data operations
-Business logic layer for market data management
+Data Service Layer - Business logic for market data operations
+Handles data storage, retrieval, and analysis
 """
 from typing import Dict, Any, Optional, List
-from pathlib import Path
-import json
+import logging
 import requests
+from pathlib import Path
+
 from data_manager import DataManager
 
+logger = logging.getLogger(__name__)
 
-class DataService:
-    """Service layer for data operations"""
+class MarketDataService:
+    """Service layer for market data operations"""
     
     def __init__(self, data_manager: DataManager = None):
         self.data_manager = data_manager or DataManager()
     
-    def save_market_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Save market data from frontend IndexedDB cache"""
+    async def save_market_data(self, symbol: str, exchange: str, candles: List[Dict], interval: str = "1m") -> Dict[str, Any]:
+        """Save market data to storage
+        
+        Args:
+            symbol: Trading symbol
+            exchange: Exchange name
+            candles: List of OHLCV candles
+            interval: Time interval
+            
+        Returns:
+            Save result with statistics
+        """
         try:
-            symbol = data.get('symbol')
-            exchange = data.get('exchange')
-            candles = data.get('candles', [])
+            logger.info(f"Saving {len(candles)} candles for {symbol} from {exchange}")
             
-            # Log the save request
-            print(f"📊 Market data save request: {symbol} from {exchange}, {len(candles)} candles")
-            
-            # Actually save the data to Parquet/DuckDB
-            if candles:
-                save_result = self.data_manager.save_coinbase_data(candles, symbol, exchange)
-                print(f"✅ Saved to Parquet: {save_result}")
-                
-                return {
-                    'status': 'success',
-                    'message': f'Saved {save_result.get("bars_saved", 0)} candles for {symbol}',
-                    'symbol': symbol,
-                    'exchange': exchange,
-                    'candle_count': save_result.get('bars_saved', 0),
-                    'parquet_path': save_result.get('parquet_path', ''),
-                    'date_range': save_result.get('date_range', {})
-                }
-            else:
+            if not candles:
                 return {
                     'status': 'error',
                     'message': 'No candles data provided'
                 }
             
+            # Save to Parquet/DuckDB
+            save_result = self.data_manager.save_coinbase_data(candles, symbol, exchange)
+            logger.info(f"Saved to Parquet: {save_result}")
+            
+            return {
+                'status': 'success',
+                'message': f'Saved {save_result.get("bars_saved", 0)} candles for {symbol}',
+                'symbol': symbol,
+                'exchange': exchange,
+                'interval': interval,
+                'candle_count': save_result.get('bars_saved', 0),
+                'parquet_path': save_result.get('parquet_path', ''),
+                'date_range': save_result.get('date_range', {})
+            }
+            
         except Exception as e:
-            print(f"❌ Error saving market data: {str(e)}")
+            logger.error(f"Error saving market data: {e}")
             return {
                 'status': 'error',
                 'message': str(e)
             }
     
-    def proxy_coinbase_data(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Proxy requests to Coinbase API and save to Parquet"""
+    async def get_ohlcv_data(
+        self, 
+        symbol: str, 
+        exchange: str = "coinbase",
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        limit: int = 10000
+    ) -> Dict[str, Any]:
+        """Get OHLCV data for a symbol
+        
+        Args:
+            symbol: Trading symbol
+            exchange: Exchange name
+            start_time: Start timestamp
+            end_time: End timestamp
+            limit: Max records to return
+            
+        Returns:
+            OHLCV data and metadata
+        """
         try:
-            # Build the Coinbase API URL
-            base_url = 'https://api.exchange.coinbase.com'
-            url = f"{base_url}/{endpoint}"
+            # Convert URL format to internal format (e.g., BTC-USD -> BTC/USD)
+            symbol = symbol.replace('-', '/')
             
-            # Make the request to Coinbase
-            cb_response = requests.get(url, params=params, timeout=10)
+            df = self.data_manager.get_ohlcv(symbol, exchange, start_time, end_time)
             
-            # If this is a candles request, save to Parquet
-            if 'candles' in endpoint and cb_response.status_code == 200:
-                try:
-                    # Extract symbol from endpoint (e.g., "products/BTC-USD/candles" -> "BTC-USD")
-                    parts = endpoint.split('/')
-                    if len(parts) >= 2 and parts[0] == 'products':
-                        symbol = parts[1].replace('-', '/')  # Convert BTC-USD to BTC/USD
-                        
-                        # Save to Parquet via DataManager
-                        candles_data = cb_response.json()
-                        if candles_data:
-                            save_result = self.data_manager.save_coinbase_data(candles_data, symbol)
-                            print(f"📊 Saved {save_result.get('bars_saved', 0)} bars for {symbol} to Parquet")
-                except Exception as e:
-                    print(f"⚠️ Failed to save candles to Parquet: {e}")
+            if df.empty:
+                return {
+                    'data': [],
+                    'symbol': symbol,
+                    'exchange': exchange,
+                    'count': 0
+                }
             
+            # Limit results if specified
+            if limit and len(df) > limit:
+                df = df.tail(limit)
+            
+            # Convert DataFrame to list of dicts
+            data = []
+            for _, row in df.iterrows():
+                data.append({
+                    'timestamp': int(row['timestamp']),
+                    'open': float(row['open']),
+                    'high': float(row['high']),
+                    'low': float(row['low']),
+                    'close': float(row['close']),
+                    'volume': float(row['volume'])
+                })
+            
+            return {
+                'data': data,
+                'symbol': symbol,
+                'exchange': exchange,
+                'count': len(data)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting OHLCV data: {e}")
+            raise
+    
+    async def get_data_summary(self) -> Dict[str, Any]:
+        """Get summary of all stored data
+        
+        Returns:
+            Summary statistics of available data
+        """
+        try:
+            summary = self.data_manager.get_data_summary()
+            return summary
+        except Exception as e:
+            logger.error(f"Error getting data summary: {e}")
+            raise
+    
+    async def query_data(self, query: str) -> Dict[str, Any]:
+        """Execute SQL query on DuckDB
+        
+        Args:
+            query: SQL query string
+            
+        Returns:
+            Query results
+        """
+        try:
+            result = self.data_manager.query(query)
             return {
                 'status': 'success',
-                'data': cb_response.json(),
-                'status_code': cb_response.status_code
-            }
-            
-        except requests.exceptions.Timeout:
-            return {
-                'status': 'error',
-                'message': 'Request to Coinbase timed out',
-                'status_code': 504
-            }
-        except requests.exceptions.RequestException as e:
-            return {
-                'status': 'error',
-                'message': f'Error proxying to Coinbase: {str(e)}',
-                'status_code': 502
+                'result': result,
+                'row_count': len(result) if isinstance(result, list) else 0
             }
         except Exception as e:
+            logger.error(f"Error executing query: {e}")
             return {
                 'status': 'error',
-                'message': f'Unexpected error: {str(e)}',
-                'status_code': 500
+                'message': str(e)
             }
     
-    def proxy_kraken_data(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Proxy requests to Kraken API to avoid CORS issues"""
-        try:
-            import requests
+    async def get_correlation(self, symbol1: str, symbol2: str, exchange: str = "coinbase") -> Dict[str, Any]:
+        """Calculate correlation between two symbols
+        
+        Args:
+            symbol1: First symbol
+            symbol2: Second symbol
+            exchange: Exchange name
             
-            # Construct Kraken API URL
-            base_url = "https://api.kraken.com"
+        Returns:
+            Correlation data
+        """
+        try:
+            # Convert URL format to internal format
+            symbol1 = symbol1.replace('-', '/')
+            symbol2 = symbol2.replace('-', '/')
+            
+            # Get data for both symbols
+            df1 = self.data_manager.get_ohlcv(symbol1, exchange)
+            df2 = self.data_manager.get_ohlcv(symbol2, exchange)
+            
+            if df1.empty or df2.empty:
+                return {
+                    'status': 'error',
+                    'message': 'Insufficient data for correlation calculation'
+                }
+            
+            # Merge on timestamp and calculate correlation
+            merged = df1[['timestamp', 'close']].merge(
+                df2[['timestamp', 'close']], 
+                on='timestamp', 
+                suffixes=('_1', '_2')
+            )
+            
+            if len(merged) < 2:
+                return {
+                    'status': 'error',
+                    'message': 'Not enough overlapping data points'
+                }
+            
+            correlation = merged['close_1'].corr(merged['close_2'])
+            
+            return {
+                'symbol1': symbol1,
+                'symbol2': symbol2,
+                'exchange': exchange,
+                'correlation': float(correlation),
+                'data_points': len(merged)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating correlation: {e}")
+            raise
+    
+    async def list_catalog_data(self) -> Dict[str, Any]:
+        """List all available data in the catalog
+        
+        Returns:
+            Catalog of available data
+        """
+        try:
+            catalog = self.data_manager.list_available_data()
+            return {
+                'status': 'success',
+                'catalog': catalog
+            }
+        except Exception as e:
+            logger.error(f"Error listing catalog: {e}")
+            raise
+    
+    async def proxy_coinbase_data(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Proxy requests to Coinbase API
+        
+        Args:
+            endpoint: API endpoint
+            params: Query parameters
+            
+        Returns:
+            API response
+        """
+        try:
+            base_url = "https://api.exchange.coinbase.com"
             url = f"{base_url}/{endpoint}"
             
-            # Make request to Kraken
             response = requests.get(url, params=params, timeout=10)
             
             if response.status_code == 200:
-                data = response.json()
                 return {
                     'status': 'success',
-                    'data': data,
-                    'status_code': 200
+                    'data': response.json(),
+                    'status_code': response.status_code
                 }
             else:
                 return {
                     'status': 'error',
-                    'message': f'Kraken API error: {response.status_code}',
+                    'message': f"Coinbase API error: {response.status_code}",
                     'status_code': response.status_code
                 }
-        except requests.exceptions.Timeout:
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error proxying Coinbase request: {e}")
             return {
                 'status': 'error',
-                'message': 'Kraken API request timeout',
-                'status_code': 504
-            }
-        except Exception as e:
-            return {
-                'status': 'error',
-                'message': f'Unexpected error: {str(e)}',
+                'message': str(e),
                 'status_code': 500
             }
     
-    def get_data_summary(self) -> Dict[str, Any]:
-        """Get summary of all stored Parquet data"""
+    async def proxy_kraken_data(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Proxy requests to Kraken API
+        
+        Args:
+            endpoint: API endpoint
+            params: Query parameters
+            
+        Returns:
+            API response
+        """
         try:
-            return self.data_manager.get_summary()
-        except Exception as e:
-            raise Exception(f"Failed to get data summary: {str(e)}")
-    
-    def query_data(self, query: str) -> Dict[str, Any]:
-        """Execute SQL query on DuckDB"""
-        try:
-            # Safety check - only allow SELECT queries
-            if not query.strip().upper().startswith('SELECT'):
-                raise ValueError('Only SELECT queries are allowed')
+            base_url = "https://api.kraken.com/0/public"
+            url = f"{base_url}/{endpoint}"
             
-            df = self.data_manager.query(query)
-            result = df.to_dict(orient='records')
+            response = requests.get(url, params=params, timeout=10)
             
-            return {
-                'data': result,
-                'rows': len(result),
-                'columns': list(df.columns)
-            }
-        except Exception as e:
-            raise Exception(f"Query execution failed: {str(e)}")
-    
-    def get_correlation(self, symbol1: str, symbol2: str) -> Dict[str, Any]:
-        """Get correlation between two symbols"""
-        try:
-            # Convert URL format (BTC-USD) to our format (BTC/USD)
-            symbol1 = symbol1.replace('-', '/')
-            symbol2 = symbol2.replace('-', '/')
-            
-            correlation = self.data_manager.calculate_correlation(symbol1, symbol2)
-            stats1 = self.data_manager.calculate_statistics(symbol1)
-            stats2 = self.data_manager.calculate_statistics(symbol2)
-            
-            return {
-                'correlation': correlation,
-                'symbol1_stats': stats1,
-                'symbol2_stats': stats2
-            }
-        except Exception as e:
-            raise Exception(f"Correlation calculation failed: {str(e)}")
-    
-    def list_catalog_data(self) -> Dict[str, Any]:
-        """List all available data in the backend catalog"""
-        try:
-            catalog_path = Path(__file__).parent.parent / 'catalog' / 'data'
-            result = {
-                'bars': [],
-                'quotes': [],
-                'trades': [],
-                'signals': [],
-                'backtests': []
-            }
-            
-            if catalog_path.exists():
-                # List bar data files
-                bar_path = catalog_path / 'bar'
-                if bar_path.exists():
-                    result['bars'] = [
-                        {
-                            'filename': f.name,
-                            'symbol': f.stem.split('-')[0] if '-' in f.stem else f.stem,
-                            'timeframe': f.stem.split('-')[1] if '-' in f.stem else 'unknown',
-                            'size': f.stat().st_size,
-                            'modified': f.stat().st_mtime
-                        }
-                        for f in bar_path.glob('*.parquet')
-                    ]
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('error'):
+                    return {
+                        'status': 'error',
+                        'message': f"Kraken API error: {data['error']}",
+                        'status_code': 400
+                    }
+                return {
+                    'status': 'success',
+                    'data': data.get('result', data),
+                    'status_code': response.status_code
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': f"Kraken API error: {response.status_code}",
+                    'status_code': response.status_code
+                }
                 
-                # List quote data files
-                quote_path = catalog_path / 'quote'
-                if quote_path.exists():
-                    result['quotes'] = [
-                        {
-                            'filename': f.name,
-                            'symbol': f.stem,
-                            'size': f.stat().st_size,
-                            'modified': f.stat().st_mtime
-                        }
-                        for f in quote_path.glob('*.parquet')
-                    ]
-                
-                # List trade data files
-                trade_path = catalog_path / 'trade'
-                if trade_path.exists():
-                    result['trades'] = [
-                        {
-                            'filename': f.name,
-                            'symbol': f.stem,
-                            'size': f.stat().st_size,
-                            'modified': f.stat().st_mtime
-                        }
-                        for f in trade_path.glob('*.parquet')
-                    ]
-            
-            # Mock some data for now if empty
-            if not any(result.values()):
-                result['bars'] = [
-                    {'filename': 'NVDA-1-MINUTE.parquet', 'symbol': 'NVDA', 'timeframe': '1-MINUTE', 'size': 12485760, 'modified': 1723325000},
-                    {'filename': 'TSLA-1-MINUTE.parquet', 'symbol': 'TSLA', 'timeframe': '1-MINUTE', 'size': 8945632, 'modified': 1723324000},
-                    {'filename': 'SPY-1-DAY.parquet', 'symbol': 'SPY', 'timeframe': '1-DAY', 'size': 2457600, 'modified': 1723320000}
-                ]
-                result['signals'] = [
-                    {'filename': 'momentum_signals.parquet', 'size': 125829120, 'modified': 1723325000},
-                    {'filename': 'ml_features_v2.parquet', 'size': 398458880, 'modified': 1723324000}
-                ]
-                result['backtests'] = [
-                    {'filename': 'ema_cross_results.parquet', 'size': 5242880, 'modified': 1723320000},
-                    {'filename': 'rsi_meanrev_results.parquet', 'size': 4194304, 'modified': 1723310000}
-                ]
-            
-            return result
-            
-        except Exception as e:
-            raise Exception(f"Failed to list catalog data: {str(e)}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error proxying Kraken request: {e}")
+            return {
+                'status': 'error',
+                'message': str(e),
+                'status_code': 500
+            }
     
     def close(self):
-        """Close connections"""
-        if hasattr(self.data_manager, 'close'):
+        """Cleanup resources"""
+        if self.data_manager:
             self.data_manager.close()
+
+# The dependency function is now in core.container
+# Import it from there when needed in route files

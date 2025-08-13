@@ -4,8 +4,8 @@
 
 export const env = {
   // API endpoints
-  API_URL: import.meta.env.VITE_API_URL || 'http://localhost:5001/api',
-  WS_URL: import.meta.env.VITE_WS_URL || 'ws://localhost:5001/ws',
+  API_URL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
+  WS_URL: import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws',
   
   // Feature flags
   ENABLE_LIVE_TRADING: import.meta.env.VITE_ENABLE_LIVE_TRADING === 'true',

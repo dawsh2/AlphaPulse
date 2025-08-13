@@ -32,8 +32,8 @@ import {
 
 // Configuration - single source of truth for backend
 const API_CONFIG: ApiConfig = {
-  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:5001/api',
-  wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:5001/ws',
+  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
+  wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws',
   timeout: 30000,
   retryAttempts: 3,
   retryDelay: 1000,

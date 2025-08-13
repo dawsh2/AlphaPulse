@@ -1,33 +1,45 @@
 """
-Database models for AlphaPulse (simplified for development)
+Database models for AlphaPulse using pure SQLAlchemy (no Flask dependencies)
 """
-from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, String, Boolean, DateTime, Float, Text, ForeignKey, Integer
+from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
 import json
+import bcrypt
+from database import Base
 
-db = SQLAlchemy()
-
-class User(db.Model):
-    """User accounts and authentication."""
+class User(Base):
+    """User accounts and authentication"""
     __tablename__ = 'users'
     
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    email = db.Column(db.String(255), unique=True, nullable=False)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=True)
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    username = Column(String(100), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=True)
     
     # Account settings
-    subscription_tier = db.Column(db.String(50), default='free')
-    is_active = db.Column(db.Boolean, default=True)
-    email_verified = db.Column(db.Boolean, default=False)
+    subscription_tier = Column(String(50), default='free')
+    is_active = Column(Boolean, default=True)
+    email_verified = Column(Boolean, default=False)
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_login = db.Column(db.DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime)
     
     # Relationships
-    strategies = db.relationship('Strategy', backref='user', lazy=True, cascade='all, delete-orphan')
+    strategies = relationship('Strategy', back_populates='user', cascade='all, delete-orphan')
+    event_logs = relationship('EventLog', back_populates='user', cascade='all, delete-orphan')
+    
+    def set_password(self, password: str):
+        """Hash and set password"""
+        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    def verify_password(self, password: str) -> bool:
+        """Verify password against hash"""
+        if not self.password_hash:
+            return False
+        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
     
     def to_dict(self):
         return {
@@ -39,59 +51,63 @@ class User(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
-class Strategy(db.Model):
-    """User's trading strategies."""
+class Strategy(Base):
+    """User's trading strategies"""
     __tablename__ = 'strategies'
     
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     
     # Strategy info
-    name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    type = db.Column(db.String(50), default='single')  # 'single' or 'ensemble'
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    type = Column(String(50), default='single')  # 'single' or 'ensemble'
     
     # Configuration (stored as JSON)
-    config = db.Column(db.Text, nullable=False, default='{}')
-    parameters = db.Column(db.Text, default='{}')  # JSON
-    entry_conditions = db.Column(db.Text, default='[]')  # JSON array
-    exit_conditions = db.Column(db.Text, default='[]')  # JSON array
-    risk_management = db.Column(db.Text, default='{}')  # JSON
-    components = db.Column(db.Text, default='[]')  # JSON array for ensemble strategies
+    config = Column(Text, nullable=False, default='{}')
+    parameters = Column(Text, default='{}')  # JSON
+    entry_conditions = Column(Text, default='[]')  # JSON array
+    exit_conditions = Column(Text, default='[]')  # JSON array
+    risk_management = Column(Text, default='{}')  # JSON
+    components = Column(Text, default='[]')  # JSON array for ensemble strategies
     
     # Status
-    status = db.Column(db.String(50), default='draft')  # 'draft', 'testing', 'live', 'paused', 'stopped'
-    is_active = db.Column(db.Boolean, default=False)
-    is_public = db.Column(db.Boolean, default=False)
-    is_template = db.Column(db.Boolean, default=False)
+    status = Column(String(50), default='draft')  # 'draft', 'testing', 'live', 'paused', 'stopped'
+    is_active = Column(Boolean, default=False)
+    is_public = Column(Boolean, default=False)
+    is_template = Column(Boolean, default=False)
     
     # Performance tracking
-    total_return = db.Column(db.Float, default=0.0)
-    sharpe_ratio = db.Column(db.Float, nullable=True)
-    max_drawdown = db.Column(db.Float, nullable=True)
-    backtest_results = db.Column(db.Text, default='{}')  # JSON
+    total_return = Column(Float, default=0.0)
+    sharpe_ratio = Column(Float, nullable=True)
+    max_drawdown = Column(Float, nullable=True)
+    backtest_results = Column(Text, default='{}')  # JSON
     
     # Metadata
-    tags = db.Column(db.Text, default='[]')  # JSON array
+    tags = Column(Text, default='[]')  # JSON array
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    deployed_at = db.Column(db.DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deployed_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    user = relationship('User', back_populates='strategies')
+    event_logs = relationship('EventLog', back_populates='strategy', cascade='all, delete-orphan')
     
     def get_config(self):
-        """Parse JSON config."""
+        """Parse JSON config"""
         try:
             return json.loads(self.config) if self.config else {}
         except json.JSONDecodeError:
             return {}
     
     def set_config(self, config_dict):
-        """Set config from dictionary."""
+        """Set config from dictionary"""
         self.config = json.dumps(config_dict)
     
     def _parse_json(self, field):
-        """Helper to parse JSON fields."""
+        """Helper to parse JSON fields"""
         try:
             value = getattr(self, field, '{}')
             if isinstance(value, str):
@@ -125,67 +141,49 @@ class Strategy(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'deployed_at': self.deployed_at.isoformat() if self.deployed_at else None
         }
-    
-    def to_python_code(self):
-        """Generate Python code for the strategy."""
-        python_template = f'''
-# AlphaPulse Strategy: {self.name}
-# Generated: {datetime.utcnow().isoformat()}
 
-from alphapulse import Strategy, Condition, RiskManager
-
-class {self.name.replace(" ", "")}(Strategy):
-    """
-    {self.description or 'Auto-generated strategy'}
-    """
-    
-    def __init__(self):
-        super().__init__(name="{self.name}")
-        
-        # Parameters
-        self.parameters = {self._parse_json('parameters')}
-        
-        # Entry Conditions
-        self.entry_conditions = {self._parse_json('entry_conditions')}
-        
-        # Exit Conditions  
-        self.exit_conditions = {self._parse_json('exit_conditions')}
-        
-        # Risk Management
-        self.risk_management = {self._parse_json('risk_management')}
-'''
-        return python_template
-
-class EventLog(db.Model):
-    """Event logging for trading activities."""
+class EventLog(Base):
+    """Event logging for trading activities"""
     __tablename__ = 'event_logs'
     
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
-    strategy_id = db.Column(db.String(36), db.ForeignKey('strategies.id'), nullable=True)
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    strategy_id = Column(Integer, ForeignKey('strategies.id'), nullable=True)
     
     # Event details
-    event_type = db.Column(db.String(50), nullable=False)  # 'signal', 'trade', 'risk', 'system', 'error'
-    event_data = db.Column(db.Text, nullable=True, default='{}')  # JSON string
-    message = db.Column(db.Text, nullable=True)
+    event_type = Column(String(50), nullable=False)  # 'signal', 'trade', 'risk', 'system', 'error'
+    event_data = Column(Text, nullable=True, default='{}')  # JSON string
+    message = Column(Text, nullable=True)
+    details = Column(Text, nullable=True, default='{}')  # Additional JSON data
     
     # Metadata
-    symbol = db.Column(db.String(20), nullable=True)
-    severity = db.Column(db.String(20), default='info')  # 'info', 'warning', 'error', 'critical'
+    symbol = Column(String(20), nullable=True)
+    severity = Column(String(20), default='info')  # 'info', 'warning', 'error', 'critical'
     
     # Timestamp
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = relationship('User', back_populates='event_logs')
+    strategy = relationship('Strategy', back_populates='event_logs')
     
     def get_event_data(self):
-        """Parse JSON event data."""
+        """Parse JSON event data"""
         try:
             return json.loads(self.event_data) if self.event_data else {}
         except json.JSONDecodeError:
             return {}
     
     def set_event_data(self, data_dict):
-        """Set event data from dictionary."""
+        """Set event data from dictionary"""
         self.event_data = json.dumps(data_dict)
+    
+    def get_details(self):
+        """Parse JSON details"""
+        try:
+            return json.loads(self.details) if self.details else {}
+        except json.JSONDecodeError:
+            return {}
     
     def to_dict(self):
         return {
@@ -193,16 +191,8 @@ class EventLog(db.Model):
             'event_type': self.event_type,
             'event_data': self.get_event_data(),
             'message': self.message,
+            'details': self.get_details(),
             'symbol': self.symbol,
             'severity': self.severity,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
-
-def init_db(app):
-    """Initialize database with Flask app."""
-    db.init_app(app)
-    
-    with app.app_context():
-        # Create all tables
-        db.create_all()
-        print("Database initialized successfully")
