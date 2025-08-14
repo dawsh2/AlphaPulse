@@ -65,7 +65,7 @@ impl KrakenCollector {
         info!("Connecting to Kraken WebSocket at {}", KRAKEN_WS_URL);
 
         let (ws_stream, _) = connect_async(KRAKEN_WS_URL).await
-            .context("Failed to connect to Kraken WebSocket")?;
+            .map_err(|e| anyhow::anyhow!("Kraken WebSocket connection failed: {}", e))?;
 
         info!("Connected to Kraken WebSocket");
 

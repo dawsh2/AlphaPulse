@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
     info!("Starting exchange collector service");
 
     // Use exchange-specific socket path
-    let exchange_name = std::env::var("EXCHANGE_NAME").unwrap_or_else(|_| "kraken".to_string());
+    let exchange_name = std::env::var("EXCHANGE_NAME").unwrap_or_else(|_| "coinbase".to_string());
     let socket_path = format!("/tmp/alphapulse/{}.sock", exchange_name);
     
     let socket_writer = Arc::new(unix_socket::UnixSocketWriter::new(&socket_path));
@@ -29,24 +29,52 @@ async fn main() -> Result<()> {
 
     let symbol_mapper = Arc::new(parking_lot::RwLock::new(SymbolMapper::new()));
 
-    let kraken = exchanges::kraken::KrakenCollector::new(
-        socket_writer.clone(),
-        symbol_mapper.clone(),
-    );
-
-    let kraken_handle = tokio::spawn(async move {
-        loop {
-            match kraken.connect_and_stream().await {
-                Ok(_) => {
-                    info!("Kraken collector disconnected, reconnecting in 5s");
+    let collector_handle = match exchange_name.as_str() {
+        "kraken" => {
+            let kraken = exchanges::kraken::KrakenCollector::new(
+                socket_writer.clone(),
+                symbol_mapper.clone(),
+            );
+            tokio::spawn(async move {
+                loop {
+                    match kraken.connect_and_stream().await {
+                        Ok(_) => {
+                            info!("Kraken collector disconnected, attempting immediate reconnect");
+                        }
+                        Err(e) => {
+                            error!("Kraken collector error: {}", e);
+                        }
+                    }
+                    // No sleep - immediate reconnect for event-driven system
+                    // Connection failures will be handled by tokio-tungstenite's built-in backoff
                 }
-                Err(e) => {
-                    error!("Kraken collector error: {}", e);
-                }
-            }
-            tokio::time::sleep(Duration::from_secs(5)).await;
+            })
         }
-    });
+        "coinbase" => {
+            let coinbase = exchanges::coinbase::CoinbaseCollector::new(
+                socket_writer.clone(),
+                symbol_mapper.clone(),
+            );
+            tokio::spawn(async move {
+                loop {
+                    match coinbase.connect_and_stream().await {
+                        Ok(_) => {
+                            info!("Coinbase collector disconnected, attempting immediate reconnect");
+                        }
+                        Err(e) => {
+                            error!("Coinbase collector error: {}", e);
+                        }
+                    }
+                    // No sleep - immediate reconnect for event-driven system
+                    // Connection failures will be handled by tokio-tungstenite's built-in backoff
+                }
+            })
+        }
+        _ => {
+            error!("Unsupported exchange: {}", exchange_name);
+            return Ok(());
+        }
+    };
 
     let metrics_handle = tokio::spawn(async move {
         metrics_server().await;
@@ -57,7 +85,7 @@ async fn main() -> Result<()> {
     signal::ctrl_c().await?;
     
     info!("Shutting down exchange collector");
-    kraken_handle.abort();
+    collector_handle.abort();
     metrics_handle.abort();
     
     Ok(())

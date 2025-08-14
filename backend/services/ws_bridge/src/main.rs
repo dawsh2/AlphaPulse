@@ -206,7 +206,8 @@ impl BridgeServer {
                     }
                 }
                 
-                std::thread::sleep(Duration::from_secs(5));
+                // No sleep - event-driven system should reconnect immediately
+                // Unix socket failures are typically permanent (service down) or transient (startup race)
             }
         })
     }

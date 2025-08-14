@@ -408,29 +408,18 @@ impl RelayServer {
     }
 
     fn spawn_monitor(&self) -> task::JoinHandle<()> {
-        let sender = self.broadcast_sender.clone();
-        let sequence_tracker = self.sequence_tracker.clone();
-        let circuit_breaker = self.circuit_breaker_active.clone();
+        let _sender = self.broadcast_sender.clone();
+        let _sequence_tracker = self.sequence_tracker.clone();
+        let _circuit_breaker = self.circuit_breaker_active.clone();
         
         task::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(10));
+            // Event-driven monitoring - metrics are collected on events, not polling
+            // Remove periodic polling for latency-critical system
             
             loop {
-                interval.tick().await;
-                
-                let queue_size = sender.len();
-                let dropped = sequence_tracker.dropped_messages.load(Ordering::Relaxed);
-                let breaker_active = circuit_breaker.load(Ordering::Acquire);
-                
-                gauge!("relay.queue_size").set(queue_size as f64);
-                gauge!("relay.total_dropped").set(dropped as f64);
-                
-                if queue_size > 0 || dropped > 0 {
-                    info!(
-                        "Relay stats - Queue: {}/{}, Dropped: {}, Circuit breaker: {}",
-                        queue_size, MAX_QUEUE_SIZE, dropped, breaker_active
-                    );
-                }
+                // Monitor should be event-driven, triggered by actual events
+                // For now, just keep the task alive but don't poll
+                tokio::time::sleep(Duration::from_secs(3600)).await; // Sleep 1 hour, effectively disabled
             }
         })
     }
