@@ -46,7 +46,6 @@ graph TD
         
         subgraph "Monitoring"
             Prometheus[Prometheus<br/>Metrics Collection]
-            Grafana[Grafana<br/>Dashboards]
         end
     end
     
@@ -92,8 +91,6 @@ graph TD
     Prometheus <==>|Scrape Metrics| FrontendBridge
     Prometheus <==>|Cache| Redis
     Prometheus -->|Store Metrics| TimescaleDB
-    Grafana <==>|Query| Prometheus
-    Grafana <==>|Query| TimescaleDB
     
     %% Data Pipeline
     TimescaleDB -->|Export| ParquetFiles
@@ -107,7 +104,7 @@ graph TD
     classDef external fill:#fd79a8,stroke:#e84393,stroke-width:2px,color:#fff
     
     class KrakenCollector,CoinbaseCollector,BinanceCollector,RelayServer,FrontendBridge,NautilusTrader hotPath
-    class ReactDashboard,FastAPI,Jupyter,DuckDB,NautilusBacktest,Prometheus,Grafana warmPath
+    class ReactDashboard,FastAPI,Jupyter,DuckDB,NautilusBacktest,Prometheus warmPath
     class TimescaleDB,Redis,ParquetFiles,BacktestDB storage
     class KrakenWS,CoinbaseWS,BinanceWS,Exchanges external
 ```
@@ -174,7 +171,7 @@ FastAPI's automatic OpenAPI documentation and async support make it ideal for ra
 
 Prometheus collects metrics from all system components, including the Rust services, FastAPI backend, and NautilusTrader. It uses Redis for caching metric metadata and stores time-series data in TimescaleDB for long-term retention and analysis. This creates a comprehensive monitoring system that can track both technical performance metrics and business KPIs.
 
-Grafana provides visualization dashboards for system monitoring, trading performance analysis, and business intelligence. It queries both Prometheus for real-time metrics and TimescaleDB directly for historical analysis, enabling operators to understand system behavior across multiple time horizons.
+The React dashboard provides real-time visualization of both market data and system metrics through its WebSocket connections, giving operators immediate visibility into system behavior and trading performance without the need for separate monitoring dashboards.
 
 ### NautilusTrader Integration
 
@@ -202,7 +199,7 @@ This multi-modal access ensures that data scientists and quantitative analysts h
 
 **Redis** handles caching, session management, and pub/sub messaging for non-critical operations. Its in-memory design provides fast access to frequently used data like symbol mappings, user preferences, and Prometheus metric caches.
 
-**Prometheus and Grafana** form the monitoring stack, with Prometheus collecting metrics from all services and Grafana providing visualization dashboards. This combination enables real-time monitoring of both system performance and trading operations.
+**Prometheus** collects metrics from all services and stores time-series data in TimescaleDB. The React dashboard can display these metrics in real-time through WebSocket connections, providing immediate visibility into system performance.
 
 **DuckDB and Parquet** form an efficient analytical stack for historical data processing. DuckDB's vectorized execution engine can process large datasets faster than traditional row-oriented databases, while Parquet's compression reduces storage costs.
 
