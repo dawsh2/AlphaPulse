@@ -11,72 +11,83 @@ The core principle driving this design is the recognition that different types o
 ```mermaid
 graph TD
     %% Exchange Data Sources
-    KrakenWS[Kraken WebSocket]
-    CoinbaseWS[Coinbase WebSocket]
-    BinanceWS[Binance WebSocket]
+    subgraph "Exchange WebSockets"
+        KrakenWS[Kraken]
+        CoinbaseWS[Coinbase]
+        BinanceWS[Binance]
+    end
     
-    %% Hot Path Components
-    KrakenCollector[Kraken Collector<br/>Rust]
-    CoinbaseCollector[Coinbase Collector<br/>Rust]
-    BinanceCollector[Binance Collector<br/>Rust]
-    RelayServer[Relay Server<br/>Fan-out Hub<br/>Rust]
-    FrontendBridge[Frontend Bridge<br/>Binary→JSON<br/>Rust]
-    NautilusTrader[NautilusTrader<br/>Trading Engine<br/>Python]
+    %% Hot Path - Market Data Pipeline
+    subgraph "Hot Path (5-35μs latency)"
+        subgraph "Data Collectors (Rust)"
+            KrakenCollector[Kraken Collector]
+            CoinbaseCollector[Coinbase Collector] 
+            BinanceCollector[Binance Collector]
+        end
+        
+        RelayServer[Relay Server<br/>Fan-out Hub<br/>Rust]
+        
+        subgraph "Data Consumers"
+            FrontendBridge[Frontend Bridge<br/>Binary→JSON<br/>Rust]
+            NautilusTrader[NautilusTrader<br/>Trading Engine<br/>Python]
+        end
+    end
     
-    %% Frontend & Backend
-    ReactDashboard[React Dashboard<br/>TypeScript]
-    FastAPI[FastAPI Backend<br/>Python]
+    %% Warm/Cold Path - APIs & Analysis
+    subgraph "Warm/Cold Path (1-100ms latency)"
+        ReactDashboard[React Dashboard<br/>TypeScript]
+        FastAPI[FastAPI Backend<br/>Python]
+        
+        subgraph "Analysis Environment"
+            Jupyter[Jupyter Notebooks]
+            NautilusBacktest[NautilusTrader<br/>Backtesting]
+            DuckDB[DuckDB/Pandas<br/>Analytics]
+        end
+    end
     
     %% Data Storage
-    TimescaleDB[(TimescaleDB<br/>Live Storage)]
-    Redis[(Redis<br/>Cache/Sessions)]
-    ParquetFiles[(Parquet Files<br/>Historical Analysis)]
-    BacktestDB[(Backtest Database<br/>Results)]
+    subgraph "Data Storage"
+        TimescaleDB[(TimescaleDB<br/>Live & Historical)]
+        ParquetFiles[(Parquet Files<br/>Analysis)]
+        BacktestDB[(Backtest Results)]
+        Redis[(Redis<br/>Cache/Sessions)]
+    end
     
-    %% Analysis Tools
-    Jupyter[Jupyter Notebooks<br/>Data Science]
-    DuckDB[DuckDB/Pandas<br/>Analytics]
-    NautilusBacktest[NautilusTrader<br/>Backtesting]
+    %% External Systems
+    Exchanges[Live Exchanges<br/>Order APIs]
     
-    %% External
-    Exchanges[Live Exchanges<br/>Order Execution]
-    
-    %% Hot Path Flow (Market Data)
+    %% Hot Path Connections
     KrakenWS -->|JSON| KrakenCollector
     CoinbaseWS -->|JSON| CoinbaseCollector
     BinanceWS -->|JSON| BinanceCollector
     
-    KrakenCollector -->|Unix Socket<br/>Binary Protocol| RelayServer
-    CoinbaseCollector -->|Unix Socket<br/>Binary Protocol| RelayServer
-    BinanceCollector -->|Unix Socket<br/>Binary Protocol| RelayServer
+    KrakenCollector -->|Unix Socket| RelayServer
+    CoinbaseCollector -->|Unix Socket| RelayServer
+    BinanceCollector -->|Unix Socket| RelayServer
     
-    RelayServer -->|Unix Socket<br/>Binary Protocol| FrontendBridge
-    RelayServer -->|Unix Socket<br/>Binary Protocol| NautilusTrader
+    RelayServer -->|Unix Socket| FrontendBridge
+    RelayServer -->|Unix Socket| NautilusTrader
     
-    FrontendBridge -->|WebSocket<br/>JSON| ReactDashboard
-    FrontendBridge -->|Concurrent Write| TimescaleDB
+    FrontendBridge -->|WebSocket| ReactDashboard
+    FrontendBridge -->|Write| TimescaleDB
+    NautilusTrader -->|Orders| Exchanges
+    NautilusTrader -->|Fills/Orders| TimescaleDB
     
-    %% Trading Flow
-    NautilusTrader -->|Exchange APIs<br/>Orders| Exchanges
-    NautilusTrader -->|Strategy Output<br/>Orders/Fills| TimescaleDB
-    
-    %% Warm/Cold Path Flow
+    %% Warm/Cold Path Connections
     ReactDashboard <==>|HTTP/WS| FastAPI
-    FastAPI -->|Database Queries| TimescaleDB
-    FastAPI -->|Cache/Sessions| Redis
+    FastAPI <==>|Queries| TimescaleDB
+    FastAPI <==>|Cache| Redis
     
-    %% Analysis Flow
     Jupyter -->|HTTP API| FastAPI
-    Jupyter -->|Direct Access| NautilusBacktest
-    FastAPI -->|SQL/File Access| DuckDB
+    Jupyter -->|Direct| NautilusBacktest
     
-    %% Data Export/Analysis
-    TimescaleDB -->|Periodic Export| ParquetFiles
-    DuckDB -->|Read| ParquetFiles
+    %% Data Pipeline
+    TimescaleDB -->|Export| ParquetFiles
+    DuckDB <==>|Read| ParquetFiles
     NautilusBacktest -->|Results| BacktestDB
     
     %% Styling
-    classDef hotPath fill:#ff6b6b,stroke:#d63031,stroke-width:3px,color:#fff
+    classDef hotPath fill:#ff6b6b,stroke:#d63031,stroke-width:2px,color:#fff
     classDef warmPath fill:#74b9ff,stroke:#0984e3,stroke-width:2px,color:#fff
     classDef storage fill:#55a3ff,stroke:#2d3436,stroke-width:2px,color:#fff
     classDef external fill:#fd79a8,stroke:#e84393,stroke-width:2px,color:#fff
@@ -190,225 +201,6 @@ Monitoring and observability are built into each service, with metrics available
 This architecture provides a solid foundation for quantitative trading operations, balancing ultra-low latency requirements with development productivity and operational reliability.
 
 
-
-
-
-
-=============================================
-=============================================
-=============================================
-=============================================
-=============================================
-=============================================
-============== DEPRECATED!! ================
-=============================================
-=============================================
-=============================================
-=============================================
-=============================================
-=============================================
-
-
-# AlphaPulse
-
-> High-performance quantitative trading platform with event-driven architecture, real-time market data processing, and integrated research environment.
-
-## Overview
-
-AlphaPulse is a hybrid Python/Rust trading system designed for cryptocurrency and equity markets. It combines the performance of Rust for data collection with Python's rich ecosystem for analytics and machine learning.
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      AlphaPulse Platform                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │   Home   │  │  Develop │  │ Research │  │ Monitor  │     │
-│  │    News  │  │    IDE   │  │  Jupyter │  │  Charts  │     │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
-│                                                                 │
-│  ┌───────────────────────────────────────────────────────┐    │
-│  │              React + TypeScript Frontend              │    │
-│  └───────────────────────────────────────────────────────┘    │
-│                            │                                   │
-│                            ↓ REST + WebSocket                  │
-│  ┌───────────────────────────────────────────────────────┐    │
-│  │              FastAPI Backend (Python)                 │    │
-│  │  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐ │    │
-│  │  │  Services   │  │ Repositories │  │   Analytics │ │    │
-│  │  │  Business   │←→│   Data       │  │   Jupyter   │ │    │
-│  │  │   Logic     │  │   Access     │  │  Backtests  │ │    │
-│  │  └─────────────┘  └──────────────┘  └─────────────┘ │    │
-│  └───────────────────────────────────────────────────────┘    │
-│                            │                                   │
-│  ┌───────────────────────────────────────────────────────┐    │
-│  │          Data Collection Layer (Migrating to Rust)    │    │
-│  │                                                       │    │
-│  │  Exchange → Rust Collectors → TimescaleDB → Parquet  │    │
-│  │                                      ↓                │    │
-│  │                                   DuckDB              │    │
-│  │                                 (Analytics)           │    │
-│  └───────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Architecture
-
-### Data Flow Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     RESEARCH WORKFLOW                        │
-│                                                              │
-│  Exchanges          Rust Services        Storage            │
-│  ┌────────┐        ┌────────────┐      ┌──────────┐       │
-│  │Coinbase│───────→│            │      │TimescaleDB│       │
-│  └────────┘   WS   │  Collectors│─────→│  (Buffer) │       │
-│  ┌────────┐        │            │      └─────┬────┘       │
-│  │ Kraken │───────→│  - Trades  │            │ Batch       │
-│  └────────┘        │  - Orders  │            ↓ Export      │
-│  ┌────────┐        │  - L2 Book │      ┌──────────┐       │
-│  │ Alpaca │───────→│            │      │  Parquet │       │
-│  └────────┘        └────────────┘      │   Files  │       │
-│                                         └─────┬────┘       │
-│                                               ↓             │
-│                                         ┌──────────┐       │
-│                                         │  DuckDB  │       │
-│                                         │(Analytics)│       │
-│                                         └──────────┘       │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                     TRADING WORKFLOW                         │
-│                                                              │
-│  Exchanges        NautilusTrader        Execution           │
-│  ┌────────┐      ┌──────────────┐     ┌──────────┐        │
-│  │Exchange│─────→│   WebSocket   │────→│ Strategy │        │
-│  └────────┘  WS  │   Adapters    │     │  Engine  │        │
-│                  └──────────────┘     └─────┬────┘        │
-│                                              ↓              │
-│                                        ┌──────────┐        │
-│                                        │  Orders  │        │
-│                                        │   Out    │        │
-│                                        └──────────┘        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Service Layer Architecture (Repository Pattern)
-
-```python
-# Clean separation enables Python → Rust migration without changing business logic
-
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   FastAPI    │────→│   Service    │────→│ Repository   │
-│   Routes     │     │   Layer      │     │  Interface   │
-└──────────────┘     └──────────────┘     └──────┬───────┘
-                                                  │
-                           ┌──────────────────────┼──────────────────────┐
-                           ↓                      ↓                      ↓
-                    ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-                    │   Python     │      │    Rust      │      │   Mock       │
-                    │   Impl       │      │    Impl      │      │   Impl       │
-                    │  (Current)   │      │  (Future)    │      │  (Tests)     │
-                    └──────────────┘      └──────────────┘      └──────────────┘
-
-# Example: Swapping implementations with feature flags
-if settings.USE_RUST_MARKET_DATA:
-    repo = RustMarketDataRepo()  # Fast Rust implementation
-else:
-    repo = PythonMarketDataRepo()  # Current Python implementation
-```
-
-## Key Engineering Decisions
-
-### 1. **Hybrid Python/Rust Architecture**
-
-**Decision**: Keep Python for business logic, migrate performance-critical paths to Rust
-
-```
-Performance Requirements by Component:
-
-Component               Language    Latency Target    Throughput
-─────────────────────────────────────────────────────────────
-WebSocket Collectors    Rust        <1ms             10,000 msg/s
-Orderbook Processing    Rust        <100μs           100,000 updates/s
-Business Logic          Python      <100ms           100 req/s
-Analytics/ML            Python      <1s              Batch processing
-Jupyter Integration     Python      N/A              Interactive
-```
-
-### 2. **Database Strategy: Streaming → Batch → Analytics**
-
-**Decision**: TimescaleDB for streaming buffer, Parquet for storage, DuckDB for analytics
-
-```
-┌────────────────────────────────────────────────────────┐
-│              Storage Cost & Performance                 │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│  TimescaleDB (7-day window)                           │
-│  ├─ Role: Streaming buffer                            │
-│  ├─ Size: ~50GB                                       │
-│  └─ Query: <10ms for recent data                      │
-│                                                        │
-│  Parquet Files (permanent)                            │
-│  ├─ Role: Long-term storage                           │
-│  ├─ Size: ~5GB (10x compression)                      │
-│  └─ Cost: $0.023/GB/month (S3)                        │
-│                                                        │
-│  DuckDB (in-process)                                  │
-│  ├─ Role: Fast analytics                              │
-│  ├─ Performance: 100x faster than Postgres            │
-│  └─ Location: Runs in Jupyter/Python process          │
-└────────────────────────────────────────────────────────┘
-```
-
-### 3. **Repository Pattern for Clean Migration**
-
-**Decision**: Abstract data access to enable gradual Python → Rust migration
-
-```python
-# Repository interface (unchanged during migration)
-class MarketDataRepository(Protocol):
-    async def get_trades(self, symbol: str) -> List[Trade]: ...
-    async def get_orderbook(self, symbol: str) -> OrderBook: ...
-
-# Service layer (unchanged during migration)
-class TradingService:
-    def __init__(self, repo: MarketDataRepository):
-        self.repo = repo  # Can be Python OR Rust implementation
-    
-    async def analyze_market(self, symbol: str):
-        trades = await self.repo.get_trades(symbol)
-        # Business logic remains identical
-        return compute_signals(trades)
-```
-
-### 4. **Event-Driven Architecture**
-
-**Decision**: All actions logged as events for audit and replay
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Action    │────→│    Event    │────→│  Event Log  │
-└─────────────┘     └─────────────┘     └─────────────┘
-                           │                    │
-                           ↓                    ↓
-                    ┌─────────────┐     ┌─────────────┐
-                    │  Handlers   │     │   Replay    │
-                    └─────────────┘     └─────────────┘
-```
-
-## Performance Targets
-
-| Metric | Current (Python) | Target (Rust) | Improvement |
-|--------|-----------------|---------------|-------------|
-| WebSocket Throughput | 1,000 msg/s | 10,000 msg/s | 10x |
-| Orderbook Updates | 10,000/s | 100,000/s | 10x |
-| Message Latency | 10ms | <1ms | 10x |
-| Memory Usage | 2GB | 200MB | 10x |
-| Database Writes | 1,000/s | 10,000/s | 10x |
-
 ## Tech Stack
 
 ### Frontend
@@ -442,108 +234,3 @@ class TradingService:
 - **Tracing**: OpenTelemetry
 - **Container**: Docker + docker-compose
 - **CI/CD**: GitHub Actions
-
-## Getting Started
-
-### Prerequisites
-```bash
-# Python 3.8+ (3.13 compatible)
-python --version
-
-# Node.js 18+
-node --version
-
-# Rust 1.70+ (for future services)
-rustc --version
-```
-
-### Environment Setup
-```bash
-# Required environment variables
-export ALPACA_API_KEY="your_key"
-export ALPACA_API_SECRET="your_secret"
-export ALPACA_BASE_URL="https://paper-api.alpaca.markets"
-```
-
-### Quick Start
-```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-python app.py
-
-# Frontend (new terminal)
-cd frontend
-npm install
-npm run dev
-
-# Access at http://localhost:5173
-```
-
-## Project Structure
-
-```
-alphapulse/
-├── backend/
-│   ├── api/                 # FastAPI routes
-│   ├── services/            # Business logic
-│   ├── repositories/        # Data access layer
-│   ├── analytics/           # Jupyter, ML, backtesting
-│   ├── core/               # Models, schemas, config
-│   └── tests/              # Test suite
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/          # Page components
-│   │   ├── components/     # Reusable UI
-│   │   └── services/       # API clients
-│   └── public/             # Static assets
-│
-├── rust-services/          # Future Rust services
-│   ├── collectors/         # Market data collectors
-│   └── streaming/          # WebSocket servers
-│
-└── docs/                   # Documentation
-```
-
-## Migration Status
-
-Currently migrating from Python to Rust for performance-critical components:
-
-| Phase | Status | Timeline | Description |
-|-------|--------|----------|-------------|
-| Phase 0 | 🟡 In Progress | 4 weeks | Service layer, monitoring setup |
-| Phase 1 | ⏳ Pending | 2 weeks | Rust PoC with single collector |
-| Phase 2 | ⏳ Pending | 4 weeks | All collectors in Rust |
-| Phase 3 | ⏳ Pending | 3 weeks | WebSocket infrastructure |
-| Phase 4 | ⏳ Pending | 2 weeks | Production deployment |
-
-## 📈 Roadmap
-
-- [x] FastAPI migration from Flask
-- [x] Repository pattern implementation
-- [ ] Prometheus + Grafana monitoring
-- [ ] Rust trade collector PoC
-- [ ] Complete Rust migration
-- [ ] NautilusTrader integration
-- [ ] Production deployment
-- [ ] ML strategy development
-
-## 🤝 Contributing
-
-See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development guidelines.
-
-## 📄 License
-
-Proprietary - All rights reserved
-
-## 🔗 Links
-
-- [Architecture Documentation](docs/architecture.md)
-- [API Documentation](docs/api.md)
-- [Rust Migration Plan](rust-migration.md)
-- [Deployment Guide](docs/deployment.md)
-
----
-
-*Built for speed. Designed for scale. Optimized for profit.*
