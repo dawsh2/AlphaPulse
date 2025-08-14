@@ -1,0 +1,76 @@
+[package]
+name = "alphapulse"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "alphapulse"
+path = "src/main.rs"
+
+[dependencies]
+alphapulse-common = { path = "common" }
+alphapulse-collectors = { path = "collectors" }
+alphapulse-api-server = { path = "api-server" }
+tokio = { workspace = true }
+axum = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[workspace]
+members = [
+    "common",
+    "collectors", 
+    "api-server",
+    "websocket-server",
+    "load-tester"
+]
+resolver = "2"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
+
+# Web framework
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Redis
+redis = { version = "0.24", features = ["tokio-comp", "streams"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json"] }
+
+# Tracing and metrics
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+metrics = "0.22"
+metrics-exporter-prometheus = "0.13"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Environment
+dotenvy = "0.15"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
+
+# URL parsing
+url = "2.0"
+
+# UUID
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Futures utilities
+futures-util = { version = "0.3" }

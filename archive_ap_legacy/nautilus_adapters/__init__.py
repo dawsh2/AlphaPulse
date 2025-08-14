@@ -1,1 +1,0 @@
-# AlphaPulse adapters for NautilusTrader

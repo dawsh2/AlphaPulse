@@ -1,0 +1,14 @@
+[package]
+name = "alphapulse-protocol"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+zerocopy = { workspace = true }
+byteorder = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+proptest = "1.4"
+criterion = "0.5"

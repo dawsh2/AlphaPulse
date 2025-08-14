@@ -42,7 +42,7 @@ class WebSocketService {
   private isConnecting = false;
   private listeners: Map<string, Set<EventHandler>> = new Map();
 
-  constructor(url: string = 'ws://localhost:3001/ws') {
+  constructor(url: string = 'ws://localhost:8765/stream') {
     this.url = url;
   }
 

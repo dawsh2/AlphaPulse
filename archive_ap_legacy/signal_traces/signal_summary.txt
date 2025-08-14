@@ -1,9 +1,0 @@
-Total Signals: 971
-Date Range: 2025-02-06 12:12:00 to 2025-02-07 12:22:00
-Long Signals: 550
-Short Signals: 421
-Signal Changes: 31
-Avg Signal Duration (min): 48.2
-EMA Crossovers: 30
-Mean EMA Spread: $0.011
-Max Drawdown: $-1180.63
