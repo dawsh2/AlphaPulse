@@ -37,15 +37,12 @@ graph TD
     subgraph "Warm/Cold Path (1-100ms latency)"
         ReactDashboard[React Dashboard<br/>TypeScript]
         FastAPI[FastAPI Backend<br/>Python]
+        Prometheus[Prometheus<br/>Metrics Collection]
         
         subgraph "Analysis Environment"
             Jupyter[Jupyter Notebooks]
             NautilusBacktest[NautilusTrader<br/>Backtesting]
             DuckDB[DuckDB/Pandas<br/>Analytics]
-        end
-        
-        subgraph "Monitoring"
-            Prometheus[Prometheus<br/>Metrics Collection]
         end
     end
     
@@ -410,3 +407,4 @@ alphapulse/
 **Local Development**: Docker Compose provides a complete local environment including databases and external service mocks. Each service can also run independently for focused development.
 
 **Deployment**: Docker containers provide consistent deployment across environments. The infrastructure directory contains deployment configurations and monitoring setup for production environments.
+
