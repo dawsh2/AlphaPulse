@@ -1,5 +1,7 @@
 use crate::unix_socket::UnixSocketWriter;
 use alphapulse_protocol::*;
+use alphapulse_protocol::conversion::{parse_price_to_fixed_point, parse_volume_to_fixed_point, parse_trade_side};
+use alphapulse_protocol::validation::{validate_trade_data, detect_corruption_patterns};
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use metrics::{counter, histogram};
@@ -9,7 +11,7 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::{connect_async, tungstenite::Message, tungstenite::http::Request};
 use tracing::{debug, error, info, warn};
 
 const KRAKEN_WS_URL: &str = "wss://ws.kraken.com";
@@ -47,17 +49,17 @@ struct KrakenEvent {
 
 pub struct KrakenCollector {
     socket_writer: Arc<UnixSocketWriter>,
-    symbol_mapper: Arc<RwLock<SymbolMapper>>,
+    symbol_cache: Arc<RwLock<std::collections::HashMap<String, u64>>>, // pair -> hash
 }
 
 impl KrakenCollector {
     pub fn new(
         socket_writer: Arc<UnixSocketWriter>,
-        symbol_mapper: Arc<RwLock<SymbolMapper>>,
+        _symbol_mapper: Arc<RwLock<std::collections::HashMap<String, u32>>>, // Keep signature for now
     ) -> Self {
         Self {
             socket_writer,
-            symbol_mapper,
+            symbol_cache: Arc::new(RwLock::new(std::collections::HashMap::new())),
         }
     }
 
@@ -181,49 +183,66 @@ impl KrakenCollector {
         }
 
         let pair = arr[3].as_str().unwrap_or("");
-        let symbol = self.normalize_symbol(pair);
-        
-        let symbol_id = {
-            let mut mapper = self.symbol_mapper.write();
-            mapper.add_symbol(symbol.clone())
-        };
+        let symbol_hash = self.get_or_create_symbol_hash(pair);
 
         if let Some(Value::Array(trades)) = arr.get(1) {
             for trade_data in trades {
                 if let Some(trade) = trade_data.as_array() {
                     if trade.len() >= 6 {
-                        let price = trade[0].as_str()
-                            .and_then(|s| s.parse::<f64>().ok())
-                            .unwrap_or(0.0);
-                        let volume = trade[1].as_str()
-                            .and_then(|s| s.parse::<f64>().ok())
-                            .unwrap_or(0.0);
-                        let timestamp = trade[2].as_f64().unwrap_or(0.0);
-                        let side = trade[3].as_str().unwrap_or("?");
+                        // Use precision-preserving conversion
+                        let price_str = trade[0].as_str().unwrap_or("0");
+                        let volume_str = trade[1].as_str().unwrap_or("0");
+                        let side_str = trade[3].as_str().unwrap_or("?");
                         
-                        let trade_side = match side {
-                            "b" => TradeSide::Buy,
-                            "s" => TradeSide::Sell,
-                            _ => TradeSide::Unknown,
-                        };
-                        
-                        let timestamp_ns = (timestamp * 1e9) as u64;
-                        let price_fixed = (price * 1e8) as u64;
-                        let volume_fixed = (volume * 1e8) as u64;
-                        
-                        let trade_msg = TradeMessage::new(
-                            timestamp_ns,
-                            price_fixed,
-                            volume_fixed,
-                            symbol_id,
-                            ExchangeId::Kraken as u16,
-                            trade_side,
-                        );
-                        
-                        if let Err(e) = self.socket_writer.write_trade(&trade_msg) {
-                            error!("Failed to write trade: {}", e);
-                        } else {
-                            counter!("kraken.trades_processed").increment(1);
+                        match (
+                            parse_price_to_fixed_point(price_str),
+                            parse_volume_to_fixed_point(volume_str),
+                            parse_trade_side(side_str)
+                        ) {
+                            (Ok(price_fixed), Ok(volume_fixed), Ok(trade_side)) => {
+                                let timestamp = trade[2].as_f64().unwrap_or(0.0);
+                                let timestamp_ns = (timestamp * 1e9) as u64;
+                                
+                                // Validate the trade data before processing
+                                if let Err(validation_error) = validate_trade_data(
+                                    pair, 
+                                    price_fixed, 
+                                    volume_fixed, 
+                                    timestamp_ns, 
+                                    "kraken"
+                                ) {
+                                    error!("Trade validation failed for {}: {}", pair, validation_error);
+                                    continue;
+                                }
+                                
+                                // Check for potential data corruption
+                                let warnings = detect_corruption_patterns(pair, price_fixed, volume_fixed);
+                                if !warnings.is_empty() {
+                                    warn!("Data corruption warnings for {}: {:?}", pair, warnings);
+                                }
+                                
+                                let trade_msg = TradeMessage::new(
+                                    timestamp_ns,
+                                    price_fixed as u64,
+                                    volume_fixed as u64,
+                                    symbol_hash,
+                                    trade_side,
+                                );
+                                
+                                if let Err(e) = self.socket_writer.write_trade(&trade_msg) {
+                                    error!("Failed to write trade: {}", e);
+                                } else {
+                                    counter!("kraken.trades_processed").increment(1);
+                                    // Use conversion module for display to show exact precision
+                                    let display_price = alphapulse_protocol::conversion::fixed_point_to_f64(price_fixed);
+                                    let display_volume = alphapulse_protocol::conversion::fixed_point_to_f64(volume_fixed);
+                                    debug!("Kraken trade: {} ${:.8} ({:.8} {:?})", pair, display_price, display_volume, trade_side);
+                                }
+                            }
+                            _ => {
+                                error!("Failed to parse Kraken trade data: price='{}', volume='{}', side='{}'", 
+                                       price_str, volume_str, side_str);
+                            }
                         }
                     }
                 }
@@ -237,12 +256,7 @@ impl KrakenCollector {
         }
 
         let pair = arr[3].as_str().unwrap_or("");
-        let symbol = self.normalize_symbol(pair);
-        
-        let symbol_id = {
-            let mut mapper = self.symbol_mapper.write();
-            mapper.add_symbol(symbol.clone())
-        };
+        let symbol_hash = self.get_or_create_symbol_hash(pair);
 
         let timestamp_ns = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -257,17 +271,18 @@ impl KrakenCollector {
                 for bid in bid_arr.iter().take(10) {
                     if let Some(level) = bid.as_array() {
                         if level.len() >= 2 {
-                            let price = level[0].as_str()
-                                .and_then(|s| s.parse::<f64>().ok())
-                                .unwrap_or(0.0);
-                            let volume = level[1].as_str()
-                                .and_then(|s| s.parse::<f64>().ok())
-                                .unwrap_or(0.0);
+                            let price_str = level[0].as_str().unwrap_or("0");
+                            let volume_str = level[1].as_str().unwrap_or("0");
                             
-                            bids.push(PriceLevel::new(
-                                (price * 1e8) as u64,
-                                (volume * 1e8) as u64,
-                            ));
+                            if let (Ok(price_fixed), Ok(volume_fixed)) = (
+                                parse_price_to_fixed_point(price_str),
+                                parse_volume_to_fixed_point(volume_str)
+                            ) {
+                                bids.push(PriceLevel::new(
+                                    price_fixed as u64,
+                                    volume_fixed as u64,
+                                ));
+                            }
                         }
                     }
                 }
@@ -277,17 +292,18 @@ impl KrakenCollector {
                 for ask in ask_arr.iter().take(10) {
                     if let Some(level) = ask.as_array() {
                         if level.len() >= 2 {
-                            let price = level[0].as_str()
-                                .and_then(|s| s.parse::<f64>().ok())
-                                .unwrap_or(0.0);
-                            let volume = level[1].as_str()
-                                .and_then(|s| s.parse::<f64>().ok())
-                                .unwrap_or(0.0);
+                            let price_str = level[0].as_str().unwrap_or("0");
+                            let volume_str = level[1].as_str().unwrap_or("0");
                             
-                            asks.push(PriceLevel::new(
-                                (price * 1e8) as u64,
-                                (volume * 1e8) as u64,
-                            ));
+                            if let (Ok(price_fixed), Ok(volume_fixed)) = (
+                                parse_price_to_fixed_point(price_str),
+                                parse_volume_to_fixed_point(volume_str)
+                            ) {
+                                asks.push(PriceLevel::new(
+                                    price_fixed as u64,
+                                    volume_fixed as u64,
+                                ));
+                            }
                         }
                     }
                 }
@@ -297,7 +313,7 @@ impl KrakenCollector {
         if !bids.is_empty() || !asks.is_empty() {
             let orderbook = OrderBookMessage {
                 timestamp_ns,
-                symbol_id,
+                symbol_hash,
                 bids,
                 asks,
             };
@@ -310,12 +326,35 @@ impl KrakenCollector {
         }
     }
 
-    fn normalize_symbol(&self, pair: &str) -> String {
-        pair.replace("XBT", "BTC")
-            .replace('/', "")
-            .chars()
-            .collect::<String>()
-            .replace("USD", "/USD")
-            .replace("USDT", "/USDT")
+    fn get_or_create_symbol_hash(&self, pair: &str) -> u64 {
+        let mut cache = self.symbol_cache.write();
+        
+        if let Some(&hash) = cache.get(pair) {
+            return hash;
+        }
+        
+        // Parse Kraken format: XBT/USD -> BTC-USD, ETH/USD -> ETH-USD
+        let normalized = pair.replace("XBT", "BTC");
+        let parts: Vec<&str> = normalized.split('/').collect();
+        
+        let descriptor = if parts.len() == 2 {
+            SymbolDescriptor::spot("kraken", parts[0], parts[1])
+        } else {
+            // Fallback for unknown formats
+            SymbolDescriptor::spot("kraken", pair, "USD")
+        };
+        
+        let hash = descriptor.hash();
+        cache.insert(pair.to_string(), hash);
+        
+        // Send symbol mapping message
+        let mapping = SymbolMappingMessage::new(&descriptor);
+        if let Err(e) = self.socket_writer.write_symbol_mapping(&mapping) {
+            error!("Failed to send symbol mapping: {}", e);
+        } else {
+            info!("Sent symbol mapping: {} -> {}", pair, hash);
+        }
+        
+        hash
     }
 }

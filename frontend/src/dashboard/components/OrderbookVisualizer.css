@@ -45,11 +45,38 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  scroll-behavior: auto;
+  position: relative;
+  max-height: 800px;  /* Increased from 600px */
+  height: 100%;       /* Ensure it takes full height */
+  display: flex;
+  flex-direction: column;
 }
 
-.asks-section,
+.asks-section {
+  position: relative;
+  flex: 1;
+  min-height: 250px;  /* Back to original */
+  max-height: 45%;    /* Don't let it take more than 45% */
+  padding-bottom: 0;
+  background: linear-gradient(to bottom, rgba(255, 102, 102, 0.05), transparent);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow-y: auto;   /* Allow scrolling within section */
+}
+
 .bids-section {
   position: relative;
+  flex: 1;
+  min-height: 250px;  /* Back to original */
+  max-height: 45%;    /* Don't let it take more than 45% */
+  padding-top: 0;
+  background: linear-gradient(to top, rgba(102, 255, 102, 0.05), transparent);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow-y: auto;   /* Allow scrolling within section */
 }
 
 .orderbook-row {
@@ -75,11 +102,11 @@
 }
 
 .ask-bar {
-  background: var(--accent-red);
+  background: linear-gradient(to right, transparent, rgba(255, 102, 102, 0.3));
 }
 
 .bid-bar {
-  background: var(--accent-green);
+  background: linear-gradient(to right, transparent, rgba(102, 255, 102, 0.3));
 }
 
 .orderbook-row.ask .price {
@@ -101,11 +128,17 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.5rem;
-  background: var(--bg-tertiary);
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
+  padding: 0.75rem;
+  background: linear-gradient(135deg, rgba(255, 204, 0, 0.2), rgba(255, 204, 0, 0.1));
+  border-top: 3px solid rgba(255, 204, 0, 0.9);
+  border-bottom: 3px solid rgba(255, 204, 0, 0.9);
   font-size: 11px;
+  margin: 0;
+  position: relative;  /* Changed from sticky */
+  z-index: 20;
+  box-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
+  backdrop-filter: blur(8px);
+  flex-shrink: 0;
 }
 
 .spread-label {
@@ -122,6 +155,8 @@
   color: var(--text-muted);
   font-size: 10px;
 }
+
+/* Section labels removed - colors make it obvious */
 
 .orderbook-footer {
   padding: 0.5rem;

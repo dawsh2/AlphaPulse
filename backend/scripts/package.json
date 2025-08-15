@@ -1,0 +1,13 @@
+{
+  "name": "alphapulse-wallet-tools",
+  "version": "1.0.0",
+  "description": "Wallet generation and management tools for AlphaPulse",
+  "scripts": {
+    "generate-wallet": "node generate-wallet.js",
+    "check-balance": "node check-balance.js"
+  },
+  "dependencies": {
+    "ethers": "^5.7.2",
+    "dotenv": "^16.3.1"
+  }
+}

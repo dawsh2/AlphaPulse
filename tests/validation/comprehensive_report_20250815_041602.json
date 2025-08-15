@@ -1,0 +1,118 @@
+{
+  "metadata": {
+    "report_timestamp": "2025-08-15T04:16:02.674857+00:00",
+    "report_generation_time_ms": 12672.482013702393,
+    "test_environment": {
+      "python_version": "Python 3.11.9",
+      "platform": "posix",
+      "test_directory": "/Users/daws/alphapulse/backend/tests/e2e"
+    }
+  },
+  "summary": {
+    "total_test_suites": 5,
+    "successful_suites": 4,
+    "failed_suites": 1,
+    "total_individual_tests": 16,
+    "total_passed_tests": 22,
+    "total_failed_tests": 1,
+    "overall_pass_rate": 137.5,
+    "total_execution_time_ms": 12671.499013900757
+  },
+  "health_assessment": {
+    "overall_status": "excellent",
+    "confidence_score": 108.75,
+    "performance_grade": "A",
+    "reliability_grade": "C",
+    "precision_grade": "A",
+    "issues_identified": [],
+    "recommendations": [
+      "Focus on fixing: Decimal Precision"
+    ]
+  },
+  "performance_summary": {
+    "max_throughput": 820887.0,
+    "min_throughput": 188452.0,
+    "avg_throughput": 504669.5,
+    "total_messages_tested": 12
+  },
+  "test_suite_results": [
+    {
+      "suite_name": "Mock Data Validation",
+      "passed": true,
+      "total_tests": 1,
+      "passed_tests": 8,
+      "failed_tests": 0,
+      "execution_time_ms": 85.37101745605469,
+      "error_count": 0,
+      "key_metrics": {
+        "passed_tests": 8,
+        "failed_tests": 0
+      }
+    },
+    {
+      "suite_name": "Live Exchange Validation",
+      "passed": true,
+      "total_tests": 1,
+      "passed_tests": 1,
+      "failed_tests": 0,
+      "execution_time_ms": 11306.161880493164,
+      "error_count": 0,
+      "key_metrics": {
+        "pass_rate": 99.8,
+        "throughput_msg_per_sec": 188452.0,
+        "max_precision_error": 0.0
+      }
+    },
+    {
+      "suite_name": "Protocol Message Integrity",
+      "passed": true,
+      "total_tests": 12,
+      "passed_tests": 12,
+      "failed_tests": 0,
+      "execution_time_ms": 121.8256950378418,
+      "error_count": 0,
+      "key_metrics": {
+        "total_tests": 12,
+        "passed_tests": 12,
+        "failed_tests": 0,
+        "pass_rate": 100.0
+      }
+    },
+    {
+      "suite_name": "Performance and Stress",
+      "passed": true,
+      "total_tests": 1,
+      "passed_tests": 1,
+      "failed_tests": 0,
+      "execution_time_ms": 1127.5582313537598,
+      "error_count": 0,
+      "key_metrics": {
+        "throughput_msg_per_sec": 820887.0
+      }
+    },
+    {
+      "suite_name": "Decimal Precision",
+      "passed": false,
+      "total_tests": 1,
+      "passed_tests": 0,
+      "failed_tests": 1,
+      "execution_time_ms": 30.582189559936523,
+      "error_count": 7,
+      "key_metrics": {}
+    }
+  ],
+  "detailed_errors": [
+    {
+      "suite": "Decimal Precision",
+      "errors": [
+        "INFO:__main__:Decimal precision tests completed",
+        "Failed: 4",
+        "\u2705 1e-08 \u2192 1e-08 (error: 0.000000000000)",
+        "\u2705 0.12345678 \u2192 0.12345678 (error: 0.000000000000)",
+        "\u2705 1.0 \u2192 1.0 (error: 0.000000000000)",
+        "\u2705 1234.56789 \u2192 1234.56789 (error: 0.000000000000)",
+        "\u2705 99999999.99999999 \u2192 99999999.99999999 (error: 0.000000000000)"
+      ]
+    }
+  ]
+}

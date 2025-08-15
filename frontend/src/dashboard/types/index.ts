@@ -1,13 +1,17 @@
-// Type definitions for the dashboard
+// Type definitions for the dashboard - CANONICAL LOCATION
 
 export interface Trade {
   timestamp: number;
-  symbol: string;
-  exchange: string;
+  symbol_hash: string; // Changed to string for JavaScript number precision
+  symbol?: string; // Human-readable if available
   price: number;
   volume: number;
   side: 'buy' | 'sell';
-  trade_id: string;
+  // End-to-end latency tracking (all in microseconds)
+  latency_collector_to_relay_us?: number;
+  latency_relay_to_bridge_us?: number;
+  latency_bridge_to_frontend_us?: number;
+  latency_total_us?: number;
 }
 
 export interface OrderBookLevel {
@@ -16,11 +20,40 @@ export interface OrderBookLevel {
 }
 
 export interface OrderBook {
-  symbol: string;
-  exchange: string;
+  symbol_hash: string; // Changed to string for JavaScript number precision
+  symbol?: string; // Human-readable if available
   timestamp: number;
   bids: OrderBookLevel[];
   asks: OrderBookLevel[];
+}
+
+export interface L2Update {
+  side: 'bid' | 'ask';
+  price: number;
+  size: number;
+  action: 'delete' | 'update' | 'insert';
+}
+
+export interface L2Delta {
+  symbol_hash: string; // Changed to string for JavaScript number precision
+  symbol?: string;
+  timestamp: number;
+  sequence: number;
+  updates: L2Update[];
+}
+
+export interface L2Snapshot {
+  symbol_hash: string; // Changed to string for JavaScript number precision
+  symbol?: string;
+  timestamp: number;
+  sequence: number;
+  bids: OrderBookLevel[];
+  asks: OrderBookLevel[];
+}
+
+export interface SymbolMapping {
+  symbol_hash: string; // Changed to string for JavaScript number precision
+  symbol: string;
 }
 
 export interface Metrics {
@@ -43,7 +76,7 @@ export interface SystemStatus {
 }
 
 export interface WebSocketMessage {
-  type: 'trade' | 'orderbook' | 'metrics' | 'system' | 'firehose' | 'subscribed';
+  msg_type: 'trade' | 'orderbook' | 'l2_snapshot' | 'l2_delta' | 'symbol_mapping' | 'metrics' | 'system' | 'firehose' | 'subscribed';
   data?: any;
   streams?: Record<string, any>;
 }
@@ -52,18 +85,15 @@ export interface WebSocketMessage {
 export function isTrade(data: any): data is Trade {
   return data 
     && typeof data.timestamp === 'number'
-    && typeof data.symbol === 'string'
-    && typeof data.exchange === 'string'
+    && typeof data.symbol_hash === 'string' // Changed to string
     && typeof data.price === 'number'
     && typeof data.volume === 'number'
-    && (data.side === 'buy' || data.side === 'sell')
-    && typeof data.trade_id === 'string';
+    && (data.side === 'buy' || data.side === 'sell');
 }
 
 export function isOrderBook(data: any): data is OrderBook {
   return data
-    && typeof data.symbol === 'string'
-    && typeof data.exchange === 'string'
+    && typeof data.symbol_hash === 'string' // Changed to string
     && typeof data.timestamp === 'number'
     && Array.isArray(data.bids)
     && Array.isArray(data.asks);

@@ -1,0 +1,182 @@
+// Generated instrument hash mappings using EXACT Rust protocol code
+// Copy these to frontend/src/dashboard/utils/instrumentHash.ts
+// Total instruments: 56
+
+export const HASH_TO_INSTRUMENT: Record<string, string> = {
+  '16842681295735137662': 'coinbase:BTC-USD', // coinbase:BTC-USD
+  '7334401999635196894': 'coinbase:ETH-USD', // coinbase:ETH-USD
+  '940696374048161387': 'coinbase:SOL-USD', // coinbase:SOL-USD
+  '2928176905300374322': 'coinbase:LINK-USD', // coinbase:LINK-USD
+  '8628902660894679173': 'coinbase:AVAX-USD', // coinbase:AVAX-USD
+  '12004090362538690740': 'coinbase:MATIC-USD', // coinbase:MATIC-USD
+  '14487283151120673288': 'coinbase:ADA-USD', // coinbase:ADA-USD
+  '16822674083537739063': 'coinbase:DOT-USD', // coinbase:DOT-USD
+  '1022169821381239205': 'kraken:BTC-USD', // kraken:BTC-USD
+  '6206069765414077566': 'kraken:ETH-USD', // kraken:ETH-USD
+  '11464620628871496031': 'alpaca:AAPL', // alpaca:AAPL
+  '8926212219213030915': 'alpaca:GOOGL', // alpaca:GOOGL
+  '2445527968162730613': 'alpaca:MSFT', // alpaca:MSFT
+  '61714251584516687': 'alpaca:TSLA', // alpaca:TSLA
+  '1954880188756163872': 'alpaca:NVDA', // alpaca:NVDA
+  '9811631298551369529': 'alpaca:META', // alpaca:META
+  '4060401681298886749': 'alpaca:AMD', // alpaca:AMD
+  '12584901168296656116': 'alpaca:SPY', // alpaca:SPY
+  '236566034791212307': 'alpaca:QQQ', // alpaca:QQQ
+  '1133320845693703200': 'alpaca:AMZN', // alpaca:AMZN
+  '240828785042547515': 'quickswap:WMATIC-USDC', // quickswap:WMATIC-USDC
+  '5496523583396955387': 'quickswap:WETH-USDC', // quickswap:WETH-USDC
+  '2340931642203029549': 'quickswap:WBTC-USDC', // quickswap:WBTC-USDC
+  '4648360622049123424': 'quickswap:DAI-USDC', // quickswap:DAI-USDC
+  '7884230887625805227': 'quickswap:LINK-USDC', // quickswap:LINK-USDC
+  '4557856429658755146': 'quickswap:AAVE-USDC', // quickswap:AAVE-USDC
+  '7451475032941669569': 'quickswap:USDC-USDT', // quickswap:USDC-USDT
+  '1509939401999983009': 'quickswap:DAI-USDT', // quickswap:DAI-USDT
+  '8747392912782902058': 'quickswap:WETH-USDT', // quickswap:WETH-USDT
+  '13239386721284179835': 'quickswap:WMATIC-WETH', // quickswap:WMATIC-WETH
+  '10743017232055375084': 'quickswap:WETH-WBTC', // quickswap:WETH-WBTC
+  '4497584350469331588': 'quickswap:WMATIC-DAI', // quickswap:WMATIC-DAI
+  '17466455884384201605': 'sushiswap:WMATIC-USDC', // sushiswap:WMATIC-USDC
+  '7740206313327771166': 'sushiswap:WETH-USDC', // sushiswap:WETH-USDC
+  '8233636218353426738': 'sushiswap:WBTC-USDC', // sushiswap:WBTC-USDC
+  '18099025118757715379': 'sushiswap:DAI-USDC', // sushiswap:DAI-USDC
+  '18007394696850361792': 'sushiswap:LINK-USDC', // sushiswap:LINK-USDC
+  '5342317523990812423': 'sushiswap:AAVE-USDC', // sushiswap:AAVE-USDC
+  '7888258535784570563': 'sushiswap:USDC-USDT', // sushiswap:USDC-USDT
+  '9724121473562063897': 'sushiswap:DAI-USDT', // sushiswap:DAI-USDT
+  '789592363444912139': 'sushiswap:WETH-USDT', // sushiswap:WETH-USDT
+  '17194038295589536288': 'sushiswap:WMATIC-WETH', // sushiswap:WMATIC-WETH
+  '7747124602492385707': 'sushiswap:WETH-WBTC', // sushiswap:WETH-WBTC
+  '3956298273772418315': 'sushiswap:WMATIC-DAI', // sushiswap:WMATIC-DAI
+  '15770677367159222674': 'uniswap_v3:WMATIC-USDC', // uniswap_v3:WMATIC-USDC
+  '2419770046884317649': 'uniswap_v3:WETH-USDC', // uniswap_v3:WETH-USDC
+  '15517923464161948960': 'uniswap_v3:WBTC-USDC', // uniswap_v3:WBTC-USDC
+  '3385155713197450209': 'uniswap_v3:DAI-USDC', // uniswap_v3:DAI-USDC
+  '17911798125666688761': 'uniswap_v3:LINK-USDC', // uniswap_v3:LINK-USDC
+  '11958497368027479521': 'uniswap_v3:AAVE-USDC', // uniswap_v3:AAVE-USDC
+  '13249381657957025444': 'uniswap_v3:USDC-USDT', // uniswap_v3:USDC-USDT
+  '741928135034005418': 'uniswap_v3:DAI-USDT', // uniswap_v3:DAI-USDT
+  '14488987316197382299': 'uniswap_v3:WETH-USDT', // uniswap_v3:WETH-USDT
+  '8930234228679349853': 'uniswap_v3:WMATIC-WETH', // uniswap_v3:WMATIC-WETH
+  '12615557640592973362': 'uniswap_v3:WETH-WBTC', // uniswap_v3:WETH-WBTC
+  '17754035840504026735': 'uniswap_v3:WMATIC-DAI', // uniswap_v3:WMATIC-DAI
+};
+
+// Map hash to exchange for Data Flow Monitor
+export const HASH_TO_EXCHANGE: Record<string, string> = {
+  '16842681295735137662': 'coinbase',
+  '7334401999635196894': 'coinbase',
+  '940696374048161387': 'coinbase',
+  '2928176905300374322': 'coinbase',
+  '8628902660894679173': 'coinbase',
+  '12004090362538690740': 'coinbase',
+  '14487283151120673288': 'coinbase',
+  '16822674083537739063': 'coinbase',
+  '1022169821381239205': 'kraken',
+  '6206069765414077566': 'kraken',
+  '11464620628871496031': 'alpaca',
+  '8926212219213030915': 'alpaca',
+  '2445527968162730613': 'alpaca',
+  '61714251584516687': 'alpaca',
+  '1954880188756163872': 'alpaca',
+  '9811631298551369529': 'alpaca',
+  '4060401681298886749': 'alpaca',
+  '12584901168296656116': 'alpaca',
+  '236566034791212307': 'alpaca',
+  '1133320845693703200': 'alpaca',
+  '240828785042547515': 'quickswap',
+  '5496523583396955387': 'quickswap',
+  '2340931642203029549': 'quickswap',
+  '4648360622049123424': 'quickswap',
+  '7884230887625805227': 'quickswap',
+  '4557856429658755146': 'quickswap',
+  '7451475032941669569': 'quickswap',
+  '1509939401999983009': 'quickswap',
+  '8747392912782902058': 'quickswap',
+  '13239386721284179835': 'quickswap',
+  '10743017232055375084': 'quickswap',
+  '4497584350469331588': 'quickswap',
+  '17466455884384201605': 'sushiswap',
+  '7740206313327771166': 'sushiswap',
+  '8233636218353426738': 'sushiswap',
+  '18099025118757715379': 'sushiswap',
+  '18007394696850361792': 'sushiswap',
+  '5342317523990812423': 'sushiswap',
+  '7888258535784570563': 'sushiswap',
+  '9724121473562063897': 'sushiswap',
+  '789592363444912139': 'sushiswap',
+  '17194038295589536288': 'sushiswap',
+  '7747124602492385707': 'sushiswap',
+  '3956298273772418315': 'sushiswap',
+  '15770677367159222674': 'uniswap_v3',
+  '2419770046884317649': 'uniswap_v3',
+  '15517923464161948960': 'uniswap_v3',
+  '3385155713197450209': 'uniswap_v3',
+  '17911798125666688761': 'uniswap_v3',
+  '11958497368027479521': 'uniswap_v3',
+  '13249381657957025444': 'uniswap_v3',
+  '741928135034005418': 'uniswap_v3',
+  '14488987316197382299': 'uniswap_v3',
+  '8930234228679349853': 'uniswap_v3',
+  '12615557640592973362': 'uniswap_v3',
+  '17754035840504026735': 'uniswap_v3',
+};
+
+// Reverse mapping for sending commands from frontend
+export const INSTRUMENT_TO_HASH: Record<string, string> = {
+  'coinbase:BTC-USD': '16842681295735137662',
+  'coinbase:ETH-USD': '7334401999635196894',
+  'coinbase:SOL-USD': '940696374048161387',
+  'coinbase:LINK-USD': '2928176905300374322',
+  'coinbase:AVAX-USD': '8628902660894679173',
+  'coinbase:MATIC-USD': '12004090362538690740',
+  'coinbase:ADA-USD': '14487283151120673288',
+  'coinbase:DOT-USD': '16822674083537739063',
+  'kraken:BTC-USD': '1022169821381239205',
+  'kraken:ETH-USD': '6206069765414077566',
+  'alpaca:AAPL': '11464620628871496031',
+  'alpaca:GOOGL': '8926212219213030915',
+  'alpaca:MSFT': '2445527968162730613',
+  'alpaca:TSLA': '61714251584516687',
+  'alpaca:NVDA': '1954880188756163872',
+  'alpaca:META': '9811631298551369529',
+  'alpaca:AMD': '4060401681298886749',
+  'alpaca:SPY': '12584901168296656116',
+  'alpaca:QQQ': '236566034791212307',
+  'alpaca:AMZN': '1133320845693703200',
+  'quickswap:WMATIC-USDC': '240828785042547515',
+  'quickswap:WETH-USDC': '5496523583396955387',
+  'quickswap:WBTC-USDC': '2340931642203029549',
+  'quickswap:DAI-USDC': '4648360622049123424',
+  'quickswap:LINK-USDC': '7884230887625805227',
+  'quickswap:AAVE-USDC': '4557856429658755146',
+  'quickswap:USDC-USDT': '7451475032941669569',
+  'quickswap:DAI-USDT': '1509939401999983009',
+  'quickswap:WETH-USDT': '8747392912782902058',
+  'quickswap:WMATIC-WETH': '13239386721284179835',
+  'quickswap:WETH-WBTC': '10743017232055375084',
+  'quickswap:WMATIC-DAI': '4497584350469331588',
+  'sushiswap:WMATIC-USDC': '17466455884384201605',
+  'sushiswap:WETH-USDC': '7740206313327771166',
+  'sushiswap:WBTC-USDC': '8233636218353426738',
+  'sushiswap:DAI-USDC': '18099025118757715379',
+  'sushiswap:LINK-USDC': '18007394696850361792',
+  'sushiswap:AAVE-USDC': '5342317523990812423',
+  'sushiswap:USDC-USDT': '7888258535784570563',
+  'sushiswap:DAI-USDT': '9724121473562063897',
+  'sushiswap:WETH-USDT': '789592363444912139',
+  'sushiswap:WMATIC-WETH': '17194038295589536288',
+  'sushiswap:WETH-WBTC': '7747124602492385707',
+  'sushiswap:WMATIC-DAI': '3956298273772418315',
+  'uniswap_v3:WMATIC-USDC': '15770677367159222674',
+  'uniswap_v3:WETH-USDC': '2419770046884317649',
+  'uniswap_v3:WBTC-USDC': '15517923464161948960',
+  'uniswap_v3:DAI-USDC': '3385155713197450209',
+  'uniswap_v3:LINK-USDC': '17911798125666688761',
+  'uniswap_v3:AAVE-USDC': '11958497368027479521',
+  'uniswap_v3:USDC-USDT': '13249381657957025444',
+  'uniswap_v3:DAI-USDT': '741928135034005418',
+  'uniswap_v3:WETH-USDT': '14488987316197382299',
+  'uniswap_v3:WMATIC-WETH': '8930234228679349853',
+  'uniswap_v3:WETH-WBTC': '12615557640592973362',
+  'uniswap_v3:WMATIC-DAI': '17754035840504026735',
+};

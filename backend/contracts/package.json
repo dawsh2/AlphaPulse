@@ -1,0 +1,27 @@
+{
+  "name": "alphapulse-flash-contracts",
+  "version": "1.0.0",
+  "description": "Flash loan arbitrage contracts for AlphaPulse",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.js --network polygon",
+    "deploy:mumbai": "hardhat run scripts/deploy.js --network polygonMumbai",
+    "test": "hardhat test",
+    "verify": "hardhat verify"
+  },
+  "keywords": ["defi", "arbitrage", "flash-loans", "polygon"],
+  "author": "AlphaPulse",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-etherscan": "^3.1.7",
+    "@openzeppelin/contracts": "^4.9.3",
+    "dotenv": "^16.3.1",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.19.0"
+  },
+  "dependencies": {
+    "@aave/core-v3": "^1.17.2"
+  }
+}

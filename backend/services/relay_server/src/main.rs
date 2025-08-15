@@ -1,6 +1,6 @@
 use alphapulse_protocol::{
-    MessageHeader, MessageType, SymbolMapper, L2SnapshotMessage, L2DeltaMessage,
-    SymbolSequenceTracker, SequenceCheck
+    MessageHeader, MessageType, SymbolMappingMessage, TradeMessage, L2SnapshotMessage, L2DeltaMessage,
+    SymbolSequenceTracker, SequenceCheck, MAGIC_BYTE
 };
 use zerocopy::{AsBytes, FromBytes};
 use anyhow::{Context, Result};
@@ -84,8 +84,7 @@ struct RelayServer {
     clients: Arc<DashMap<usize, UnixStream>>,
     sequence_tracker: Arc<SequenceTracker>,
     circuit_breaker_active: Arc<AtomicBool>,
-    symbol_mapper: Arc<RwLock<SymbolMapper>>,
-    l2_snapshots: Arc<DashMap<(u16, u32), Vec<u8>>>, // (exchange_id, symbol_id) -> encoded snapshot
+    l2_snapshots: Arc<DashMap<(u16, u64), Vec<u8>>>, // (exchange_id, symbol_hash) -> encoded snapshot
     symbol_sequences: Arc<RwLock<SymbolSequenceTracker>>,
 }
 
@@ -97,6 +96,8 @@ impl RelayServer {
             ExchangeSocket::new("kraken"),
             ExchangeSocket::new("coinbase"),
             ExchangeSocket::new("binance"),
+            ExchangeSocket::new("alpaca"),
+            ExchangeSocket::new("polygon"),
         ];
         
         Self {
@@ -106,7 +107,6 @@ impl RelayServer {
             clients: Arc::new(DashMap::new()),
             sequence_tracker: Arc::new(SequenceTracker::new()),
             circuit_breaker_active: Arc::new(AtomicBool::new(false)),
-            symbol_mapper: Arc::new(RwLock::new(SymbolMapper::new())),
             l2_snapshots: Arc::new(DashMap::new()),
             symbol_sequences: Arc::new(RwLock::new(SymbolSequenceTracker::new())),
         }
@@ -207,7 +207,7 @@ impl RelayServer {
         sender: Sender<Vec<u8>>,
         sequence_tracker: Arc<SequenceTracker>,
         circuit_breaker: Arc<AtomicBool>,
-        l2_snapshots: Arc<DashMap<(u16, u32), Vec<u8>>>,
+        l2_snapshots: Arc<DashMap<(u16, u64), Vec<u8>>>,
         symbol_sequences: Arc<RwLock<SymbolSequenceTracker>>,
     ) {
         let listener = match UnixListener::bind(&socket_path) {
@@ -240,35 +240,97 @@ impl RelayServer {
                                 pending_data.extend_from_slice(&buffer[..n]);
                                 
                                 while pending_data.len() >= MessageHeader::SIZE {
+                                    // Always log first few bytes to diagnose magic byte issue
+                                    if pending_data[0] != MAGIC_BYTE {
+                                        error!("{} wrong magic byte! Expected 0xFE, got 0x{:02x}. First 32 bytes: {:02x?}", 
+                                            exchange_name, pending_data[0], 
+                                            &pending_data[..std::cmp::min(32, pending_data.len())]);
+                                    }
+                                    
                                     let header = match MessageHeader::read_from_prefix(
                                         &pending_data[..MessageHeader::SIZE]
                                     ) {
                                         Some(h) => h,
-                                        None => break,
+                                        None => {
+                                            error!("{} failed to parse header from bytes: {:02x?}",
+                                                exchange_name, &pending_data[..MessageHeader::SIZE]);
+                                            break;
+                                        }
                                     };
                                     
                                     if let Err(e) = header.validate() {
                                         error!("Invalid header from {}: {}", exchange_name, e);
-                                        pending_data.clear();
-                                        break;
+                                        // Try to resync by finding next magic byte
+                                        if let Some(pos) = pending_data[1..].iter().position(|&b| b == MAGIC_BYTE) {
+                                            warn!("{} resyncing: skipping {} bytes to next magic byte", exchange_name, pos + 1);
+                                            pending_data.drain(..pos + 1);
+                                            continue;
+                                        } else {
+                                            warn!("{} no magic byte found in buffer, clearing all {} bytes", exchange_name, pending_data.len());
+                                            pending_data.clear();
+                                            break;
+                                        }
                                     }
                                     
                                     let total_size = MessageHeader::SIZE + header.get_length() as usize;
                                     
                                     if pending_data.len() < total_size {
+                                        debug!("{} waiting for more data: have {}, need {} total ({} header + {} payload)",
+                                            exchange_name, pending_data.len(), total_size, MessageHeader::SIZE, header.get_length());
                                         break;
                                     }
+                                    
+                                    debug!("{} processing message type {:?}, total {} bytes", 
+                                        exchange_name, header.get_type(), total_size);
                                     
                                     let sequence = header.get_sequence();
                                     sequence_tracker.validate_and_update(exchange_id, sequence);
                                     
                                     // Handle L2 snapshots specially
                                     if let Ok(MessageType::L2Snapshot) = header.get_type() {
-                                        if let Ok(snapshot) = L2SnapshotMessage::decode(&pending_data[MessageHeader::SIZE..total_size]) {
-                                            let key = (exchange_id, snapshot.symbol_id);
-                                            let encoded = pending_data[..total_size].to_vec();
-                                            l2_snapshots.insert(key, encoded.clone());
-                                            info!("Stored L2 snapshot for {}:{}", exchange_id, snapshot.symbol_id);
+                                        info!("{} received L2 snapshot message, size: {}", exchange_name, total_size);
+                                        match L2SnapshotMessage::decode(&pending_data[MessageHeader::SIZE..total_size]) {
+                                            Ok(snapshot) => {
+                                                let key = (exchange_id, snapshot.symbol_hash);
+                                                let encoded = pending_data[..total_size].to_vec();
+                                                l2_snapshots.insert(key, encoded.clone());
+                                                info!("Stored L2 snapshot for {}:{} (exchange_id: {}, {} bids, {} asks)", 
+                                                    exchange_name, snapshot.symbol_hash, exchange_id,
+                                                    snapshot.bids.len(), snapshot.asks.len());
+                                            }
+                                            Err(e) => {
+                                                error!("Failed to decode L2 snapshot from {}: {}", exchange_name, e);
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Handle SymbolMapping messages specially - ALWAYS forward these!
+                                    if let Ok(MessageType::SymbolMapping) = header.get_type() {
+                                        info!("{} received SymbolMapping message, size: {} - FORWARDING to WS Bridge", exchange_name, total_size);
+                                        match SymbolMappingMessage::decode(&pending_data[MessageHeader::SIZE..total_size]) {
+                                            Ok(mapping) => {
+                                                info!("Decoded SymbolMapping: hash={}, symbol={}", 
+                                                    mapping.symbol_hash, mapping.symbol_string);
+                                            }
+                                            Err(e) => {
+                                                error!("Failed to decode SymbolMapping from {}: {}", exchange_name, e);
+                                            }
+                                        }
+                                        // IMMEDIATELY forward SymbolMapping messages - don't wait for general forwarding section
+                                        if !circuit_breaker.load(Ordering::Acquire) {
+                                            let message = pending_data[..total_size].to_vec();
+                                            let start = Instant::now();
+                                            match sender.try_send(message) {
+                                                Ok(_) => {
+                                                    let latency_us = start.elapsed().as_micros() as f64;
+                                                    histogram!("relay.forward_latency_us").record(latency_us);
+                                                    counter!("relay.messages_forwarded").increment(1);
+                                                    info!("✅ Successfully forwarded SymbolMapping to WS Bridge");
+                                                }
+                                                Err(e) => {
+                                                    error!("❌ Failed to forward SymbolMapping: {}", e);
+                                                }
+                                            }
                                         }
                                     }
                                     
@@ -276,19 +338,19 @@ impl RelayServer {
                                     if let Ok(MessageType::L2Delta) = header.get_type() {
                                         if let Ok(delta) = L2DeltaMessage::decode(&pending_data[MessageHeader::SIZE..total_size]) {
                                             let mut seq_tracker = symbol_sequences.write();
-                                            match seq_tracker.check_sequence(exchange_id, delta.symbol_id, delta.sequence) {
+                                            match seq_tracker.check_sequence(delta.symbol_hash, delta.sequence) {
                                                 SequenceCheck::Gap(gap) => {
-                                                    warn!("L2 sequence gap of {} for {}:{}", gap, exchange_id, delta.symbol_id);
+                                                    warn!("L2 sequence gap of {} for {}:{}", gap, exchange_id, delta.symbol_hash);
                                                     // Send reset message to clients
-                                                    let reset_header = MessageHeader::new(MessageType::L2Reset, 6, sequence);
+                                                    let reset_header = MessageHeader::new(MessageType::L2Reset, 10, sequence);
                                                     let mut reset_msg = Vec::new();
                                                     reset_msg.extend_from_slice(AsBytes::as_bytes(&reset_header));
-                                                    reset_msg.extend_from_slice(&delta.symbol_id.to_le_bytes());
+                                                    reset_msg.extend_from_slice(&delta.symbol_hash.to_le_bytes());
                                                     reset_msg.extend_from_slice(&exchange_id.to_le_bytes());
                                                     let _ = sender.try_send(reset_msg);
                                                 }
                                                 SequenceCheck::OutOfOrder => {
-                                                    debug!("Out of order L2 message for {}:{}", exchange_id, delta.symbol_id);
+                                                    debug!("Out of order L2 message for {}:{}", exchange_id, delta.symbol_hash);
                                                 }
                                                 _ => {}
                                             }
@@ -299,6 +361,16 @@ impl RelayServer {
                                         let mut message = pending_data[..total_size].to_vec();
                                         
                                         if let Ok(MessageType::Trade) = header.get_type() {
+                                            // Set relay timestamp for latency tracking
+                                            if message.len() >= MessageHeader::SIZE + TradeMessage::SIZE {
+                                                if let Some(mut trade) = TradeMessage::read_from_prefix(&message[MessageHeader::SIZE..]) {
+                                                    trade.set_relay_timestamp();
+                                                    // Copy the updated trade back to the message
+                                                    message[MessageHeader::SIZE..MessageHeader::SIZE + TradeMessage::SIZE]
+                                                        .copy_from_slice(trade.as_bytes());
+                                                }
+                                            }
+                                            
                                             if message.len() >= MessageHeader::SIZE + 30 {
                                                 let exchange_offset = MessageHeader::SIZE + 28;
                                                 message[exchange_offset] = (exchange_id & 0xFF) as u8;

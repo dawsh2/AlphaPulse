@@ -23,6 +23,8 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  min-height: 600px;  /* Added minimum height to match orderbook */
+  max-height: 800px;  /* Added maximum height to match orderbook */
 }
 
 .trades-header {

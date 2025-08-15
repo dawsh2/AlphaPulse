@@ -1,0 +1,86 @@
+# Data Writer Configuration
+# Captures live market data from Relay Server and stores in TimescaleDB
+
+data_writer:
+  enabled: true
+  
+  # Connection to relay server
+  relay:
+    socket_path: "/tmp/alphapulse/relay.sock"
+    reconnect_attempts: 10
+    reconnect_delay_ms: 1000
+  
+  # Message filtering - what to capture
+  capture:
+    trades: true
+    l2_deltas: true
+    l2_snapshots: false  # Rebuild from deltas, save storage
+    heartbeats: false
+    metrics: false
+    symbol_mappings: false
+
+  # TimescaleDB connection
+  database:
+    connection_string: "postgresql://daws@localhost:5432/market_data"
+    max_connections: 10
+    min_connections: 2
+    connection_timeout_ms: 5000
+    
+    # Batching for performance
+    batch_size: 100
+    batch_timeout_ms: 1000
+    max_queue_size: 10000
+
+  # Parquet export configuration  
+  parquet_export:
+    enabled: true
+    base_path: "./data/parquet"
+    export_schedule: "daily"  # daily, hourly
+    export_time: "02:00"     # UTC time for daily exports
+    compression: "snappy"
+    
+    # TimescaleDB cleanup after export
+    cleanup_after_export: true
+    retention_days: 90
+
+  # Symbol hash resolution
+  symbols:
+    # Map symbol hashes to readable names for file organization
+    resolve_hashes: true
+    unknown_symbol_prefix: "UNKNOWN"
+
+# Monitoring and health
+monitoring:
+  enabled: true
+  prometheus_port: 9092
+  health_check_interval_seconds: 30
+  
+  # Performance metrics
+  metrics:
+    messages_per_second: true
+    batch_latency: true
+    database_queue_depth: true
+    export_success_rate: true
+
+# Logging configuration
+logging:
+  level: "${LOG_LEVEL:-INFO}"
+  format: "json"
+  output:
+    - console
+    - file
+  file_path: "./logs/data_writer.log"
+  max_file_size_mb: 100
+  max_files: 5
+
+# Error handling
+error_handling:
+  # On database connection failure
+  on_db_failure: "buffer"  # buffer, drop, shutdown
+  buffer_max_size_mb: 512
+  
+  # On message parsing errors
+  on_parse_error: "log_and_continue"  # log_and_continue, shutdown
+  
+  # On disk full
+  on_disk_full: "alert_and_continue"  # alert_and_continue, shutdown

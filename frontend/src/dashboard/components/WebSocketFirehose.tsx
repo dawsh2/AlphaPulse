@@ -4,7 +4,7 @@ import type { Trade, OrderBook } from '../types';
 
 interface Props {
   trades: Trade[];
-  orderbooks: Record<string, OrderBook>;
+  orderbooks: Record<number, OrderBook>;
 }
 
 export function WebSocketFirehose({ trades, orderbooks }: Props) {
@@ -25,9 +25,11 @@ export function WebSocketFirehose({ trades, orderbooks }: Props) {
     if (!lastTrade) return;
     
     // Check if we've already processed this trade
-    if (lastProcessedTradeRef.current === lastTrade.trade_id) return;
+    const tradeId = `${lastTrade.symbol_hash}-${lastTrade.timestamp}`;
+    if (lastProcessedTradeRef.current === tradeId) return;
     
     // Process only new trades since last update
+    lastProcessedTradeRef.current = tradeId;
     const startIndex = lastProcessedTradeRef.current 
       ? trades.findIndex(t => t.trade_id === lastProcessedTradeRef.current) + 1
       : Math.max(0, trades.length - 5);

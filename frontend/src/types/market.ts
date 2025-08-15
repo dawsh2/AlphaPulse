@@ -29,12 +29,6 @@ export interface Ticker {
   timestamp: number;
 }
 
-export interface OrderBook {
-  symbol: string;
-  bids: Array<[number, number]>; // [price, size]
-  asks: Array<[number, number]>; // [price, size]
-  timestamp: number;
-}
 
 export interface Trade {
   id: string;

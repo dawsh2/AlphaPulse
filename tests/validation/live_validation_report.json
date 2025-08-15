@@ -1,0 +1,38 @@
+{
+  "summary": {
+    "total_messages_processed": 2534,
+    "valid_messages": 2529,
+    "invalid_messages": 5,
+    "validation_pass_rate": 99.80268350434096,
+    "total_samples_collected": 2531
+  },
+  "performance": {
+    "average_processing_time_ms": 0.004200847715068823,
+    "max_processing_time_ms": 0.2214983105659485,
+    "p99_processing_time_ms": 0.02216547727584839,
+    "throughput_msg_per_sec": 238047.19138304133
+  },
+  "precision_analysis": {
+    "max_error": 0.0,
+    "average_error": 0.0,
+    "median_error": 0.0,
+    "samples_with_precision_loss": 0,
+    "total_precision_measurements": 5062
+  },
+  "error_analysis": {
+    "total_range_violations": 5,
+    "total_format_errors": 0,
+    "unique_range_violations": 5,
+    "unique_format_errors": 0
+  },
+  "error_details": {
+    "range_violations": [
+      "ETH price out of range: $0.00",
+      "Suspicious round price: $1.0 for USDC-USD",
+      "BTC price out of range: $0.01",
+      "Suspicious round price: $1.0 for TEST-USD",
+      "Suspicious round price: $100.0 for TEST-USD"
+    ],
+    "format_errors": []
+  }
+}

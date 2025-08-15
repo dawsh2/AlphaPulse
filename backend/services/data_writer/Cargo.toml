@@ -1,0 +1,22 @@
+[package]
+name = "data_writer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+alphapulse-protocol = { path = "../../protocol" }
+tokio = { workspace = true }
+tokio-postgres = { workspace = true, features = ["with-chrono-0_4", "with-serde_json-1"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+metrics = { workspace = true }
+metrics-exporter-prometheus = { workspace = true }
+zerocopy = { workspace = true }
+deadpool-postgres = "0.12"
+chrono = { workspace = true }
+rust_decimal = { version = "1.32", features = ["tokio-pg"] }

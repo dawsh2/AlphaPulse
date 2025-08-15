@@ -1,0 +1,23 @@
+{
+  "summary": {
+    "total_tests": 12,
+    "passed": 12,
+    "failed": 0,
+    "pass_rate": 100.0
+  },
+  "categories": {
+    "encoding_integrity": {
+      "total": 5,
+      "passed": 5
+    },
+    "size_limits": {
+      "total": 2,
+      "passed": 2
+    },
+    "precision_preservation": {
+      "total": 5,
+      "passed": 5
+    }
+  },
+  "failed_tests": []
+}

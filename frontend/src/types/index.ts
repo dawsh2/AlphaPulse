@@ -8,7 +8,6 @@ export type {
   MarketBar,
   MarketData,
   Ticker,
-  OrderBook,
   Trade,
   Symbol,
   Exchange,

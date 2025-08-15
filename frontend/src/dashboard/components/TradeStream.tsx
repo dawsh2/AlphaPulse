@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './TradeStream.css';
 import type { Trade } from '../types';
 
@@ -11,21 +11,24 @@ interface Props {
 
 export function TradeStream({ trades, symbol, exchange, maxTrades = 100 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const autoScroll = useRef(true);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);  // Use state for re-rendering
 
   // Auto-scroll to bottom when new trades arrive
   useEffect(() => {
-    if (autoScroll.current && containerRef.current) {
+    if (autoScrollEnabled && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [trades]);
+  }, [trades, autoScrollEnabled]);
 
   const handleScroll = () => {
     if (!containerRef.current) return;
     
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
     // Disable auto-scroll if user scrolls up
-    autoScroll.current = Math.abs(scrollHeight - clientHeight - scrollTop) < 10;
+    const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 10;
+    if (!isAtBottom && autoScrollEnabled) {
+      setAutoScrollEnabled(false);
+    }
   };
 
   const recentTrades = trades.slice(-maxTrades);
@@ -88,15 +91,16 @@ export function TradeStream({ trades, symbol, exchange, maxTrades = 100 }: Props
 
       <div className="trade-stream-footer">
         <button 
-          className={`auto-scroll-btn ${autoScroll.current ? 'active' : ''}`}
+          className={`auto-scroll-btn ${autoScrollEnabled ? 'active' : ''}`}
           onClick={() => {
-            autoScroll.current = !autoScroll.current;
-            if (autoScroll.current && containerRef.current) {
+            const newState = !autoScrollEnabled;
+            setAutoScrollEnabled(newState);
+            if (newState && containerRef.current) {
               containerRef.current.scrollTop = containerRef.current.scrollHeight;
             }
           }}
         >
-          Auto-Scroll: {autoScroll.current ? 'ON' : 'OFF'}
+          Auto-Scroll: {autoScrollEnabled ? 'ON' : 'OFF'}
         </button>
       </div>
     </div>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Orderbook Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .container { display: flex; gap: 20px; }
+        .orderbook { flex: 1; }
+        .bids { color: #00ff00; }
+        .asks { color: #ff4444; }
+        .log { margin-top: 20px; padding: 10px; background: #0a0a0a; height: 200px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 2px 8px; }
+        .status { padding: 10px; margin: 10px 0; background: #333; }
+    </style>
+</head>
+<body>
+    <h1>AlphaPulse Orderbook Test</h1>
+    <div class="status" id="status">Connecting...</div>
+    
+    <div class="container">
+        <div class="orderbook">
+            <h2>ETH-USD</h2>
+            <table>
+                <thead><tr><th>Price</th><th>Size</th></tr></thead>
+                <tbody id="eth-asks" class="asks"></tbody>
+            </table>
+            <div style="text-align: center; margin: 10px;">---</div>
+            <table>
+                <tbody id="eth-bids" class="bids"></tbody>
+            </table>
+        </div>
+        
+        <div class="orderbook">
+            <h2>BTC-USD</h2>
+            <table>
+                <thead><tr><th>Price</th><th>Size</th></tr></thead>
+                <tbody id="btc-asks" class="asks"></tbody>
+            </table>
+            <div style="text-align: center; margin: 10px;">---</div>
+            <table>
+                <tbody id="btc-bids" class="bids"></tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="log" id="log"></div>
+    
+    <script>
+        const ws = new WebSocket('ws://localhost:8765');
+        const orderbooks = {
+            '7334401999635196894': { symbol: 'ETH-USD', bids: new Map(), asks: new Map() },
+            '16842681295735137662': { symbol: 'BTC-USD', bids: new Map(), asks: new Map() }
+        };
+        const symbolMap = new Map();
+        
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML = new Date().toISOString() + ' - ' + msg + '<br>' + logDiv.innerHTML;
+        }
+        
+        function updateOrderbook(symbolHash) {
+            const book = orderbooks[symbolHash];
+            if (!book) return;
+            
+            const prefix = book.symbol.toLowerCase().split('-')[0];
+            
+            // Update asks (sorted low to high)
+            const asksEl = document.getElementById(prefix + '-asks');
+            const sortedAsks = Array.from(book.asks.entries())
+                .sort((a, b) => b[0] - a[0])  // Reverse for display
+                .slice(-10);  // Show best 10
+            asksEl.innerHTML = sortedAsks
+                .map(([price, size]) => `<tr><td>${price.toFixed(2)}</td><td>${size.toFixed(6)}</td></tr>`)
+                .join('');
+            
+            // Update bids (sorted high to low)
+            const bidsEl = document.getElementById(prefix + '-bids');
+            const sortedBids = Array.from(book.bids.entries())
+                .sort((a, b) => b[0] - a[0])
+                .slice(0, 10);  // Show best 10
+            bidsEl.innerHTML = sortedBids
+                .map(([price, size]) => `<tr><td>${price.toFixed(2)}</td><td>${size.toFixed(6)}</td></tr>`)
+                .join('');
+        }
+        
+        ws.onopen = () => {
+            document.getElementById('status').textContent = 'Connected to WebSocket';
+            log('WebSocket connected');
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                
+                if (msg.msg_type === 'symbol_mapping') {
+                    symbolMap.set(msg.symbol_hash, msg.symbol);
+                    log(`Symbol mapping: ${msg.symbol} = ${msg.symbol_hash}`);
+                }
+                else if (msg.msg_type === 'l2_snapshot') {
+                    const book = orderbooks[msg.symbol_hash];
+                    if (book) {
+                        book.bids.clear();
+                        book.asks.clear();
+                        
+                        msg.bids.forEach(level => book.bids.set(level.price, level.size));
+                        msg.asks.forEach(level => book.asks.set(level.price, level.size));
+                        
+                        log(`L2 Snapshot for ${book.symbol}: ${msg.bids.length} bids, ${msg.asks.length} asks`);
+                        updateOrderbook(msg.symbol_hash);
+                    }
+                }
+                else if (msg.msg_type === 'l2_delta') {
+                    const book = orderbooks[msg.symbol_hash];
+                    if (book) {
+                        msg.updates.forEach(update => {
+                            const side = update.side === 'bid' ? book.bids : book.asks;
+                            if (update.action === 'delete' || update.size === 0) {
+                                side.delete(update.price);
+                            } else {
+                                side.set(update.price, update.size);
+                            }
+                        });
+                        updateOrderbook(msg.symbol_hash);
+                    }
+                }
+                else if (msg.msg_type === 'trade') {
+                    // Just log trades for now
+                    const symbol = symbolMap.get(msg.symbol_hash) || msg.symbol || 'UNKNOWN';
+                    log(`Trade: ${symbol} ${msg.price.toFixed(2)} x ${msg.volume.toFixed(6)} (${msg.side})`);
+                }
+            } catch (e) {
+                console.error('Error processing message:', e);
+            }
+        };
+        
+        ws.onerror = (error) => {
+            document.getElementById('status').textContent = 'WebSocket error: ' + error;
+            log('WebSocket error: ' + error);
+        };
+        
+        ws.onclose = () => {
+            document.getElementById('status').textContent = 'WebSocket disconnected';
+            log('WebSocket disconnected');
+        };
+    </script>
+</body>
+</html>

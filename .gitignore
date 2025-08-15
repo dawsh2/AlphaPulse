@@ -1,5 +1,41 @@
-# Environment files
+# SECURITY - CRITICAL FILES TO NEVER COMMIT
+# Private keys and secrets
+*.key
+*.pem
+*.p12
+*.pfx
+private_keys/
+secrets/
+credentials/
+
+# Environment files (may contain API keys)
 .env
+.env.*
+.env.local
+.env.production
+.env.development
+*.env
+
+# Wallet and crypto files
+keystore/
+*.keystore
+mnemonic.txt
+seed.txt
+wallet.json
+wallets/
+wallet-backup*.json
+.wallet-backups/
+
+# Contract deployment artifacts with addresses
+deployments/*.json
+deployment-*.json
+deployed-addresses.json
+
+# Hardhat/Ethereum development
+cache/
+artifacts/
+typechain/
+typechain-types/
 
 # Python
 __pycache__/
@@ -80,3 +116,92 @@ htmlcov/
 # Frontend
 frontend/dist/
 frontend/backups/
+
+# Config files with sensitive data
+config/*.yaml
+config/*.yml
+!config/*.example.yaml
+!config/*.example.yml
+!config/*.template.yaml
+
+# API keys and tokens
+api_keys/
+*.apikey
+*.token
+bearer_token.txt
+auth_token.json
+
+# SSL/TLS certificates
+certs/
+*.crt
+*.cer
+*.der
+
+# AWS credentials
+.aws/
+aws_credentials
+
+# Google Cloud credentials  
+gcp_credentials.json
+service-account-*.json
+
+# Database connection strings
+database.ini
+db_config.json
+connection_strings.txt
+
+# Blockchain specific
+ganache-db/
+.openzeppelin/
+.defender/
+broadcast/
+out/
+
+# Testing with real credentials
+test-wallets/
+mainnet-fork/
+fork-data/
+
+# Logs that might contain sensitive data
+*.log
+logs/
+debug/
+
+# Temporary files that might have secrets
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache/
+
+# Backup files that might contain keys
+*.backup
+*.bak
+*.old
+backup/
+backups/
+
+# IDE local settings that might have env vars
+.vscode/settings.json
+.idea/workspace.xml
+*.sublime-workspace
+
+# Docker files that might expose secrets
+docker-compose.override.yml
+.dockerignore.local
+
+# Terraform state files (may contain secrets)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Never commit these even if renamed
+PRIVATE_KEY*
+SECRET*
+PASSWORD*
+MNEMONIC*
+SEED_PHRASE*
+
+# Submodules and external repos
+nautilus_trader/

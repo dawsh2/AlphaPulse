@@ -1,6 +1,40 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import './TodoList.css';
 
+// Inline API for file persistence
+const todosFileAPI = {
+  async load(): Promise<any[]> {
+    try {
+      const response = await fetch('http://localhost:3001/api/todos');
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Loaded ${data.length} todos from file`);
+        return data;
+      }
+    } catch (error) {
+      console.log('Todos server not running. Start with: npm run todos-server');
+    }
+    return [];
+  },
+
+  async save(todos: any[]): Promise<void> {
+    try {
+      const response = await fetch('http://localhost:3001/api/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(todos)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`Saved ${result.count} todos to file`);
+      }
+    } catch (error) {
+      console.log('Could not save to file. Todos server may not be running.');
+    }
+  }
+};
+
 interface Todo {
   id: string;
   text: string;
@@ -14,7 +48,10 @@ interface Todo {
 }
 
 export function TodoList() {
+  // Initialize with empty array, will load async
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [newTodoText, setNewTodoText] = useState('');
   const [newTodoPriority, setNewTodoPriority] = useState<'low' | 'medium' | 'high'>('low');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -22,24 +59,116 @@ export function TodoList() {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasLoadedRef = useRef(false);
 
-  // Load todos from localStorage on mount
+  // Load todos on mount from file AND localStorage
   useEffect(() => {
-    const savedTodos = localStorage.getItem('alphapulse-todos-org');
-    if (savedTodos) {
-      const parsed = JSON.parse(savedTodos);
-      setTodos(parsed.map((todo: any) => ({
-        ...todo,
-        createdAt: new Date(todo.createdAt),
-        updatedAt: new Date(todo.updatedAt)
-      })));
-    }
+    const loadTodos = async () => {
+      let loadedFromFile = false;
+      
+      // First try to load from file (survives cache clears)
+      try {
+        const fileTodos = await todosFileAPI.load();
+        if (fileTodos && fileTodos.length > 0) {
+          const todosFromFile = fileTodos.map((todo: any) => ({
+            ...todo,
+            createdAt: new Date(todo.createdAt),
+            updatedAt: new Date(todo.updatedAt)
+          }));
+          setTodos(todosFromFile);
+          loadedFromFile = true;
+          console.log('Loaded todos from file:', todosFromFile.length);
+        }
+      } catch (error) {
+        console.log('File API not available, will use localStorage');
+      }
+      
+      // If no file data, try localStorage
+      if (!loadedFromFile) {
+        const savedTodos = localStorage.getItem('alphapulse-todos-org');
+        if (savedTodos) {
+          try {
+            const parsed = JSON.parse(savedTodos);
+            const todosFromStorage = parsed.map((todo: any) => ({
+              ...todo,
+              createdAt: new Date(todo.createdAt),
+              updatedAt: new Date(todo.updatedAt)
+            }));
+            setTodos(todosFromStorage);
+            console.log('Loaded todos from localStorage:', todosFromStorage.length);
+          } catch (error) {
+            console.error('Error parsing localStorage todos:', error);
+          }
+        }
+      }
+      
+      hasLoadedRef.current = true;
+      setIsLoading(false);
+    };
+    
+    loadTodos();
   }, []);
 
-  // Save todos to localStorage whenever todos change
+  // Save todos whenever they change (after initial load)
   useEffect(() => {
+    if (!hasLoadedRef.current) return;
+    
+    // Save to BOTH localStorage and file
     localStorage.setItem('alphapulse-todos-org', JSON.stringify(todos));
+    
+    // Also save to file (survives cache clears)
+    todosFileAPI.save(todos);
   }, [todos]);
+
+  // Export todos to JSON file (with optional auto-save to clipboard)
+  const exportTodos = (autoSave = false) => {
+    const dataStr = JSON.stringify(todos, null, 2);
+    
+    if (autoSave) {
+      // Copy to clipboard for easy pasting
+      navigator.clipboard.writeText(dataStr).then(() => {
+        console.log('Todos copied to clipboard for backup');
+      }).catch(err => {
+        console.error('Failed to copy to clipboard:', err);
+      });
+    }
+    
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `alphapulse-todos-${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  // Import todos from JSON file
+  const importTodos = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedData = JSON.parse(e.target?.result as string);
+        const importedTodos = importedData.map((todo: any) => ({
+          ...todo,
+          createdAt: new Date(todo.createdAt),
+          updatedAt: new Date(todo.updatedAt)
+        }));
+        
+        if (window.confirm(`Import ${importedTodos.length} todos? This will replace current todos.`)) {
+          setTodos(importedTodos);
+        }
+      } catch (error) {
+        alert('Error importing todos: Invalid file format');
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset input
+    event.target.value = '';
+  };
 
   // Calculate the level of a todo based on its parent chain
   const calculateLevel = (todo: Todo, allTodos: Todo[]): number => {
@@ -276,15 +405,42 @@ export function TodoList() {
     return { total, completed };
   };
 
+  if (isLoading) {
+    return (
+      <div className="todo-list org-mode">
+        <div className="todo-header">
+          <h2>Org Mode TODOs</h2>
+        </div>
+        <div className="loading-state">Loading todos...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="todo-list org-mode">
       <div className="todo-header">
         <h2>Org Mode TODOs</h2>
-        <div className="todo-stats">
-          <span className="stat">Total: {stats.total}</span>
-          <span className="stat">Active: {stats.active}</span>
-          <span className="stat">Completed: {stats.completed}</span>
-          <span className="stat high-priority">High Priority: {stats.high}</span>
+        <div className="todo-controls">
+          <div className="todo-stats">
+            <span className="stat">Total: {stats.total}</span>
+            <span className="stat">Active: {stats.active}</span>
+            <span className="stat">Completed: {stats.completed}</span>
+            <span className="stat high-priority">High Priority: {stats.high}</span>
+          </div>
+          <div className="file-controls">
+            <button onClick={() => exportTodos(false)} className="export-button" title="Export to JSON file - Save this file to survive cache clears!">
+              📥 Export
+            </button>
+            <label className="import-button" title="Import from JSON file - Restore from your saved backup">
+              📤 Import
+              <input 
+                type="file" 
+                accept=".json" 
+                onChange={importTodos}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
         </div>
       </div>
 

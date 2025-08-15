@@ -11,8 +11,8 @@
 
 .todo-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 0.75rem;
 }
@@ -24,10 +24,40 @@
   margin: 0;
 }
 
+.todo-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .todo-stats {
   display: flex;
   gap: 1rem;
   font-size: 12px;
+}
+
+.file-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.export-button, .import-button {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.export-button:hover, .import-button:hover {
+  background: var(--bg-primary);
+  border-color: #4dabf7;
+  color: #4dabf7;
 }
 
 .stat {

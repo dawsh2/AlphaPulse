@@ -1,21 +1,47 @@
 import React from 'react';
 import './DataFlowMonitor.css';
+import { getExchangeFromHash, resolveSymbolHash } from '../utils/symbolHash';
 
 import type { Trade, OrderBook, Metrics } from '../types';
 
 interface Props {
   trades: Trade[];
-  orderbooks: Record<string, OrderBook>;
+  orderbooks: Record<number, OrderBook>;
+  symbolMappings: Map<number, string>;
   metrics: Metrics | null;
 }
 
-export function DataFlowMonitor({ trades, orderbooks, metrics }: Props) {
-  // Dynamically determine exchanges from actual data
-  const activeExchanges = Array.from(new Set(trades.map(t => t.exchange))).sort();
-  const exchanges = activeExchanges.length > 0 ? activeExchanges : ['coinbase']; // Fallback
+export function DataFlowMonitor({ trades, orderbooks, symbolMappings, metrics }: Props) {
+  // Determine exchanges from trades and orderbooks using our hash mappings
+  const activeExchanges = new Set<string>();
+  
+  // Get exchanges from trades
+  trades.forEach(trade => {
+    const exchange = getExchangeFromHash(trade.symbol_hash);
+    if (exchange) {
+      activeExchanges.add(exchange);
+    }
+  });
+  
+  // Get exchanges from orderbooks
+  Object.keys(orderbooks).forEach(symbolHash => {
+    const exchange = getExchangeFromHash(symbolHash);
+    if (exchange) {
+      activeExchanges.add(exchange);
+    }
+  });
+  
+  const exchanges = activeExchanges.size > 0 
+    ? Array.from(activeExchanges).sort()
+    : ['coinbase', 'kraken', 'alpaca'];
   
   const getExchangeStats = (exchange: string) => {
-    const exchangeTrades = trades.filter(t => t.exchange === exchange);
+    // Filter trades by exchange using our hash mapping
+    const exchangeTrades = trades.filter(t => {
+      const tradeExchange = getExchangeFromHash(t.symbol_hash);
+      return tradeExchange === exchange;
+    });
+    
     const recentTrades = exchangeTrades.filter(t => 
       Date.now() - t.timestamp < 5000
     );

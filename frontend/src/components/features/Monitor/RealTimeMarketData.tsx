@@ -2,13 +2,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import wsService from '../../../services/WebSocketService';
 import type { Trade } from '../../../services/WebSocketService';
-import './RealTimeMarketData.module.css';
+// import type { OrderBook } from '../../../dashboard/types';
 
+// Local interface for testing
 interface OrderBook {
-  bids: Array<[number, number]>; // [price, volume]
-  asks: Array<[number, number]>; // [price, volume]
+  symbol_hash: number;
+  symbol?: string;
   timestamp: number;
+  bids: Array<{price: number; size: number}>;
+  asks: Array<{price: number; size: number}>;
 }
+import './RealTimeMarketData.module.css';
 
 interface RealTimeMarketDataProps {
   symbols?: string[];
@@ -120,13 +124,13 @@ const RealTimeMarketData: React.FC<RealTimeMarketDataProps> = ({
   // Calculate mid price
   const getMidPrice = (orderbook: OrderBook | undefined) => {
     if (!orderbook || !orderbook.bids?.[0] || !orderbook.asks?.[0]) return null;
-    return (orderbook.bids[0][0] + orderbook.asks[0][0]) / 2;
+    return (orderbook.bids[0].price + orderbook.asks[0].price) / 2;
   };
 
   // Calculate spread
   const getSpread = (orderbook: OrderBook | undefined) => {
     if (!orderbook || !orderbook.bids?.[0] || !orderbook.asks?.[0]) return null;
-    return orderbook.asks[0][0] - orderbook.bids[0][0];
+    return orderbook.asks[0].price - orderbook.bids[0].price;
   };
 
   // Calculate total volume
@@ -234,10 +238,10 @@ const RealTimeMarketData: React.FC<RealTimeMarketDataProps> = ({
                         <div className="orderbook-content">
                           {(symbolOrderbook.asks || []).slice(0, 10).reverse().map((ask, idx) => (
                             <div key={`ask-${idx}`} className="orderbook-row ask">
-                              <span className="price">{formatPrice(ask[0])}</span>
-                              <span className="volume">{formatVolume(ask[1])}</span>
+                              <span className="price">{formatPrice(ask.price)}</span>
+                              <span className="volume">{formatVolume(ask.size)}</span>
                               <div className="volume-bar ask" style={{ 
-                                width: `${Math.min(100, (ask[1] / Math.max(...(symbolOrderbook.asks || []).slice(0, 10).map(a => a[1]))) * 100)}%` 
+                                width: `${Math.min(100, (ask.size / Math.max(...(symbolOrderbook.asks || []).slice(0, 10).map(a => a.size))) * 100)}%` 
                               }} />
                             </div>
                           ))}
@@ -262,10 +266,10 @@ const RealTimeMarketData: React.FC<RealTimeMarketDataProps> = ({
                         <div className="orderbook-content">
                           {(symbolOrderbook.bids || []).slice(0, 10).map((bid, idx) => (
                             <div key={`bid-${idx}`} className="orderbook-row bid">
-                              <span className="price">{formatPrice(bid[0])}</span>
-                              <span className="volume">{formatVolume(bid[1])}</span>
+                              <span className="price">{formatPrice(bid.price)}</span>
+                              <span className="volume">{formatVolume(bid.size)}</span>
                               <div className="volume-bar bid" style={{ 
-                                width: `${Math.min(100, (bid[1] / Math.max(...(symbolOrderbook.bids || []).slice(0, 10).map(b => b[1]))) * 100)}%` 
+                                width: `${Math.min(100, (bid.size / Math.max(...(symbolOrderbook.bids || []).slice(0, 10).map(b => b.size))) * 100)}%` 
                               }} />
                             </div>
                           ))}

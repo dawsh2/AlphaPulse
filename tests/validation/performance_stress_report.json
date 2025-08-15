@@ -1,0 +1,64 @@
+{
+  "summary": {
+    "total_messages_processed": 235000,
+    "total_errors": 0,
+    "error_rate": 0.0,
+    "test_count": 5
+  },
+  "throughput": {
+    "max_msg_per_sec": 991472.1608933477,
+    "min_msg_per_sec": 77403.33404444261,
+    "average_msg_per_sec": 657967.1932527358
+  },
+  "latency": {
+    "average_us": 1.239189402537143,
+    "median_us": 0.9164214134216309,
+    "p95_us": 1.4603137969970703,
+    "p99_us": 1.6652047634124756,
+    "p999_us": 2.041459083557129,
+    "min_us": 0.6239861249923706,
+    "max_us": 24501.334875822067
+  },
+  "memory": {
+    "peak_mb": 35.40625,
+    "average_mb": 28.025,
+    "min_mb": 23.1875
+  },
+  "test_results": [
+    {
+      "name": "single_thread_performance",
+      "messages": 10000,
+      "throughput": 860882.1658011946,
+      "errors": 0,
+      "duration_sec": 0.011615991592407227
+    },
+    {
+      "name": "multi_thread_performance_4",
+      "messages": 50000,
+      "throughput": 991472.1608933477,
+      "errors": 0,
+      "duration_sec": 0.0504300594329834
+    },
+    {
+      "name": "memory_stress",
+      "messages": 100000,
+      "throughput": 527498.487670585,
+      "errors": 0,
+      "duration_sec": 0.1895740032196045
+    },
+    {
+      "name": "burst_load",
+      "messages": 50000,
+      "throughput": 77403.33404444261,
+      "errors": 0,
+      "duration_sec": 0.6459670066833496
+    },
+    {
+      "name": "precision_under_load",
+      "messages": 25000,
+      "throughput": 832579.8178541086,
+      "errors": 0,
+      "duration_sec": 0.030027151107788086
+    }
+  ]
+}

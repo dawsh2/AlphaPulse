@@ -1,0 +1,134 @@
+[
+  {
+    "id": "1755237284637",
+    "text": "how is arbitrage dash calculating profit?",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-15T05:54:44.638Z",
+    "updatedAt": "2025-08-15T05:54:44.638Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755234059175",
+    "text": "make money",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-15T05:00:59.175Z",
+    "updatedAt": "2025-08-15T05:00:59.175Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755233736571",
+    "text": "factor out commonalities in collectors",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-15T04:55:36.571Z",
+    "updatedAt": "2025-08-15T04:55:36.571Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755233204433",
+    "text": "prioritize data validation test suite, diagrams, self-documenting code",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-15T04:46:44.433Z",
+    "updatedAt": "2025-08-15T04:46:44.433Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755232516309",
+    "text": "flash loan infra",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-15T04:35:16.309Z",
+    "updatedAt": "2025-08-15T04:35:16.309Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755227675410",
+    "text": "convert all data post-ingestion to binary format",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-15T03:14:35.410Z",
+    "updatedAt": "2025-08-15T03:14:35.410Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755219402444",
+    "text": "make dev dashboard UI nicer",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-15T00:56:42.444Z",
+    "updatedAt": "2025-08-15T00:56:42.444Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755218680649",
+    "text": "build crypto arb infra, start with polygon, expand, look into MM",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-15T00:44:40.649Z",
+    "updatedAt": "2025-08-15T00:44:40.649Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755212192226",
+    "text": "code review collector -> socket -> relay -> socket -> ws_bridge pipeline",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-14T22:56:32.226Z",
+    "updatedAt": "2025-08-14T22:58:22.074Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755212173008",
+    "text": "beautify dashboard",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-14T22:56:13.008Z",
+    "updatedAt": "2025-08-14T22:56:13.008Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755211888891",
+    "text": "investigate why order book seems slower now",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-14T22:51:28.891Z",
+    "updatedAt": "2025-08-14T22:51:28.891Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  },
+  {
+    "id": "1755210323807",
+    "text": "change protocol to allow headers to contain more data when passed over unix sockets",
+    "completed": false,
+    "priority": "low",
+    "createdAt": "2025-08-14T22:25:23.807Z",
+    "updatedAt": "2025-08-14T22:25:23.807Z",
+    "parentId": null,
+    "collapsed": false,
+    "level": 0
+  }
+]

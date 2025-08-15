@@ -201,6 +201,42 @@ Monitoring and observability are built into each service, with metrics available
 This architecture provides a solid foundation for quantitative trading operations, balancing ultra-low latency requirements with development productivity and operational reliability.
 
 
+## 🔐 Security
+
+### Important Security Notes
+
+**NEVER commit sensitive files to the repository:**
+- Private keys (`*.key`, `*.pem`)
+- Environment files (`.env`)
+- API credentials
+- Wallet files or mnemonics
+- Contract deployment artifacts with addresses
+
+### Setup Security
+
+1. **Install pre-commit hooks** (REQUIRED):
+```bash
+./scripts/install-pre-commit-hook.sh
+```
+
+2. **Copy environment templates**:
+```bash
+cp .env.example .env
+# Edit .env with your actual values
+```
+
+3. **Review security guidelines**:
+- See [SECURITY.md](./SECURITY.md) for comprehensive security checklist
+- Check `.gitignore` is properly configured
+- Never use `git add .` without reviewing files
+
+### For Blockchain/DeFi Development
+
+- Use separate wallets for development/testing/production
+- Keep minimal funds in hot wallets
+- Store private keys in environment variables only
+- See individual service READMEs for specific security requirements
+
 ## Tech Stack
 
 ### Frontend

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import './OrderbookVisualizer.css';
 import type { OrderBook } from '../types';
 
@@ -13,8 +13,10 @@ export function OrderbookVisualizer({
   orderbook, 
   symbol, 
   exchange,
-  maxLevels = 50 
+  maxLevels = 20 
 }: Props) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const spreadRef = useRef<HTMLDivElement>(null);
   const { bids, asks, spread, midPrice, totalBidVolume, totalAskVolume } = useMemo(() => {
     if (!orderbook) {
       return {
@@ -43,6 +45,34 @@ export function OrderbookVisualizer({
     };
   }, [orderbook, maxLevels]);
 
+  // Center spread on initial load and symbol changes
+  useEffect(() => {
+    if (contentRef.current && spreadRef.current && orderbook && bids.length > 0 && asks.length > 0) {
+      // Wait for DOM to update with new orderbook data, then wait a bit more for layout
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          const container = contentRef.current;
+          const spread = spreadRef.current;
+          
+          if (container && spread) {
+            const containerHeight = container.clientHeight;
+            const spreadOffsetTop = spread.offsetTop;
+            const spreadHeight = spread.clientHeight;
+            
+            // Calculate position to center the spread
+            const targetScroll = spreadOffsetTop - (containerHeight / 2) + (spreadHeight / 2);
+            
+            // Set scroll position smoothly
+            container.scrollTo({
+              top: targetScroll,
+              behavior: 'smooth'
+            });
+          }
+        }, 100);  // Small delay to ensure layout is complete
+      });
+    }
+  }, [symbol, orderbook, bids.length, asks.length]); // Re-center when symbol, orderbook, or data changes
+
   const maxVolume = useMemo(() => {
     const allLevels = [...bids, ...asks];
     return Math.max(...allLevels.map(l => l.size), 0.1);
@@ -62,6 +92,7 @@ export function OrderbookVisualizer({
       </div>
     );
   }
+
 
   return (
     <div className="orderbook-visualizer">
@@ -89,7 +120,7 @@ export function OrderbookVisualizer({
           </div>
         </div>
 
-        <div className="orderbook-content">
+        <div className="orderbook-content" ref={contentRef}>
           {/* Asks (sells) - reversed order for display */}
           <div className="asks-section">
             {asks.slice().reverse().map((level, index) => {
@@ -111,7 +142,7 @@ export function OrderbookVisualizer({
           </div>
 
           {/* Spread indicator */}
-          <div className="spread-indicator">
+          <div className="spread-indicator" ref={spreadRef}>
             <span className="spread-label">SPREAD</span>
             <span className="spread-value">${spread.toFixed(2)}</span>
             <span className="spread-percent">

@@ -7,38 +7,50 @@ import { SystemStatus } from './components/SystemStatus';
 import { WebSocketFirehose } from './components/WebSocketFirehose';
 import { TodoList } from './components/TodoList';
 import { FileExplorer } from './components/FileExplorer';
+import { AlpacaStreaming } from './components/AlpacaStreaming';
+import { DeFiArbitrage } from './components/DeFiArbitrage';
 import { useWebSocketFirehose } from './hooks/useWebSocketFirehose';
 import './styles/dashboard.css';
 
-type TabType = 'dashboard' | 'todos' | 'files' | 'metrics' | 'system';
+type TabType = 'dashboard' | 'alpaca' | 'defi' | 'todos' | 'files' | 'metrics' | 'system';
 
 export function App() {
   const { 
     trades, 
     orderbooks, 
+    symbolMappings,
     metrics, 
     status, 
     isConnected 
-  } = useWebSocketFirehose('/ws'); // Rust shared memory WebSocket
+  } = useWebSocketFirehose('/ws'); // Hash-based WebSocket
 
   const [selectedSymbol, setSelectedSymbol] = useState('BTC-USD');
   const [selectedExchange, setSelectedExchange] = useState('coinbase');
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
 
-  // Memoize filtered trades to avoid recalculation on every render
+  // Memoize filtered trades to avoid recalculation on every render  
   const filteredTrades = useMemo(() => 
-    trades.filter(t => 
-      t.symbol === selectedSymbol && 
-      t.exchange === selectedExchange
-    ),
-    [trades, selectedSymbol, selectedExchange]
+    trades.filter(t => {
+      // Use direct symbol field from WebSocket messages
+      return t.symbol === selectedSymbol;
+    }),
+    [trades, selectedSymbol]
   );
 
-  // Memoize selected orderbook
-  const selectedOrderbook = useMemo(() => 
-    orderbooks[`${selectedExchange}:${selectedSymbol}`],
-    [orderbooks, selectedExchange, selectedSymbol]
-  );
+  // Hash-based orderbook lookup (no fallbacks)
+  const selectedOrderbook = useMemo(() => {
+    // Find the hash that corresponds to our selected symbol
+    let targetHash: number | undefined;
+    for (const [hash, symbol] of symbolMappings.entries()) {
+      if (symbol === selectedSymbol) {
+        targetHash = hash;
+        break;
+      }
+    }
+    
+    // Return the orderbook directly via hash lookup (O(1))
+    return targetHash !== undefined ? orderbooks[targetHash] : undefined;
+  }, [orderbooks, selectedSymbol, symbolMappings]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -50,6 +62,7 @@ export function App() {
               <DataFlowMonitor 
                 trades={trades}
                 orderbooks={orderbooks}
+                symbolMappings={symbolMappings}
                 metrics={metrics}
               />
             </div>
@@ -83,6 +96,23 @@ export function App() {
                 orderbooks={orderbooks}
               />
             </div>
+          </div>
+        );
+      case 'alpaca':
+        return (
+          <div className="tab-content alpaca-tab">
+            <AlpacaStreaming 
+              onSymbolSelect={(symbol) => {
+                console.log('Selected symbol:', symbol);
+                // Could update some global state or trigger other actions
+              }}
+            />
+          </div>
+        );
+      case 'defi':
+        return (
+          <div className="tab-content defi-tab">
+            <DeFiArbitrage />
           </div>
         );
       case 'todos':
@@ -157,6 +187,18 @@ export function App() {
           onClick={() => setActiveTab('dashboard')}
         >
           Dashboard
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'alpaca' ? 'active' : ''}`}
+          onClick={() => setActiveTab('alpaca')}
+        >
+          Alpaca Stocks
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'defi' ? 'active' : ''}`}
+          onClick={() => setActiveTab('defi')}
+        >
+          DeFi Arbitrage
         </button>
         <button 
           className={`tab-button ${activeTab === 'todos' ? 'active' : ''}`}

@@ -8,91 +8,111 @@ The core principle driving this design is the recognition that different types o
 
 ## System Architecture Diagram
 
-```mermaid
+
+```mermaid 
 graph TD
-    %% Exchange Data Sources
-    subgraph "Exchange WebSockets"
+    %% Data Sources
+    subgraph "Data Sources"
         KrakenWS[Kraken]
-        CoinbaseWS[Coinbase]
-        BinanceWS[Binance]
+        AlpacaWS[Alpaca]
+        PolygonWS[Polygon/Uniswap DeFi]
+        TradovateWS[Tradovate Futures]
+        DataBentoWS[DataBento]
     end
     
-    %% Hot Path - Market Data Pipeline
+    %% Hot Path Processing
     subgraph "Hot Path (5-35μs latency)"
-        subgraph "Data Collectors (Rust)"
+        subgraph "Collectors (Rust)"
             KrakenCollector[Kraken Collector]
-            CoinbaseCollector[Coinbase Collector] 
-            BinanceCollector[Binance Collector]
+            AlpacaCollector[Alpaca Collector]
+            PolygonCollector[Polygon/DeFi Collector]
+            TradovateCollector[Tradovate Collector]
+            DataBentoCollector[DataBento Collector]
         end
         
         RelayServer[Relay Server<br/>Fan-out Hub<br/>Rust]
         
-        subgraph "Data Consumers"
+        subgraph "Trading Systems"
             FrontendBridge[Frontend Bridge<br/>Binary→JSON<br/>Rust]
             NautilusTrader[NautilusTrader<br/>Trading Engine<br/>Python]
+            DeFiSystem[DeFi System<br/>Flash Loans & Capital Arb<br/>Rust]
         end
     end
     
-    %% Warm/Cold Path - APIs & Analysis
-    subgraph "Warm/Cold Path (1-100ms latency)"
+    %% Warm Path
+    subgraph "Warm Path (1-100ms latency)"
         ReactDashboard[React Dashboard<br/>TypeScript]
         FastAPI[FastAPI Backend<br/>Python]
         Prometheus[Prometheus<br/>Metrics Collection]
         
-        subgraph "Analysis Environment"
+        subgraph "Analysis"
             Jupyter[Jupyter Notebooks]
             NautilusBacktest[NautilusTrader<br/>Backtesting]
             DuckDB[DuckDB/Pandas<br/>Analytics]
         end
     end
     
-    %% Data Storage
-    subgraph "Data Storage"
-        TimescaleDB[(TimescaleDB<br/>Live & Historical)]
-        ParquetFiles[(Parquet Files<br/>Analysis)]
-        BacktestDB[(Backtest Results)]
-        Redis[(Redis<br/>Cache/Sessions)]
+    %% External Systems  
+    subgraph "External"
+        Exchanges[Live Exchanges<br/>Order APIs]
+        DEXs[DeFi DEXs<br/>Uniswap, SushiSwap<br/>QuickSwap, Curve]
     end
     
-    %% External Systems
-    Exchanges[Live Exchanges<br/>Order APIs]
+    %% Storage
+    subgraph "Storage"
+        TimescaleDB[TimescaleDB<br/>Live & Historical]
+        ParquetFiles[Parquet Files<br/>Analysis & Backtest Results]
+        Redis[Redis<br/>Cache/Sessions]
+    end
     
-    %% Hot Path Connections
-    KrakenWS -->|JSON| KrakenCollector
-    CoinbaseWS -->|JSON| CoinbaseCollector
-    BinanceWS -->|JSON| BinanceCollector
+    %% Data Ingestion
+    KrakenWS --> KrakenCollector
+    AlpacaWS --> AlpacaCollector
+    PolygonWS --> PolygonCollector
+    TradovateWS --> TradovateCollector
+    DataBentoWS --> DataBentoCollector
     
-    KrakenCollector -->|Unix Socket| RelayServer
-    CoinbaseCollector -->|Unix Socket| RelayServer
-    BinanceCollector -->|Unix Socket| RelayServer
+    %% Hot Path Flow
+    KrakenCollector --> RelayServer
+    AlpacaCollector --> RelayServer
+    PolygonCollector --> RelayServer
+    TradovateCollector --> RelayServer
+    DataBentoCollector --> RelayServer
     
-    RelayServer -->|Unix Socket| FrontendBridge
-    RelayServer -->|Unix Socket| NautilusTrader
+    RelayServer --> FrontendBridge
+    RelayServer --> NautilusTrader
+    RelayServer --> DeFiSystem
+    RelayServer --> TimescaleDB
     
-    FrontendBridge -->|WebSocket| ReactDashboard
-    FrontendBridge -->|Write| TimescaleDB
-    NautilusTrader -->|Orders| Exchanges
-    NautilusTrader -->|Fills/Orders| TimescaleDB
+    %% Frontend & Analytics
+    FrontendBridge --> ReactDashboard
+    ReactDashboard <--> FastAPI
+    FastAPI <--> TimescaleDB
+    FastAPI <--> Redis
     
-    %% Warm/Cold Path Connections
-    ReactDashboard <==>|HTTP/WS| FastAPI
-    FastAPI <==>|Queries| TimescaleDB
-    FastAPI <==>|Cache| Redis
+    %% Trading Execution - force connections through External first
+    NautilusTrader --> Exchanges
+    DeFiSystem --> DEXs
+    NautilusTrader --> FrontendBridge
+    DeFiSystem --> FrontendBridge
     
-    Jupyter -->|HTTP API| FastAPI
-    Jupyter -->|Direct| NautilusBacktest
+    %% Force External to be above Storage by routing through External
+    Exchanges --> TimescaleDB
+    DEXs --> TimescaleDB
     
-    %% Monitoring Connections
-    Prometheus <==>|Scrape Metrics| FastAPI
-    Prometheus <==>|Scrape Metrics| RelayServer
-    Prometheus <==>|Scrape Metrics| FrontendBridge
-    Prometheus <==>|Cache| Redis
-    Prometheus -->|Store Metrics| TimescaleDB
+    %% Analysis Pipeline
+    Jupyter --> FastAPI
+    Jupyter --> NautilusBacktest
+    TimescaleDB --> ParquetFiles
+    DuckDB <--> ParquetFiles
+    NautilusBacktest --> ParquetFiles
     
-    %% Data Pipeline
-    TimescaleDB -->|Export| ParquetFiles
-    DuckDB <==>|Read| ParquetFiles
-    NautilusBacktest -->|Results| BacktestDB
+    %% Monitoring
+    Prometheus <--> FastAPI
+    Prometheus <--> RelayServer
+    Prometheus <--> FrontendBridge
+    Prometheus <--> Redis
+    Prometheus --> TimescaleDB
     
     %% Styling
     classDef hotPath fill:#ff6b6b,stroke:#d63031,stroke-width:2px,color:#fff
@@ -100,11 +120,11 @@ graph TD
     classDef storage fill:#55a3ff,stroke:#2d3436,stroke-width:2px,color:#fff
     classDef external fill:#fd79a8,stroke:#e84393,stroke-width:2px,color:#fff
     
-    class KrakenCollector,CoinbaseCollector,BinanceCollector,RelayServer,FrontendBridge,NautilusTrader hotPath
+    class KrakenCollector,AlpacaCollector,PolygonCollector,TradovateCollector,DataBentoCollector,RelayServer,FrontendBridge,NautilusTrader,DeFiSystem hotPath
     class ReactDashboard,FastAPI,Jupyter,DuckDB,NautilusBacktest,Prometheus warmPath
-    class TimescaleDB,Redis,ParquetFiles,BacktestDB storage
-    class KrakenWS,CoinbaseWS,BinanceWS,Exchanges external
-```
+    class TimescaleDB,Redis,ParquetFiles storage
+    class KrakenWS,AlpacaWS,PolygonWS,TradovateWS,DataBentoWS,Exchanges,DEXs external
+	```
 
 ## Performance Tiers
 

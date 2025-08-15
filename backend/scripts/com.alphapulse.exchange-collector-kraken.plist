@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- macOS-specific launchd configuration for AlphaPulse Kraken Exchange Collector -->
+<!-- launchd is the macOS service management framework (equivalent to systemd on Linux) -->
+<!-- For Linux systems, use systemd service files instead -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.alphapulse.exchange-collector-kraken</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/daws/alphapulse/backend/target/release/exchange-collector</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>EXCHANGE_NAME</key>
+        <string>kraken</string>
+        <key>RUST_LOG</key>
+        <string>info</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Users/daws/alphapulse/backend</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+        <key>NetworkState</key>
+        <true/>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/daws/alphapulse/backend/logs/exchange-collector-kraken.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/daws/alphapulse/backend/logs/exchange-collector-kraken.error.log</string>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>StartInterval</key>
+    <integer>30</integer>
+</dict>
+</plist>

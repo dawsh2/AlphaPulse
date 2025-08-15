@@ -1,5 +1,17 @@
 // WebSocket service for real-time market data streaming
 
+// Temporarily disable import to test
+// import type { OrderBook } from '../dashboard/types';
+
+// Local interface for testing
+interface OrderBook {
+  symbol_hash: number;
+  symbol?: string;
+  timestamp: number;
+  bids: Array<{price: number; size: number}>;
+  asks: Array<{price: number; size: number}>;
+}
+
 export interface SubscriptionRequest {
   msg_type: 'subscribe' | 'unsubscribe';  // Server expects msg_type
   channels: string[];
@@ -22,12 +34,6 @@ export interface Trade {
   trade_id?: string;
   symbol: string;
   exchange: string;
-}
-
-export interface OrderBook {
-  bids: Array<[number, number]>; // [price, volume]
-  asks: Array<[number, number]>; // [price, volume]
-  timestamp: number;
 }
 
 type EventHandler = (...args: any[]) => void;

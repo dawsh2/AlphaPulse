@@ -1,5 +1,7 @@
 mod exchanges;
+mod instruments;
 mod unix_socket;
+mod validation;
 
 use alphapulse_protocol::*;
 use anyhow::Result;
@@ -20,14 +22,16 @@ async fn main() -> Result<()> {
 
     info!("Starting exchange collector service");
 
-    // Use exchange-specific socket path
-    let exchange_name = std::env::var("EXCHANGE_NAME").unwrap_or_else(|_| "coinbase".to_string());
+    // TEMPORARY: Force Polygon mode for debugging
+    let exchange_name = std::env::var("EXCHANGE_NAME").unwrap_or_else(|_| "polygon".to_string());
+    // Exchange collectors write to their specific socket
     let socket_path = format!("/tmp/alphapulse/{}.sock", exchange_name);
     
     let socket_writer = Arc::new(unix_socket::UnixSocketWriter::new(&socket_path));
-    socket_writer.start().await?;
+    // Don't call start() - we connect TO the relay server, not create our own socket
 
-    let symbol_mapper = Arc::new(parking_lot::RwLock::new(SymbolMapper::new()));
+    // Placeholder for legacy signature - will be removed
+    let symbol_mapper = Arc::new(parking_lot::RwLock::new(std::collections::HashMap::<String, u32>::new()));
 
     let collector_handle = match exchange_name.as_str() {
         "kraken" => {
@@ -67,6 +71,48 @@ async fn main() -> Result<()> {
                     }
                     // No sleep - immediate reconnect for event-driven system
                     // Connection failures will be handled by tokio-tungstenite's built-in backoff
+                }
+            })
+        }
+        "alpaca" => {
+            match exchanges::alpaca::AlpacaCollector::new(
+                socket_writer.clone(),
+                symbol_mapper.clone(),
+            ) {
+                Ok(alpaca) => {
+                    tokio::spawn(async move {
+                        loop {
+                            match alpaca.connect_and_stream().await {
+                                Ok(_) => {
+                                    info!("Alpaca collector disconnected, attempting immediate reconnect");
+                                }
+                                Err(e) => {
+                                    error!("Alpaca collector error: {}", e);
+                                }
+                            }
+                            // No sleep - immediate reconnect for event-driven system
+                            // Connection failures will be handled by tokio-tungstenite's built-in backoff
+                        }
+                    })
+                }
+                Err(e) => {
+                    error!("Failed to create Alpaca collector: {}", e);
+                    return Ok(());
+                }
+            }
+        }
+        "polygon" => {
+            let polygon = exchanges::polygon::PolygonCollector::new(socket_writer.clone());
+            tokio::spawn(async move {
+                loop {
+                    match polygon.start().await {
+                        Ok(_) => {
+                            info!("Polygon collector disconnected, attempting immediate reconnect");
+                        }
+                        Err(e) => {
+                            error!("Polygon collector error: {}", e);
+                        }
+                    }
                 }
             })
         }

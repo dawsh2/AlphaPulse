@@ -1,0 +1,346 @@
+{
+  "summary": {
+    "total_token_tests": 12,
+    "successful_conversions": 12,
+    "failed_conversions": 0,
+    "success_rate": 100.0,
+    "cross_chain_inconsistencies": 0
+  },
+  "precision_analysis": {
+    "max_precision_error": 0.0,
+    "average_precision_error": 0.0,
+    "protocol_integration_errors": 0
+  },
+  "detailed_results": {
+    "conversions": {
+      "conversions": [
+        {
+          "token": "ethereum:USDC",
+          "decimals": 6,
+          "test_amount": "1.0",
+          "calculated_raw": 1000000,
+          "expected_raw": 1000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:USDT",
+          "decimals": 6,
+          "test_amount": "1000.0",
+          "calculated_raw": 1000000000,
+          "expected_raw": 1000000000,
+          "recovered_amount": "1000",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:WETH",
+          "decimals": 18,
+          "test_amount": "1.0",
+          "calculated_raw": 1000000000000000000,
+          "expected_raw": 1000000000000000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:WBTC",
+          "decimals": 8,
+          "test_amount": "1.0",
+          "calculated_raw": 100000000,
+          "expected_raw": 100000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:DAI",
+          "decimals": 18,
+          "test_amount": "1.0",
+          "calculated_raw": 1000000000000000000,
+          "expected_raw": 1000000000000000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:LINK",
+          "decimals": 18,
+          "test_amount": "10.0",
+          "calculated_raw": 10000000000000000000,
+          "expected_raw": 10000000000000000000,
+          "recovered_amount": "10",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:AAVE",
+          "decimals": 18,
+          "test_amount": "100.0",
+          "calculated_raw": 100000000000000000000,
+          "expected_raw": 100000000000000000000,
+          "recovered_amount": "100",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "polygon:WMATIC",
+          "decimals": 18,
+          "test_amount": "100.0",
+          "calculated_raw": 100000000000000000000,
+          "expected_raw": 100000000000000000000,
+          "recovered_amount": "100",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "polygon:USDC",
+          "decimals": 6,
+          "test_amount": "1.0",
+          "calculated_raw": 1000000,
+          "expected_raw": 1000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "polygon:WETH",
+          "decimals": 18,
+          "test_amount": "1.0",
+          "calculated_raw": 1000000000000000000,
+          "expected_raw": 1000000000000000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:USDC",
+          "decimals": 6,
+          "test_amount": "0.000001",
+          "calculated_raw": 1,
+          "expected_raw": 1,
+          "recovered_amount": "0.000001",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:WETH",
+          "decimals": 18,
+          "test_amount": "0.000000000000000001",
+          "calculated_raw": 1,
+          "expected_raw": 1,
+          "recovered_amount": "1E-18",
+          "precision_error": 0.0,
+          "raw_matches": true,
+          "precision_preserved": true
+        }
+      ],
+      "precision_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "failed_conversions": []
+    },
+    "cross_chain": {
+      "cross_chain_tests": [
+        {
+          "symbol": "USDC",
+          "chains": [
+            {
+              "chain": "ethereum",
+              "decimals": 6,
+              "raw_amount": 1000000,
+              "recovered": "1"
+            },
+            {
+              "chain": "polygon",
+              "decimals": 6,
+              "raw_amount": 1000000,
+              "recovered": "1"
+            },
+            {
+              "chain": "ethereum",
+              "decimals": 6,
+              "raw_amount": 1000000,
+              "recovered": "1"
+            }
+          ],
+          "consistent_decimals": true
+        },
+        {
+          "symbol": "WETH",
+          "chains": [
+            {
+              "chain": "ethereum",
+              "decimals": 18,
+              "raw_amount": 1000000000000000000,
+              "recovered": "1"
+            },
+            {
+              "chain": "polygon",
+              "decimals": 18,
+              "raw_amount": 1000000000000000000,
+              "recovered": "1"
+            },
+            {
+              "chain": "ethereum",
+              "decimals": 18,
+              "raw_amount": 1000000000000000000,
+              "recovered": "1"
+            }
+          ],
+          "consistent_decimals": true
+        }
+      ],
+      "inconsistencies": []
+    },
+    "protocol": {
+      "protocol_tests": [
+        {
+          "token": "ethereum:USDC",
+          "original_amount": "1.0",
+          "raw_token_amount": 1000000,
+          "protocol_price": 100000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:USDT",
+          "original_amount": "1000.0",
+          "raw_token_amount": 1000000000,
+          "protocol_price": 100000000,
+          "recovered_amount": "1000",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:WETH",
+          "original_amount": "1.0",
+          "raw_token_amount": 1000000000000000000,
+          "protocol_price": 100000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:WBTC",
+          "original_amount": "1.0",
+          "raw_token_amount": 100000000,
+          "protocol_price": 100000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:DAI",
+          "original_amount": "1.0",
+          "raw_token_amount": 1000000000000000000,
+          "protocol_price": 100000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:LINK",
+          "original_amount": "10.0",
+          "raw_token_amount": 10000000000000000000,
+          "protocol_price": 100000000,
+          "recovered_amount": "10",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:AAVE",
+          "original_amount": "100.0",
+          "raw_token_amount": 100000000000000000000,
+          "protocol_price": 100000000,
+          "recovered_amount": "100",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "polygon:WMATIC",
+          "original_amount": "100.0",
+          "raw_token_amount": 100000000000000000000,
+          "protocol_price": 100000000,
+          "recovered_amount": "100",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "polygon:USDC",
+          "original_amount": "1.0",
+          "raw_token_amount": 1000000,
+          "protocol_price": 100000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "polygon:WETH",
+          "original_amount": "1.0",
+          "raw_token_amount": 1000000000000000000,
+          "protocol_price": 100000000,
+          "recovered_amount": "1",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:USDC",
+          "original_amount": "0.000001",
+          "raw_token_amount": 1,
+          "protocol_price": 100000000,
+          "recovered_amount": "0.000001",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        },
+        {
+          "token": "ethereum:WETH",
+          "original_amount": "0.000000000000000001",
+          "raw_token_amount": 1,
+          "protocol_price": 100000000,
+          "recovered_amount": "1E-18",
+          "precision_error": 0.0,
+          "precision_preserved": true
+        }
+      ],
+      "precision_errors": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  }
+}

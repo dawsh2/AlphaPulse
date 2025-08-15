@@ -1,0 +1,265 @@
+.alpaca-streaming {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0a0a0a;
+  color: #ffffff;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.alpaca-header {
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+  padding: 16px;
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.connection-status {
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.connection-status.connected {
+  background: rgba(0, 255, 0, 0.1);
+  color: #00ff00;
+}
+
+.connection-status.disconnected {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff0000;
+}
+
+.metrics {
+  display: flex;
+  gap: 24px;
+}
+
+.metrics span {
+  color: #888;
+  font-size: 14px;
+}
+
+.symbol-selector {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.symbol-selector select {
+  background: #333;
+  color: #fff;
+  border: 1px solid #555;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.options-btn {
+  background: #007acc;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+
+.options-btn:hover {
+  background: #005a99;
+}
+
+.alpaca-content {
+  display: flex;
+  flex: 1;
+  gap: 16px;
+  padding: 16px;
+}
+
+.left-panel, .right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trades-panel, .orderbook-panel, .symbol-mappings {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.trades-panel h3, .orderbook-panel h3, .symbol-mappings h3 {
+  margin: 0 0 16px 0;
+  color: #fff;
+  font-size: 16px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 8px;
+}
+
+.trades-list {
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.trade-row {
+  display: grid;
+  grid-template-columns: 60px 80px 80px 40px 80px;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #222;
+}
+
+.trade-row.buy .price {
+  color: #00ff88;
+}
+
+.trade-row.sell .price {
+  color: #ff4444;
+}
+
+.trade-row .symbol {
+  font-weight: bold;
+  color: #fff;
+}
+
+.trade-row .side {
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.trade-row.buy .side {
+  color: #00ff88;
+}
+
+.trade-row.sell .side {
+  color: #ff4444;
+}
+
+.trade-row .time {
+  color: #888;
+  font-size: 11px;
+}
+
+.orderbook {
+  display: flex;
+  flex-direction: column;
+  max-height: 500px;
+}
+
+.asks, .bids {
+  flex: 1;
+}
+
+.asks h4, .bids h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #aaa;
+}
+
+.level {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 2px;
+  margin-bottom: 1px;
+}
+
+.level.ask {
+  background: rgba(255, 68, 68, 0.1);
+}
+
+.level.ask .price {
+  color: #ff4444;
+}
+
+.level.bid {
+  background: rgba(0, 255, 136, 0.1);
+}
+
+.level.bid .price {
+  color: #00ff88;
+}
+
+.level .size {
+  color: #aaa;
+}
+
+.spread {
+  text-align: center;
+  padding: 8px 0;
+  border-top: 1px solid #333;
+  border-bottom: 1px solid #333;
+  margin: 8px 0;
+}
+
+.spread-info {
+  font-size: 14px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.mappings-list {
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.mapping-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid #222;
+}
+
+.mapping-row .hash {
+  color: #888;
+  font-family: 'Courier New', monospace;
+}
+
+.mapping-row .symbol {
+  color: #fff;
+  font-weight: bold;
+}
+
+.no-data {
+  text-align: center;
+  color: #888;
+  padding: 40px 0;
+  font-style: italic;
+}
+
+/* Scrollbar styling */
+.trades-list::-webkit-scrollbar,
+.mappings-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.trades-list::-webkit-scrollbar-track,
+.mappings-list::-webkit-scrollbar-track {
+  background: #222;
+}
+
+.trades-list::-webkit-scrollbar-thumb,
+.mappings-list::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.trades-list::-webkit-scrollbar-thumb:hover,
+.mappings-list::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}

@@ -1,0 +1,239 @@
+{
+  "fixed_point_tests": [
+    {
+      "symbol": "GENERIC",
+      "original": 1e-08,
+      "fixed_point": 1,
+      "recovered": 1e-08,
+      "absolute_error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "message": "Precision OK: 0.000000000000"
+    },
+    {
+      "symbol": "GENERIC",
+      "original": 0.12345678,
+      "fixed_point": 12345678,
+      "recovered": 0.12345678,
+      "absolute_error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "message": "Precision OK: 0.000000000000"
+    },
+    {
+      "symbol": "GENERIC",
+      "original": 1.0,
+      "fixed_point": 100000000,
+      "recovered": 1.0,
+      "absolute_error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "message": "Precision OK: 0.000000000000"
+    },
+    {
+      "symbol": "GENERIC",
+      "original": 1234.56789,
+      "fixed_point": 123456789000,
+      "recovered": 1234.56789,
+      "absolute_error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "message": "Precision OK: 0.000000000000"
+    },
+    {
+      "symbol": "GENERIC",
+      "original": 99999999.99999999,
+      "fixed_point": 9999999999999999,
+      "recovered": 99999999.99999999,
+      "absolute_error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "message": "Precision OK: 0.000000000000"
+    },
+    {
+      "symbol": "GENERIC",
+      "original": 0.99999999,
+      "fixed_point": 99999999,
+      "recovered": 0.99999999,
+      "absolute_error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "message": "Precision OK: 0.000000000000"
+    },
+    {
+      "symbol": "GENERIC",
+      "original": 3.14159265,
+      "fixed_point": 314159265,
+      "recovered": 3.14159265,
+      "absolute_error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "message": "Precision OK: 0.000000000000"
+    }
+  ],
+  "token_tests": [
+    {
+      "token": "USDC",
+      "token_decimals": 6,
+      "raw_amount": 1000000,
+      "human_amount": 1.0,
+      "protocol_value": 100000000,
+      "recovered": 1.0,
+      "in_typical_range": true,
+      "stablecoin_check": true,
+      "passed": true
+    },
+    {
+      "token": "USDT",
+      "token_decimals": 6,
+      "raw_amount": 1000000,
+      "human_amount": 1.0,
+      "protocol_value": 100000000,
+      "recovered": 1.0,
+      "in_typical_range": true,
+      "stablecoin_check": true,
+      "passed": true
+    },
+    {
+      "token": "WETH",
+      "token_decimals": 18,
+      "raw_amount": 4605229999999999803392,
+      "human_amount": 4605.23,
+      "protocol_value": 460522999999,
+      "recovered": 4605.22999999,
+      "in_typical_range": true,
+      "stablecoin_check": null,
+      "passed": true
+    },
+    {
+      "token": "WBTC",
+      "token_decimals": 8,
+      "raw_amount": 6823456000000,
+      "human_amount": 68234.56,
+      "protocol_value": 6823456000000,
+      "recovered": 68234.56,
+      "in_typical_range": true,
+      "stablecoin_check": null,
+      "passed": true
+    },
+    {
+      "token": "DAI",
+      "token_decimals": 18,
+      "raw_amount": 1000000000000000000,
+      "human_amount": 1.0,
+      "protocol_value": 100000000,
+      "recovered": 1.0,
+      "in_typical_range": true,
+      "stablecoin_check": true,
+      "passed": true
+    }
+  ],
+  "pair_tests": [
+    {
+      "pair": "USDC/USDT",
+      "price": 0.9999,
+      "checks": [
+        {
+          "test": "stablecoin_pair",
+          "passed": true,
+          "message": "Deviation: 0.0001"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "pair": "WETH/USDC",
+      "price": 4605.23,
+      "checks": [
+        {
+          "test": "eth_price_range",
+          "passed": true,
+          "message": "ETH price: $4,605.23"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "pair": "WBTC/USDC",
+      "price": 68234.56,
+      "checks": [
+        {
+          "test": "btc_price_range",
+          "passed": true,
+          "message": "BTC price: $68,234.56"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "pair": "WMATIC/USDC",
+      "price": 1.23,
+      "checks": [],
+      "passed": true
+    }
+  ],
+  "edge_cases": [
+    {
+      "case": "zero",
+      "result": {
+        "symbol": "zero",
+        "original": 0.0,
+        "fixed_point": 0,
+        "recovered": 0.0,
+        "absolute_error": 0.0,
+        "relative_error": 0,
+        "passed": true,
+        "message": "Precision OK: 0.000000000000"
+      },
+      "error": null
+    },
+    {
+      "case": "very_small",
+      "result": {
+        "symbol": "very_small",
+        "original": 1e-10,
+        "fixed_point": 0,
+        "recovered": 0.0,
+        "absolute_error": 1e-10,
+        "relative_error": 1.0,
+        "passed": true,
+        "message": "Precision OK: 0.000000000100"
+      },
+      "error": null
+    },
+    {
+      "case": "very_large",
+      "result": {
+        "symbol": "very_large",
+        "original": 1000000000000000.0,
+        "fixed_point": 100000000000000000000000,
+        "recovered": 1000000000000000.0,
+        "absolute_error": 0.0,
+        "relative_error": 0.0,
+        "passed": true,
+        "message": "Precision OK: 0.000000000000"
+      },
+      "error": null
+    },
+    {
+      "case": "max_uint64",
+      "result": {
+        "symbol": "max_uint64",
+        "original": 18446744073709551615,
+        "fixed_point": 1844674407370955161500000000,
+        "recovered": 1.8446744073709552e+19,
+        "absolute_error": 0.0,
+        "relative_error": 0.0,
+        "passed": true,
+        "message": "Precision OK: 0.000000000000"
+      },
+      "error": null
+    }
+  ],
+  "summary": {
+    "total_tests": 20,
+    "passed": 20,
+    "failed": 0,
+    "pass_rate": 1.0
+  }
+}
