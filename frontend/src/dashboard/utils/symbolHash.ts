@@ -68,7 +68,6 @@ export function addSymbolMapping(symbolHash: string | number, symbol: string): v
   // Handle both string and number for compatibility
   const hashKey = typeof symbolHash === 'string' ? symbolHash : symbolHash.toString();
   HASH_TO_SYMBOL[hashKey] = symbol;
-  console.debug(`Added symbol mapping: ${hashKey} -> ${symbol}`);
 }
 
 /**

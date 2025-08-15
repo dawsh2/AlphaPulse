@@ -1,624 +1,244 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useWebSocketFirehose } from '../hooks/useWebSocketFirehose';
 import './DeFiArbitrage.css';
 
-interface ArbitrageOpportunity {
-  id: string;
-  pair: string;
-  buyDex: string;
-  sellDex: string;
-  buyPrice: number;
-  sellPrice: number;
-  profitPercent: number;
-  estimatedProfit: number;
-  maxTradeSize: number;
-  timestamp: number;
-  executed?: boolean;
-}
-
-interface DexPrice {
-  dex: string;
+interface PoolPrice {
+  poolAddress: string;
   price: number;
   liquidity: number;
+  tradeSize: number; // Size of this specific trade (for sizing reference)
   timestamp: number;
   latency: number;
+  gasCost: number;
 }
 
-interface PolygonMetrics {
-  blockNumber: number;
-  gasPrice: number;
-  totalOpportunities: number;
-  executedTrades: number;
-  totalProfit: number;
+interface AssetPairData {
+  pair: string;
+  pools: PoolPrice[];
+  minPrice: number;
+  maxPrice: number;
+  priceDifference: number;
+  priceDifferencePercent: number;
+  bestBuyPool: string;
+  bestSellPool: string;
+  arbitrageProfit: number;
+  totalLiquidity: number;
+  avgGasCost: number;
+  profitPotential: number;
+  lastUpdate: number;
+}
+
+interface SystemMetrics {
+  connectedPools: number;
+  totalPairs: number;
   avgLatency: number;
   systemStatus: 'online' | 'offline' | 'degraded';
 }
 
 export const DeFiArbitrage: React.FC = () => {
-  const [opportunities, setOpportunities] = useState<ArbitrageOpportunity[]>([]);
-  const [dexPrices, setDexPrices] = useState<Map<string, DexPrice[]>>(new Map());
-  const [metrics, setMetrics] = useState<PolygonMetrics>({
-    blockNumber: 0,
-    gasPrice: 30, // Start with realistic Polygon gas price
-    totalOpportunities: 0,
-    executedTrades: 0,
-    totalProfit: 0,
-    avgLatency: 0,
-    systemStatus: 'offline'
-  });
-  const [selectedPair, setSelectedPair] = useState<string>('ALL');
-  const [isConnected, setIsConnected] = useState(false);
-  const [tradeSize, setTradeSize] = useState<number>(1000); // Configurable trade size
+  const [assetPairs, setAssetPairs] = useState<AssetPairData[]>([]);
+  const [poolPrices, setPoolPrices] = useState<Map<string, PoolPrice[]>>(new Map());
+  const [minDifferenceFilter, setMinDifferenceFilter] = useState(0.01); // Lower threshold to show more pairs
+  const [pairVolumeHistory, setPairVolumeHistory] = useState<Map<string, {timestamp: number, volume: number}[]>>(new Map());
 
-  // WebSocket connection for real-time data from all exchanges
+  // Use the shared WebSocket connection
+  const { trades, isConnected } = useWebSocketFirehose('ws://localhost:8765');
+
+  // Throttle updates to prevent flickering
+  const updateThrottleRef = useRef<Map<string, number>>(new Map());
+  const UPDATE_THROTTLE_MS = 500; // Only update each pool every 500ms
+
+  // Process incoming trades into pool price data
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reconnectTimer: NodeJS.Timeout | undefined;
-    let isConnecting = false;
-    let shouldReconnect = true;
-    let isMounted = true;
-    
-    const connect = () => {
-      if (isConnecting || !shouldReconnect || ws || !isMounted) return;
+    if (trades.length === 0) return;
+
+    const latestTrade = trades[trades.length - 1];
+    if (!latestTrade.symbol || !latestTrade.price) return;
+
+    // Parse symbol format (e.g., "polygon:0xABC123:DAI/LGNS" or legacy "quickswap:DAI-USDT")
+    const parts = latestTrade.symbol.split(':');
+    if (parts.length >= 2) {
+      const exchange = parts[0].toLowerCase();
+      // Handle new pool-specific format: "polygon:0xABC123:DAI/LGNS"
+      const pair = parts.length >= 3 ? parts[2] : parts[1];
+
+      // Filter for DeFi/DEX exchanges only (exclude traditional exchanges)
+      const SUPPORTED_EXCHANGES = new Set([
+        'polygon', 'quickswap', 'sushiswap', 'dfyn', 'polyswap', 'comethswap', 'uniswap'
+      ]);
+
+      if (!SUPPORTED_EXCHANGES.has(exchange)) {
+        console.log('Skipping non-DEX exchange:', exchange);
+        return;
+      }
       
-      try {
-        isConnecting = true;
-        ws = new WebSocket('ws://localhost:8765');
-        
-        ws.onopen = () => {
-          console.log('🔗 Connected to live data stream');
-          isConnecting = false;
-          if (isMounted) {
-            setIsConnected(true);
-            setMetrics(prev => ({ ...prev, systemStatus: 'online' }));
-          }
-        };
 
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        // Silently process all messages without logging
-        
-        switch (message.msg_type) {
-          case 'trade':
-            // Handle all trade/price updates from any exchange
-            if (message.symbol_hash && message.symbol) {
-              const symbol = message.symbol;
-              const price = message.price;
-              const volume = message.volume;
-              const timestamp = Date.now();
-              
-              // Parse symbol format: exchange:pair or special formats
-              const parts = symbol.split(':');
-              if (parts.length >= 2) {
-                const exchange = parts[0];
-                const pair = parts[1];
-                
-                // Skip non-DEX exchanges for this page
-                // Alpaca and Coinbase are centralized exchanges, not DEXs
-                if (exchange === 'coinbase' || exchange === 'alpaca' || exchange === 'kraken') {
-                  break;
-                }
-                
-                // Map exchange names to more readable format
-                const dexName = {
-                  'polygon': 'Polygon',
-                  'quickswap': 'QuickSwap',
-                  'sushiswap': 'SushiSwap',
-                  'uniswap_v3': 'Uniswap V3'
-                }[exchange] || exchange;
-                
-                const dexPrice: DexPrice = {
-                  dex: dexName,
-                  price,
-                  liquidity: volume,
-                  timestamp,
-                  latency: message.latency_total_us ? Math.round(message.latency_total_us / 1000) : 5
-                };
-                
-                setDexPrices(prev => {
-                  const updated = new Map(prev);
-                  const existing = updated.get(pair) || [];
-                  const filtered = existing.filter(p => p.dex !== dexName);
-                  updated.set(pair, [...filtered, dexPrice].slice(-10)); // Keep last 10
-                  return updated;
-                });
-              }
-            }
-            break;
-            
-          case 'symbol_mapping':
-            // Store symbol mappings for hash resolution (silently)
-            break;
-            
-          case 'heartbeat':
-            // Update connection metrics
-            setMetrics(prev => ({
-              ...prev,
-              avgLatency: 5 + Math.random() * 5,
-              systemStatus: 'online'
-            }));
-            break;
-        }
-      } catch (e) {
-        console.error('Failed to parse WebSocket message:', e);
+      // Generate pool identifier - use actual pool address from new format or fallback
+      const poolAddress = parts.length >= 3 ? parts[1] : `${exchange}-${pair}`;
+      
+      // Throttle updates to prevent flickering
+      const now = Date.now();
+      const lastUpdate = updateThrottleRef.current.get(poolAddress) || 0;
+      if (now - lastUpdate < UPDATE_THROTTLE_MS) {
+        return; // Skip this update to prevent flickering
       }
-    };
+      updateThrottleRef.current.set(poolAddress, now);
 
-        ws.onclose = () => {
-          console.log('❌ Data stream disconnected');
-          ws = null;
-          isConnecting = false;
-          if (isMounted) {
-            setIsConnected(false);
-            setMetrics(prev => ({ ...prev, systemStatus: 'offline' }));
-          }
-          
-          // Reconnect after 5 seconds if we should reconnect and component is still mounted
-          if (shouldReconnect && isMounted) {
-            reconnectTimer = setTimeout(() => {
-              console.log('🔄 Attempting to reconnect...');
-              connect();
-            }, 5000);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          isConnecting = false;
-          if (isMounted) {
-            setMetrics(prev => ({ ...prev, systemStatus: 'degraded' }));
-          }
-        };
-      } catch (error) {
-        console.error('Failed to connect to WebSocket:', error);
-        isConnecting = false;
-        if (isMounted) {
-          setMetrics(prev => ({ ...prev, systemStatus: 'offline' }));
-        }
+      // Estimate gas cost based on exchange type (simplified)
+      const estimatedGasCost = exchange === 'polygon' ? 0.01 : 0.03; // Polygon is cheaper than mainnet
+      
+      // Track volume history for cumulative calculations (store {timestamp, volume} objects)
+      setPairVolumeHistory(prev => {
+        const updated = new Map(prev);
+        const history = updated.get(pair) || [];
+        const now = Date.now();
         
-        // Try to reconnect after 5 seconds if we should reconnect and component is still mounted
-        if (shouldReconnect && isMounted) {
-          reconnectTimer = setTimeout(() => {
-            console.log('🔄 Retrying connection...');
-            connect();
-          }, 5000);
-        }
-      }
-    };
-    
-    // Only connect if component is mounted
-    if (isMounted) {
-      connect();
+        // Add new trade volume with timestamp
+        const newEntry = { timestamp: now, volume: latestTrade.volume || 0 };
+        const updatedHistory = [...history, newEntry];
+        
+        // Keep last 100 trades (sliding window for performance)
+        const recentHistory = updatedHistory.slice(-100);
+        updated.set(pair, recentHistory);
+        return updated;
+      });
+
+      // Calculate cumulative volume from recent trades (not 24h, but recent activity)
+      const volume24h = pairVolumeHistory.get(pair)?.reduce((sum, entry) => sum + entry.volume, 0) || 0;
+
+      const poolPrice: PoolPrice = {
+        poolAddress,
+        price: latestTrade.price,
+        liquidity: latestTrade.volume || 0,
+        volume24h,
+        timestamp: latestTrade.timestamp,
+        latency: latestTrade.latency_total_us ? Math.round(latestTrade.latency_total_us / 1000) : 5,
+        gasCost: estimatedGasCost
+      };
+
+      setPoolPrices(prev => {
+        const updated = new Map(prev);
+        const existing = updated.get(pair) || [];
+        const filtered = existing.filter(p => p.poolAddress !== poolAddress);
+        updated.set(pair, [...filtered, poolPrice]);
+        return updated;
+      });
     }
+  }, [trades]);
 
-    return () => {
-      isMounted = false;
-      shouldReconnect = false;
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-      ws = null;
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = undefined;
-      }
+  // Process pool prices into asset pair data - sorted by LARGEST arbitrage first
+  useEffect(() => {
+    const processAssetPairs = () => {
+      const pairData: AssetPairData[] = [];
+      
+      poolPrices.forEach((pools, pair) => {
+        // Show single pools as well, not just arbitrage opportunities
+        const validPools = pools.filter(p => p.price > 0);
+        if (validPools.length < 1) return;
+        
+        const sortedPools = [...validPools].sort((a, b) => a.price - b.price);
+        const minPrice = sortedPools[0].price;
+        const maxPrice = sortedPools[sortedPools.length - 1].price;
+        const priceDifference = maxPrice - minPrice;
+        const priceDifferencePercent = validPools.length > 1 ? (priceDifference / minPrice) * 100 : 0;
+        
+        // Include all pairs regardless of price difference
+        if (true) {
+          const bestBuyPool = sortedPools[0].poolAddress;
+          const bestSellPool = validPools.length > 1 ? sortedPools[sortedPools.length - 1].poolAddress : sortedPools[0].poolAddress;
+          
+          // Calculate metrics
+          const totalLiquidity = validPools.reduce((sum, pool) => sum + pool.liquidity, 0);
+          const avgGasCost = validPools.reduce((sum, pool) => sum + pool.gasCost, 0) / validPools.length;
+          
+          // Calculate profit potential (arbitrage % minus gas costs)
+          const profitPotential = Math.max(0, priceDifferencePercent - (avgGasCost * 100 / minPrice));
+          
+          pairData.push({
+            pair,
+            pools: validPools,
+            minPrice,
+            maxPrice,
+            priceDifference,
+            priceDifferencePercent,
+            bestBuyPool,
+            bestSellPool,
+            arbitrageProfit: priceDifferencePercent,
+            totalLiquidity,
+            avgGasCost,
+            profitPotential,
+            lastUpdate: Math.max(...validPools.map(p => p.timestamp))
+          });
+        }
+      });
+      
+      // Sort by LARGEST price difference first (descending)
+      pairData.sort((a, b) => b.priceDifferencePercent - a.priceDifferencePercent);
+      
+      setAssetPairs(pairData);
     };
-  }, []); // No dependency on threshold - show all profitable opportunities
-
-  const filteredOpportunities = useMemo(() => {
-    return opportunities.filter(opp => 
-      selectedPair === 'ALL' || opp.pair === selectedPair
-    );
-  }, [opportunities, selectedPair]);
-
-  const executeArbitrage = (opportunityId: string) => {
-    setOpportunities(prev => 
-      prev.map(opp => 
-        opp.id === opportunityId 
-          ? { ...opp, executed: true }
-          : opp
-      )
-    );
     
-    setMetrics(prev => ({
-      ...prev,
-      executedTrades: prev.executedTrades + 1,
-      totalProfit: prev.totalProfit + opportunities.find(o => o.id === opportunityId)?.estimatedProfit || 0
-    }));
-  };
+    processAssetPairs();
+  }, [poolPrices, minDifferenceFilter]);
+
+  const displayedPairs = useMemo(() => {
+    return assetPairs.slice(0, 50); // Limit to top 50 pairs for performance
+  }, [assetPairs]);
+
+  // Calculate metrics
+  const connectedPools = Array.from(poolPrices.values()).reduce((sum, pools) => sum + pools.length, 0);
+  
 
   return (
     <div className="defi-arbitrage">
-      <div className="defi-header">
-        <div className="status-section">
-          <h2>🔗 Polygon DeFi Arbitrage</h2>
-          <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
-            {isConnected ? '🟢 Connected to Polygon' : '🔴 Disconnected'}
-          </div>
+      {!isConnected && (
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#ef4444' }}>
+          Not connected to WebSocket
         </div>
-
-        <div className="metrics-grid">
-          <div className="metric-card">
-            <div className="metric-label">Block Number</div>
-            <div className="metric-value">{metrics.blockNumber.toLocaleString()}</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-label">Gas Price</div>
-            <div className="metric-value">{metrics.gasPrice.toFixed(0)} gwei</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-label">Opportunities</div>
-            <div className="metric-value">{metrics.totalOpportunities}</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-label">Executed</div>
-            <div className="metric-value">{metrics.executedTrades}</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-label">Total Profit</div>
-            <div className="metric-value">${metrics.totalProfit.toFixed(0)}</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-label">Avg Latency</div>
-            <div className="metric-value">{metrics.avgLatency.toFixed(1)}ms</div>
-          </div>
+      )}
+      
+      {isConnected && displayedPairs.length === 0 && (
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
+          Waiting for pool data... ({poolPrices.size} pairs, {connectedPools} pools, {trades.length} trades received)
         </div>
-      </div>
-
-      <div className="controls-section">
-        <div className="threshold-info">
-          <span className="info-text">🎯 Monitoring all DEX pairs - Real-time streaming updates</span>
-        </div>
-        <div className="trade-size-control" style={{ marginTop: '10px' }}>
-          <label style={{ marginRight: '10px' }}>
-            Trade Size: $
-            <input 
-              type="number" 
-              value={tradeSize} 
-              onChange={(e) => setTradeSize(Math.max(100, parseInt(e.target.value) || 1000))}
-              min="100"
-              step="100"
-              style={{ width: '100px', marginLeft: '5px' }}
-            />
-          </label>
-          <span style={{ fontSize: '0.9em', color: '#666' }}>
-            (Gas: {metrics.gasPrice} gwei ≈ ${((metrics.gasPrice * 150000 * 0.52) / 1e9).toFixed(4)})
-          </span>
-        </div>
-      </div>
-
-      <div className="opportunities-section">
-        <h3>🎯 Live Arbitrage Opportunities</h3>
-        
-        {filteredOpportunities.length === 0 ? (
-          <div className="no-opportunities">
-            No profitable arbitrage opportunities detected
-          </div>
-        ) : (
-          <div className="opportunities-list">
-            {filteredOpportunities.map((opp) => (
-              <div 
-                key={opp.id} 
-                className={`opportunity-card ${opp.executed ? 'executed' : ''}`}
-              >
-                <div className="opportunity-header">
-                  <div className="pair-info">
-                    <span className="pair">{opp.pair}</span>
-                    <span className="profit-percent" 
-                          style={{ color: opp.profitPercent > 1 ? '#22c55e' : '#f59e0b' }}>
-                      +{opp.profitPercent.toFixed(3)}%
-                    </span>
-                  </div>
-                  <div className="estimated-profit">
-                    ${opp.estimatedProfit.toFixed(0)}
-                  </div>
-                </div>
-
-                <div className="opportunity-details">
-                  <div className="trade-info">
-                    <div className="buy-info">
-                      <span className="action buy">BUY</span>
-                      <span className="dex">{opp.buyDex}</span>
-                      <span className="price">${opp.buyPrice.toFixed(4)}</span>
-                    </div>
-                    <div className="arrow">→</div>
-                    <div className="sell-info">
-                      <span className="action sell">SELL</span>
-                      <span className="dex">{opp.sellDex}</span>
-                      <span className="price">${opp.sellPrice.toFixed(4)}</span>
-                    </div>
-                  </div>
-
-                  <div className="trade-size">
-                    Max Size: ${opp.maxTradeSize.toLocaleString()}
-                  </div>
-
-                  <div className="timestamp">
-                    {new Date(opp.timestamp).toLocaleTimeString()}
-                  </div>
-                </div>
-
-                {!opp.executed && (
-                  <button 
-                    className="execute-btn"
-                    onClick={() => executeArbitrage(opp.id)}
-                    disabled={opp.profitPercent < 0.5} // Only allow execution above 0.5%
-                  >
-                    {opp.profitPercent >= 0.5 ? 'Execute' : 'Below Threshold'}
-                  </button>
-                )}
-
-                {opp.executed && (
-                  <div className="executed-badge">✅ Executed</div>
-                )}
+      )}
+      
+      <div className="pairs-list">
+        {displayedPairs.map((pairData, idx) => (
+          <div key={pairData.pair} className="pair-item">
+            <div className="pair-header">
+              <span className="pair-name">{pairData.pair}</span>
+              <span className="price-difference">{pairData.priceDifferencePercent.toFixed(3)}%</span>
+            </div>
+            <div className="pair-metrics">
+              <div className="metric">
+                <span className="metric-label">Liquidity:</span>
+                <span className="metric-value">${pairData.totalLiquidity.toLocaleString()}</span>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="live-prices-section">
-        <h3>💱 Live DEX Price Comparison</h3>
-        {Array.from(dexPrices.entries()).length === 0 ? (
-          <div className="no-price-data">
-            Connecting to DEX price feeds...
-          </div>
-        ) : (
-          <>
-            {/* Cross-Pair Arbitrage Detection */}
-            {(() => {
-              const crossPairOpportunities = [];
-              const entries = Array.from(dexPrices.entries());
-              
-              // Check for cross-pair arbitrage (e.g., AAVE-USDC vs AAVE-USDT)
-              for (let i = 0; i < entries.length; i++) {
-                for (let j = i + 1; j < entries.length; j++) {
-                  const [pair1, prices1] = entries[i];
-                  const [pair2, prices2] = entries[j];
-                  
-                  // Extract base tokens from pairs
-                  const base1 = pair1.split('-')[0];
-                  const base2 = pair2.split('-')[0];
-                  const quote1 = pair1.split('-')[1];
-                  const quote2 = pair2.split('-')[1];
-                  
-                  // Check if same base token but different quote (e.g., AAVE-USDC vs AAVE-USDT)
-                  if (base1 === base2 && quote1 !== quote2) {
-                    const avgPrice1 = prices1.reduce((sum, p) => sum + p.price, 0) / prices1.length;
-                    const avgPrice2 = prices2.reduce((sum, p) => sum + p.price, 0) / prices2.length;
-                    const priceDiff = Math.abs(avgPrice1 - avgPrice2);
-                    const priceDiffPercent = (priceDiff / Math.min(avgPrice1, avgPrice2)) * 100;
-                    
-                    if (priceDiffPercent > 0.1) { // Show if >0.1% difference
-                      const estimatedGasCost = 0.15; // 3 swaps for cross-pair arb
-                      const liquidity = Math.min(
-                        ...prices1.map(p => p.liquidity),
-                        ...prices2.map(p => p.liquidity)
-                      );
-                      const grossProfit = priceDiff * (liquidity / Math.max(avgPrice1, avgPrice2));
-                      const netProfit = grossProfit - estimatedGasCost;
-                      
-                      crossPairOpportunities.push({
-                        base: base1,
-                        pair1,
-                        pair2,
-                        price1: avgPrice1,
-                        price2: avgPrice2,
-                        priceDiff,
-                        priceDiffPercent,
-                        netProfit,
-                        grossProfit,
-                        estimatedGasCost
-                      });
-                    }
-                  }
-                }
-              }
-              
-              if (crossPairOpportunities.length > 0) {
-                return (
-                  <div className="cross-pair-opportunities">
-                    <h4>🔄 Cross-Pair Arbitrage Opportunities</h4>
-                    <div className="opportunities-grid">
-                      {crossPairOpportunities
-                        .sort((a, b) => b.netProfit - a.netProfit)
-                        .map((opp, idx) => (
-                          <div key={idx} className={`cross-pair-card ${opp.netProfit > 0 ? 'profitable' : 'unprofitable'}`}>
-                            <div className="pair-comparison">
-                              <span className="pair">{opp.pair1}</span>
-                              <span className="vs">vs</span>
-                              <span className="pair">{opp.pair2}</span>
-                            </div>
-                            <div className="price-comparison">
-                              <span>${opp.price1.toFixed(2)}</span>
-                              <span className="diff">{opp.priceDiffPercent.toFixed(2)}%</span>
-                              <span>${opp.price2.toFixed(2)}</span>
-                            </div>
-                            <div className="profit-info">
-                              {opp.netProfit > 0 ? (
-                                <span className="net-profit">Net: +${opp.netProfit.toFixed(2)}</span>
-                              ) : (
-                                <span className="net-loss">Net: -${Math.abs(opp.netProfit).toFixed(2)}</span>
-                              )}
-                              <span className="gas-info">(gas: ${opp.estimatedGasCost.toFixed(2)})</span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
+              <div className="metric">
+                <span className="metric-label">Gas Cost:</span>
+                <span className="metric-value">${pairData.avgGasCost.toFixed(3)}</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Net Profit:</span>
+                <span className={`metric-value ${pairData.profitPotential > 0 ? 'profit-positive' : 'profit-negative'}`}>
+                  {pairData.profitPotential.toFixed(3)}%
+                </span>
+              </div>
+            </div>
+            <div className="pools">
+              {pairData.pools
+                .sort((a, b) => a.price - b.price)
+                .map((pool, poolIdx) => (
+                  <div key={poolIdx} className="pool">
+                    <span className="pool-name">{pool.poolAddress.slice(0, 8)}...{pool.poolAddress.slice(-6)}</span>
+                    <span className="pool-price">${pool.price.toFixed(6)}</span>
+                    <span className="pool-volume">Vol: ${pool.volume24h.toFixed(0)}</span>
                   </div>
-                );
-              }
-              return null;
-            })()}
-            
-            <div className="price-table-container">
-            <table className="price-comparison-table">
-              <thead>
-                <tr>
-                  <th>Pair</th>
-                  <th>Exchange</th>
-                  <th>Price</th>
-                  <th>Liquidity</th>
-                  <th>Latency</th>
-                  <th>Spread</th>
-                  <th>Arbitrage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from(dexPrices.entries())
-                  .sort(([a], [b]) => a.localeCompare(b)) // Sort pairs alphabetically
-                  .map(([pair, prices]) => {
-                    const validPrices = prices
-                      .filter(p => p.price > 0 && p.price < 1e10)
-                      .sort((a, b) => a.price - b.price); // Sort by price to easily see min/max
-                    
-                    if (validPrices.length === 0) return null;
-                    
-                    const minPrice = validPrices[0].price;
-                    const maxPrice = validPrices[validPrices.length - 1].price;
-                    const spread = maxPrice > 0 ? ((maxPrice - minPrice) / minPrice * 100) : 0;
-                    
-                    // Calculate potential profit considering gas costs
-                    // Realistic arbitrage calculation for configurable trade size
-                    const tradeAmountUSD = tradeSize; // Use configurable trade size
-                    const gasPrice = metrics.gasPrice || 30; // Use dynamic gas price from metrics
-                    const gasLimit = 150000; // Gas for 2 DEX swaps + approval
-                    const maticPriceUSD = 0.52; // Current MATIC price (could be fetched dynamically)
-                    
-                    // Calculate gas cost in USD
-                    const gasCostUSD = (gasPrice * gasLimit * maticPriceUSD) / 1e9;
-                    
-                    // Calculate arbitrage profit for the trade amount
-                    // Buy tokens at minPrice, sell at maxPrice
-                    const tokensReceived = tradeAmountUSD / minPrice;
-                    const proceedsFromSale = tokensReceived * maxPrice;
-                    const grossProfit = proceedsFromSale - tradeAmountUSD;
-                    const netProfit = grossProfit - gasCostUSD;
-                    const profitPercent = (netProfit / tradeAmountUSD) * 100;
-                    
-                    // Check if profitable considering available liquidity
-                    const minLiquidity = Math.min(
-                      validPrices.find(p => p.price === minPrice)?.liquidity || 0,
-                      validPrices.find(p => p.price === maxPrice)?.liquidity || 0
-                    );
-                    const hasArbitrage = netProfit > 0 && validPrices.length > 1 && minLiquidity >= tradeAmountUSD;
-                    
-                    return validPrices.map((priceData, idx) => {
-                      const isMinPrice = priceData.price === minPrice;
-                      const isMaxPrice = priceData.price === maxPrice;
-                      
-                      return (
-                        <tr key={`${pair}-${priceData.dex}`} 
-                            className={hasArbitrage ? (isMinPrice ? 'buy-opportunity' : isMaxPrice ? 'sell-opportunity' : '') : ''}>
-                          {idx === 0 && (
-                            <td rowSpan={validPrices.length} className="pair-cell">
-                              {pair}
-                            </td>
-                          )}
-                          <td className="exchange-cell">
-                            {priceData.dex}
-                            {isMinPrice && hasArbitrage && <span className="badge buy"> BUY</span>}
-                            {isMaxPrice && hasArbitrage && <span className="badge sell"> SELL</span>}
-                          </td>
-                          <td className="price-cell">
-                            {priceData.price < 0.01 ? 
-                              `$${priceData.price.toExponential(2)}` : 
-                              `$${priceData.price.toFixed(priceData.price < 10 ? 4 : 2)}`
-                            }
-                          </td>
-                          <td className="liquidity-cell">
-                            {priceData.liquidity > 1000000 ? 
-                              `$${(priceData.liquidity / 1000000).toFixed(1)}M` : 
-                              priceData.liquidity > 1000 ? 
-                              `$${(priceData.liquidity / 1000).toFixed(1)}K` : 
-                              `$${priceData.liquidity.toFixed(0)}`
-                            }
-                          </td>
-                          <td className="latency-cell">{priceData.latency}ms</td>
-                          {idx === 0 && (
-                            <>
-                              <td rowSpan={validPrices.length} className="spread-cell">
-                                <span className={spread > 0.5 ? 'high-spread' : 'low-spread'}>
-                                  {spread.toFixed(2)}%
-                                </span>
-                              </td>
-                              <td rowSpan={validPrices.length} className="arbitrage-cell">
-                                {hasArbitrage ? (
-                                  <div className="arbitrage-info">
-                                    <div className="profit-estimate">
-                                      Net: +${netProfit.toFixed(2)} ({profitPercent.toFixed(2)}%)
-                                    </div>
-                                    <div className="gross-profit">
-                                      On ${tradeSize}: ${grossProfit.toFixed(2)} - ${gasCostUSD.toFixed(4)} gas
-                                    </div>
-                                    <div className="action-hint">
-                                      {validPrices.find(p => p.price === minPrice)?.dex} → {validPrices.find(p => p.price === maxPrice)?.dex}
-                                    </div>
-                                  </div>
-                                ) : spread > 0 ? (
-                                  <div className="arbitrage-info unprofitable">
-                                    <div className="loss-estimate">
-                                      Net: -${Math.abs(netProfit).toFixed(2)} ({profitPercent.toFixed(2)}%)
-                                    </div>
-                                    <div className="gross-profit">
-                                      On ${tradeSize}: ${grossProfit.toFixed(2)} - ${gasCostUSD.toFixed(4)} gas
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="no-arbitrage">-</span>
-                                )}
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      );
-                    });
-                  }).filter(Boolean).flat()}
-              </tbody>
-            </table>
+                ))}
             </div>
-            <div className="table-legend">
-              <span className="legend-item">💡 Latency: Time to receive price update</span>
-              <span className="legend-item">📊 Spread: Price difference between exchanges</span>
-              <span className="legend-item">💰 Liquidity: Available trading volume</span>
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="dex-monitoring">
-        <h3>📊 DEX Connection Status</h3>
-        <div className="dex-grid">
-          {['QuickSwap', 'SushiSwap', 'Uniswap V3', 'Balancer', 'Curve'].map(dex => (
-            <div key={dex} className="dex-card">
-              <div className="dex-name">{dex}</div>
-              <div className="dex-status online">🟢 Connected</div>
-              <div className="dex-latency">{(5 + Math.random() * 10).toFixed(1)}ms</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="system-info">
-        <h3>⚙️ System Status</h3>
-        <div className="system-details">
-          <div className="status-item">
-            <span>Polygon RPC:</span>
-            <span className="status-value online">5ms latency</span>
           </div>
-          <div className="status-item">
-            <span>Price Feeds:</span>
-            <span className="status-value online">4/4 DEXs connected</span>
-          </div>
-          <div className="status-item">
-            <span>Execution Engine:</span>
-            <span className="status-value online">Ready</span>
-          </div>
-          <div className="status-item">
-            <span>Gas Optimization:</span>
-            <span className="status-value online">Active</span>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );

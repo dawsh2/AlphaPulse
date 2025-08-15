@@ -587,9 +587,75 @@ Check these log files:
 
 ### Decentralized Exchanges (DEX)
 - Blockchain event monitoring
-- Pool state tracking
+- Pool state tracking  
 - Gas optimization
 - MEV protection considerations
+
+## DEX Pool Classification: Event Signature-Based Architecture
+
+### Protocol Standardization Insight
+
+Through analysis of Polygon DEX implementations, we discovered that **most DEXes share the same underlying protocols**, making DEX identification less important than event signature classification:
+
+- **QuickSwap, SushiSwap, and many others** all use the **UniswapV2 protocol**
+- **Same event signatures** = **same parsing logic**
+- **DEX branding becomes optional metadata** rather than core functionality
+
+### Event Signature Classification
+
+Instead of expensive RPC `factory()` calls for DEX identification, we classify pools by their event signatures:
+
+```rust
+// Event signatures for different pool types
+pub const UNISWAP_V2_SWAP_SIGNATURE: &str = "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822";
+pub const UNISWAP_V3_SWAP_SIGNATURE: &str = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67";
+pub const CURVE_TOKEN_EXCHANGE_SIGNATURE: &str = "0x8b3e96f2b889fa771c53c981b40daf005f63f637f1869f707052d15a3dd97140";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EventBasedPoolType {
+    UniswapV2Style,  // Includes QuickSwap, SushiSwap, etc.
+    UniswapV3Style,
+    CurveStyle,
+}
+```
+
+### Benefits of Event-Based Classification
+
+1. **Eliminates Rate Limiting**: No more expensive RPC `factory()` calls
+2. **Maximizes Data Coverage**: Accept all pools with known signatures
+3. **Reduces Complexity**: Same parsing logic for protocol-compatible DEXes
+4. **Improves Performance**: Event signature lookup vs contract inspection
+5. **Future-Proof**: New DEXes using existing protocols work automatically
+
+### Implementation Pattern
+
+```rust
+async fn process_swap_event(&self, event: &Value) -> Result<()> {
+    // Extract event signature from topics[0]
+    let event_signature = event["topics"][0].as_str()
+        .ok_or_else(|| anyhow::anyhow!("No event signature in topics[0]"))?;
+    
+    // Classify pool type by event signature (not DEX name)
+    let pool_type = self.pool_factory.classify_by_event_signature(event_signature)
+        .ok_or_else(|| anyhow::anyhow!("Unknown event signature: {}", event_signature))?;
+    
+    // Create pool without expensive DEX identification
+    let pool = self.pool_factory.create_pool_by_signature(pool_address, pool_type).await?;
+    
+    // Parse using protocol-specific logic
+    let swap_event = pool.parse_swap_event(swap_data)?;
+}
+```
+
+### Dashboard Integration
+
+Since multiple DEXes share protocols, the **dashboard should display by pool address** rather than DEX names:
+
+- **Pool-centric view**: `0x1f1e4c845183ef6d50e9609f16f6f9cae43bc1cb`
+- **Protocol indicator**: `UniswapV2Style` 
+- **Optional DEX metadata**: `QuickSwap` (when identifiable)
+
+This approach provides **accurate arbitrage detection across all protocol-compatible pools** regardless of DEX branding.
 
 ### Traditional Markets
 - REST API polling

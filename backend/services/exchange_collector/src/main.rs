@@ -2,6 +2,10 @@ mod exchanges;
 mod instruments;
 mod unix_socket;
 mod validation;
+mod token_registry;
+mod pool_discovery;
+mod dex_registry;
+mod graph_client;
 
 use alphapulse_protocol::*;
 use anyhow::Result;
@@ -110,7 +114,17 @@ async fn main() -> Result<()> {
                             info!("Polygon collector disconnected, attempting immediate reconnect");
                         }
                         Err(e) => {
-                            error!("Polygon collector error: {}", e);
+                            let error_msg = e.to_string();
+                            error!("Polygon collector error: {}", error_msg);
+                            
+                            // Add delay for rate limiting errors
+                            if error_msg.contains("429") || error_msg.contains("Too Many Requests") {
+                                info!("Rate limited - waiting 10 seconds before reconnect");
+                                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                            } else {
+                                // Short delay for other errors
+                                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                            }
                         }
                     }
                 }

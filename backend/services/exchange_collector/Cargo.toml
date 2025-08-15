@@ -11,8 +11,13 @@ path = "src/main.rs"
 name = "generate-hashes"
 path = "src/bin/generate_hashes.rs"
 
+[[bin]]
+name = "test-components"
+path = "src/bin/test_components.rs"
+
 [dependencies]
 alphapulse-protocol = { path = "../../protocol" }
+async-trait = "0.1"
 zerocopy = { workspace = true }
 tokio = { workspace = true }
 tokio-tungstenite = { workspace = true }
