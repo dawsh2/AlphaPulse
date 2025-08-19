@@ -205,3 +205,6 @@ SEED_PHRASE*
 
 # Submodules and external repos
 nautilus_trader/
+
+# Embedded git repositories
+backend/scripts/huff-compiler/
