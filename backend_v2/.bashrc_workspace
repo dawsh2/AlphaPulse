@@ -1,0 +1,315 @@
+# AlphaPulse Multi-Crate Workspace Navigation
+# Source this file: source .bashrc_workspace
+#
+# Provides cross-crate analysis and workspace-wide code discovery
+
+# ============================================================================
+# JSON GENERATION FOR ENTIRE WORKSPACE  
+# ============================================================================
+
+# Generate JSON docs for all workspace crates
+generate_workspace_json() {
+    echo "🔄 Generating JSON documentation for entire workspace..."
+    
+    # Protocol V2 core
+    echo "  📦 Protocol V2..."
+    (cd protocol_v2 && cargo +nightly rustdoc --lib -- --output-format json -Z unstable-options 2>/dev/null)
+    
+    # Services V2
+    echo "  📦 Services V2..."
+    (cd services_v2 && cargo +nightly doc --workspace --output-format json -Z unstable-options 2>/dev/null)
+    
+    # Infrastructure
+    echo "  📦 Infrastructure..."
+    (cd infra && cargo +nightly doc --workspace --output-format json -Z unstable-options 2>/dev/null)
+    
+    echo "✅ Workspace JSON generation complete!"
+    echo "💡 Use workspace query functions to explore cross-crate patterns"
+}
+
+# Check if workspace JSON is up to date
+ensure_workspace_json() {
+    local needs_update=false
+    
+    # Check if any JSON is missing or outdated
+    [[ ! -f "protocol_v2/target/doc/protocol_v2.json" ]] && needs_update=true
+    [[ ! -f "services_v2/target/doc/alphapulse_adapter_service.json" ]] && needs_update=true
+    
+    # Check timestamps (simplified - would check all source files in practice)
+    [[ "protocol_v2/src/lib.rs" -nt "protocol_v2/target/doc/protocol_v2.json" ]] && needs_update=true
+    
+    if [[ "$needs_update" == "true" ]]; then
+        echo "⏰ Workspace JSON docs are outdated, regenerating..."
+        generate_workspace_json
+    fi
+}
+
+# ============================================================================
+# CROSS-CRATE PATTERN DISCOVERY
+# ============================================================================
+
+# Find patterns across all workspace crates
+find_workspace_pattern() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: find_workspace_pattern <pattern>" >&2
+        echo "Examples:"
+        echo "  find_workspace_pattern 'Adapter|Collector'"  
+        echo "  find_workspace_pattern 'TLV'" >&2
+        return 1
+    fi
+    
+    ensure_workspace_json
+    local pattern="$1"
+    echo "=== Workspace-wide pattern: '$pattern' ==="
+    
+    # Search protocol_v2
+    if [[ -f "protocol_v2/target/doc/protocol_v2.json" ]]; then
+        echo "📦 Protocol V2:"
+        jq -r --arg pattern "$pattern" '[.index | to_entries[] | select(.value.name | test($pattern; "i")) | {
+            crate: "protocol_v2",
+            type: (.value.inner | keys[0]),
+            name: .value.name,
+            file: (.value.span.filename | split("/")[-1])
+        }] | sort_by(.name)[] | "  \(.type): \(.name) (\(.file))"' protocol_v2/target/doc/protocol_v2.json
+    fi
+    
+    # Search services (if JSON exists)
+    for json_file in services_v2/target/doc/*.json; do
+        if [[ -f "$json_file" ]]; then
+            local crate_name=$(basename "$json_file" .json)
+            echo "📦 $crate_name:"
+            jq -r --arg pattern "$pattern" --arg crate "$crate_name" '[.index | to_entries[] | select(.value.name | test($pattern; "i")) | {
+                crate: $crate,
+                type: (.value.inner | keys[0]),
+                name: .value.name,
+                file: (.value.span.filename | split("/")[-1])
+            }] | sort_by(.name)[] | "  \(.type): \(.name) (\(.file))"' "$json_file" 2>/dev/null || true
+        fi
+    done
+    
+    # Search infra (if JSON exists) 
+    for json_file in infra/*/target/doc/*.json; do
+        if [[ -f "$json_file" ]]; then
+            local crate_name=$(basename "$json_file" .json)
+            echo "📦 $crate_name (infra):"
+            jq -r --arg pattern "$pattern" --arg crate "$crate_name" '[.index | to_entries[] | select(.value.name | test($pattern; "i")) | {
+                crate: $crate,
+                type: (.value.inner | keys[0]),
+                name: .value.name
+            }] | sort_by(.name)[] | "  \(.type): \(.name)"' "$json_file" 2>/dev/null || true
+        fi
+    done
+}
+
+# Analyze workspace dependencies
+analyze_workspace_deps() {
+    ensure_workspace_json
+    echo "=== Workspace Dependency Analysis ==="
+    
+    echo "🔗 External Dependencies by Crate:"
+    
+    # Protocol V2 deps
+    if [[ -f "protocol_v2/target/doc/protocol_v2.json" ]]; then
+        echo "  📦 Protocol V2:"
+        jq -r '.external_crates | to_entries[] | "    \(.value.name)"' protocol_v2/target/doc/protocol_v2.json | sort | uniq
+    fi
+    
+    # Services deps (simplified)
+    echo "  📦 Services (from Cargo.toml):"
+    if [[ -f "services_v2/Cargo.toml" ]]; then
+        grep -A 20 '\[workspace.dependencies\]' services_v2/Cargo.toml | grep -E '^[a-zA-Z]' | head -10 | sed 's/^/    /'
+    fi
+    
+    echo ""
+    echo "🔗 Internal Workspace Dependencies:"
+    echo "  - services_v2 → protocol_v2"
+    echo "  - infra → protocol_v2" 
+    echo "  - strategies → adapters"
+    echo ""
+    echo "💡 Run 'cargo tree' in individual crates for complete dependency analysis"
+}
+
+# Find shared protocol types across services  
+find_shared_protocols() {
+    ensure_workspace_json  
+    echo "=== Shared Protocol Types ==="
+    
+    echo "🔗 TLV Message Types (Cross-Service):"
+    find_workspace_pattern "TLV$" | grep -v "impl"
+    
+    echo ""
+    echo "🔗 Common Traits (Service Interfaces):"
+    find_workspace_pattern "trait" | head -10
+    
+    echo ""
+    echo "🔗 InstrumentId Usage:"
+    find_workspace_pattern "InstrumentId"
+}
+
+# ============================================================================
+# SERVICE ARCHITECTURE ANALYSIS
+# ============================================================================
+
+# Map service architecture across workspace
+map_service_architecture() {
+    ensure_workspace_json
+    echo "=== Service Architecture Map ==="
+    echo ""
+    echo "📊 Layer Structure:"
+    echo "  🔧 Infrastructure (infra/):"
+    echo "    - Transport abstraction"
+    echo "    - Service topology"  
+    echo ""
+    echo "  📡 Protocol (protocol_v2/):"
+    echo "    - TLV message definitions"
+    echo "    - InstrumentId system"
+    echo "    - Validation framework"
+    echo ""
+    echo "  🏗️  Services (services_v2/):"
+    echo "    - Adapters: Data collectors"
+    echo "    - Strategies: Trading logic"
+    echo "    - Dashboard: WebSocket server"
+    echo ""
+    echo "🔄 Message Flow:"
+    echo "  External APIs → Adapters → Protocol V2 TLV → Strategies → Execution"
+    echo ""
+    echo "🔗 Key Integration Points:"
+    find_shared_protocols | head -5
+}
+
+# Show protocol interfaces
+show_protocol_interfaces() {
+    ensure_workspace_json
+    echo "=== Protocol Interfaces ==="
+    
+    echo "🎯 Public APIs (Entry Points):"
+    if [[ -f "protocol_v2/target/doc/protocol_v2.json" ]]; then
+        jq -r '[.index | to_entries[] | select(.value.inner.function and .value.visibility == "public") | .value.name] | sort | .[] | "  - \(.)"' protocol_v2/target/doc/protocol_v2.json | head -10
+    fi
+    
+    echo ""
+    echo "📦 Message Types (Inter-Service):" 
+    find_workspace_pattern "TLV" | grep -E "(struct|enum)" | head -8
+    
+    echo ""
+    echo "🔌 Traits (Service Contracts):"
+    find_workspace_pattern "trait" | head -5
+}
+
+# ============================================================================
+# AGENT ONBOARDING HELPERS
+# ============================================================================
+
+# Search for existing implementations across workspace
+search_existing() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: search_existing <functionality_name>" >&2
+        echo "Example: search_existing 'price_calculator'" >&2
+        return 1
+    fi
+    
+    local functionality="$1"
+    echo "=== Existing implementations of '$functionality' ==="
+    
+    find_workspace_pattern "$functionality"
+    
+    echo ""
+    echo "💡 Also check:"
+    echo "  - File system: find . -name '*$functionality*' -type f"
+    echo "  - Rust docs: cargo doc --open and search for '$functionality'"
+}
+
+# Show adapter examples across workspace  
+show_adapter_examples() {
+    ensure_workspace_json
+    echo "=== Adapter Implementation Examples ==="
+    
+    echo "🔌 Existing Adapters:"
+    find_workspace_pattern "Adapter|Collector"
+    
+    echo ""
+    echo "🏗️  Common Patterns:" 
+    echo "  - Stateless transformation"
+    echo "  - WebSocket → TLV conversion"
+    echo "  - Error handling & reconnection"
+    echo "  - Rate limiting & circuit breaking"
+    echo ""
+    echo "📖 Study these implementations:"
+    echo "  - CoinbaseCollector (CEX pattern)"
+    echo "  - PolygonDEXCollector (DEX pattern)" 
+    echo "  - KrakenCollector (WebSocket handling)"
+}
+
+# Show strategy examples
+show_strategy_examples() {
+    ensure_workspace_json
+    echo "=== Strategy Implementation Examples ==="
+    
+    echo "⚡ Existing Strategies:"
+    find_workspace_pattern "Strategy" 
+    
+    echo ""
+    echo "🏗️  Common Patterns:"
+    echo "  - TLV message consumption"
+    echo "  - State management"
+    echo "  - Signal generation"
+    echo "  - Risk management integration"
+    echo ""
+    echo "📖 Study these implementations:"
+    echo "  - FlashArbitrageStrategy (DEX arbitrage)"
+    echo "  - KrakenSignals (signal generation)"
+}
+
+# Show validation patterns across workspace
+show_validation_patterns() {
+    ensure_workspace_json
+    echo "=== Validation Patterns ==="
+    
+    echo "✅ Validation Types Found:"
+    find_workspace_pattern "valid|Valid|check|Check" | head -10
+    
+    echo ""
+    echo "🏗️  Common Validation Patterns:"
+    echo "  - Input sanitization"
+    echo "  - Range checking"  
+    echo "  - Address validation"
+    echo "  - TLV message integrity"
+    echo ""
+    echo "📖 Key validation utilities:"
+    echo "  - validation::bounds (safe conversions)"
+    echo "  - validation::checksum (message integrity)"
+}
+
+# ============================================================================
+# HELP SYSTEM
+# ============================================================================
+
+# Comprehensive workspace help
+workspace_help() {
+    echo "AlphaPulse Workspace Navigation"
+    echo "==============================="
+    echo ""
+    echo "WORKSPACE SETUP:"
+    echo "  generate_workspace_json     - Generate JSON for all crates"
+    echo "  ensure_workspace_json       - Auto-generate if outdated"
+    echo ""
+    echo "CROSS-CRATE DISCOVERY:"
+    echo "  find_workspace_pattern <pattern>  - Find pattern across all crates"
+    echo "  analyze_workspace_deps            - Show dependency relationships"  
+    echo "  find_shared_protocols             - Cross-service message types"
+    echo ""
+    echo "ARCHITECTURE ANALYSIS:"
+    echo "  map_service_architecture    - High-level architecture overview"
+    echo "  show_protocol_interfaces    - Key integration points"
+    echo ""
+    echo "AGENT ONBOARDING:"
+    echo "  search_existing <name>      - Find existing implementations"  
+    echo "  show_adapter_examples       - How to build adapters"
+    echo "  show_strategy_examples      - How to build strategies"
+    echo "  show_validation_patterns    - Common validation code"
+    echo ""
+    echo "Examples:"
+    echo "  find_workspace_pattern 'TLV'           - All TLV-related code"
+    echo "  search_existing 'price_calculator'     - Before writing calculator"
+    echo "  show_adapter_examples                  - Learn adapter patterns"
+}

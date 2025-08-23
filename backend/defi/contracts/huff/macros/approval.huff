@@ -1,0 +1,156 @@
+/// @title Approval Macros - Reusable token approval operations
+/// @notice Gas-optimized token approval macros for ERC20 interactions
+
+// Function selectors
+#define constant APPROVE_SELECTOR = 0x095ea7b3
+#define constant ALLOWANCE_SELECTOR = 0xdd62ed3e
+
+/// @notice Basic token approval
+/// @dev Approves spender to spend amount of token
+#define macro APPROVE() = takes (3) returns (1) {
+    // Stack: [token, spender, amount]
+    
+    0x40 mload                          // [ptr, token, spender, amount]
+    [APPROVE_SELECTOR] dup2 mstore      // [ptr, token, spender, amount]
+    
+    dup3 0x04 dup3 add mstore           // Store spender
+    dup1 0x24 dup3 add mstore           // Store amount
+    
+    // Execute approval call
+    0x00 0x00 0x44 dup4 0x00 dup7 gas call // [success, ptr, token, spender, amount]
+    
+    // Clean up stack and return success
+    swap4 pop pop pop pop               // [success]
+}
+
+/// @notice Safe token approval with allowance check
+/// @dev Checks current allowance and resets to 0 if needed before setting new allowance
+#define macro SAFE_APPROVE() = takes (3) returns (1) {
+    // Stack: [token, spender, amount]
+    
+    // First check current allowance
+    dup2 dup2 GET_ALLOWANCE()           // [current_allowance, token, spender, amount]
+    
+    dup1 0x00 eq already_zero jumpi
+    
+    // Need to reset to zero first (for tokens like USDT)
+    dup3 dup3 0x00 APPROVE()            // [success, current_allowance, token, spender, amount]
+    approve_zero_success jumpi
+    
+    // Zero approval failed
+    0x00 swap4 pop pop pop pop          // [0]
+    
+    approve_zero_success:
+        pop                             // [current_allowance, token, spender, amount]
+    
+    already_zero:
+        pop                             // [token, spender, amount]
+        
+        // Now set the actual allowance
+        APPROVE()                       // [success]
+}
+
+/// @notice Maximum approval (saves gas on subsequent operations)
+/// @dev Approves maximum uint256 value
+#define macro MAX_APPROVE() = takes (2) returns (1) {
+    // Stack: [token, spender]
+    
+    0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff // [max_uint256, token, spender]
+    APPROVE()                           // [success]
+}
+
+/// @notice Conditional approval (only approve if allowance is insufficient)
+/// @dev Only approves if current allowance < required amount
+#define macro CONDITIONAL_APPROVE() = takes (3) returns (1) {
+    // Stack: [token, spender, amount]
+    
+    dup2 dup2 GET_ALLOWANCE()           // [current_allowance, token, spender, amount]
+    dup4 dup2 lt needs_approval jumpi
+    
+    // Allowance is sufficient
+    pop pop pop pop                     // []
+    0x01                                // [success=true]
+    
+    needs_approval:
+        // Need to approve
+        pop                             // [token, spender, amount]
+        APPROVE()                       // [success]
+}
+
+/// @notice Get current allowance
+/// @dev Returns the allowance that spender has for owner's tokens
+#define macro GET_ALLOWANCE() = takes (2) returns (1) {
+    // Stack: [owner, spender]
+    // Note: token address should be the contract being called
+    
+    0x40 mload                          // [ptr, owner, spender]
+    [ALLOWANCE_SELECTOR] dup2 mstore    // [ptr, owner, spender]
+    
+    dup3 0x04 dup3 add mstore           // Store owner
+    dup2 0x24 dup3 add mstore           // Store spender
+    
+    // Execute static call to get allowance
+    0x20 dup2 0x44 dup4 dup8 gas staticcall // [success, ptr, owner, spender]
+    
+    allowance_success jumpi
+    0x00 swap3 pop pop pop              // [0]
+    
+    allowance_success:
+        mload                           // [allowance, owner, spender]
+        swap2 pop pop                   // [allowance]
+}
+
+/// @notice Optimized approval for known tokens
+/// @dev Skips some safety checks for gas optimization with trusted tokens
+#define macro FAST_APPROVE() = takes (3) returns (0) {
+    // Stack: [token, spender, amount]
+    
+    0x40 mload                          // [ptr, token, spender, amount]
+    [APPROVE_SELECTOR] dup2 mstore      // [ptr, token, spender, amount]
+    
+    dup3 0x04 dup3 add mstore           // Store spender  
+    dup1 0x24 dup3 add mstore           // Store amount
+    
+    // Execute approval call without return value check (for gas optimization)
+    pop 0x00 0x44 dup3 0x00 dup6 gas call pop // [token, spender, amount]
+    pop pop pop                         // []
+}
+
+/// @notice Batch approval for multiple tokens
+/// @dev Approves the same spender for multiple tokens with the same amount
+#define macro BATCH_APPROVE() = takes (4) returns (1) {
+    // Stack: [tokens_ptr, token_count, spender, amount]
+    
+    0x01                                // [success=true, tokens_ptr, token_count, spender, amount]
+    dup3                                // [i=token_count, success, tokens_ptr, token_count, spender, amount]
+    
+    batch_loop:
+        dup1 0x00 eq batch_done jumpi   // Check if i == 0
+        
+        // Get token address: tokens[i-1]
+        0x01 swap1 sub                  // [i-1, success, tokens_ptr, token_count, spender, amount]
+        0x20 mul dup4 add mload         // [token, success, tokens_ptr, token_count, spender, amount]
+        
+        // Approve this token
+        dup5 dup7 APPROVE()             // [approve_success, token, success, tokens_ptr, token_count, spender, amount]
+        and                             // [combined_success, token, tokens_ptr, token_count, spender, amount]
+        pop                             // [combined_success, tokens_ptr, token_count, spender, amount]
+        
+        dup3                            // [i=token_count, combined_success, tokens_ptr, token_count, spender, amount]
+        0x01 swap1 sub                  // [i-1, combined_success, tokens_ptr, token_count, spender, amount]
+        dup1                            // [i-1, i-1, combined_success, tokens_ptr, token_count, spender, amount]
+        
+        batch_loop jump
+    
+    batch_done:
+        pop                             // [success, tokens_ptr, token_count, spender, amount]
+        swap4 pop pop pop pop           // [success]
+}
+
+/// @notice Emergency revoke approval (set to 0)
+/// @dev Sets allowance to 0 for security
+#define macro REVOKE_APPROVAL() = takes (2) returns (1) {
+    // Stack: [token, spender]
+    
+    0x00 APPROVE()                      // [success]
+}

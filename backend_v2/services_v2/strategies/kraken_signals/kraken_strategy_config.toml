@@ -1,0 +1,27 @@
+# Kraken Signal Strategy Configuration
+
+# Moving average periods
+short_ma_period = 10
+long_ma_period = 30
+
+# Signal generation thresholds
+min_price_movement_pct = "0.5"    # 0.5% minimum movement for signal
+min_confidence = 70                # Minimum confidence score (0-100)
+max_position_pct = "5.0"          # 5% of typical volume
+
+# Signal cooldown (seconds)
+signal_cooldown = 300              # 5 minutes between signals for same instrument
+
+# Target instruments to monitor
+target_instruments = [
+    "BTCUSD",
+    "ETHUSD", 
+    "ADAUSD",
+    "DOTUSD",
+    "MATICUSD",
+    "LINKUSD"
+]
+
+# Relay connection paths
+signal_relay_path = "/tmp/alphapulse/signals.sock"
+market_data_relay_path = "/tmp/alphapulse/market_data.sock"

@@ -1,4 +1,13 @@
-use alphapulse_protocol::*;
+use alphapulse_protocol::message_protocol::{
+    MESSAGE_MAGIC, MessageType, SourceType, MessageHeader,
+};
+use alphapulse_protocol::messages::{
+    TradeMessage, SwapEventMessage, PoolUpdateMessage,
+};
+use alphapulse_protocol::{
+    StatusUpdateMessage, L2SnapshotMessage, L2DeltaMessage, TokenInfoMessage,
+    MessageTraceMessage, SymbolMappingMessage, OrderBookMessage, TradeSide,
+};
 use zerocopy::{AsBytes, FromBytes};
 use anyhow::{Context, Result};
 use crossbeam_channel::{bounded, Sender};
@@ -58,38 +67,40 @@ impl UnixSocketWriter {
     
     pub fn write_trade(&self, trade: &TradeMessage) -> Result<()> {
         let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
-        let header = MessageHeader::new(MessageType::Trade, TradeMessage::SIZE as u16, seq);
         
-        let mut buffer = Vec::with_capacity(MessageHeader::SIZE + TradeMessage::SIZE);
-        let header_bytes = AsBytes::as_bytes(&header);
+        // Trade messages now include the new header directly
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<TradeMessage>());
         let trade_bytes = AsBytes::as_bytes(trade);
-        
-        // Debug sizes
-        debug!("Trade message sizes - Header: {} bytes, Trade: {} bytes, Total expected: {} bytes",
-            header_bytes.len(), trade_bytes.len(), header_bytes.len() + trade_bytes.len());
-        
-        // Verify header is correct
-        if header_bytes[0] != 0xFE {
-            error!("CRITICAL: Header magic byte is wrong! {:02x?}", &header_bytes[0..8]);
-        }
-        
-        buffer.extend_from_slice(header_bytes);
         buffer.extend_from_slice(trade_bytes);
         
-        // CRITICAL: Log actual buffer size
-        if buffer.len() != 72 {
-            error!("CRITICAL: Trade buffer size is {} bytes, expected 72!", buffer.len());
-        }
+        // Debug sizes
+        debug!("Trade message with new protocol - Total: {} bytes (magic: 0x{:08x})",
+            buffer.len(), MESSAGE_MAGIC);
         
         // Log complete message for debugging
-        if seq % 20 == 0 || buffer.len() != 72 {
-            debug!("Sending trade #{}, ACTUAL {} bytes. First 32 bytes: {:02x?}", 
+        if seq % 20 == 0 {
+            debug!("Sending trade #{}, {} bytes. First 32 bytes: {:02x?}", 
                 seq, buffer.len(), &buffer[..std::cmp::min(32, buffer.len())]);
         }
         
         let start = Instant::now();
-        self.sender.try_send(buffer)
-            .map_err(|e| anyhow::anyhow!("Channel send failed: {}", e))?;
+        
+        // Check if channel is getting full (potential bottleneck)
+        let channel_len = self.sender.len();
+        if channel_len > 5000 {
+            warn!("🚨 Unix socket channel is {}% full ({}/10000) - potential bottleneck!", 
+                  (channel_len * 100) / 10000, channel_len);
+        }
+        
+        match self.sender.try_send(buffer) {
+            Ok(()) => {},
+            Err(crossbeam_channel::TrySendError::Full(_)) => {
+                error!("🚨 Unix socket channel FULL! Dropping message to prevent blocking");
+                counter!("unix_socket.messages_dropped").increment(1);
+                return Err(anyhow::anyhow!("Channel full - message dropped"));
+            }
+            Err(e) => return Err(anyhow::anyhow!("Channel send failed: {}", e))
+        }
         
         let latency_us = start.elapsed().as_micros() as f64;
         histogram!("unix_socket.send_latency_us").record(latency_us);
@@ -98,129 +109,266 @@ impl UnixSocketWriter {
         Ok(())
     }
     
-    pub fn write_orderbook(&self, orderbook: &OrderBookMessage) -> Result<()> {
+    pub fn write_swap_event(&self, swap: &SwapEventMessage) -> Result<()> {
         let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
         
-        let mut payload = Vec::new();
-        orderbook.encode(&mut payload);
+        // SwapEvent messages now include the new header directly
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<SwapEventMessage>());
+        let swap_bytes = AsBytes::as_bytes(swap);
+        buffer.extend_from_slice(swap_bytes);
         
-        let header = MessageHeader::new(MessageType::OrderBook, payload.len() as u16, seq);
+        debug!("Sending SwapEvent #{}, {} bytes total (magic: 0x{:08x})", seq, buffer.len(), MESSAGE_MAGIC);
         
-        let mut buffer = Vec::with_capacity(MessageHeader::SIZE + payload.len());
+        self.sender.send(buffer)
+            .context("Failed to send swap event to writer thread")?;
+        
+        counter!("unix_socket.swap_events_sent").increment(1);
+        
+        Ok(())
+    }
+    
+    pub fn write_pool_update(&self, pool_update: &PoolUpdateMessage) -> Result<()> {
+        let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
+        
+        // PoolUpdate messages now include the new header directly  
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<PoolUpdateMessage>());
+        let pool_bytes = AsBytes::as_bytes(pool_update);
+        buffer.extend_from_slice(pool_bytes);
+        
+        debug!("Sending PoolUpdate #{}, {} bytes total (magic: 0x{:08x})", seq, buffer.len(), MESSAGE_MAGIC);
+        
+        self.sender.send(buffer)
+            .context("Failed to send pool update to writer thread")?;
+        
+        counter!("unix_socket.pool_updates_sent").increment(1);
+        
+        Ok(())
+    }
+    
+    pub fn write_orderbook(&self, orderbook: &OrderBookMessage) -> Result<()> {
+        let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
+        let mut encoded_orderbook = Vec::new();
+        orderbook.encode(&mut encoded_orderbook);
+        let header = MessageHeader::new(
+            MessageType::OrderBook, 
+            1, // version
+            SourceType::PolygonCollector,
+            encoded_orderbook.len() as u32,
+            seq as u64
+        );
+        
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<MessageHeader>() + encoded_orderbook.len());
         buffer.extend_from_slice(AsBytes::as_bytes(&header));
-        buffer.extend_from_slice(&payload);
+        buffer.extend_from_slice(&encoded_orderbook);
         
-        let start = Instant::now();
-        self.sender.try_send(buffer)
-            .map_err(|e| anyhow::anyhow!("Channel send failed: {}", e))?;
+        self.sender.send(buffer)
+            .context("Failed to send orderbook to writer thread")?;
         
-        let latency_us = start.elapsed().as_micros() as f64;
-        histogram!("unix_socket.send_latency_us").record(latency_us);
         counter!("unix_socket.orderbooks_sent").increment(1);
         
         Ok(())
     }
     
-    pub fn write_l2_snapshot(&self, snapshot: &alphapulse_protocol::L2SnapshotMessage) -> Result<()> {
+    pub fn write_message_trace(&self, trace: &MessageTraceMessage) -> Result<()> {
         let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
+        let encoded_trace = trace.encode();
+        let header = MessageHeader::new(
+            MessageType::Custom, // No MessageTrace in new enum
+            1, // version
+            SourceType::PolygonCollector,
+            encoded_trace.len() as u32,
+            seq as u64
+        );
         
-        let mut payload = Vec::new();
-        snapshot.encode(&mut payload);
-        
-        let header = MessageHeader::new(MessageType::L2Snapshot, payload.len() as u16, seq);
-        
-        let mut buffer = Vec::with_capacity(MessageHeader::SIZE + payload.len());
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<MessageHeader>() + encoded_trace.len());
         buffer.extend_from_slice(AsBytes::as_bytes(&header));
-        buffer.extend_from_slice(&payload);
+        buffer.extend_from_slice(&encoded_trace);
         
-        debug!("Sending L2Snapshot message, header+payload = {} bytes, type = L2Snapshot", buffer.len());
+        debug!("Sending MessageTrace #{}, {} bytes total", seq, buffer.len());
         
-        let start = Instant::now();
-        self.sender.try_send(buffer)
-            .map_err(|e| anyhow::anyhow!("Channel send failed: {}", e))?;
+        self.sender.send(buffer)
+            .context("Failed to send message trace to writer thread")?;
         
-        let latency_us = start.elapsed().as_micros() as f64;
-        histogram!("unix_socket.send_latency_us").record(latency_us);
-        counter!("unix_socket.l2_snapshots_sent").increment(1);
+        counter!("unix_socket.message_traces_sent").increment(1);
         
         Ok(())
     }
     
-    pub fn write_l2_delta(&self, delta: &alphapulse_protocol::L2DeltaMessage) -> Result<()> {
+    pub fn write_symbol_mapping(&self, mapping: &SymbolMappingMessage) -> Result<()> {
         let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
+        let encoded_mapping = mapping.encode();
+        let header = MessageHeader::new(
+            MessageType::Custom, // No SymbolMapping in new enum
+            1, // version
+            SourceType::PolygonCollector,
+            encoded_mapping.len() as u32,
+            seq as u64
+        );
         
-        let mut payload = Vec::new();
-        delta.encode(&mut payload);
-        
-        let header = MessageHeader::new(MessageType::L2Delta, payload.len() as u16, seq);
-        
-        let mut buffer = Vec::with_capacity(MessageHeader::SIZE + payload.len());
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<MessageHeader>() + encoded_mapping.len());
         buffer.extend_from_slice(AsBytes::as_bytes(&header));
-        buffer.extend_from_slice(&payload);
+        buffer.extend_from_slice(&encoded_mapping);
         
-        // Debug logging
-        debug!("Sending L2Delta message, header+payload = {} bytes, type = {:?}", 
-            buffer.len(), MessageType::L2Delta);
+        self.sender.send(buffer)
+            .context("Failed to send symbol mapping to writer thread")?;
         
-        let start = Instant::now();
-        self.sender.try_send(buffer)
-            .map_err(|e| anyhow::anyhow!("Channel send failed: {}", e))?;
-        
-        let latency_us = start.elapsed().as_micros() as f64;
-        histogram!("unix_socket.send_latency_us").record(latency_us);
-        counter!("unix_socket.l2_deltas_sent").increment(1);
-        
-        Ok(())
-    }
-    
-    pub fn write_symbol_mapping(&self, mapping: &alphapulse_protocol::SymbolMappingMessage) -> Result<()> {
-        let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
-        
-        let payload = mapping.encode();
-        let header = MessageHeader::new(MessageType::SymbolMapping, payload.len() as u16, seq);
-        
-        let mut buffer = Vec::with_capacity(MessageHeader::SIZE + payload.len());
-        buffer.extend_from_slice(AsBytes::as_bytes(&header));
-        buffer.extend_from_slice(&payload);
-        
-        let start = Instant::now();
-        self.sender.try_send(buffer)
-            .map_err(|e| anyhow::anyhow!("Channel send failed: {}", e))?;
-        
-        let latency_us = start.elapsed().as_micros() as f64;
-        histogram!("unix_socket.send_latency_us").record(latency_us);
         counter!("unix_socket.symbol_mappings_sent").increment(1);
         
         Ok(())
     }
     
-    pub fn write_arbitrage_opportunity(&self, arb: &alphapulse_protocol::ArbitrageOpportunityMessage) -> Result<()> {
+    pub fn write_status_update(&self, status: &StatusUpdateMessage) -> Result<()> {
         let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
+        let header = MessageHeader::new(
+            MessageType::Custom, // No StatusUpdate in new enum  
+            1, // version
+            SourceType::PolygonCollector,
+            StatusUpdateMessage::SIZE as u32,
+            seq as u64
+        );
         
-        let payload = arb.encode();
-        let header = MessageHeader::new(MessageType::ArbitrageOpportunity, payload.len() as u16, seq);
-        
-        let mut buffer = Vec::with_capacity(MessageHeader::SIZE + payload.len());
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<MessageHeader>() + StatusUpdateMessage::SIZE);
         buffer.extend_from_slice(AsBytes::as_bytes(&header));
-        buffer.extend_from_slice(&payload);
+        buffer.extend_from_slice(AsBytes::as_bytes(status));
         
-        info!("📊 Sending arbitrage opportunity: {} ({} bytes)", arb.pair, buffer.len());
+        self.sender.send(buffer)
+            .context("Failed to send status update to writer thread")?;
         
+        counter!("unix_socket.status_updates_sent").increment(1);
+        
+        Ok(())
+    }
+    
+    pub fn write_status(&self, status: &StatusUpdateMessage) -> Result<()> {
+        let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
+        let header = MessageHeader::new(
+            MessageType::Custom, // No StatusUpdate in new enum
+            1, // version
+            SourceType::PolygonCollector,
+            StatusUpdateMessage::SIZE as u32,
+            seq as u64
+        );
+        
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<MessageHeader>() + StatusUpdateMessage::SIZE);
+        buffer.extend_from_slice(AsBytes::as_bytes(&header));
+        buffer.extend_from_slice(AsBytes::as_bytes(status));
+        
+        self.sender.send(buffer)
+            .context("Failed to send status to writer thread")?;
+        
+        counter!("unix_socket.status_sent").increment(1);
+        
+        Ok(())
+    }
+    
+    pub fn write_token_info(&self, token_info: &TokenInfoMessage) -> Result<()> {
+        let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
+        let header = MessageHeader::new(
+            MessageType::TokenDiscovered,
+            1, // version
+            SourceType::PolygonCollector,
+            128 as u32,
+            seq as u64
+        );
+        
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<MessageHeader>() + 128);
+        buffer.extend_from_slice(AsBytes::as_bytes(&header));
+        buffer.extend_from_slice(AsBytes::as_bytes(token_info));
+        
+        self.sender.send(buffer)
+            .context("Failed to send token info to writer thread")?;
+        
+        counter!("unix_socket.token_info_sent").increment(1);
+        debug!("📤 Broadcast token info: {} ({})", 
+               token_info.get_symbol(), token_info.get_token_address());
+        
+        Ok(())
+    }
+    
+    pub fn write_l2_snapshot(&self, snapshot: &L2SnapshotMessage) -> Result<()> {
+        let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
+        let mut encoded_snapshot = Vec::new();
+        snapshot.encode(&mut encoded_snapshot);
+        let header = MessageHeader::new(
+            MessageType::Snapshot,
+            1, // version
+            SourceType::PolygonCollector,
+            encoded_snapshot.len() as u32,
+            seq as u64
+        );
+        
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<MessageHeader>() + encoded_snapshot.len());
+        buffer.extend_from_slice(AsBytes::as_bytes(&header));
+        buffer.extend_from_slice(&encoded_snapshot);
+        
+        self.sender.send(buffer)
+            .context("Failed to send L2 snapshot to writer thread")?;
+        
+        counter!("unix_socket.l2_snapshots_sent").increment(1);
+        
+        Ok(())
+    }
+    
+    pub fn write_l2_delta(&self, delta: &L2DeltaMessage) -> Result<()> {
+        let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
+        let mut encoded_delta = Vec::new();
+        delta.encode(&mut encoded_delta);
+        let header = MessageHeader::new(
+            MessageType::Custom, // No L2Delta in new enum
+            1, // version
+            SourceType::PolygonCollector,
+            encoded_delta.len() as u32,
+            seq as u64
+        );
+        
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<MessageHeader>() + encoded_delta.len());
+        buffer.extend_from_slice(AsBytes::as_bytes(&header));
+        buffer.extend_from_slice(&encoded_delta);
+        
+        self.sender.send(buffer)
+            .context("Failed to send L2 delta to writer thread")?;
+        
+        counter!("unix_socket.l2_deltas_sent").increment(1);
+        
+        Ok(())
+    }
+    
+    /// Write raw bytes directly (for new protocol messages)
+    pub fn write_bytes(&self, bytes: &[u8]) -> Result<()> {
         let start = Instant::now();
-        self.sender.try_send(buffer)
-            .map_err(|e| anyhow::anyhow!("Channel send failed: {}", e))?;
         
-        let latency_us = start.elapsed().as_micros() as f64;
-        histogram!("unix_socket.send_latency_us").record(latency_us);
-        counter!("unix_socket.arbitrage_opportunities_sent").increment(1);
+        // Check if channel is getting full (potential bottleneck)
+        let channel_len = self.sender.len();
+        if channel_len > 5000 {
+            warn!("🚨 Unix socket channel is {}% full ({}/10000) - potential bottleneck!", 
+                  (channel_len * 100) / 10000, channel_len);
+        }
+        
+        match self.sender.try_send(bytes.to_vec()) {
+            Ok(()) => {},
+            Err(crossbeam_channel::TrySendError::Full(_)) => {
+                counter!("socket_write_errors", "type" => "channel_full").increment(1);
+                return Err(anyhow::anyhow!("Unix socket channel full"));
+            },
+            Err(crossbeam_channel::TrySendError::Disconnected(_)) => {
+                counter!("socket_write_errors", "type" => "disconnected").increment(1);
+                return Err(anyhow::anyhow!("Unix socket disconnected"));
+            }
+        }
+        
+        let duration = start.elapsed();
+        histogram!("socket_write_duration").record(duration.as_micros() as f64);
+        counter!("socket_writes", "type" => "raw_bytes").increment(1);
+        
+        debug!("📤 Sent {} raw bytes to Unix socket", bytes.len());
         
         Ok(())
     }
     
     pub fn stats(&self) -> (u64, u64) {
         (
-            self.bytes_written.load(Ordering::Relaxed),
             self.messages_written.load(Ordering::Relaxed),
+            self.bytes_written.load(Ordering::Relaxed),
         )
     }
 }
@@ -236,150 +384,62 @@ struct WriterThread {
 
 impl WriterThread {
     fn run(&mut self) {
-        info!("Unix socket writer thread started");
-        let mut last_heartbeat = Instant::now();
-        let mut retry_count = 0u32;
-        let max_retry_delay = 30; // Maximum retry delay in seconds
+        info!("Unix socket writer thread started for {}", self.path);
         
         loop {
-            // Process all pending messages first before sending heartbeat
-            let mut messages_processed = 0;
-            while let Ok(data) = self.receiver.try_recv() {
-                if let Err(e) = self.write_data(&data) {
-                    error!("Failed to write to unix socket: {}", e);
-                    self.stream = None;
-                    retry_count += 1;
-                    let delay = std::cmp::min(2u32.pow(retry_count.min(5)), max_retry_delay);
-                    warn!("Connection lost, retrying in {}s (attempt {})", delay, retry_count);
-                    std::thread::sleep(Duration::from_secs(delay as u64));
-                    continue;
-                } else {
-                    retry_count = 0; // Reset on successful write
-                }
-                messages_processed += 1;
-                // Process ALL messages, not just 100
-                // This ensures L2Delta messages get through
-            }
-            
-            // Only send heartbeat if no messages for a while (1 second)
-            if messages_processed == 0 && last_heartbeat.elapsed() > Duration::from_secs(1) {
-                self.send_heartbeat();
-                last_heartbeat = Instant::now();
-            }
-            
-            // Only sleep if we didn't process any messages
-            if messages_processed == 0 {
-                std::thread::sleep(Duration::from_millis(1));
-            }
-            
-            // Check if channel is disconnected
-            if self.receiver.is_empty() && self.receiver.len() == 0 {
-                match self.receiver.recv_timeout(Duration::from_millis(10)) {
-                    Ok(data) => {
-                        if let Err(e) = self.write_data(&data) {
-                            error!("Failed to write to unix socket: {}", e);
-                            self.stream = None;
+            // Try to receive message
+            match self.receiver.recv_timeout(Duration::from_millis(100)) {
+                Ok(buffer) => {
+                    // Ensure we have a connection
+                    if self.stream.is_none() {
+                        self.connect();
+                    }
+                    
+                    // Try to write
+                    if let Some(ref mut stream) = self.stream {
+                        use std::io::Write;
+                        match stream.write_all(&buffer) {
+                            Ok(()) => {
+                                self.bytes_written.fetch_add(buffer.len() as u64, Ordering::Relaxed);
+                                self.messages_written.fetch_add(1, Ordering::Relaxed);
+                                
+                                // Log every 1000 messages
+                                let msg_count = self.messages_written.load(Ordering::Relaxed);
+                                if msg_count % 1000 == 0 {
+                                    debug!("Sent {} messages via Unix socket", msg_count);
+                                }
+                            }
+                            Err(e) => {
+                                error!("Failed to write to Unix socket: {}", e);
+                                self.stream = None; // Disconnect on error
+                            }
                         }
                     }
-                    Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
-                        info!("Writer thread shutting down");
-                        break;
+                }
+                Err(crossbeam_channel::RecvTimeoutError::Timeout) => {
+                    // Normal timeout, check connection health
+                    if self.stream.is_none() {
+                        self.connect();
                     }
-                    Err(crossbeam_channel::RecvTimeoutError::Timeout) => {
-                        // Normal timeout, continue
-                    }
+                }
+                Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
+                    info!("Unix socket writer thread shutting down");
+                    break;
                 }
             }
         }
     }
     
-    fn ensure_connected(&mut self) -> Result<()> {
-        if self.stream.is_some() {
-            return Ok(());
-        }
-        
-        // Connect TO the relay server instead of listening
-        // Note: On macOS, this connects to exchange-specific sockets
-        // managed by launchd. On Linux, systemd would manage the sockets.
+    fn connect(&mut self) {
         match UnixStream::connect(&self.path) {
             Ok(stream) => {
-                info!("Connected to socket at {}", self.path);
+                info!("Connected to Unix socket at {}", self.path);
                 self.stream = Some(stream);
-                Ok(())
             }
             Err(e) => {
-                debug!("Failed to connect to socket at {}: {} (will retry)", self.path, e);
-                Err(anyhow::anyhow!("Failed to connect: {}", e))
+                debug!("Failed to connect to Unix socket at {}: {}", self.path, e);
+                // Will retry on next iteration
             }
-        }
-    }
-    
-    fn write_data(&mut self, data: &[u8]) -> Result<()> {
-        self.ensure_connected()?;
-        
-        if let Some(ref mut stream) = self.stream {
-            use std::io::Write;
-            
-            // CRITICAL: Log exact message type and size by reading header
-            let msg_type = if data.len() >= 8 {
-                match data[1] { // Message type is at byte 1
-                    0x01 => "TRADE",
-                    0x02 => "ORDERBOOK", 
-                    0x03 => "HEARTBEAT",
-                    0x04 => "METRICS",
-                    0x05 => "L2SNAPSHOT",
-                    0x06 => "L2DELTA",
-                    0x07 => "L2RESET",
-                    0x08 => "SYMBOL_MAPPING",
-                    0x09 => "ARBITRAGE_OPPORTUNITY",
-                    0x0A => "STATUS_UPDATE",
-                    _ => "UNKNOWN_TYPE",
-                }
-            } else { "TOO_SHORT" };
-            
-            debug!("Writing {} ({} bytes), first 8: {:02x?}", msg_type, data.len(), &data[..std::cmp::min(8, data.len())]);
-            
-            if data.len() == 64 && data[0] != 0xFE {
-                error!("CRITICAL BUG: Sending 64-byte message without header! First bytes: {:02x?}", &data[..8]);
-            }
-            
-            let start = Instant::now();
-            // Write atomically - don't split the message
-            let bytes_written = stream.write(data)?;
-            if bytes_written != data.len() {
-                error!("Partial write: wrote {} of {} bytes", bytes_written, data.len());
-                return Err(anyhow::anyhow!("Partial write to socket"));
-            }
-            stream.flush()?;
-            
-            let latency_us = start.elapsed().as_micros() as f64;
-            histogram!("unix_socket.write_latency_us").record(latency_us);
-            
-            self.bytes_written.fetch_add(data.len() as u64, Ordering::Relaxed);
-            self.messages_written.fetch_add(1, Ordering::Relaxed);
-            
-            debug!("Successfully wrote {} bytes to Unix socket", data.len());
-        }
-        
-        Ok(())
-    }
-    
-    fn send_heartbeat(&mut self) {
-        let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
-        let timestamp_ns = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
-        
-        let heartbeat = HeartbeatMessage::new(timestamp_ns, seq);
-        let header = MessageHeader::new(MessageType::Heartbeat, HeartbeatMessage::SIZE as u16, seq);
-        
-        let mut buffer = Vec::with_capacity(MessageHeader::SIZE + HeartbeatMessage::SIZE);
-        buffer.extend_from_slice(AsBytes::as_bytes(&header));
-        buffer.extend_from_slice(AsBytes::as_bytes(&heartbeat));
-        
-        if let Err(e) = self.write_data(&buffer) {
-            debug!("Failed to send heartbeat: {}", e);
         }
     }
 }

@@ -1,0 +1,340 @@
+# AlphaPulse Comprehensive Codebase Navigation Functions
+# Source this file: source protocol_v2/.bashrc_nav
+#
+# Provides intelligent codebase exploration, architecture discovery,
+# and duplication prevention through rustdoc JSON analysis
+
+# Generate rustdoc JSON if needed
+ensure_json() {
+    local json_file="protocol_v2/protocol_v2/target/doc/protocol_v2.json"
+    if [[ ! -f "$json_file" ]] || [[ "protocol_v2/src/tlv/types.rs" -nt "$json_file" ]]; then
+        echo "Generating rustdoc JSON..." >&2
+        (cd protocol_v2 && cargo +nightly rustdoc --lib -- --output-format json -Z unstable-options >/dev/null 2>&1)
+    fi
+}
+
+# List all TLV types with their numeric values
+tlv_types() {
+    ensure_json
+    jq -r '.index["125"].inner.enum.variants[] as $id | .index[$id | tostring] | select(.name) | "\(.name): \(.inner.variant.discriminant.value)"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# Search TLV types by pattern (case insensitive)
+tlv_search() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: tlv_search <pattern>" >&2
+        return 1
+    fi
+    tlv_types | grep -i "$1"
+}
+
+# Find TLV by exact numeric value
+tlv_by_number() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: tlv_by_number <number>" >&2
+        return 1
+    fi
+    tlv_types | awk -F: -v num="$1" '$2 == num'
+}
+
+# TLV types by domain (based on protocol specification)
+tlv_market_data() { tlv_types | awk -F: '$2 >= 1 && $2 <= 19' | sort -n -t: -k2; }
+tlv_signals() { tlv_types | awk -F: '$2 >= 20 && $2 <= 39' | sort -n -t: -k2; }
+tlv_execution() { tlv_types | awk -F: '$2 >= 40 && $2 <= 79' | sort -n -t: -k2; }
+tlv_system() { tlv_types | awk -F: '$2 >= 100 && $2 <= 119' | sort -n -t: -k2; }
+tlv_vendor() { tlv_types | awk -F: '$2 >= 200 && $2 <= 254' | sort -n -t: -k2; }
+
+# ============================================================================
+# CORE ARCHITECTURE DISCOVERY
+# ============================================================================
+
+# Show all structs with their file locations
+show_all_structs() {
+    ensure_json
+    echo "=== All Structs ==="
+    jq -r '[.index | to_entries[] | select(.value.inner.struct) | {
+        name: .value.name,
+        file: .value.span.filename
+    }] | sort_by(.name)[] | "\(.name): \(.file)"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# Show all traits with their file locations
+show_all_traits() {
+    ensure_json
+    echo "=== All Traits ==="
+    jq -r '[.index | to_entries[] | select(.value.inner.trait) | {
+        name: .value.name,
+        file: .value.span.filename
+    }] | sort_by(.name)[] | "\(.name): \(.file)"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# Show all modules and their organization
+show_all_modules() {
+    ensure_json
+    echo "=== Module Organization ==="
+    jq -r '[.index | to_entries[] | select(.value.inner.module) | {
+        name: .value.name,
+        file: .value.span.filename
+    }] | sort_by(.file)[] | "\(.file) -> \(.name)"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# Show only public functions
+show_public_api() {
+    ensure_json
+    echo "=== Public API Functions ==="
+    jq -r '[.index | to_entries[] | select(.value.inner.function and .value.visibility == "public") | {
+        name: .value.name,
+        file: (.value.span.filename | split("/")[-1])
+    }] | sort_by(.name)[] | "\(.name) (\(.file))"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# ============================================================================
+# CODE DUPLICATION PREVENTION
+# ============================================================================
+
+# Find functions/types with similar names
+find_similar() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: find_similar <pattern>" >&2
+        return 1
+    fi
+    ensure_json
+    echo "=== Similar to '$1' ==="
+    jq -r --arg pattern "$1" '[.index | to_entries[] | select(.value.name != null and (.value.name | test($pattern; "i"))) | {
+        type: (.value.inner | keys[0]),
+        name: .value.name,
+        file: (.value.span.filename | split("/")[-1])
+    }] | sort_by(.name)[] | "\(.type): \(.name) (\(.file))"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# Find all types containing a specific word
+find_by_type() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: find_by_type <type_pattern>" >&2
+        return 1
+    fi
+    ensure_json
+    echo "=== Types matching '$1' ==="
+    jq -r --arg pattern "$1" '[.index | to_entries[] | select(.value.name != null and (.value.name | test($pattern))) | {
+        type: (.value.inner | keys[0]),
+        name: .value.name,
+        file: .value.span.filename
+    }] | sort_by(.type)[] | "\(.type): \(.name) -> \(.file)"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# Find everything in a specific module
+find_in_module() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: find_in_module <module_name>" >&2
+        return 1
+    fi
+    ensure_json
+    echo "=== Items in '$1' module ==="
+    jq -r --arg module "$1" '[.paths | to_entries[] | select(.value.path | contains([$module])) | .key] as $module_ids |
+        [.index | to_entries[] | select(.key | IN($module_ids[]) and .value.name != null) | {
+            type: (.value.inner | keys[0]),
+            name: .value.name
+        }] | sort_by(.name)[] | "\(.type): \(.name)"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# ============================================================================
+# CROSS-REFERENCE ANALYSIS
+# ============================================================================
+
+# Show external crate dependencies
+show_dependencies() {
+    ensure_json
+    echo "=== External Dependencies ==="
+    jq -r '.external_crates | to_entries[] | "\(.key): \(.value.name)"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# Find trait implementations
+show_implementations() {
+    ensure_json
+    echo "=== Trait Implementations ==="
+    jq -r '[.index | to_entries[] | select(.value.inner.impl and .value.inner.impl.trait) | {
+        trait_name: .value.inner.impl.trait.path,
+        for_type: .value.inner.impl.for.resolved_path.path
+    }] | sort_by(.trait_name)[] | "\(.trait_name) for \(.for_type)"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# ============================================================================
+# FUNCTION ANALYSIS
+# ============================================================================
+
+# Find functions returning specific type
+find_functions_returning() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: find_functions_returning <return_type>" >&2
+        return 1
+    fi
+    ensure_json
+    echo "=== Functions returning '$1' ==="
+    # This is a complex query - simplified version
+    jq -r --arg ret_type "$1" '[.index | to_entries[] | select(.value.inner.function) | 
+        select(.value.docs and (.value.docs | test($ret_type))) | {
+        name: .value.name,
+        file: (.value.span.filename | split("/")[-1])
+    }] | sort_by(.name)[] | "\(.name) (\(.file))"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# Find functions taking specific parameter type
+find_functions_taking() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: find_functions_taking <param_type>" >&2
+        return 1
+    fi
+    ensure_json
+    echo "=== Functions taking '$1' parameters ==="
+    # Simplified - would need more complex sig analysis for full implementation
+    find_similar "$1"
+}
+
+# ============================================================================
+# ARCHITECTURE ANALYSIS
+# ============================================================================
+
+# Analyze service boundaries (simplified)
+analyze_service_boundaries() {
+    ensure_json
+    echo "=== Service Boundary Analysis ==="
+    echo "TLV Message Types (Cross-Service):"
+    find_by_type "TLV$" | head -10
+    echo ""
+    echo "Public Traits (Service Interfaces):"
+    show_all_traits | head -5
+}
+
+# Show message flow types
+show_message_flow_types() {
+    ensure_json  
+    echo "=== Message Flow Types ==="
+    echo "TLV Messages:"
+    find_by_type "TLV" | grep -v "impl"
+    echo ""
+    echo "Builder Types:"
+    find_by_type "Builder"
+}
+
+# List integration points
+list_integration_points() {
+    ensure_json
+    echo "=== Integration Points ==="
+    echo "Public Traits (Interfaces):"
+    show_all_traits
+    echo ""
+    echo "Public Functions (APIs):"
+    show_public_api | head -10
+}
+
+# ============================================================================
+# DEVELOPMENT HELPERS
+# ============================================================================
+
+# Check for potential duplicates
+check_for_duplicates() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: check_for_duplicates <function_pattern>" >&2
+        return 1
+    fi
+    echo "=== Checking for duplicates of '$1' ==="
+    find_similar "$1" | while IFS= read -r line; do
+        echo "⚠️  $line"
+    done
+}
+
+# Suggest existing implementations
+suggest_existing_impl() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: suggest_existing_impl <functionality>" >&2  
+        return 1
+    fi
+    echo "=== Existing implementations similar to '$1' ==="
+    find_similar "$1"
+    echo ""
+    echo "💡 Before implementing '$1', consider:"
+    echo "   - Extending existing similar functions"
+    echo "   - Creating a trait if multiple variants needed"
+    echo "   - Checking if this belongs in an existing module"
+}
+
+# ============================================================================
+# TLV-SPECIFIC FUNCTIONS (Original functionality preserved)
+# ============================================================================
+
+# List all TLV types with their numeric values
+tlv_types() {
+    ensure_json
+    jq -r '.index["125"].inner.enum.variants[] as $id | .index[$id | tostring] | select(.name) | "\(.name): \(.inner.variant.discriminant.value)"' protocol_v2/target/doc/protocol_v2.json
+}
+
+# Search TLV types by pattern (case insensitive)
+tlv_search() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: tlv_search <pattern>" >&2
+        return 1
+    fi
+    tlv_types | grep -i "$1"
+}
+
+# Find TLV by exact numeric value
+tlv_by_number() {
+    if [[ -z "${1:-}" ]]; then
+        echo "Usage: tlv_by_number <number>" >&2
+        return 1
+    fi
+    tlv_types | awk -F: -v num="$1" '$2 == num'
+}
+
+# TLV types by domain (based on protocol specification)
+tlv_market_data() { tlv_types | awk -F: '$2 >= 1 && $2 <= 19' | sort -n -t: -k2; }
+tlv_signals() { tlv_types | awk -F: '$2 >= 20 && $2 <= 39' | sort -n -t: -k2; }
+tlv_execution() { tlv_types | awk -F: '$2 >= 40 && $2 <= 79' | sort -n -t: -k2; }
+tlv_system() { tlv_types | awk -F: '$2 >= 100 && $2 <= 119' | sort -n -t: -k2; }
+tlv_vendor() { tlv_types | awk -F: '$2 >= 200 && $2 <= 254' | sort -n -t: -k2; }
+
+# ============================================================================
+# HELP SYSTEM
+# ============================================================================
+
+# Comprehensive help
+nav_help() {
+    echo "AlphaPulse Codebase Navigation Functions"
+    echo "========================================"
+    echo ""
+    echo "CORE ARCHITECTURE DISCOVERY:"
+    echo "  show_all_structs        - List all data structures"
+    echo "  show_all_traits         - List all trait definitions" 
+    echo "  show_all_modules        - Show module organization"
+    echo "  show_public_api         - List public functions"
+    echo ""
+    echo "CODE DUPLICATION PREVENTION:"
+    echo "  find_similar <pattern>  - Find similar functions/types"
+    echo "  find_by_type <pattern>  - Find types matching pattern"  
+    echo "  find_in_module <name>   - Show everything in module"
+    echo ""
+    echo "ANALYSIS & CROSS-REFERENCE:"
+    echo "  show_dependencies       - External crate dependencies"
+    echo "  show_implementations    - Trait implementations"
+    echo "  analyze_service_boundaries  - Service interfaces"
+    echo ""
+    echo "DEVELOPMENT HELPERS:"
+    echo "  check_for_duplicates <name>     - Find potential duplicates"
+    echo "  suggest_existing_impl <name>    - Before writing new code"
+    echo ""
+    echo "TLV-SPECIFIC (Protocol V2):"
+    echo "  tlv_types               - All TLV types with numbers"
+    echo "  tlv_search <pattern>    - Search TLV names"
+    echo "  tlv_market_data         - Market data TLVs (1-19)"
+    echo "  tlv_execution           - Execution TLVs (40-79)"
+    echo ""
+    echo "Examples:"
+    echo "  find_similar 'parse'    - Find parsing functions"
+    echo "  find_by_type 'Pool'     - All Pool-related types"
+    echo "  suggest_existing_impl 'validator' - Before writing validator"
+}
+
+# Quick help alias
+tlv_help() {
+    nav_help
+}

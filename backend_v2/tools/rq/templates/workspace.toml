@@ -1,0 +1,50 @@
+# rq configuration for Rust workspace projects
+
+[cache]
+max_size_mb = 1000  # Larger cache for workspaces
+expire_after_days = 14
+auto_update = true  # Auto-update when files change
+
+[ui]
+theme = "workspace"
+max_suggestions = 10
+fuzzy_threshold = 0.6
+
+# Workspace-specific aliases
+[aliases]
+# Cross-crate queries
+pub = "find --public"
+api = "find --public --type function"
+types = "find --public --type struct,enum"
+cross = "find --crate"
+
+# Workspace navigation
+bins = "find --name main --type function"
+libs = "find --crate --type module --name lib"
+examples = "find --crate examples"
+benches = "find --crate benches"
+
+# Pattern analysis
+dups = "similar --threshold 0.9"
+unused = "deps --reverse"
+
+# Workspace-specific patterns
+[[patterns]]
+name = "cross_crate_private"
+pattern = "pub\\(crate\\)"
+description = "Cross-crate private items"
+severity = "info"
+
+[[patterns]]
+name = "workspace_deps"
+pattern = "workspace = true"
+description = "Workspace dependency"
+severity = "info"
+
+# Enable workspace plugins
+[plugins.workspace_analyzer]
+enabled = false
+# path = "~/.rq/plugins/workspace_analyzer.so"
+[plugins.workspace_analyzer.config]
+analyze_dependencies = true
+check_versions = true

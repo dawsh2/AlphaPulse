@@ -1,0 +1,85 @@
+# AlphaPulse-specific rq configuration
+
+[cache]
+location = "~/.cache/rq"
+max_size_mb = 1000
+expire_after_days = 7
+auto_update = false
+
+[ui]
+theme = "alphapulse"
+max_suggestions = 10
+fuzzy_threshold = 0.6
+
+# AlphaPulse-specific aliases
+[aliases]
+# TLV discovery
+tlv = "find TLV --type struct"
+tlvs = "find TLV --type struct"
+tlv-enum = "find TLVType --type enum"
+tlv-docs = "docs TLV"
+
+# Protocol V2 components
+proto = "find --module protocol_v2"
+header = "find MessageHeader"
+builder = "find Builder"
+parser = "find parse --type function"
+
+# Pool-related
+pools = "find Pool"
+pool-state = "find PoolState"
+pool-events = "find Pool --type struct --name Swap,Mint,Burn,Sync"
+
+# Instrument/Symbol migration
+instruments = "find InstrumentId"
+symbols = "find Symbol"
+
+# Common AlphaPulse patterns
+relay = "find Relay --type struct"
+domains = "find RelayDomain --type enum"
+venues = "find Venue"
+
+# Quick checks
+has = "check"
+impl = "similar"
+
+# [[plugins.alphapulse]]
+# enabled = true
+# path = "~/.rq/plugins/alphapulse.so"
+
+# CI/CD patterns specific to AlphaPulse
+[[patterns]]
+name = "precision_loss"
+pattern = "as f32|as f64| / 1e"
+description = "Potential precision loss with floating point"
+severity = "error"
+
+[[patterns]]
+name = "unwrap_usage"
+pattern = "\.unwrap\(\)"
+description = "Using unwrap() instead of proper error handling"
+severity = "warning"
+
+[[patterns]]
+name = "hardcoded_addresses"
+pattern = "0x[0-9a-fA-F]{40}"
+description = "Hardcoded Ethereum address"
+severity = "warning"
+
+[[patterns]]
+name = "todo_items"
+pattern = "TODO|FIXME|HACK|XXX"
+description = "Unfinished code markers"
+severity = "warning"
+
+[[patterns]]
+name = "debug_output"
+pattern = "dbg!|println!|eprintln!"
+description = "Debug output in code"
+severity = "error"
+
+[[patterns]]
+name = "magic_numbers"
+pattern = "0xDEADBEEF|0xBADC0DE"
+description = "Magic number constants"
+severity = "info"

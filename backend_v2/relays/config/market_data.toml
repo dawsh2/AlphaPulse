@@ -1,0 +1,46 @@
+# Market Data Relay Configuration
+# High-throughput relay optimized for performance
+
+[relay]
+domain = 1
+name = "market_data"
+description = "High-throughput market data relay for real-time price feeds"
+
+[transport]
+mode = "unix_socket"
+path = "/tmp/alphapulse/market_data.sock"
+use_topology = false
+
+# Will be updated to use infra/transport:
+# mode = "topology"
+# channel = "market_data"
+# use_topology = true
+
+[validation]
+checksum = false        # Skip checksum for maximum performance
+audit = false          # No audit logging
+strict = false         # Continue on validation errors
+max_message_size = 65536  # 64KB max message size
+
+[topics]
+default = "market_data_all"
+available = [
+    "market_data_polygon",
+    "market_data_ethereum",
+    "market_data_kraken",
+    "market_data_binance",
+    "market_data_coinbase",
+    "market_data_uniswap_v2",
+    "market_data_uniswap_v3",
+    "market_data_sushiswap",
+    "market_data_quickswap"
+]
+auto_discover = true
+extraction_strategy = "source_type"  # Extract topic from message source
+
+[performance]
+target_throughput = 1_000_000  # >1M messages/second
+buffer_size = 65536            # 64KB buffer
+max_connections = 1000         # Support many consumers
+batch_size = 100              # Process in batches
+monitoring = true             # Enable metrics collection

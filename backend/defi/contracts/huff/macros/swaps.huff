@@ -1,0 +1,261 @@
+/// @title Swap Macros - Optimized DEX interaction macros  
+/// @notice Gas-optimized swap execution macros for multiple DEX protocols
+
+// Function selectors for different DEX protocols
+#define constant SWAP_EXACT_TOKENS_V2_SELECTOR = 0x38ed1739        // swapExactTokensForTokens
+#define constant SWAP_EXACT_SINGLE_V3_SELECTOR = 0x414bf389        // exactInputSingle  
+#define constant SWAP_EXACT_TOKENS_DYSTOPIA_SELECTOR = 0x6745372b  // swapExactTokensForTokens (Dystopia)
+
+// Common router addresses
+#define constant SUSHISWAP_ROUTER = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506
+#define constant QUICKSWAP_ROUTER = 0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff
+#define constant UNISWAP_V3_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564
+
+/// @notice Execute V2-style swap (Uniswap V2, Sushiswap, Quickswap)
+/// @dev Swaps exact tokens for tokens with 2-token path
+#define macro SWAP_EXACT_TOKENS_V2() = takes (4) returns (1) {
+    // Stack: [token_in, token_out, amount_in, router]
+    
+    0x40 mload                          // [ptr, token_in, token_out, amount_in, router]
+    
+    // Function selector
+    [SWAP_EXACT_TOKENS_V2_SELECTOR] dup2 mstore // [ptr, token_in, token_out, amount_in, router]
+    
+    // amountIn
+    dup4 0x04 dup3 add mstore           // [ptr, token_in, token_out, amount_in, router]
+    
+    // amountOutMin = 0 (accept any amount for arbitrage speed)
+    0x00 0x24 dup3 add mstore           // [ptr, token_in, token_out, amount_in, router]
+    
+    // path array offset (0xa0)
+    0xa0 0x44 dup3 add mstore           // [ptr, token_in, token_out, amount_in, router]
+    
+    // to = this contract
+    address 0x64 dup3 add mstore        // [ptr, token_in, token_out, amount_in, router]
+    
+    // deadline = block.timestamp + 300 (5 minutes)
+    timestamp 0x12c add 0x84 dup3 add mstore // [ptr, token_in, token_out, amount_in, router]
+    
+    // Build path array [token_in, token_out]
+    0x02 0xa0 dup3 add mstore           // path.length = 2
+    dup5 0xc0 dup3 add mstore           // path[0] = token_in
+    dup5 0xe0 dup3 add mstore           // path[1] = token_out
+    
+    // Execute swap call
+    dup2 0x40 0x100 dup4 0x00 dup3 gas call // [success, ptr, token_in, token_out, amount_in, router]
+    
+    v2_swap_success jumpi
+    
+    // Revert on failure
+    0x00 0x00 revert
+    
+    v2_swap_success:
+        // Extract amount_out from returned amounts array (amounts[1])
+        0x20 add mload                  // [amount_out, token_in, token_out, amount_in, router]
+        swap4 pop pop pop pop           // [amount_out]
+}
+
+/// @notice Execute V3-style single hop swap
+/// @dev Optimized for Uniswap V3 single token pair swaps
+#define macro SWAP_EXACT_SINGLE_V3() = takes (5) returns (1) {
+    // Stack: [token_in, token_out, amount_in, fee, router]
+    
+    0x40 mload                          // [ptr, token_in, token_out, amount_in, fee, router]
+    
+    // Function selector: exactInputSingle
+    [SWAP_EXACT_SINGLE_V3_SELECTOR] dup2 mstore // [ptr, token_in, token_out, amount_in, fee, router]
+    
+    // Build ExactInputSingleParams struct
+    dup5 0x04 dup3 add mstore           // tokenIn
+    dup5 0x24 dup3 add mstore           // tokenOut  
+    dup3 0x44 dup3 add mstore           // fee
+    address 0x64 dup3 add mstore        // recipient = this
+    timestamp 0x12c add 0x84 dup3 add mstore // deadline
+    dup4 0xa4 dup3 add mstore           // amountIn
+    0x00 0xc4 dup3 add mstore           // amountOutMinimum = 0
+    0x00 0xe4 dup3 add mstore           // sqrtPriceLimitX96 = 0
+    
+    // Execute swap call
+    0x20 dup2 0x104 dup4 0x00 dup3 gas call // [success, ptr, token_in, token_out, amount_in, fee, router]
+    
+    v3_swap_success jumpi
+    
+    // Revert on failure
+    0x00 0x00 revert
+    
+    v3_swap_success:
+        mload                           // [amount_out, token_in, token_out, amount_in, fee, router]
+        swap5 pop pop pop pop pop       // [amount_out]
+}
+
+/// @notice Execute Dystopia stable swap
+/// @dev Optimized for Dystopia Protocol stable/volatile swaps
+#define macro SWAP_EXACT_TOKENS_DYSTOPIA() = takes (5) returns (1) {
+    // Stack: [token_in, token_out, amount_in, stable, router]
+    
+    0x40 mload                          // [ptr, token_in, token_out, amount_in, stable, router]
+    
+    // Function selector
+    [SWAP_EXACT_TOKENS_DYSTOPIA_SELECTOR] dup2 mstore // [ptr, token_in, token_out, amount_in, stable, router]
+    
+    // amountIn
+    dup4 0x04 dup3 add mstore           // [ptr, token_in, token_out, amount_in, stable, router]
+    
+    // amountOutMin = 0
+    0x00 0x24 dup3 add mstore           // [ptr, token_in, token_out, amount_in, stable, router]
+    
+    // routes array offset
+    0xa0 0x44 dup3 add mstore           // [ptr, token_in, token_out, amount_in, stable, router]
+    
+    // to = this contract
+    address 0x64 dup3 add mstore        // [ptr, token_in, token_out, amount_in, stable, router]
+    
+    // deadline
+    timestamp 0x12c add 0x84 dup3 add mstore // [ptr, token_in, token_out, amount_in, stable, router]
+    
+    // Build routes array with single route
+    0x01 0xa0 dup3 add mstore           // routes.length = 1
+    dup5 0xc0 dup3 add mstore           // route.from = token_in
+    dup5 0xe0 dup3 add mstore           // route.to = token_out
+    dup3 0x100 dup3 add mstore          // route.stable
+    
+    // Execute swap call
+    dup2 0x40 0x120 dup4 0x00 dup3 gas call // [success, ptr, token_in, token_out, amount_in, stable, router]
+    
+    dystopia_swap_success jumpi
+    
+    // Revert on failure
+    0x00 0x00 revert
+    
+    dystopia_swap_success:
+        // Extract amount_out from returned amounts array
+        0x20 add mload                  // [amount_out, token_in, token_out, amount_in, stable, router]
+        swap5 pop pop pop pop pop       // [amount_out]
+}
+
+/// @notice Multi-hop V2 swap with dynamic path
+/// @dev Executes swap through multiple intermediate tokens
+#define macro SWAP_MULTI_HOP_V2() = takes (4) returns (1) {
+    // Stack: [path_ptr, path_length, amount_in, router]
+    
+    0x40 mload                          // [ptr, path_ptr, path_length, amount_in, router]
+    
+    // Function selector
+    [SWAP_EXACT_TOKENS_V2_SELECTOR] dup2 mstore // [ptr, path_ptr, path_length, amount_in, router]
+    
+    // amountIn
+    dup4 0x04 dup3 add mstore           // [ptr, path_ptr, path_length, amount_in, router]
+    
+    // amountOutMin = 0
+    0x00 0x24 dup3 add mstore           // [ptr, path_ptr, path_length, amount_in, router]
+    
+    // path array offset
+    0xa0 0x44 dup3 add mstore           // [ptr, path_ptr, path_length, amount_in, router]
+    
+    // to = this contract
+    address 0x64 dup3 add mstore        // [ptr, path_ptr, path_length, amount_in, router]
+    
+    // deadline
+    timestamp 0x12c add 0x84 dup3 add mstore // [ptr, path_ptr, path_length, amount_in, router]
+    
+    // Copy path array
+    dup3 0xa0 dup3 add mstore           // Store path length
+    
+    // Copy path tokens
+    0x00                                // [i=0, ptr, path_ptr, path_length, amount_in, router]
+    
+    copy_path_loop:
+        dup1 dup5 eq copy_path_done jumpi // if i == path_length, done
+        
+        // Copy path[i] to calldata
+        dup1 0x20 mul dup4 add mload    // [path[i], i, ptr, path_ptr, path_length, amount_in, router]
+        dup3 0xc0 add dup3 0x20 mul add mstore // Store at correct offset
+        
+        0x01 add                        // i++
+        copy_path_loop jump
+    
+    copy_path_done:
+        pop                             // [ptr, path_ptr, path_length, amount_in, router]
+        
+        // Calculate total calldata size
+        dup3 0x20 mul 0xa0 add          // [calldata_size, ptr, path_ptr, path_length, amount_in, router]
+        
+        // Execute swap call
+        dup3 0x40 dup3 dup4 0x00 dup9 gas call // [success, ptr, path_ptr, path_length, amount_in, router]
+        
+        multi_hop_success jumpi
+        0x00 0x00 revert
+        
+        multi_hop_success:
+            // Extract final amount from amounts array
+            dup3 0x20 mul 0x20 sub add mload // [amount_out, path_ptr, path_length, amount_in, router]
+            swap4 pop pop pop pop       // [amount_out]
+}
+
+/// @notice Optimized 2-hop arbitrage swap
+/// @dev Executes tokenA -> tokenB -> tokenA arbitrage in single transaction
+#define macro ARBITRAGE_SWAP_2HOP() = takes (6) returns (1) {
+    // Stack: [token_a, token_b, amount_in, router1, router2, router_type]
+    
+    // First swap: A -> B
+    dup4 dup4 dup4 dup4 ROUTE_SWAP()    // [amount_b, token_a, token_b, amount_in, router1, router2, router_type]
+    
+    // Second swap: B -> A  
+    dup6 dup2 dup5 dup4 ROUTE_SWAP()    // [amount_a_final, amount_b, token_a, token_b, amount_in, router1, router2, router_type]
+    
+    // Clean stack and return final amount
+    swap7 pop pop pop pop pop pop pop   // [amount_a_final]
+}
+
+/// @notice Route swap to appropriate DEX based on router type
+/// @dev Automatically selects V2 or V3 swap based on router address
+#define macro ROUTE_SWAP() = takes (4) returns (1) {
+    // Stack: [token_in, token_out, amount_in, router]
+    
+    // Check router type and route accordingly
+    dup4 [UNISWAP_V3_ROUTER] eq is_v3_router jumpi
+    
+    // Default to V2 swap
+    SWAP_EXACT_TOKENS_V2()              // [amount_out]
+    
+    is_v3_router:
+        // V3 swap with default 0.3% fee
+        0x0bb8 SWAP_EXACT_SINGLE_V3()   // [amount_out] (3000 = 0.3%)
+}
+
+/// @notice Emergency swap with maximum slippage protection
+/// @dev Includes slippage protection for volatile market conditions
+#define macro PROTECTED_SWAP() = takes (5) returns (1) {
+    // Stack: [token_in, token_out, amount_in, min_amount_out, router]
+    
+    0x40 mload                          // [ptr, token_in, token_out, amount_in, min_amount_out, router]
+    
+    // Function selector
+    [SWAP_EXACT_TOKENS_V2_SELECTOR] dup2 mstore
+    
+    // amountIn
+    dup4 0x04 dup3 add mstore
+    
+    // amountOutMin = min_amount_out (slippage protection)
+    dup3 0x24 dup3 add mstore
+    
+    // Rest of calldata same as V2 swap
+    0xa0 0x44 dup3 add mstore           // path offset
+    address 0x64 dup3 add mstore        // to
+    timestamp 0x12c add 0x84 dup3 add mstore // deadline
+    
+    // Path array
+    0x02 0xa0 dup3 add mstore           // length = 2
+    dup6 0xc0 dup3 add mstore           // token_in
+    dup6 0xe0 dup3 add mstore           // token_out
+    
+    // Execute protected swap
+    dup2 0x40 0x100 dup4 0x00 dup3 gas call
+    
+    protected_swap_success jumpi
+    0x00 0x00 revert
+    
+    protected_swap_success:
+        0x20 add mload                  // [amount_out, token_in, token_out, amount_in, min_amount_out, router]
+        swap5 pop pop pop pop pop       // [amount_out]
+}

@@ -1,0 +1,43 @@
+# Signal Relay Configuration
+# Handles strategy signal domain messages (types 20-39)
+
+[relay]
+# Unix socket path for signal relay listener
+bind_path = "/tmp/alphapulse/signals.sock"
+
+# Maximum queue size for message buffer
+max_queue_size = 100000
+
+# Circuit breaker threshold (activates when queue reaches this size)
+circuit_breaker_threshold = 80000
+
+# Enable checksum validation for strategy signals
+validate_checksums = true  # Always validate signals
+
+# Message type filtering - only accept strategy signals (20-39)
+allowed_message_types = [20, 21, 22, 23, 24, 25]
+
+[transport]
+# Transport type: "unix_socket" or "shared_memory" (future)
+type = "unix_socket"
+
+[monitoring]
+# Metrics port for Prometheus (different from market relay)
+metrics_port = 9091
+
+# Log level: trace, debug, info, warn, error
+log_level = "info"
+
+[performance]
+# Performance tuning options
+buffer_size = 65536
+tcp_nodelay = true  # For TCP sockets
+
+# Development vs Production
+[profiles.development]
+validate_checksums = false
+log_level = "debug"
+
+[profiles.production]
+validate_checksums = true
+log_level = "info"

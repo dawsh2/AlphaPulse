@@ -1,244 +1,406 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useWebSocketFirehose } from '../hooks/useWebSocketFirehose';
+import React, { useState, useEffect, useMemo } from 'react';
 import './DeFiArbitrage.css';
 
-interface PoolPrice {
-  poolAddress: string;
-  price: number;
-  liquidity: number;
-  tradeSize: number; // Size of this specific trade (for sizing reference)
+interface ArbitrageOpportunity {
+  id: string;
   timestamp: number;
-  latency: number;
-  gasCost: number;
-}
-
-interface AssetPairData {
   pair: string;
-  pools: PoolPrice[];
-  minPrice: number;
-  maxPrice: number;
-  priceDifference: number;
-  priceDifferencePercent: number;
-  bestBuyPool: string;
-  bestSellPool: string;
-  arbitrageProfit: number;
-  totalLiquidity: number;
-  avgGasCost: number;
-  profitPotential: number;
-  lastUpdate: number;
+  token0Symbol: string;
+  token1Symbol: string;
+  buyPool: string;
+  sellPool: string;
+  buyExchange: string;
+  sellExchange: string;
+  buyPrice: number;
+  sellPrice: number;
+  tradeSize: number;
+  grossProfit: number;
+  profitPercent: number;
+  gasFee: number;
+  dexFees: number;
+  slippageCost: number;
+  totalFees: number;
+  netProfit: number;
+  netProfitPercent: number;
+  executable: boolean;
+  recommendation: string;
+  buySlippage?: number;
+  sellSlippage?: number;
+  confidence?: number;
 }
 
-interface SystemMetrics {
-  connectedPools: number;
-  totalPairs: number;
-  avgLatency: number;
-  systemStatus: 'online' | 'offline' | 'degraded';
+interface ScannerStatus {
+  isConnected: boolean;
+  lastMessageTime: number;
+  totalOpportunities: number;
+  executableOpportunities: number;
+  scannerHealth: 'healthy' | 'degraded' | 'offline';
 }
 
 export const DeFiArbitrage: React.FC = () => {
-  const [assetPairs, setAssetPairs] = useState<AssetPairData[]>([]);
-  const [poolPrices, setPoolPrices] = useState<Map<string, PoolPrice[]>>(new Map());
-  const [minDifferenceFilter, setMinDifferenceFilter] = useState(0.01); // Lower threshold to show more pairs
-  const [pairVolumeHistory, setPairVolumeHistory] = useState<Map<string, {timestamp: number, volume: number}[]>>(new Map());
+  const [opportunities, setOpportunities] = useState<ArbitrageOpportunity[]>([]);
+  const [scannerStatus, setScannerStatus] = useState<ScannerStatus>({
+    isConnected: false,
+    lastMessageTime: 0,
+    totalOpportunities: 0,
+    executableOpportunities: 0,
+    scannerHealth: 'offline'
+  });
+  const [sortBy, setSortBy] = useState<'netProfit' | 'profitPercent' | 'totalFees' | 'timestamp'>('netProfit');
+  const [minProfitFilter, setMinProfitFilter] = useState(0);
+  const [socket, setSocket] = useState<WebSocket | null>(null);
 
-  // Use the shared WebSocket connection
-  const { trades, isConnected } = useWebSocketFirehose('ws://localhost:8765');
-
-  // Throttle updates to prevent flickering
-  const updateThrottleRef = useRef<Map<string, number>>(new Map());
-  const UPDATE_THROTTLE_MS = 500; // Only update each pool every 500ms
-
-  // Process incoming trades into pool price data
+  // Connect to scanner's arbitrage opportunity feed
   useEffect(() => {
-    if (trades.length === 0) return;
+    const connectToScanner = () => {
+      try {
+        // Connect to Protocol V2 dashboard websocket server for arbitrage opportunities
+        // The new server runs on port 8081 and handles TLV protocol messages
+        const ws = new WebSocket('ws://localhost:8080/ws');
+        
+        ws.onopen = () => {
+          console.log('✅ Connected to arbitrage scanner feed');
+          setScannerStatus(prev => ({
+            ...prev,
+            isConnected: true,
+            scannerHealth: 'healthy'
+          }));
+        };
 
-    const latestTrade = trades[trades.length - 1];
-    if (!latestTrade.symbol || !latestTrade.price) return;
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            handleArbitrageMessage(message);
+          } catch (error) {
+            console.error('Failed to parse arbitrage message:', error);
+          }
+        };
 
-    // Parse symbol format (e.g., "polygon:0xABC123:DAI/LGNS" or legacy "quickswap:DAI-USDT")
-    const parts = latestTrade.symbol.split(':');
-    if (parts.length >= 2) {
-      const exchange = parts[0].toLowerCase();
-      // Handle new pool-specific format: "polygon:0xABC123:DAI/LGNS"
-      const pair = parts.length >= 3 ? parts[2] : parts[1];
+        ws.onclose = () => {
+          console.log('❌ Scanner feed disconnected');
+          setScannerStatus(prev => ({
+            ...prev,
+            isConnected: false,
+            scannerHealth: 'offline'
+          }));
+          
+          // Reconnect after 5 seconds
+          setTimeout(connectToScanner, 5000);
+        };
 
-      // Filter for DeFi/DEX exchanges only (exclude traditional exchanges)
-      const SUPPORTED_EXCHANGES = new Set([
-        'polygon', 'quickswap', 'sushiswap', 'dfyn', 'polyswap', 'comethswap', 'uniswap'
-      ]);
+        ws.onerror = (error) => {
+          console.error('Scanner feed error:', error);
+          setScannerStatus(prev => ({
+            ...prev,
+            scannerHealth: 'degraded'
+          }));
+        };
 
-      if (!SUPPORTED_EXCHANGES.has(exchange)) {
-        console.log('Skipping non-DEX exchange:', exchange);
-        return;
+        setSocket(ws);
+      } catch (error) {
+        console.error('Failed to connect to scanner:', error);
+        setTimeout(connectToScanner, 5000);
       }
-      
-
-      // Generate pool identifier - use actual pool address from new format or fallback
-      const poolAddress = parts.length >= 3 ? parts[1] : `${exchange}-${pair}`;
-      
-      // Throttle updates to prevent flickering
-      const now = Date.now();
-      const lastUpdate = updateThrottleRef.current.get(poolAddress) || 0;
-      if (now - lastUpdate < UPDATE_THROTTLE_MS) {
-        return; // Skip this update to prevent flickering
-      }
-      updateThrottleRef.current.set(poolAddress, now);
-
-      // Estimate gas cost based on exchange type (simplified)
-      const estimatedGasCost = exchange === 'polygon' ? 0.01 : 0.03; // Polygon is cheaper than mainnet
-      
-      // Track volume history for cumulative calculations (store {timestamp, volume} objects)
-      setPairVolumeHistory(prev => {
-        const updated = new Map(prev);
-        const history = updated.get(pair) || [];
-        const now = Date.now();
-        
-        // Add new trade volume with timestamp
-        const newEntry = { timestamp: now, volume: latestTrade.volume || 0 };
-        const updatedHistory = [...history, newEntry];
-        
-        // Keep last 100 trades (sliding window for performance)
-        const recentHistory = updatedHistory.slice(-100);
-        updated.set(pair, recentHistory);
-        return updated;
-      });
-
-      // Calculate cumulative volume from recent trades (not 24h, but recent activity)
-      const volume24h = pairVolumeHistory.get(pair)?.reduce((sum, entry) => sum + entry.volume, 0) || 0;
-
-      const poolPrice: PoolPrice = {
-        poolAddress,
-        price: latestTrade.price,
-        liquidity: latestTrade.volume || 0,
-        volume24h,
-        timestamp: latestTrade.timestamp,
-        latency: latestTrade.latency_total_us ? Math.round(latestTrade.latency_total_us / 1000) : 5,
-        gasCost: estimatedGasCost
-      };
-
-      setPoolPrices(prev => {
-        const updated = new Map(prev);
-        const existing = updated.get(pair) || [];
-        const filtered = existing.filter(p => p.poolAddress !== poolAddress);
-        updated.set(pair, [...filtered, poolPrice]);
-        return updated;
-      });
-    }
-  }, [trades]);
-
-  // Process pool prices into asset pair data - sorted by LARGEST arbitrage first
-  useEffect(() => {
-    const processAssetPairs = () => {
-      const pairData: AssetPairData[] = [];
-      
-      poolPrices.forEach((pools, pair) => {
-        // Show single pools as well, not just arbitrage opportunities
-        const validPools = pools.filter(p => p.price > 0);
-        if (validPools.length < 1) return;
-        
-        const sortedPools = [...validPools].sort((a, b) => a.price - b.price);
-        const minPrice = sortedPools[0].price;
-        const maxPrice = sortedPools[sortedPools.length - 1].price;
-        const priceDifference = maxPrice - minPrice;
-        const priceDifferencePercent = validPools.length > 1 ? (priceDifference / minPrice) * 100 : 0;
-        
-        // Include all pairs regardless of price difference
-        if (true) {
-          const bestBuyPool = sortedPools[0].poolAddress;
-          const bestSellPool = validPools.length > 1 ? sortedPools[sortedPools.length - 1].poolAddress : sortedPools[0].poolAddress;
-          
-          // Calculate metrics
-          const totalLiquidity = validPools.reduce((sum, pool) => sum + pool.liquidity, 0);
-          const avgGasCost = validPools.reduce((sum, pool) => sum + pool.gasCost, 0) / validPools.length;
-          
-          // Calculate profit potential (arbitrage % minus gas costs)
-          const profitPotential = Math.max(0, priceDifferencePercent - (avgGasCost * 100 / minPrice));
-          
-          pairData.push({
-            pair,
-            pools: validPools,
-            minPrice,
-            maxPrice,
-            priceDifference,
-            priceDifferencePercent,
-            bestBuyPool,
-            bestSellPool,
-            arbitrageProfit: priceDifferencePercent,
-            totalLiquidity,
-            avgGasCost,
-            profitPotential,
-            lastUpdate: Math.max(...validPools.map(p => p.timestamp))
-          });
-        }
-      });
-      
-      // Sort by LARGEST price difference first (descending)
-      pairData.sort((a, b) => b.priceDifferencePercent - a.priceDifferencePercent);
-      
-      setAssetPairs(pairData);
     };
+
+    connectToScanner();
+
+    return () => {
+      if (socket) {
+        socket.close();
+      }
+    };
+  }, []);
+
+  const handleArbitrageMessage = (message: any) => {
+    // Handle different message types from ws_bridge
+    if (message.msg_type !== 'arbitrage_opportunity') {
+      return; // Only process arbitrage opportunity messages
+    }
     
-    processAssetPairs();
-  }, [poolPrices, minDifferenceFilter]);
+    // Process enhanced ArbitrageOpportunity message from ws_bridge binary protocol
+    // Message now contains comprehensive fee breakdown from enhanced protocol
+    // NO ESTIMATIONS - only use exact data provided in the enhanced message
+    const opportunity: ArbitrageOpportunity = {
+      id: `${message.pair}-${message.detected_at}`,
+      timestamp: message.detected_at,
+      pair: message.pair,
+      token0Symbol: message.token_a,
+      token1Symbol: message.token_b,
+      buyPool: message.dex_buy_router,
+      sellPool: message.dex_sell_router,
+      buyExchange: message.dex_buy,
+      sellExchange: message.dex_sell,
+      buyPrice: message.price_buy,
+      sellPrice: message.price_sell,
+      tradeSize: message.max_trade_size,
+      grossProfit: message.estimated_profit,
+      profitPercent: message.profit_percent,
+      // Enhanced fee data from binary protocol
+      gasFee: message.gas_fee_usd || 0, // Gas fee in USD from enhanced message
+      dexFees: message.dex_fees_usd || 0, // DEX fees in USD from enhanced message
+      slippageCost: message.slippage_cost_usd || 0, // Slippage cost in USD from enhanced message
+      totalFees: (message.gas_fee_usd || 0) + (message.dex_fees_usd || 0) + (message.slippage_cost_usd || 0),
+      netProfit: message.net_profit_usd || (message.estimated_profit - ((message.gas_fee_usd || 0) + (message.dex_fees_usd || 0) + (message.slippage_cost_usd || 0))),
+      netProfitPercent: message.net_profit_percent || message.profit_percent,
+      executable: Boolean(message.executable !== undefined ? message.executable : message.estimated_profit > 0),
+      recommendation: getRecommendation(message.net_profit_percent || message.profit_percent),
+      buySlippage: message.buy_slippage_percent,
+      sellSlippage: message.sell_slippage_percent,
+      confidence: message.confidence_score
+    };
 
-  const displayedPairs = useMemo(() => {
-    return assetPairs.slice(0, 50); // Limit to top 50 pairs for performance
-  }, [assetPairs]);
+    setOpportunities(prev => {
+      // Add new opportunity and keep only recent ones (last 100)
+      const updated = [opportunity, ...prev].slice(0, 100);
+      
+      // Update scanner status
+      setScannerStatus(prevStatus => ({
+        ...prevStatus,
+        lastMessageTime: Date.now(),
+        totalOpportunities: updated.length,
+        executableOpportunities: updated.filter(op => op.executable).length,
+        scannerHealth: 'healthy'
+      }));
+      
+      return updated;
+    });
+  };
 
-  // Calculate metrics
-  const connectedPools = Array.from(poolPrices.values()).reduce((sum, pools) => sum + pools.length, 0);
-  
+  const getRecommendation = (netProfitPercent: number): string => {
+    if (netProfitPercent > 2) return '🚀 HIGH PROFIT - Execute immediately';
+    if (netProfitPercent > 0.5) return '✅ PROFITABLE - Good opportunity';
+    if (netProfitPercent > 0.1) return '🔶 MARGINAL - Small profit';
+    return '❌ UNPROFITABLE - Avoid';
+  };
+
+  // Sort and filter opportunities
+  const displayedOpportunities = useMemo(() => {
+    let filtered = opportunities;
+    
+    // Filter by minimum profit
+    if (minProfitFilter > 0) {
+      filtered = filtered.filter(op => op.netProfit >= minProfitFilter);
+    }
+    
+    // Sort by selected criteria
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'netProfit': return b.netProfit - a.netProfit;
+        case 'profitPercent': return b.netProfitPercent - a.netProfitPercent;
+        case 'totalFees': return a.totalFees - b.totalFees;
+        case 'timestamp': return b.timestamp - a.timestamp;
+        default: return b.netProfit - a.netProfit;
+      }
+    });
+    
+    return filtered.slice(0, 30);
+  }, [opportunities, sortBy, minProfitFilter]);
+
+  const executableOpportunities = displayedOpportunities.filter(op => op.executable);
 
   return (
     <div className="defi-arbitrage">
-      {!isConnected && (
-        <div style={{ padding: '2rem', textAlign: 'center', color: '#ef4444' }}>
-          Not connected to WebSocket
+      <div className="header">
+        <h2>🎯 Live Arbitrage Opportunities</h2>
+        <div className={`connection-status ${scannerStatus.isConnected ? 'connected' : 'error'}`}>
+          {scannerStatus.isConnected ? (
+            <>✅ Scanner Connected ({scannerStatus.scannerHealth})</>
+          ) : (
+            <>❌ Scanner Disconnected</>
+          )}
         </div>
-      )}
-      
-      {isConnected && displayedPairs.length === 0 && (
-        <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
-          Waiting for pool data... ({poolPrices.size} pairs, {connectedPools} pools, {trades.length} trades received)
+      </div>
+
+      <div className="controls">
+        <div className="control-group">
+          <label>Sort by:</label>
+          <select 
+            value={sortBy} 
+            onChange={(e) => setSortBy(e.target.value as any)}
+          >
+            <option value="netProfit">Net Profit ($)</option>
+            <option value="profitPercent">Profit %</option>
+            <option value="totalFees">Lowest Fees</option>
+            <option value="timestamp">Latest</option>
+          </select>
         </div>
-      )}
-      
-      <div className="pairs-list">
-        {displayedPairs.map((pairData, idx) => (
-          <div key={pairData.pair} className="pair-item">
-            <div className="pair-header">
-              <span className="pair-name">{pairData.pair}</span>
-              <span className="price-difference">{pairData.priceDifferencePercent.toFixed(3)}%</span>
-            </div>
-            <div className="pair-metrics">
-              <div className="metric">
-                <span className="metric-label">Liquidity:</span>
-                <span className="metric-value">${pairData.totalLiquidity.toLocaleString()}</span>
+
+        <div className="control-group">
+          <label>Min Profit:</label>
+          <select 
+            value={minProfitFilter} 
+            onChange={(e) => setMinProfitFilter(Number(e.target.value))}
+          >
+            <option value={0}>Show All</option>
+            <option value={0.1}>$0.10+</option>
+            <option value={1}>$1+</option>
+            <option value={5}>$5+</option>
+            <option value={10}>$10+</option>
+            <option value={25}>$25+</option>
+          </select>
+        </div>
+
+        <div className="stats">
+          <span>{displayedOpportunities.length} opportunities</span>
+          <span>•</span>
+          <span className="executable">{executableOpportunities.length} executable</span>
+          <span>•</span>
+          <span>Scanner: {scannerStatus.scannerHealth}</span>
+        </div>
+      </div>
+
+      <div className="trades-list">
+        {displayedOpportunities.length === 0 ? (
+          <div className="empty-state">
+            {scannerStatus.isConnected ? (
+              <div>
+                <div>🔍 Waiting for arbitrage opportunities...</div>
+                <div className="sub-text">
+                  Scanner is running and analyzing markets
+                  {scannerStatus.lastMessageTime > 0 && (
+                    <span> • Last update: {Math.round((Date.now() - scannerStatus.lastMessageTime) / 1000)}s ago</span>
+                  )}
+                </div>
               </div>
-              <div className="metric">
-                <span className="metric-label">Gas Cost:</span>
-                <span className="metric-value">${pairData.avgGasCost.toFixed(3)}</span>
+            ) : (
+              <div>
+                <div>⚠️ Scanner not connected</div>
+                <div className="sub-text">Attempting to reconnect...</div>
               </div>
-              <div className="metric">
-                <span className="metric-label">Net Profit:</span>
-                <span className={`metric-value ${pairData.profitPotential > 0 ? 'profit-positive' : 'profit-negative'}`}>
-                  {pairData.profitPotential.toFixed(3)}%
-                </span>
-              </div>
-            </div>
-            <div className="pools">
-              {pairData.pools
-                .sort((a, b) => a.price - b.price)
-                .map((pool, poolIdx) => (
-                  <div key={poolIdx} className="pool">
-                    <span className="pool-name">{pool.poolAddress.slice(0, 8)}...{pool.poolAddress.slice(-6)}</span>
-                    <span className="pool-price">${pool.price.toFixed(6)}</span>
-                    <span className="pool-volume">Vol: ${pool.volume24h.toFixed(0)}</span>
-                  </div>
-                ))}
-            </div>
+            )}
           </div>
-        ))}
+        ) : (
+          displayedOpportunities.map((opportunity, index) => (
+            <div 
+              key={opportunity.id} 
+              className={`trade-item ${opportunity.executable ? 'executable' : 'not-executable'}`}
+            >
+              <div className="trade-header">
+                <div className="trade-rank">#{index + 1}</div>
+                <div className="trade-pair">{opportunity.pair}</div>
+                <div className={`trade-profit ${opportunity.netProfit > 0 ? 'positive' : 'negative'}`}>
+                  ${opportunity.netProfit.toFixed(2)}
+                  <span className="profit-percent">
+                    ({opportunity.netProfitPercent > 0 ? '+' : ''}{opportunity.netProfitPercent.toFixed(2)}%)
+                  </span>
+                </div>
+                <div className="trade-status">
+                  {opportunity.executable ? '✅ EXECUTE' : '⏸️ MONITOR'}
+                </div>
+              </div>
+
+              <div className="trade-details">
+                <div className="price-info">
+                  <div className="price-item buy">
+                    <span className="label">Buy:</span>
+                    <span className="price">${opportunity.buyPrice.toFixed(6)}</span>
+                    <span className="exchange">{opportunity.buyExchange}</span>
+                  </div>
+                  <div className="price-arrow">→</div>
+                  <div className="price-item sell">
+                    <span className="label">Sell:</span>
+                    <span className="price">${opportunity.sellPrice.toFixed(6)}</span>
+                    <span className="exchange">{opportunity.sellExchange}</span>
+                  </div>
+                </div>
+
+                <div className="fees-breakdown">
+                  <div className="fee-item">
+                    <span className="fee-label">Trade Size:</span>
+                    <span className="fee-value">${opportunity.tradeSize.toFixed(0)}</span>
+                  </div>
+                  <div className="fee-item">
+                    <span className="fee-label">Gross Profit:</span>
+                    <span className="fee-value positive">${opportunity.grossProfit.toFixed(2)}</span>
+                  </div>
+                  <div className="fee-item">
+                    <span className="fee-label">Gas Fee:</span>
+                    <span className="fee-value negative">-${opportunity.gasFee.toFixed(2)}</span>
+                  </div>
+                  <div className="fee-item">
+                    <span className="fee-label">DEX Fees:</span>
+                    <span className="fee-value negative">-${opportunity.dexFees.toFixed(2)}</span>
+                  </div>
+                  <div className="fee-item">
+                    <span className="fee-label">Slippage:</span>
+                    <span className="fee-value negative">-${opportunity.slippageCost.toFixed(2)}</span>
+                  </div>
+                  <div className="fee-item total">
+                    <span className="fee-label">Total Fees:</span>
+                    <span className="fee-value">-${opportunity.totalFees.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="opportunity-meta">
+                  <div className="meta-item">
+                    <span className="meta-label">Recommendation:</span>
+                    <span className="meta-value">{opportunity.recommendation}</span>
+                  </div>
+                  {opportunity.confidence && (
+                    <div className="meta-item">
+                      <span className="meta-label">Confidence:</span>
+                      <span className="meta-value">{(opportunity.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                  )}
+                  <div className="meta-item">
+                    <span className="meta-label">Age:</span>
+                    <span className="meta-value">{Math.round((Date.now() - opportunity.timestamp) / 1000)}s</span>
+                  </div>
+                </div>
+
+                <div className="pool-addresses">
+                  <div className="pool-address">
+                    <span className="pool-label">Buy Pool:</span>
+                    <span 
+                      className="pool-hash" 
+                      title={opportunity.buyPool}
+                      onClick={() => navigator.clipboard.writeText(opportunity.buyPool)}
+                    >
+                      {opportunity.buyPool.slice(0, 8)}...{opportunity.buyPool.slice(-6)}
+                    </span>
+                  </div>
+                  <div className="pool-address">
+                    <span className="pool-label">Sell Pool:</span>
+                    <span 
+                      className="pool-hash" 
+                      title={opportunity.sellPool}
+                      onClick={() => navigator.clipboard.writeText(opportunity.sellPool)}
+                    >
+                      {opportunity.sellPool.slice(0, 8)}...{opportunity.sellPool.slice(-6)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="footer-stats">
+        <div className="stat-item">
+          <span className="stat-label">Scanner Status:</span>
+          <span className={`stat-value ${scannerStatus.scannerHealth === 'healthy' ? 'status-good' : 'status-bad'}`}>
+            {scannerStatus.scannerHealth.toUpperCase()}
+          </span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-label">Total Opportunities:</span>
+          <span className="stat-value">{scannerStatus.totalOpportunities}</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-label">Executable:</span>
+          <span className="stat-value">{scannerStatus.executableOpportunities}</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-label">Best Opportunity:</span>
+          <span className="stat-value">
+            {executableOpportunities.length > 0 
+              ? `${executableOpportunities[0].pair}: $${executableOpportunities[0].netProfit.toFixed(2)}`
+              : 'None'
+            }
+          </span>
+        </div>
       </div>
     </div>
   );

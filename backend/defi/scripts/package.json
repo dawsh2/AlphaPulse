@@ -1,0 +1,28 @@
+{
+  "name": "alphapulse-huff-migration",
+  "version": "1.0.0",
+  "description": "Gas profiling and migration tools for Huff optimization",
+  "main": "gas_profiler.js",
+  "scripts": {
+    "profile": "node gas_profiler.js",
+    "verify-parity": "npx ts-node verify_parity.ts",
+    "deploy-canary": "./canary_deploy.sh",
+    "monitor": "npx ts-node monitor_huff.ts",
+    "test": "npm run profile && npm run verify-parity"
+  },
+  "dependencies": {
+    "ethers": "^5.7.2",
+    "typescript": "^4.9.5",
+    "ts-node": "^10.9.1",
+    "@types/node": "^18.15.0"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "hardhat": "^2.19.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "author": "AlphaPulse DeFi Team",
+  "license": "MIT"
+}

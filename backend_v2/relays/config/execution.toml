@@ -1,0 +1,45 @@
+# Execution Relay Configuration
+# Secure relay with full validation and audit logging for order execution
+
+[relay]
+domain = 3
+name = "execution"
+description = "Secure execution relay with full audit trail for orders and fills"
+
+[transport]
+mode = "unix_socket"
+path = "/tmp/alphapulse/execution.sock"
+use_topology = false
+
+# Will be updated to use infra/transport:
+# mode = "topology"
+# channel = "execution"
+# use_topology = true
+
+[validation]
+checksum = true         # Mandatory checksum validation
+audit = true           # Full audit logging for compliance
+strict = true          # Fail on any validation error
+max_message_size = 16384  # 16KB max message size
+
+[topics]
+default = "execution_all"
+available = [
+    "orders",
+    "order_updates",
+    "fills",
+    "partial_fills",
+    "cancellations",
+    "rejections",
+    "position_updates",
+    "risk_updates"
+]
+auto_discover = false   # Strict topic control
+extraction_strategy = { fixed = "execution" }  # All messages go to execution topic
+
+[performance]
+target_throughput = 50_000  # >50K messages/second
+buffer_size = 16384        # 16KB buffer
+max_connections = 50       # Limited connections for security
+batch_size = 10          # Small batches for immediate processing
+monitoring = true         # Enable metrics collection

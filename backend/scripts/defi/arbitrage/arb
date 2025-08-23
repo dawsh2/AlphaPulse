@@ -1,0 +1,783 @@
+#!/usr/bin/env python3
+"""
+Multi-Pool Arbitrage Scanner
+Checks all possible arbitrage paths across multiple pools
+Including: direct (2-pool) and multi-hop (3+ pool) opportunities
+
+Usage:
+    python3 arb_multi.py                           # Uses default WMATIC/DAI pools
+    python3 arb_multi.py <pool1> <pool2> ...      # Analyze specific pools
+    
+Example:
+    python3 arb_multi.py 0x70bf5ffcc6090a8d243fd05485ec4c084bd10ae5 0x436803355d26943dd0bc9826d39f9079199a890a
+"""
+
+import sys
+from web3 import Web3
+from decimal import Decimal, getcontext
+import itertools
+from typing import List, Dict, Tuple
+import json
+
+getcontext().prec = 78
+
+# RPC setup
+import os
+from dotenv import load_dotenv
+load_dotenv('../.env')
+ANKR_KEY = os.getenv('ANKR_API_KEY', '')
+# Force public RPC since ANKR key seems invalid
+RPC_URL = "https://polygon.publicnode.com"
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
+
+# ABIs
+ERC20_ABI = json.loads('[{"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"type":"function"},{"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"},{"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"}]')
+V2_ABI = json.loads('[{"inputs":[],"name":"getReserves","outputs":[{"name":"","type":"uint112"},{"name":"","type":"uint112"},{"name":"","type":"uint32"}],"type":"function"},{"inputs":[],"name":"token0","outputs":[{"name":"","type":"address"}],"type":"function"},{"inputs":[],"name":"token1","outputs":[{"name":"","type":"address"}],"type":"function"}]')
+V3_ABI = json.loads('[{"inputs":[],"name":"slot0","outputs":[{"name":"sqrtPriceX96","type":"uint160"},{"name":"tick","type":"int24"},{"name":"observationIndex","type":"uint16"},{"name":"observationCardinality","type":"uint16"},{"name":"observationCardinalityNext","type":"uint16"},{"name":"feeProtocol","type":"uint8"},{"name":"unlocked","type":"bool"}],"type":"function"},{"inputs":[],"name":"liquidity","outputs":[{"name":"","type":"uint128"}],"type":"function"},{"inputs":[],"name":"fee","outputs":[{"name":"","type":"uint24"}],"type":"function"},{"inputs":[],"name":"token0","outputs":[{"name":"","type":"address"}],"type":"function"},{"inputs":[],"name":"token1","outputs":[{"name":"","type":"address"}],"type":"function"},{"inputs":[{"name":"","type":"int24"}],"name":"ticks","outputs":[{"name":"liquidityGross","type":"uint128"},{"name":"liquidityNet","type":"int128"}],"type":"function"},{"inputs":[],"name":"tickSpacing","outputs":[{"name":"","type":"int24"}],"type":"function"}]')
+
+# Uniswap V3 Quoter for accurate price quotes
+QUOTER_ADDRESS = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
+QUOTER_ABI = json.loads('[{"inputs":[{"name":"tokenIn","type":"address"},{"name":"tokenOut","type":"address"},{"name":"fee","type":"uint24"},{"name":"amountIn","type":"uint256"},{"name":"sqrtPriceLimitX96","type":"uint160"}],"name":"quoteExactInputSingle","outputs":[{"name":"amountOut","type":"uint256"}],"type":"function","stateMutability":"view"}]')
+
+def get_gas_cost(pool_types=None, include_priority=False):
+    """Get accurate gas cost based on pool types and priority fees"""
+    gas_price_wei = w3.eth.gas_price
+    
+    # Base gas units by pool type
+    base_gas = {
+        'V2': 140000,  # V2 swap
+        'V3': 200000,  # V3 swap (more complex)
+        'mixed': 350000,  # V2 + V3
+    }
+    
+    # Determine gas units
+    if pool_types:
+        if all(p == 'V2' for p in pool_types):
+            gas_units = base_gas['V2'] * len(pool_types)
+        elif all(p == 'V3' for p in pool_types):
+            gas_units = base_gas['V3'] * len(pool_types)
+        else:
+            gas_units = base_gas['mixed']
+    else:
+        gas_units = 280000  # Default estimate
+    
+    # Add priority fee for MEV competition (10-20% extra)
+    if include_priority:
+        gas_price_wei = int(gas_price_wei * 1.15)  # 15% priority boost
+    
+    gas_cost_matic = (gas_price_wei * gas_units) / 10**18
+    
+    # Get more accurate MATIC price if possible
+    matic_price = 0.40  # Default
+    try:
+        # Could fetch from a price oracle here
+        pass
+    except:
+        pass
+    
+    return gas_cost_matic * matic_price
+
+def detect_stable_pool(address):
+    """Check if pool is a stable pool (Curve/Solidly/Dystopia style)"""
+    try:
+        # Check for stable() function
+        stable_abi = json.loads('[{"inputs":[],"name":"stable","outputs":[{"name":"","type":"bool"}],"type":"function"}]')
+        contract = w3.eth.contract(address=Web3.to_checksum_address(address), abi=stable_abi)
+        return contract.functions.stable().call()
+    except:
+        return False
+
+def load_pool(address):
+    """Load pool data"""
+    try:
+        addr = Web3.to_checksum_address(address)
+        
+        # Try V2
+        try:
+            pool = w3.eth.contract(address=addr, abi=V2_ABI)
+            t0, t1 = pool.functions.token0().call(), pool.functions.token1().call()
+            reserves = pool.functions.getReserves().call()
+            
+            # Get token info
+            t0c = w3.eth.contract(address=Web3.to_checksum_address(t0), abi=ERC20_ABI)
+            t1c = w3.eth.contract(address=Web3.to_checksum_address(t1), abi=ERC20_ABI)
+            
+            s0, s1 = t0c.functions.symbol().call(), t1c.functions.symbol().call()
+            d0, d1 = t0c.functions.decimals().call(), t1c.functions.decimals().call()
+            
+            r0_raw, r1_raw = reserves[0], reserves[1]
+            r0, r1 = r0_raw / (10**d0), r1_raw / (10**d1)
+            
+            # Check if it's a stable pool
+            is_stable = detect_stable_pool(address)
+            
+            # Calculate price based on pool type
+            if is_stable:
+                # For stable pools, use getAmountOut to get actual price
+                try:
+                    stable_abi = json.loads('[{"inputs":[{"name":"amountIn","type":"uint256"},{"name":"tokenIn","type":"address"}],"name":"getAmountOut","outputs":[{"name":"","type":"uint256"}],"type":"function"}]')
+                    stable_contract = w3.eth.contract(address=addr, abi=stable_abi)
+                    # Test with 1 unit of token0
+                    test_amount = 10**d0
+                    output = stable_contract.functions.getAmountOut(test_amount, t0).call()
+                    actual_price = output / (10**d1)
+                    print(f"  ⚠️  STABLE POOL detected! Spot: {r1/r0:.6f}, Actual: {actual_price:.6f}")
+                except:
+                    # Fallback to spot price but warn
+                    actual_price = r1/r0 if r0 > 0 else 0
+                    print(f"  ⚠️  STABLE POOL but no getAmountOut(), using spot price (UNRELIABLE)")
+            else:
+                actual_price = r1/r0 if r0 > 0 else 0
+            
+            return {
+                'address': address,
+                'type': 'V2' if not is_stable else 'STABLE',
+                'token0': t0.lower(),
+                'token1': t1.lower(),
+                'symbol0': s0,
+                'symbol1': s1,
+                'decimals0': d0,
+                'decimals1': d1,
+                'reserve0_raw': r0_raw,
+                'reserve1_raw': r1_raw,
+                'reserve0': r0,
+                'reserve1': r1,
+                'price': actual_price,
+                'is_stable': is_stable,
+                'fee_bps': 30 if not is_stable else 4,  # Stable pools usually have 0.04% fee
+                'liquidity_usd': r1 * 2  # Assuming token1 is stablecoin
+            }
+        except:
+            pass
+        
+        # Try V3
+        pool = w3.eth.contract(address=addr, abi=V3_ABI)
+        t0, t1 = pool.functions.token0().call(), pool.functions.token1().call()
+        slot0 = pool.functions.slot0().call()
+        fee = pool.functions.fee().call()
+        liquidity = pool.functions.liquidity().call()
+        
+        # Get token info
+        t0c = w3.eth.contract(address=Web3.to_checksum_address(t0), abi=ERC20_ABI)
+        t1c = w3.eth.contract(address=Web3.to_checksum_address(t1), abi=ERC20_ABI)
+        
+        s0, s1 = t0c.functions.symbol().call(), t1c.functions.symbol().call()
+        d0, d1 = t0c.functions.decimals().call(), t1c.functions.decimals().call()
+        
+        # Get balances
+        b0_raw = t0c.functions.balanceOf(addr).call()
+        b1_raw = t1c.functions.balanceOf(addr).call()
+        b0 = b0_raw / (10**d0)
+        b1 = b1_raw / (10**d1)
+        
+        # Check for empty pools
+        if b0_raw == 0 and b1_raw == 0:
+            print(f"⚠️  Pool {address[:10]}... is empty (no token balances)")
+            return None
+        
+        # Price from sqrtPriceX96
+        sqrt_price_x96 = slot0[0]
+        
+        # Check for invalid/broken pools
+        if sqrt_price_x96 == 0 or sqrt_price_x96 < 1000:
+            print(f"⚠️  Pool {address[:10]}... has invalid price data (sqrtPriceX96={sqrt_price_x96})")
+            return None
+        
+        sqrt_price = sqrt_price_x96 / (2**96)
+        price_raw = sqrt_price ** 2
+        
+        # V3 price adjustment: sqrtPriceX96 gives price of token1 in terms of token0
+        # So price = (sqrtPrice/2^96)^2 * 10^(token0_decimals - token1_decimals)
+        # This is the opposite of V2 where we typically want token0 price in token1 terms
+        price = price_raw * (10**(d0-d1))
+        
+        # Additional validation - price should be reasonable
+        if price == 0 or price > 1e8 or price < 1e-10:
+            print(f"⚠️  Pool {address[:10]}... has unrealistic price: {price}")
+            print(f"    Debug: sqrt_price={sqrt_price:.10f}, raw_price={price_raw:.10f}")
+            print(f"    Decimals: {s0}({d0}) / {s1}({d1}), adjustment=10^({d0}-{d1})={10**(d0-d1)}")
+            return None
+        
+        return {
+            'address': address,
+            'type': 'V3',
+            'token0': t0.lower(),
+            'token1': t1.lower(),
+            'symbol0': s0,
+            'symbol1': s1,
+            'decimals0': d0,
+            'decimals1': d1,
+            'balance0': b0,
+            'balance1': b1,
+            'price': price,
+            'fee': fee,  # Store raw fee for quoter
+            'fee_bps': fee / 100,
+            'liquidity': liquidity,
+            'sqrt_price_x96': sqrt_price_x96,  # Store for accurate calculations
+            'tick': slot0[1],
+            'liquidity_usd': b1 * 2  # Rough estimate
+        }
+            
+    except Exception as e:
+        print(f"❌ Failed to load {address}: {e}")
+        return None
+
+def calc_v2_output(amount_in, reserve_in, reserve_out, fee_bps=30):
+    """Exact V2 calculation"""
+    amount_in = int(amount_in)
+    reserve_in = int(reserve_in)
+    reserve_out = int(reserve_out)
+    
+    amount_with_fee = amount_in * (10000 - fee_bps)
+    numerator = amount_with_fee * reserve_out
+    denominator = reserve_in * 10000 + amount_with_fee
+    
+    return numerator // denominator
+
+def get_v3_actual_quote(token_in, token_out, fee, amount_in_wei):
+    """Get actual V3 quote from quoter contract"""
+    try:
+        quoter = w3.eth.contract(address=Web3.to_checksum_address(QUOTER_ADDRESS), abi=QUOTER_ABI)
+        amount_out = quoter.functions.quoteExactInputSingle(
+            Web3.to_checksum_address(token_in),
+            Web3.to_checksum_address(token_out),
+            fee,
+            amount_in_wei,
+            0  # No price limit
+        ).call()
+        return amount_out
+    except:
+        # Fallback to estimation if quote fails
+        return None
+
+def calculate_v3_output_with_ticks(amount_in, pool, zero_for_one):
+    """Accurate V3 calculation using actual quotes when possible"""
+    fee = pool.get('fee', pool.get('fee_bps', 0) * 100)  # Convert fee_bps to fee if needed
+    
+    # Try to get actual quote first
+    if zero_for_one:
+        # Selling token0 for token1
+        amount_in_wei = int(amount_in * 10**pool['decimals0'])
+        quote = get_v3_actual_quote(pool['token0'], pool['token1'], fee, amount_in_wei)
+        if quote is not None:
+            return quote / (10**pool['decimals1'])
+    else:
+        # Selling token1 for token0
+        amount_in_wei = int(amount_in * 10**pool['decimals1'])
+        quote = get_v3_actual_quote(pool['token1'], pool['token0'], fee, amount_in_wei)
+        if quote is not None:
+            return quote / (10**pool['decimals0'])
+    
+    # Fallback to estimation if quote fails
+    sqrt_price_x96 = pool.get('sqrt_price_x96', 0)
+    liquidity = pool.get('liquidity', 0)
+    fee_bps = pool.get('fee_bps', fee / 100)
+    
+    if sqrt_price_x96 == 0 or liquidity == 0:
+        # Simple estimate
+        fee_mult = 1 - fee_bps / 10000
+        if zero_for_one:
+            return amount_in * pool['price'] * fee_mult
+        else:
+            return amount_in / pool['price'] * fee_mult
+    
+    # Apply fee
+    amount_in_after_fee = amount_in * (10000 - fee_bps) / 10000
+    
+    # Improved slippage estimation for fallback
+    if zero_for_one:
+        virtual_reserves_0 = liquidity / (sqrt_price_x96 / 2**96)
+        if virtual_reserves_0 > 0:
+            # More aggressive slippage for V3
+            price_impact = (amount_in_after_fee / virtual_reserves_0) * 2
+            avg_price = pool['price'] * (1 - price_impact / 2)
+            output = amount_in_after_fee * avg_price
+        else:
+            output = amount_in_after_fee * pool['price']
+    else:
+        virtual_reserves_1 = liquidity * (sqrt_price_x96 / 2**96)
+        if virtual_reserves_1 > 0:
+            price_impact = (amount_in_after_fee / virtual_reserves_1) * 2
+            avg_price = (1 / pool['price']) * (1 - price_impact / 2)
+            output = amount_in_after_fee * avg_price
+        else:
+            output = amount_in_after_fee / pool['price']
+    
+    return output
+
+def estimate_v3_output(amount_in, pool, zero_for_one):
+    """V3 estimate with better price impact modeling"""
+    return calculate_v3_output_with_ticks(amount_in, pool, zero_for_one)
+
+def find_direct_arbitrage(pools):
+    """Find best direct (2-pool) arbitrage"""
+    best_profit = 0
+    best_path = None
+    
+    # Group pools by token pair
+    # Special handling for USDC variants (they're different tokens but same function)
+    usdc_variants = {
+        '0x2791bca1f2de4661ed88a30c99a7a9449aa84174': 'USDC',  # Old/bridged
+        '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': 'USDC.e',  # Native
+    }
+    
+    pairs = {}
+    cross_pairs = {}  # For cross-token arbitrage (e.g., USDC/USDC.e)
+    
+    for p in pools:
+        if p:
+            # Check if this involves USDC variants
+            t0_lower = p['token0'].lower()
+            t1_lower = p['token1'].lower()
+            
+            # Normal pairing
+            pair_key = tuple(sorted([t0_lower, t1_lower]))
+            if pair_key not in pairs:
+                pairs[pair_key] = []
+            pairs[pair_key].append(p)
+            
+            # Cross-token pairing for USDC variants
+            if t1_lower in usdc_variants:
+                # Group all USDC variants together by the other token
+                cross_key = (t0_lower, 'USDC_ANY')
+                if cross_key not in cross_pairs:
+                    cross_pairs[cross_key] = []
+                cross_pairs[cross_key].append(p)
+    
+    print(f"\n  DEBUG: Found {len(pairs)} unique pairs, {len(cross_pairs)} cross-token groups")
+    
+    # Check for cross-USDC arbitrage
+    for cross_key, cross_pools in cross_pairs.items():
+        if len(cross_pools) > 1:
+            # Check if these are different USDC types
+            usdc_types = set()
+            for p in cross_pools:
+                if p['token1'].lower() in usdc_variants:
+                    usdc_types.add(p['token1'].lower())
+            
+            if len(usdc_types) > 1:
+                print(f"    💎 Cross-USDC arbitrage found: {cross_pools[0]['symbol0']} with {len(usdc_types)} USDC variants")
+                
+                # Add these to normal pairs for processing
+                for i, p1 in enumerate(cross_pools):
+                    for p2 in cross_pools[i+1:]:
+                        if p1['token1'].lower() != p2['token1'].lower():
+                            # Create a synthetic pair for processing
+                            synthetic_key = (p1['address'], p2['address'])
+                            if synthetic_key not in pairs:
+                                pairs[synthetic_key] = [p1, p2]
+    
+    # Check each pair with multiple pools
+    for pair_key, pair_pools in pairs.items():
+        if len(pair_pools) < 2:
+            continue
+            
+        # Try all combinations
+        for p1, p2 in itertools.combinations(pair_pools, 2):
+            # Determine direction
+            if p1['price'] < p2['price']:
+                buy_pool, sell_pool = p1, p2
+            else:
+                buy_pool, sell_pool = p2, p1
+            
+            # Skip if spread too small
+            spread = abs(p1['price'] - p2['price']) / min(p1['price'], p2['price'])
+            total_fees = (p1['fee_bps'] + p2['fee_bps']) / 10000
+            
+            # Debug for large spreads
+            if spread > 1.0:
+                print(f"\n  DEBUG find_direct: Checking {p1['address'][:8]} vs {p2['address'][:8]}")
+                print(f"    Prices: {p1['price']:.6f} vs {p2['price']:.6f}")
+                print(f"    Spread: {spread:.4f}, Fees: {total_fees:.4f}")
+                print(f"    Continue? {spread <= total_fees}")
+            
+            if spread <= total_fees:
+                continue
+            
+            # Calculate optimal trade (simplified for mixed pool types)
+            if buy_pool['type'] == 'V2' and sell_pool['type'] == 'V2':
+                # Find optimal for V2-V2
+                max_input = min(
+                    buy_pool['reserve1_raw'] * 0.1,  # 10% max to find smaller opportunities
+                    sell_pool['reserve0_raw'] * 0.1
+                )
+                
+                # Binary search for optimal - start from $1 minimum
+                # Handle USDC with 6 decimals
+                if buy_pool['decimals1'] == 6:
+                    low = 1 * 10**6  # $1 in USDC
+                else:
+                    low = 1 * 10**buy_pool['decimals1']  # $1 equivalent
+                high = min(max_input, buy_pool['reserve1_raw'])  # Don't exceed reserves
+                best_local = 0
+                best_input = 0
+                
+                # Debug print
+                if spread > 1.0:  # If spread > 100%
+                    print(f"\n  DEBUG: Large spread detected {spread*100:.1f}%")
+                    print(f"    Buy pool reserves: {buy_pool['reserve0']:.2f} {buy_pool['symbol0']}, {buy_pool['reserve1']:.2f} {buy_pool['symbol1']}")
+                    print(f"    Sell pool reserves: {sell_pool['reserve0']:.2f} {sell_pool['symbol0']}, {sell_pool['reserve1']:.2f} {sell_pool['symbol1']}")
+                    print(f"    Search range: {low/10**buy_pool['decimals1']:.2f} to {high/10**buy_pool['decimals1']:.2f} {buy_pool['symbol1']}")
+                
+                for _ in range(50):
+                    if high - low < 1:
+                        break
+                    
+                    mid = (low + high) // 2
+                    
+                    t0_out = calc_v2_output(mid, buy_pool['reserve1_raw'], buy_pool['reserve0_raw'], buy_pool['fee_bps'])
+                    t1_out = calc_v2_output(t0_out, sell_pool['reserve0_raw'], sell_pool['reserve1_raw'], sell_pool['fee_bps'])
+                    
+                    profit_raw = t1_out - mid
+                    
+                    if profit_raw > best_local:
+                        best_local = profit_raw
+                        best_input = mid
+                    
+                    # Check gradient
+                    test = mid + mid // 100
+                    t0_test = calc_v2_output(test, buy_pool['reserve1_raw'], buy_pool['reserve0_raw'], buy_pool['fee_bps'])
+                    t1_test = calc_v2_output(t0_test, sell_pool['reserve0_raw'], sell_pool['reserve1_raw'], sell_pool['fee_bps'])
+                    
+                    if t1_test - test > profit_raw:
+                        low = mid
+                    else:
+                        high = mid
+                
+                if best_local > 0:
+                    profit_usd = best_local / (10**buy_pool['decimals1'])
+                    input_usd = best_input / (10**buy_pool['decimals1'])
+                    
+                    if profit_usd > best_profit:
+                        best_profit = profit_usd
+                        best_path = {
+                            'type': 'direct',
+                            'buy_pool': buy_pool['address'],
+                            'sell_pool': sell_pool['address'],
+                            'token_pair': f"{buy_pool['symbol0']}/{buy_pool['symbol1']}",
+                            'input_usd': input_usd,
+                            'profit_usd': profit_usd,
+                            'spread_pct': spread * 100,
+                            'fees_pct': total_fees * 100
+                        }
+            
+            else:
+                # Rough estimate for V3 or mixed
+                test_amount = 100  # $100 test
+                
+                if buy_pool['type'] == 'V2':
+                    # Buy token0 with token1
+                    t0_raw = test_amount * (10**buy_pool['decimals1'])
+                    t0_out_raw = calc_v2_output(t0_raw, buy_pool['reserve1_raw'], buy_pool['reserve0_raw'], buy_pool['fee_bps'])
+                    t0_out = t0_out_raw / (10**buy_pool['decimals0'])
+                else:
+                    # V3 estimate using improved calculation
+                    t0_out = calculate_v3_output_with_ticks(test_amount, buy_pool, False)
+                
+                if sell_pool['type'] == 'V2':
+                    t1_out_raw = calc_v2_output(
+                        int(t0_out * 10**sell_pool['decimals0']),
+                        sell_pool['reserve0_raw'],
+                        sell_pool['reserve1_raw'],
+                        sell_pool['fee_bps']
+                    )
+                    t1_out = t1_out_raw / (10**sell_pool['decimals1'])
+                else:
+                    # V3 estimate using improved calculation
+                    t1_out = calculate_v3_output_with_ticks(t0_out, sell_pool, True)
+                
+                profit = t1_out - test_amount
+                
+                if profit > 0 and profit > best_profit * (test_amount / 100):
+                    # Scale up estimate
+                    max_size = min(buy_pool.get('liquidity_usd', 1000), sell_pool.get('liquidity_usd', 1000)) * 0.01
+                    scaled_profit = profit * (max_size / test_amount)
+                    
+                    if scaled_profit > best_profit:
+                        best_profit = scaled_profit
+                        best_path = {
+                            'type': 'direct',
+                            'buy_pool': buy_pool['address'],
+                            'sell_pool': sell_pool['address'],
+                            'token_pair': f"{buy_pool['symbol0']}/{buy_pool['symbol1']}",
+                            'input_usd': max_size,
+                            'profit_usd': scaled_profit,
+                            'spread_pct': spread * 100,
+                            'fees_pct': total_fees * 100,
+                            'note': 'V3 estimate'
+                        }
+    
+    return best_path
+
+def find_triangular_arbitrage(pools):
+    """Find triangular arbitrage opportunities (A->B->C->A)"""
+    # This would require more complex logic to track different token paths
+    # For now, returning None
+    return None
+
+def test_execution(buy_pool_addr, sell_pool_addr, input_amount, input_decimals):
+    """Test if an arbitrage is actually executable"""
+    print("\n🧪 Testing contract execution...")
+    
+    try:
+        # Simple simulation using getAmountsOut equivalent
+        buy_pool = w3.eth.contract(address=Web3.to_checksum_address(buy_pool_addr), abi=V2_ABI)
+        sell_pool = w3.eth.contract(address=Web3.to_checksum_address(sell_pool_addr), abi=V2_ABI)
+        
+        # Get reserves
+        buy_reserves = buy_pool.functions.getReserves().call()
+        sell_reserves = sell_pool.functions.getReserves().call()
+        
+        # Calculate outputs
+        input_wei = int(input_amount * 10**input_decimals)
+        
+        # Step 1: Buy token0 with token1
+        amount_with_fee = input_wei * 997  # 0.3% fee
+        numerator = amount_with_fee * buy_reserves[0]
+        denominator = buy_reserves[1] * 1000 + amount_with_fee
+        token0_out = numerator // denominator
+        
+        # Step 2: Sell token0 for token1
+        amount_with_fee = token0_out * 997
+        numerator = amount_with_fee * sell_reserves[1]
+        denominator = sell_reserves[0] * 1000 + amount_with_fee
+        token1_back = numerator // denominator
+        
+        profit_wei = token1_back - input_wei if token1_back > input_wei else 0
+        profit = profit_wei / (10**input_decimals)
+        
+        if profit > 0:
+            print(f"  ✅ Executable! Profit: ${profit:.4f}")
+            return True
+        else:
+            print(f"  ❌ Not profitable in simulation")
+            return False
+            
+    except Exception as e:
+        print(f"  ⚠️  Simulation failed: {e}")
+        return False
+
+def main():
+    print("="*70)
+    print("MULTI-POOL ARBITRAGE SCANNER")
+    print("="*70)
+    
+    # Get pool addresses from command line or use defaults
+    if len(sys.argv) > 1:
+        pool_addresses = sys.argv[1:]
+        print(f"Using {len(pool_addresses)} pools from command line")
+    else:
+        # Default WMATIC/DAI pools for testing
+        pool_addresses = [
+            "0xd32f3139a214034a0f9777c87ee0a064c1ff6ae2",  # $0.246471
+            "0x9ce65ae286e74f1268d19ab9b25f102c25dbdcb4",  # $0.246609
+            "0x58359563b3f4854428b1b98e91a42471e6d20b8e",  # $0.248505
+            "0xeef611894ceae652979c9d0dae1deb597790c6ee",  # $0.248543
+            "0x0f663c16dd7c65cf87edb9229464ca77aeea536b",  # $0.248682
+            "0x38d7b6a3bca735633ddd9927a8c6bc60371326ea",  # $0.249423
+        ]
+        print("Using default WMATIC/DAI pools (pass pool addresses as arguments to override)")
+    
+    print(f"\n📊 Loading {len(pool_addresses)} pools...")
+    pools = []
+    for addr in pool_addresses:
+        pool = load_pool(addr)
+        if pool:
+            pools.append(pool)
+            print(f"✅ {pool['type']} {pool['symbol0']}/{pool['symbol1']} @ {pool['price']:.6f} (fee {pool['fee_bps']/100:.2f}%)")
+    
+    print(f"\n🔍 Analyzing {len(pools)} pools for arbitrage...")
+    
+    # Get gas cost
+    gas_cost = get_gas_cost()
+    print(f"⛽ Current gas cost: ${gas_cost:.4f}")
+    
+    # Find best direct arbitrage
+    best_direct = find_direct_arbitrage(pools)
+    
+    if best_direct:
+        print("\n" + "="*70)
+        print("💰 BEST ARBITRAGE OPPORTUNITY")
+        print("="*70)
+        
+        print(f"\n📈 Path: {best_direct['type'].upper()}")
+        print(f"   Pair: {best_direct['token_pair']}")
+        print(f"   Buy from: {best_direct['buy_pool'][:10]}...")
+        print(f"   Sell to: {best_direct['sell_pool'][:10]}...")
+        print(f"   Spread: {best_direct['spread_pct']:.3f}%")
+        print(f"   Total fees: {best_direct['fees_pct']:.3f}%")
+        print(f"   Net spread after fees: {best_direct['spread_pct'] - best_direct['fees_pct']:.3f}%")
+        
+        print(f"\n💵 Profit Analysis:")
+        print(f"   Optimal trade size: ${best_direct['input_usd']:.2f}")
+        print(f"   Gross profit: ${best_direct['profit_usd']:.4f}")
+        print(f"   Gas cost: ${gas_cost:.4f}")
+        print(f"   Net profit: ${best_direct['profit_usd'] - gas_cost:.4f}")
+        
+        # Calculate price impact
+        if best_direct['input_usd'] > 0:
+            impact_pct = (best_direct['profit_usd'] / best_direct['input_usd']) * 100
+            effective_spread = best_direct['spread_pct'] - best_direct['fees_pct']
+            print(f"\n📉 Price Impact & Slippage:")
+            print(f"   Profit/Input ratio: {impact_pct:.3f}%")
+            print(f"   Theoretical max profit: {effective_spread:.3f}%")
+            print(f"   Slippage loss: {effective_spread - impact_pct:.3f}%")
+        
+        if best_direct['profit_usd'] > gas_cost:
+            print(f"\n✅ PROFITABLE!")
+            print(f"   ROI: {((best_direct['profit_usd'] - gas_cost) / best_direct['input_usd']) * 100:.3f}%")
+            
+            # Test actual execution
+            buy_pool_addr = best_direct['buy_pool']
+            sell_pool_addr = best_direct['sell_pool']
+            
+            # Get the input token decimals (token1 of buy pool)
+            for p in pools:
+                if p['address'] == buy_pool_addr:
+                    input_decimals = p['decimals1']
+                    break
+            
+            test_execution(buy_pool_addr, sell_pool_addr, best_direct['input_usd'], input_decimals)
+        else:
+            print(f"\n❌ NOT PROFITABLE after gas")
+    else:
+        print("\n❌ No profitable arbitrage found")
+    
+    # Check all possible pairs
+    print("\n" + "="*70)
+    print("ALL POOL PAIRS ANALYSIS (WITH LIQUIDITY & GAS)")
+    print("="*70)
+    
+    # Track all profitable trades for summary
+    all_profitable_trades = []
+    
+    for i, p1 in enumerate(pools):
+        for j, p2 in enumerate(pools):
+            if i >= j:
+                continue
+            
+            if p1['token0'] != p2['token0'] or p1['token1'] != p2['token1']:
+                continue
+            
+            spread = abs(p1['price'] - p2['price']) / min(p1['price'], p2['price']) * 100
+            fees = (p1['fee_bps'] + p2['fee_bps']) / 100
+            
+            print(f"\n{p1['address'][:8]}... vs {p2['address'][:8]}...")
+            print(f"  Spot Prices: {p1['price']:.6f} vs {p2['price']:.6f}")
+            print(f"  Spot Spread: {spread:.3f}%, Fees: {fees:.2f}%")
+            
+            if spread > fees:
+                # Check actual liquidity
+                min_liq = min(p1.get('liquidity_usd', 0), p2.get('liquidity_usd', 0))
+                max_trade = min_liq * 0.01  # 1% of smaller pool
+                
+                # Test actual executable prices for V3 pools
+                actual_spread = spread
+                if p1['type'] == 'V3' or p2['type'] == 'V3':
+                    print(f"  🔍 Testing V3 executable prices...")
+                    
+                    # Identify which pool has V3
+                    v3_pool = p1 if p1['type'] == 'V3' else p2
+                    v2_pool = p2 if p1['type'] == 'V3' else p1
+                    
+                    # Test 1 WPOL -> SPORK on V3 (actual quote)
+                    test_wpol = 1.0
+                    wpol_wei = int(test_wpol * 10**18)
+                    
+                    # Test token0 -> token1 direction
+                    # Get decimals for proper conversion
+                    dec0 = v3_pool['decimals0']
+                    dec1 = v3_pool['decimals1']
+                    
+                    # Test with appropriate amount based on token
+                    if v3_pool['symbol0'] in ['WPOL', 'WMATIC']:
+                        test_amount = 1.0
+                    elif v3_pool['symbol0'] in ['USDC', 'USDT']:
+                        test_amount = 100.0
+                    else:
+                        test_amount = 1.0
+                    
+                    test_wei = int(test_amount * 10**dec0)
+                    
+                    output_wei = get_v3_actual_quote(
+                        v3_pool['token0'],
+                        v3_pool['token1'],
+                        v3_pool['fee'],
+                        test_wei
+                    )
+                    
+                    if output_wei:
+                        output = output_wei / (10**dec1)
+                        exec_price = output / test_amount
+                        slippage_pct = (v3_pool['price'] - exec_price) / v3_pool['price'] * 100
+                        
+                        if abs(slippage_pct) > 0.1:
+                            print(f"  ⚠️  V3 executable: {exec_price:.4f} {v3_pool['symbol1']}/{v3_pool['symbol0']} vs spot {v3_pool['price']:.4f} ({slippage_pct:+.2f}% slippage)")
+                            # Adjust spread for slippage
+                            actual_spread = spread - abs(slippage_pct)
+                
+                potential_profit = max_trade * (actual_spread - fees) / 100
+                
+                if actual_spread != spread:
+                    print(f"  📊 Executable spread: {actual_spread:.3f}% (was {spread:.3f}%)")
+                print(f"  📊 Net profit margin: {actual_spread - fees:.3f}%")
+                print(f"  💧 Max safe trade: ${max_trade:.2f}")
+                print(f"  💰 Gross profit: ${potential_profit:.4f}")
+                
+                if potential_profit > gas_cost:
+                    print(f"  ✅ NET PROFITABLE: ${potential_profit - gas_cost:.4f}")
+                    # Collect this profitable trade
+                    all_profitable_trades.append({
+                        'buy_pool': p1['address'] if p1['price'] < p2['price'] else p2['address'],
+                        'sell_pool': p2['address'] if p1['price'] < p2['price'] else p1['address'],
+                        'profit': potential_profit - gas_cost,
+                        'spread': actual_spread,
+                        'trade_size': max_trade
+                    })
+                else:
+                    print(f"  ❌ LOSS after gas: ${potential_profit - gas_cost:.4f}")
+            else:
+                print(f"  ❌ No profit (need {fees - spread:.3f}% more spread)")
+    
+    # Final summary - show ALL profitable addresses
+    print("\n" + "="*70)
+    print("PROFITABLE ARBITRAGE ADDRESSES")
+    print("="*70)
+    
+    # Show all profitable trades found
+    if all_profitable_trades:
+        # Sort by profit descending
+        all_profitable_trades.sort(key=lambda x: x['profit'], reverse=True)
+        
+        # Load router registry if it exists
+        router_registry = {}
+        try:
+            import json
+            with open('router_registry.json', 'r') as f:
+                router_registry = json.load(f)
+        except:
+            pass
+        
+        print(f"\n✅ Found {len(all_profitable_trades)} profitable arbitrage opportunities:")
+        for trade in all_profitable_trades:
+            # Get router info
+            buy_router = router_registry.get(trade['buy_pool'], {})
+            sell_router = router_registry.get(trade['sell_pool'], {})
+            
+            print(f"\nBuy:  {trade['buy_pool']}")
+            if buy_router:
+                print(f"      Router: {buy_router.get('router', 'Unknown')[:10]}... ({buy_router.get('dex', 'Unknown')} {buy_router.get('type', '')})")
+            print(f"Sell: {trade['sell_pool']}")
+            if sell_router:
+                print(f"      Router: {sell_router.get('router', 'Unknown')[:10]}... ({sell_router.get('dex', 'Unknown')} {sell_router.get('type', '')})")
+            print(f"Net Profit: ${trade['profit']:.4f} (spread: {trade['spread']:.3f}%, size: ${trade['trade_size']:.2f})")
+    elif best_direct and best_direct['profit_usd'] > gas_cost:
+        # Fallback to best_direct if no detailed profitable trades found
+        print(f"\nBuy:  {best_direct['buy_pool']}")
+        print(f"Sell: {best_direct['sell_pool']}")
+        print(f"Profit: ${best_direct['profit_usd'] - gas_cost:.2f}")
+    else:
+        print("\n❌ No profitable arbitrage found")
+
+if __name__ == "__main__":
+    main()

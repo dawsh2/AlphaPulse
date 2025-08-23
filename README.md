@@ -2,9 +2,9 @@
 
 ## Overview
 
-This system is designed as a high-performance quantitative trading framework that handles real-time market data with microsecond-level latency while providing robust APIs for portfolio management and data analysis. The architecture separates concerns into distinct performance tiers, ensuring that critical market data flows through optimized paths while less time-sensitive operations use more conventional web technologies.
+This system is designed as a high-performance quantitative trading framework built on Protocol V2 TLV (Type-Length-Value) architecture that processes real-time market data with microsecond-level latency while providing robust APIs for portfolio management and data analysis. The architecture uses full 20-byte Ethereum addresses throughout for direct smart contract execution capability, with a sophisticated pool cache persistence system for optimal performance.
 
-The core principle driving this design is the recognition that different types of data and operations have vastly different latency requirements. Live market data streaming requires sub-20 microsecond response times, while user authentication or portfolio queries can tolerate millisecond latencies without impact. This separation allows each component to be optimized for its specific use case.
+The core principle driving this design is the recognition that different types of data and operations have vastly different latency requirements. Live market data streaming with DEX pool discovery requires sub-35 microsecond response times, while user authentication or portfolio queries can tolerate millisecond latencies without impact. The pool cache system ensures that address discovery never blocks the hot path, maintaining consistent performance even during high-frequency trading operations.
 
 ## System Architecture Diagram
 
@@ -199,6 +199,12 @@ The system supports incremental development and testing. Individual components c
 Monitoring and observability are built into each service, with metrics available through HTTP endpoints and structured logging throughout. The system can detect and alert on message loss, connectivity issues, and performance degradation while maintaining operation under adverse conditions.
 
 This architecture provides a solid foundation for quantitative trading operations, balancing ultra-low latency requirements with development productivity and operational reliability.
+
+### Development Resources
+
+For development tools, workflows, and debugging procedures, see [TOOLS.md](TOOLS.md).
+For code style conventions and patterns, see [STYLE.md](STYLE.md).
+For AI assistant behavioral directives, see [CLAUDE.md](CLAUDE.md).
 
 
 ## 🔐 Security

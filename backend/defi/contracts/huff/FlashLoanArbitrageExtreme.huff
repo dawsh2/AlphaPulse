@@ -1,0 +1,213 @@
+/// @title FlashLoanArbitrageExtreme - Maximum runtime gas optimization
+/// @notice Every opcode optimized for minimum runtime gas usage
+/// @dev Deployment size doesn't matter - only execution efficiency
+
+// Interface definitions
+#define function executeArbitrage(uint256,address,address,address,uint256) nonpayable returns ()
+#define function executeOperation(address,uint256,uint256,address,bytes) nonpayable returns (bool)
+#define function withdraw(address) nonpayable returns ()
+
+// Constants
+#define constant AAVE_POOL = 0x794a61358D6845594F94dc1DB02A252b5b4814aD
+#define constant USDC = 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+#define constant OWNER_SLOT = 0x00
+
+// Pre-computed function selectors for fastest dispatch
+#define constant EXECUTE_OPERATION_SIG = 0x1b11d0ff
+#define constant EXECUTE_ARBITRAGE_SIG = 0x3cd12659
+#define constant WITHDRAW_SIG = 0x51cff8d9
+
+// Pre-computed external function selectors
+#define constant APPROVE_SELECTOR = 0x095ea7b3
+#define constant SWAP_SELECTOR = 0x38ed1739
+#define constant BALANCE_OF_SELECTOR = 0x70a08231
+#define constant TRANSFER_SELECTOR = 0xa9059cbb
+#define constant FLASH_LOAN_SELECTOR = 0x42b0b77c
+
+/// @notice Ultra-fast dispatcher - most frequent function first
+#define macro MAIN() = takes (0) returns (0) {
+    // Single calldataload and shift - most efficient
+    0x00 calldataload 0xE0 shr
+    
+    // executeOperation is called most frequently (by Aave)
+    dup1 [EXECUTE_OPERATION_SIG] eq executeOperation jumpi
+    // executeArbitrage is called by owner
+    dup1 [EXECUTE_ARBITRAGE_SIG] eq executeArbitrage jumpi  
+    // withdraw is rare
+    dup1 [WITHDRAW_SIG] eq withdraw jumpi
+
+    // Invalid - fail fast
+    0x00 0x00 revert
+
+    executeOperation:
+        EXECUTE_OPERATION_EXTREME()
+    executeArbitrage:
+        EXECUTE_ARBITRAGE_EXTREME()
+    withdraw:
+        WITHDRAW_EXTREME()
+}
+
+/// @notice Extreme runtime optimization for arbitrage execution
+#define macro EXECUTE_ARBITRAGE_EXTREME() = takes (0) returns (0) {
+    // Single SLOAD + XOR is faster than EQ for owner check
+    [OWNER_SLOT] sload caller xor owner_ok jumpi
+    0x00 0x00 revert
+    
+    owner_ok:
+    // Load all calldata in one go - minimize CALLDATALOAD ops
+    0x04 calldataload   // amount
+    0x24 calldataload   // buyRouter
+    0x44 calldataload   // sellRouter  
+    0x64 calldataload   // tokenB
+    0x84 calldataload   // minProfit
+    
+    // Build flash loan call inline - no function calls
+    [FLASH_LOAN_SELECTOR] 0x00 mstore
+    address 0x04 mstore         // receiver
+    [USDC] 0x24 mstore         // asset
+    dup5 0x44 mstore           // amount
+    0xa0 0x64 mstore           // params offset
+    0x00 0x84 mstore           // referralCode
+    
+    // Pack params tightly
+    0xa0 0xa0 mstore           // length
+    dup4 0xc0 mstore           // buyRouter
+    dup4 0xe0 mstore           // sellRouter
+    [USDC] 0x0100 mstore       // tokenA
+    dup3 0x0120 mstore         // tokenB
+    dup1 0x0140 mstore         // minProfit
+    
+    // Single external call
+    0x00 0x00 0x0160 0x00 0x00 [AAVE_POOL] gas call
+    pop pop pop pop pop        // Clean stack in one go
+    stop
+}
+
+/// @notice Extreme optimization for flash loan callback
+#define macro EXECUTE_OPERATION_EXTREME() = takes (0) returns (0) {
+    // Fast caller check
+    caller [AAVE_POOL] xor aave_ok jumpi
+    0x00 0x00 revert
+    
+    aave_ok:
+    // Load only essential data
+    0x24 calldataload   // amount
+    0x44 calldataload   // premium
+    
+    // Decode params inline
+    0xc0 calldataload   // buyRouter
+    0xe0 calldataload   // sellRouter
+    0x0120 calldataload // tokenB
+    0x0140 calldataload // minProfit
+    
+    // === ARBITRAGE SEQUENCE - ULTRA OPTIMIZED ===
+    
+    // Approve USDC to buyRouter - inline
+    [APPROVE_SELECTOR] 0x00 mstore
+    dup3 0x04 mstore
+    dup7 0x24 mstore
+    0x01 0x00 0x44 0x00 0x00 [USDC] gas call
+    pop
+    
+    // Swap USDC -> tokenB - inline
+    [SWAP_SELECTOR] 0x00 mstore
+    dup7 0x04 mstore           // amountIn
+    0x00 0x24 mstore           // amountOutMin
+    0xa0 0x44 mstore           // path offset
+    address 0x64 mstore        // to
+    timestamp 0x012c add 0x84 mstore // deadline
+    0x02 0xa0 mstore           // path length
+    [USDC] 0xc0 mstore         // path[0]
+    dup5 0xe0 mstore           // path[1] = tokenB
+    
+    0x60 0x00 0x100 0x00 0x00 dup4 gas call // Call buyRouter
+    pop
+    0x40 mload                 // Get amount received (last in array)
+    
+    // Approve tokenB to sellRouter - inline
+    [APPROVE_SELECTOR] 0x00 mstore
+    dup6 0x04 mstore
+    dup2 0x24 mstore
+    0x01 0x00 0x44 0x00 0x00 dup7 gas call
+    pop
+    
+    // Calculate minimum out
+    dup8 dup8 add dup6 add     // amount + premium + minProfit
+    
+    // Swap tokenB -> USDC - inline
+    [SWAP_SELECTOR] 0x00 mstore
+    dup3 0x04 mstore           // amountIn (tokenB received)
+    dup2 0x24 mstore           // amountOutMin
+    0xa0 0x44 mstore           // path offset
+    address 0x64 mstore        // to
+    timestamp 0x012c add 0x84 mstore // deadline
+    0x02 0xa0 mstore           // path length
+    dup7 0xc0 mstore           // path[0] = tokenB
+    [USDC] 0xe0 mstore         // path[1] = USDC
+    
+    0x60 0x00 0x100 0x00 0x00 dup7 gas call // Call sellRouter
+    pop
+    
+    // Approve final repayment - inline
+    dup9 dup9 add              // totalDebt
+    [APPROVE_SELECTOR] 0x00 mstore
+    [AAVE_POOL] 0x04 mstore
+    dup2 0x24 mstore
+    0x01 0x00 0x44 0x00 0x00 [USDC] gas call
+    pop
+    
+    // Transfer profit - inline
+    [BALANCE_OF_SELECTOR] 0x00 mstore
+    address 0x04 mstore
+    0x20 0x00 0x24 0x00 0x00 [USDC] gas staticcall
+    pop
+    0x00 mload                 // balance
+    dup1 iszero skip_profit jumpi
+    
+    [OWNER_SLOT] sload         // owner
+    [TRANSFER_SELECTOR] 0x00 mstore
+    dup2 0x04 mstore           // to
+    dup2 0x24 mstore           // amount
+    0x01 0x00 0x44 0x00 0x00 [USDC] gas call
+    pop
+    
+    skip_profit:
+    // Clean stack and return true - minimal operations
+    pop pop pop pop pop pop pop pop pop
+    0x01 0x00 mstore
+    0x20 0x00 return
+}
+
+/// @notice Minimal withdraw function
+#define macro WITHDRAW_EXTREME() = takes (0) returns (0) {
+    [OWNER_SLOT] sload caller xor withdraw_ok jumpi
+    0x00 0x00 revert
+    
+    withdraw_ok:
+    0x04 calldataload          // token
+    
+    // Get balance inline
+    [BALANCE_OF_SELECTOR] 0x00 mstore
+    address 0x04 mstore
+    0x20 0x00 0x24 0x00 0x00 dup2 gas staticcall
+    pop
+    0x00 mload                 // balance
+    
+    dup1 iszero no_withdraw jumpi
+    
+    // Transfer inline
+    [OWNER_SLOT] sload
+    [TRANSFER_SELECTOR] 0x00 mstore
+    dup2 0x04 mstore
+    dup2 0x24 mstore
+    0x01 0x00 0x44 0x00 0x00 dup5 gas call
+    
+    no_withdraw:
+    pop pop pop
+    stop
+}
+
+/// @notice Constructor
+#define macro CONSTRUCTOR() = takes (0) returns (0) {
+    caller [OWNER_SLOT] sstore
+}

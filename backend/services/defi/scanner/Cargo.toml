@@ -1,0 +1,49 @@
+[package]
+name = "defi-scanner"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "defi-scanner"
+path = "src/main.rs"
+
+# [[bin]]
+# name = "test_scanner"
+# path = "test_scanner.rs"
+
+[dependencies]
+alphapulse-protocol.workspace = true
+exchange-collector = { path = "../../exchange_collector" }
+anyhow.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+ethers.workspace = true
+web3.workspace = true
+rust_decimal.workspace = true
+futures-util.workspace = true
+dashmap.workspace = true
+parking_lot.workspace = true
+once_cell.workspace = true
+chrono.workspace = true
+byteorder.workspace = true
+zerocopy.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
+
+# Scanner-specific dependencies
+async-trait = "0.1"
+hex = "0.4"
+dotenv = "0.15"
+rand = "0.8"
+rust_decimal_macros = "1.32"
+reqwest = { version = "0.11", features = ["json"] }
+futures = "0.3"
+crossterm = "0.27"
+
+[dev-dependencies]
+tempfile = "3.8"
+mockito = "1.2"

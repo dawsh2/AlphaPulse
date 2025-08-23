@@ -10,6 +10,7 @@ path = "src/main.rs"
 [dependencies]
 alphapulse-protocol = { path = "../../protocol" }
 zerocopy = { workspace = true }
+byteorder = { workspace = true }
 tokio = { workspace = true }
 tokio-tungstenite = { workspace = true }
 serde = { workspace = true }

@@ -1,0 +1,56 @@
+[package]
+name = "alphapulse-e2e-tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Core testing
+tokio = { version = "1.0", features = ["full"] }
+tokio-test = "0.4"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-test = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Local protocol
+protocol_v2 = { path = "../../protocol_v2" }
+
+# Adapters and strategies  
+alphapulse-adapter-service = { path = "../../services_v2/adapters" }
+alphapulse-flash-arbitrage = { path = "../../services_v2/strategies/flash_arbitrage" }
+alphapulse-dashboard-websocket = { path = "../../services_v2/dashboard/websocket_server" }
+
+# Testing utilities
+assert_matches = "1.5"
+tempfile = "3.0"
+uuid = { version = "1.0", features = ["v4"] }
+
+# WebSocket testing
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+
+# HTTP client for testing dashboard
+reqwest = { version = "0.12", features = ["json"] }
+
+# Time utilities
+chrono = { version = "0.4", features = ["serde"] }
+
+# Utilities
+rand = "0.8"
+bytes = "1.0"
+
+# CLI and async traits
+clap = { version = "4.0", features = ["derive"] }
+async-trait = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Decimal precision
+rust_decimal = { version = "1.0", features = ["serde"] }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bin]]
+name = "e2e_runner"
+path = "src/main.rs"

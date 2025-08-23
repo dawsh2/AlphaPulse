@@ -1,0 +1,48 @@
+# rq configuration for Rust projects
+
+[cache]
+max_size_mb = 500
+expire_after_days = 7
+auto_update = false
+
+[ui]
+theme = "rust"
+max_suggestions = 5
+fuzzy_threshold = 0.7
+
+# Rust-specific aliases
+[aliases]
+# Common Rust patterns
+tests = "find --name test_ --type function"
+mods = "find --type module"
+impls = "find --type impl"
+derives = "docs #\\[derive"
+async = "signature async"
+unsafe = "find unsafe"
+errors = "find --type enum --name Error"
+results = "signature -> Result"
+
+# Rust-specific patterns for CI
+[[patterns]]
+name = "unwrap_usage"
+pattern = "\\.unwrap\\(\\)"
+description = "Using unwrap() instead of proper error handling"
+severity = "warning"
+
+[[patterns]]
+name = "panic_usage"
+pattern = "panic!|unimplemented!|unreachable!"
+description = "Explicit panic in code"
+severity = "warning"
+
+[[patterns]]
+name = "unsafe_usage"
+pattern = "unsafe\\s*\\{"
+description = "Unsafe code block"
+severity = "info"
+
+[[patterns]]
+name = "todo_macro"
+pattern = "todo!()"
+description = "TODO macro in code"
+severity = "error"

@@ -1,0 +1,41 @@
+[package]
+name = "alphapulse-kraken-signals"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Core dependencies
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { workspace = true }
+
+# Protocol dependencies
+protocol_v2 = { path = "../../../protocol_v2" }
+
+# Math and calculations
+rust_decimal = "1.32"
+rust_decimal_macros = "1.32"
+
+# Collections and concurrency
+dashmap = "6.0"
+parking_lot = "0.12"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Metrics
+metrics = "0.23"
+
+# Error handling
+thiserror = "1.0"
+
+# Checksums
+crc32fast = "1.3"
+
+# Configuration
+toml = "0.8"
+
+[features]
+default = []

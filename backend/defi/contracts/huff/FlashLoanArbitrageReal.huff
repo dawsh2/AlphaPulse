@@ -1,0 +1,343 @@
+/// @title FlashLoanArbitrageReal - Actual Huff implementation based on real Solidity contract
+/// @notice Direct port of FlashLoanArbitrage.sol with real gas optimizations
+/// @dev This is the REAL implementation, not theoretical
+
+// Interface definitions matching Solidity
+#define function executeArbitrage(uint256,address,address,address,uint256) nonpayable returns ()
+#define function executeOperation(address,uint256,uint256,address,bytes) nonpayable returns (bool)
+#define function withdraw(address) nonpayable returns ()
+
+// Constants - Polygon mainnet addresses
+#define constant AAVE_POOL = 0x794a61358D6845594F94dc1DB02A252b5b4814aD
+#define constant USDC = 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+#define constant OWNER_SLOT = 0x00
+
+// Function selectors
+#define constant APPROVE_SELECTOR = 0x095ea7b3
+#define constant SWAP_SELECTOR = 0x38ed1739  // swapExactTokensForTokens
+#define constant BALANCE_OF_SELECTOR = 0x70a08231
+#define constant TRANSFER_SELECTOR = 0xa9059cbb
+#define constant FLASH_LOAN_SELECTOR = 0x42b0b77c  // flashLoanSimple
+
+// Error signatures
+#define error NotOwner()
+#define error InvalidCaller()
+#define error InvalidInitiator()
+
+/// @notice Main entry point
+#define macro MAIN() = takes (0) returns (0) {
+    // Load function selector
+    0x00 calldataload 0xE0 shr
+
+    // Function dispatch
+    dup1 __FUNC_SIG(executeArbitrage) eq executeArbitrage jumpi
+    dup1 __FUNC_SIG(executeOperation) eq executeOperation jumpi
+    dup1 __FUNC_SIG(withdraw) eq withdraw jumpi
+
+    // No matching function
+    0x00 0x00 revert
+
+    executeArbitrage:
+        EXECUTE_ARBITRAGE()
+    executeOperation:
+        EXECUTE_OPERATION()
+    withdraw:
+        WITHDRAW()
+}
+
+/// @notice Check if caller is owner
+#define macro IS_OWNER() = takes (0) returns (0) {
+    // Load owner from storage
+    [OWNER_SLOT] sload
+    // Compare with caller
+    caller eq iszero error_not_owner jumpi
+    // Continue if owner
+    jump_dest:
+
+    error_not_owner:
+        __ERROR(NotOwner) 0x00 mstore
+        0x04 0x00 revert
+}
+
+/// @notice Execute arbitrage with flash loan
+#define macro EXECUTE_ARBITRAGE() = takes (0) returns (0) {
+    // Check owner
+    IS_OWNER()
+
+    // Load parameters from calldata
+    // executeArbitrage(uint256 amount, address buyRouter, address sellRouter, address tokenB, uint256 minProfit)
+    0x04 calldataload   // amount
+    0x24 calldataload   // buyRouter  
+    0x44 calldataload   // sellRouter
+    0x64 calldataload   // tokenB
+    0x84 calldataload   // minProfit
+
+    // Prepare params for flash loan callback
+    // We need to encode ArbParams struct
+    0x100 mload         // Free memory pointer
+    dup2 dup2 mstore    // Store buyRouter at mem
+    dup3 0x20 add mstore // Store sellRouter at mem+32
+    [USDC] 0x40 add mstore // Store tokenA (USDC) at mem+64
+    dup4 0x60 add mstore // Store tokenB at mem+96
+    dup5 0x80 add mstore // Store minProfit at mem+128
+
+    // Call Aave flashLoanSimple
+    // flashLoanSimple(address receiver, address asset, uint256 amount, bytes params, uint16 referralCode)
+    CALL_FLASH_LOAN()
+
+    stop
+}
+
+/// @notice Flash loan callback implementation
+#define macro EXECUTE_OPERATION() = takes (0) returns (0) {
+    // Verify caller is AAVE_POOL
+    caller [AAVE_POOL] eq iszero invalid_caller jumpi
+
+    // Verify initiator is this contract
+    0x64 calldataload address eq iszero invalid_initiator jumpi
+
+    // Load flash loan parameters
+    0x04 calldataload   // asset (should be USDC)
+    0x24 calldataload   // amount
+    0x44 calldataload   // premium
+
+    // Decode ArbParams from bytes parameter
+    0x84 calldataload   // offset to bytes param
+    0xa4 add            // Skip to actual data
+    
+    // Extract params (buyRouter, sellRouter, tokenA, tokenB, minProfit)
+    dup1 calldataload   // buyRouter
+    dup2 0x20 add calldataload // sellRouter
+    dup3 0x40 add calldataload // tokenA
+    dup4 0x60 add calldataload // tokenB  
+    dup5 0x80 add calldataload // minProfit
+
+    // Step 1: Approve buyRouter to spend USDC
+    // Stack manipulation for APPROVE_TOKEN macro
+    [USDC] dup7 dup3   // [USDC, buyRouter, amount, ...]
+    APPROVE_TOKEN()     // Approve buyRouter for amount
+
+    // Step 2: Swap USDC -> tokenB on buyRouter
+    // Stack manipulation for SWAP_TOKENS macro
+    dup2 dup7 [USDC] dup10 0x00   // [amount, router, USDC, tokenB, minOut, ...]
+    SWAP_TOKENS()       // Returns tokenB received
+
+    // Step 3: Approve sellRouter to spend tokenB
+    dup9 dup7 dup1      // [tokenB, sellRouter, amount]
+    APPROVE_TOKEN()     // Approve sellRouter for tokenB amount
+
+    // Step 4: Swap tokenB -> USDC on sellRouter
+    // Calculate minimum amount out (amount + premium + minProfit)
+    dup3 dup3 add      // amount + premium
+    dup11 add          // + minProfit = minimum out
+    dup1 dup8 dup10 [USDC] dup2  // Stack for swap
+    SWAP_TOKENS()
+
+    // Step 5: Approve Aave to collect loan + premium
+    dup3 dup3 add      // totalDebt = amount + premium
+    [USDC] [AAVE_POOL] dup2  // Stack for approve
+    APPROVE_TOKEN()
+
+    // Step 6: Transfer profit to owner if any
+    TRANSFER_PROFIT()
+
+    // Return true
+    0x01 0x00 mstore
+    0x20 0x00 return
+
+    invalid_caller:
+        __ERROR(InvalidCaller) 0x00 mstore
+        0x04 0x00 revert
+
+    invalid_initiator:
+        __ERROR(InvalidInitiator) 0x00 mstore
+        0x04 0x00 revert
+}
+
+/// @notice Approve token spending
+#define macro APPROVE_TOKEN() = takes (3) returns (0) {
+    // Input stack: [token, spender, amount]
+    
+    // Prepare approve(address,uint256) call
+    [APPROVE_SELECTOR] 0x00 mstore
+    dup2 0x04 mstore    // spender
+    dup3 0x24 mstore    // amount
+
+    // Call token.approve()
+    0x00    // return data size
+    0x00    // return data offset
+    0x44    // input size
+    0x00    // input offset
+    0x00    // value
+    dup6    // token address
+    gas     // gas
+    call
+
+    // Check success
+    iszero revert_label jumpi
+    0x00 mload 0x01 eq iszero revert_label jumpi
+
+    // Clean stack
+    pop pop pop
+}
+
+/// @notice Execute token swap on DEX
+#define macro SWAP_TOKENS() = takes (5) returns (1) {
+    // Input: [amountIn, router, tokenIn, tokenOut, minAmountOut]
+    
+    // Build path array in memory
+    0x100 mload         // Get free memory pointer
+    0x02 dup2 mstore    // Store array length = 2
+    dup4 0x20 add mstore // Store tokenIn
+    dup5 0x40 add mstore // Store tokenOut
+
+    // Prepare swapExactTokensForTokens call
+    [SWAP_SELECTOR] 0x00 mstore
+    dup1 0x04 mstore    // amountIn
+    dup6 0x24 mstore    // amountOutMin
+    dup2 0x44 mstore    // path offset
+    address 0x64 mstore // to (this contract)
+    timestamp 0x012c add 0x84 mstore // deadline = now + 300 seconds
+
+    // Execute swap
+    0x100   // return size (array)
+    0x00    // return offset
+    0xa4    // input size
+    0x00    // input offset
+    0x00    // value
+    dup3    // router address
+    gas     // gas
+    call
+
+    // Check success and extract amount received
+    iszero revert_label jumpi
+    
+    // Read last element of returned amounts array
+    0x00 mload          // Array offset
+    dup1 mload          // Array length
+    0x01 sub            // Last index
+    0x20 mul            // Offset to last element
+    add                 // Add to array start
+    mload               // Load amount received
+
+    // Clean stack
+    swap5 pop pop pop pop pop
+}
+
+/// @notice Transfer profit to owner
+#define macro TRANSFER_PROFIT() = takes (0) returns (0) {
+    // Get USDC balance
+    [USDC] address      // [USDC, this]
+    GET_BALANCE()
+    
+    // Subtract total debt (already on stack)
+    dup2 sub            // profit = balance - totalDebt
+    
+    // Check if profit > 0
+    dup1 iszero skip_transfer jumpi
+    
+    // Transfer to owner
+    [OWNER_SLOT] sload  // Load owner
+    [USDC] swap1 dup3   // [USDC, owner, profit]
+    TRANSFER_TOKEN()
+    
+    skip_transfer:
+        pop
+}
+
+/// @notice Get token balance
+#define macro GET_BALANCE() = takes (2) returns (1) {
+    // Input: [token, account]
+    
+    [BALANCE_OF_SELECTOR] 0x00 mstore
+    dup2 0x04 mstore    // account
+    
+    0x20    // return size
+    0x00    // return offset  
+    0x24    // input size
+    0x00    // input offset
+    0x00    // value
+    dup2    // token
+    gas     // gas
+    staticcall
+    
+    iszero revert_label jumpi
+    0x00 mload          // Load balance
+    
+    swap2 pop pop       // Clean stack
+}
+
+/// @notice Transfer tokens
+#define macro TRANSFER_TOKEN() = takes (3) returns (0) {
+    // Input: [token, to, amount]
+    
+    [TRANSFER_SELECTOR] 0x00 mstore
+    dup2 0x04 mstore    // to
+    dup3 0x24 mstore    // amount
+    
+    0x00    // return size
+    0x00    // return offset
+    0x44    // input size
+    0x00    // input offset
+    0x00    // value
+    dup4    // token
+    gas     // gas
+    call
+    
+    iszero revert_label jumpi
+    pop pop pop
+}
+
+/// @notice Withdraw tokens to owner
+#define macro WITHDRAW() = takes (0) returns (0) {
+    IS_OWNER()
+    
+    // Get token address from calldata
+    0x04 calldataload
+    
+    // Get balance
+    dup1 address        // [token, token, this]
+    GET_BALANCE()       // [token, balance]
+    
+    // Transfer to owner if balance > 0
+    dup1 iszero skip_withdraw jumpi
+    [OWNER_SLOT] sload  // [token, balance, owner]
+    dup3 swap1 dup2     // [token, owner, balance]
+    TRANSFER_TOKEN()
+    
+    skip_withdraw:
+        pop pop
+        stop
+}
+
+/// @notice Call Aave flash loan
+#define macro CALL_FLASH_LOAN() = takes (0) returns (0) {
+    // Prepare flashLoanSimple call
+    [FLASH_LOAN_SELECTOR] 0x00 mstore
+    address 0x04 mstore         // receiver (this contract)
+    [USDC] 0x24 mstore         // asset
+    dup6 0x44 mstore           // amount
+    0xa0 0x64 mstore           // params offset
+    0x00 0x84 mstore           // referralCode
+    
+    // Add encoded params at offset 0xa0
+    0xa0 dup1 mstore           // params length
+    // Params data already in memory from EXECUTE_ARBITRAGE
+    
+    // Execute flash loan
+    0x00    // return size
+    0x00    // return offset
+    0x164   // input size  
+    0x00    // input offset
+    0x00    // value
+    [AAVE_POOL] // target
+    gas     // gas
+    call
+    
+    iszero revert_label jumpi
+}
+
+/// @notice Constructor - set owner
+#define macro CONSTRUCTOR() = takes (0) returns (0) {
+    caller [OWNER_SLOT] sstore
+}

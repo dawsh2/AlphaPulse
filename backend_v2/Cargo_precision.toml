@@ -1,0 +1,13 @@
+[package]
+name = "test_detector_precision"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "test_detector_precision"
+path = "test_detector_precision.rs"
+
+[dependencies]
+rust_decimal = "1.36"
+rust_decimal_macros = "1.36"
+hex = "0.4"

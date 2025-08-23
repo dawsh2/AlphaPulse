@@ -1,0 +1,451 @@
+/// @title FlashLoanArbitrageMultiPoolMEV - MEV-optimized multi-pool arbitrage
+/// @notice Implements techniques from MEV Yul/Huff optimization article
+/// @dev Unrolled loops for 1-3 swaps, V2/V3 support, maximum gas efficiency
+
+// Interface definitions
+#define function executeArbitrage(uint256,uint8,bytes) nonpayable returns ()
+#define function executeOperation(address,uint256,uint256,address,bytes) nonpayable returns (bool)
+#define function withdraw(address) nonpayable returns ()
+
+// Constants
+#define constant AAVE_POOL = 0x794a61358D6845594F94dc1DB02A252b5b4814aD
+#define constant OWNER_SLOT = 0x00
+
+// Pool type constants - packed for efficiency
+#define constant POOL_V2 = 0x02
+#define constant POOL_V3 = 0x03
+
+// Function selectors - optimized order by frequency
+#define constant EXECUTE_OPERATION_SIG = 0x1b11d0ff
+#define constant EXECUTE_ARBITRAGE_SIG = 0x3cd12659
+#define constant WITHDRAW_SIG = 0x51cff8d9
+
+// ERC20 selectors - precomputed
+#define constant APPROVE_SELECTOR = 0x095ea7b3
+#define constant TRANSFER_SELECTOR = 0xa9059cbb
+#define constant BALANCE_OF_SELECTOR = 0x70a08231
+
+// DEX selectors - V2 and V3
+#define constant SWAP_EXACT_TOKENS_V2 = 0x38ed1739
+#define constant SWAP_EXACT_INPUT_SINGLE_V3 = 0x414bf389
+#define constant FLASH_LOAN_SELECTOR = 0x42b0b77c
+
+/// @notice Ultra-fast dispatcher - MEV optimized
+#define macro MAIN() = takes (0) returns (0) {
+    // Single calldataload + shift for maximum efficiency
+    0x00 calldataload 0xE0 shr
+    
+    // Jump table optimization - most frequent first
+    dup1 [EXECUTE_OPERATION_SIG] eq executeOperation jumpi
+    dup1 [EXECUTE_ARBITRAGE_SIG] eq executeArbitrage jumpi
+    dup1 [WITHDRAW_SIG] eq withdraw jumpi
+
+    0x00 0x00 revert
+
+    executeOperation:
+        EXECUTE_OPERATION_MEV()
+    executeArbitrage:
+        EXECUTE_ARBITRAGE_MEV()
+    withdraw:
+        WITHDRAW_OPTIMIZED()
+}
+
+/// @notice MEV-optimized arbitrage execution
+#define macro EXECUTE_ARBITRAGE_MEV() = takes (0) returns (0) {
+    // Fast owner check - XOR is cheaper than EQ
+    [OWNER_SLOT] sload caller xor owner_ok jumpi
+    0x00 0x00 revert
+    
+    owner_ok:
+    // Load all parameters in one sequence
+    0x04 calldataload   // flashAmount
+    0x24 calldataload   // numSwaps (1-10 supported)
+    0x44 calldataload   // flashToken
+    0x64 calldataload   // swapData offset
+    
+    // Build flash loan call - inline for gas efficiency
+    [FLASH_LOAN_SELECTOR] 0x00 mstore
+    address 0x04 mstore             // receiver
+    dup3 0x24 mstore                // flashToken
+    dup4 0x44 mstore                // amount
+    0xa0 0x64 mstore                // params offset
+    0x00 0x84 mstore                // referralCode
+    
+    // Minimal params for callback
+    0x80 0xa0 mstore                // params length
+    dup2 0xc0 mstore                // numSwaps
+    dup3 0xe0 mstore                // flashToken
+    dup1 0x100 mstore               // swapData offset
+    0x00 0x120 mstore               // minProfit (calculated off-chain)
+    
+    // Single external call
+    0x00 0x00 0x140 0x00 0x00 [AAVE_POOL] gas call
+    pop pop pop pop
+    stop
+}
+
+/// @notice MEV-optimized flash loan callback with unrolled loops
+#define macro EXECUTE_OPERATION_MEV() = takes (0) returns (0) {
+    // Fast caller validation
+    caller [AAVE_POOL] xor aave_ok jumpi
+    0x00 0x00 revert
+    
+    aave_ok:
+    // Load callback parameters
+    0x24 calldataload   // amount
+    0x44 calldataload   // premium
+    0xc0 calldataload   // numSwaps
+    0xe0 calldataload   // flashToken
+    0x100 calldataload  // swapData offset
+    
+    // === CRITICAL MEV OPTIMIZATION: UNROLLED LOOPS ===
+    // Handle 80% of cases (1-3 swaps) with zero loop overhead
+    
+    dup3 0x01 eq single_swap_mev jumpi
+    dup3 0x02 eq double_swap_mev jumpi
+    dup3 0x03 eq triple_swap_mev jumpi
+    
+    // Fallback to loop for 4+ swaps (rare case)
+    EXECUTE_GENERAL_LOOP_MEV()
+    jump arbitrage_complete
+    
+    // === SINGLE SWAP: MAXIMUM OPTIMIZATION ===
+    single_swap_mev:
+        // Load swap parameters directly - no loop overhead
+        dup1 calldataload           // router
+        dup2 0x20 add calldataload  // poolType (V2=2, V3=3)
+        dup3 0x40 add calldataload  // tokenIn
+        dup4 0x60 add calldataload  // tokenOut
+        dup5 0x80 add calldataload  // fee (V3 only)
+        dup6 0xa0 add calldataload  // minAmountOut
+        dup7                        // amount
+        
+        // Pool type dispatch - V3 first (often higher fees/profits)
+        dup6 [POOL_V3] eq single_v3_mev jumpi
+        dup6 [POOL_V2] eq single_v2_mev jumpi
+        0x00 0x00 revert // Invalid pool type
+        
+        single_v3_mev:
+            EXECUTE_V3_SWAP_INLINE()
+            jump single_complete_mev
+            
+        single_v2_mev:
+            EXECUTE_V2_SWAP_INLINE()
+            jump single_complete_mev
+            
+        single_complete_mev:
+        // Clean parameters and continue
+        pop pop pop pop pop pop pop
+        jump arbitrage_complete
+    
+    // === DOUBLE SWAP: UNROLLED FOR SPEED ===
+    double_swap_mev:
+        // First swap at offset 0x00
+        dup1 calldataload           // router1
+        dup2 0x20 add calldataload  // poolType1
+        dup3 0x40 add calldataload  // tokenIn1
+        dup4 0x60 add calldataload  // tokenOut1
+        dup5 0x80 add calldataload  // fee1
+        dup6 0xa0 add calldataload  // minOut1
+        dup7                        // amount
+        
+        // Execute first swap
+        dup6 [POOL_V3] eq first_v3_mev jumpi
+        EXECUTE_V2_SWAP_INLINE()
+        jump first_done_mev
+        
+        first_v3_mev:
+            EXECUTE_V3_SWAP_INLINE()
+        
+        first_done_mev:
+        // Result amount now on stack
+        // Clean first swap params
+        swap6 pop pop pop pop pop pop
+        
+        // Second swap at offset 0xc0 (6 * 32 bytes)
+        dup2 0xc0 add calldataload   // router2
+        dup3 0xe0 add calldataload   // poolType2
+        dup4 0x100 add calldataload  // tokenIn2
+        dup5 0x120 add calldataload  // tokenOut2
+        dup6 0x140 add calldataload  // fee2
+        dup7 0x160 add calldataload  // minOut2
+        dup1                         // amount from first swap
+        
+        // Execute second swap
+        dup6 [POOL_V3] eq second_v3_mev jumpi
+        EXECUTE_V2_SWAP_INLINE()
+        jump double_complete_mev
+        
+        second_v3_mev:
+            EXECUTE_V3_SWAP_INLINE()
+        
+        double_complete_mev:
+        // Clean second swap params
+        swap6 pop pop pop pop pop pop
+        jump arbitrage_complete
+    
+    // === TRIPLE SWAP: UNROLLED FOR SPEED ===
+    triple_swap_mev:
+        // First swap
+        dup1 calldataload           // router1
+        dup2 0x20 add calldataload  // poolType1
+        dup3 0x40 add calldataload  // tokenIn1
+        dup4 0x60 add calldataload  // tokenOut1
+        dup5 0x80 add calldataload  // fee1
+        dup6 0xa0 add calldataload  // minOut1
+        dup7                        // amount
+        
+        dup6 [POOL_V3] eq triple_first_v3 jumpi
+        EXECUTE_V2_SWAP_INLINE()
+        jump triple_first_done
+        
+        triple_first_v3:
+            EXECUTE_V3_SWAP_INLINE()
+        
+        triple_first_done:
+        swap6 pop pop pop pop pop pop
+        
+        // Second swap at offset 0xc0
+        dup2 0xc0 add calldataload   // router2
+        dup3 0xe0 add calldataload   // poolType2
+        dup4 0x100 add calldataload  // tokenIn2
+        dup5 0x120 add calldataload  // tokenOut2
+        dup6 0x140 add calldataload  // fee2
+        dup7 0x160 add calldataload  // minOut2
+        dup1                         // amount
+        
+        dup6 [POOL_V3] eq triple_second_v3 jumpi
+        EXECUTE_V2_SWAP_INLINE()
+        jump triple_second_done
+        
+        triple_second_v3:
+            EXECUTE_V3_SWAP_INLINE()
+        
+        triple_second_done:
+        swap6 pop pop pop pop pop pop
+        
+        // Third swap at offset 0x180
+        dup2 0x180 add calldataload  // router3
+        dup3 0x1a0 add calldataload  // poolType3
+        dup4 0x1c0 add calldataload  // tokenIn3
+        dup5 0x1e0 add calldataload  // tokenOut3
+        dup6 0x200 add calldataload  // fee3
+        dup7 0x220 add calldataload  // minOut3
+        dup1                         // amount
+        
+        dup6 [POOL_V3] eq triple_third_v3 jumpi
+        EXECUTE_V2_SWAP_INLINE()
+        jump triple_complete_mev
+        
+        triple_third_v3:
+            EXECUTE_V3_SWAP_INLINE()
+        
+        triple_complete_mev:
+        swap6 pop pop pop pop pop pop
+        jump arbitrage_complete
+    
+    arbitrage_complete:
+    // === REPAYMENT AND PROFIT EXTRACTION ===
+    
+    // Calculate total debt
+    dup6 dup6 add               // amount + premium
+    
+    // Approve flash token to Aave for repayment
+    dup5                        // flashToken
+    [APPROVE_SELECTOR] 0x00 mstore
+    [AAVE_POOL] 0x04 mstore
+    dup3 0x24 mstore            // totalDebt
+    0x01 0x00 0x44 0x00 0x00 dup2 gas call
+    pop
+    
+    // Extract profit to owner
+    EXTRACT_PROFIT_MEV()
+    
+    // Clean stack and return success
+    pop pop pop pop pop
+    0x01 0x00 mstore
+    0x20 0x00 return
+}
+
+/// @notice Optimized V2 swap - inline for maximum efficiency
+#define macro EXECUTE_V2_SWAP_INLINE() = takes (7) returns (1) {
+    // Stack: [router, poolType, tokenIn, tokenOut, fee, minAmountOut, amount]
+    
+    // === TOKEN APPROVAL - INLINE ===
+    [APPROVE_SELECTOR] 0x00 mstore
+    dup7 0x04 mstore            // spender (router)
+    dup1 0x24 mstore            // amount
+    0x01 0x00 0x44 0x00 0x00 dup6 gas call
+    pop
+    
+    // === V2 SWAP CALL - OPTIMIZED LAYOUT ===
+    [SWAP_EXACT_TOKENS_V2] 0x00 mstore
+    dup1 0x04 mstore            // amountIn
+    dup4 0x24 mstore            // amountOutMin
+    0xa0 0x44 mstore            // path offset
+    address 0x64 mstore         // to (this contract)
+    timestamp 0x012c add 0x84 mstore // deadline (5 min from now)
+    
+    // Build path array - tight packing
+    0x02 0xa0 mstore            // path length = 2
+    dup5 0xc0 mstore            // path[0] = tokenIn
+    dup4 0xe0 mstore            // path[1] = tokenOut
+    
+    // Execute swap
+    0x60 0x00 0x100 0x00 0x00 dup8 gas call
+    iszero v2_failed jumpi
+    
+    // Extract result - amounts array, get last element
+    0x40 mload                  // Get amounts[1] (output amount)
+    
+    // Clean stack
+    swap7 pop pop pop pop pop pop pop
+    jump v2_success
+    
+    v2_failed:
+        0x00 0x00 revert
+        
+    v2_success:
+}
+
+/// @notice Optimized V3 swap - inline for maximum efficiency  
+#define macro EXECUTE_V3_SWAP_INLINE() = takes (7) returns (1) {
+    // Stack: [router, poolType, tokenIn, tokenOut, fee, minAmountOut, amount]
+    
+    // === TOKEN APPROVAL - INLINE ===
+    [APPROVE_SELECTOR] 0x00 mstore
+    dup7 0x04 mstore            // spender (router)
+    dup1 0x24 mstore            // amount
+    0x01 0x00 0x44 0x00 0x00 dup6 gas call
+    pop
+    
+    // === V3 EXACT INPUT SINGLE - OPTIMIZED ===
+    [SWAP_EXACT_INPUT_SINGLE_V3] 0x00 mstore
+    
+    // ExactInputSingleParams struct - tightly packed
+    dup5 0x04 mstore            // tokenIn
+    dup4 0x24 mstore            // tokenOut
+    dup3 0x44 mstore            // fee (V3 pool fee)
+    address 0x64 mstore         // recipient (this contract)
+    timestamp 0x012c add 0x84 mstore // deadline
+    dup1 0xa4 mstore            // amountIn
+    dup4 0xc4 mstore            // amountOutMinimum
+    0x00 0xe4 mstore            // sqrtPriceLimitX96 (no limit)
+    
+    // Execute V3 swap
+    0x20 0x00 0x104 0x00 0x00 dup8 gas call
+    iszero v3_failed jumpi
+    
+    // V3 returns uint256 directly
+    0x00 mload                  // amountOut
+    
+    // Clean stack
+    swap7 pop pop pop pop pop pop pop
+    jump v3_success
+    
+    v3_failed:
+        0x00 0x00 revert
+        
+    v3_success:
+}
+
+/// @notice General loop for 4+ swaps - only used for complex routes
+#define macro EXECUTE_GENERAL_LOOP_MEV() = takes (0) returns (0) {
+    // Initialize loop variables
+    dup3                        // swapCounter = numSwaps
+    dup1                        // currentOffset = swapData offset
+    dup7                        // currentAmount = flash amount
+    
+    loop_start:
+        // Check if we have more swaps
+        dup3 iszero loop_end jumpi
+        
+        // Load swap data (6 params * 32 bytes)
+        dup2 calldataload           // router
+        dup3 0x20 add calldataload  // poolType
+        dup4 0x40 add calldataload  // tokenIn
+        dup5 0x60 add calldataload  // tokenOut
+        dup6 0x80 add calldataload  // fee
+        dup7 0xa0 add calldataload  // minOut
+        dup1                        // currentAmount
+        
+        // Execute based on pool type
+        dup6 [POOL_V3] eq loop_v3 jumpi
+        EXECUTE_V2_SWAP_INLINE()
+        jump loop_swap_done
+        
+        loop_v3:
+            EXECUTE_V3_SWAP_INLINE()
+        
+        loop_swap_done:
+        // Update loop variables
+        swap1                       // new amount on stack
+        swap3 0x01 sub              // decrement counter
+        swap2 0xc0 add              // advance offset
+        
+        // Clean swap params
+        pop pop pop pop pop pop
+        
+        jump loop_start
+    
+    loop_end:
+    // Clean loop variables
+    pop pop pop
+}
+
+/// @notice Extract profit to owner - MEV optimized
+#define macro EXTRACT_PROFIT_MEV() = takes (0) returns (0) {
+    // Get current balance of flash token
+    dup4                        // flashToken
+    [BALANCE_OF_SELECTOR] 0x00 mstore
+    address 0x04 mstore
+    0x20 0x00 0x24 0x00 0x00 dup2 gas staticcall
+    pop
+    0x00 mload                  // current balance
+    
+    dup1 iszero no_profit_mev jumpi
+    
+    // Transfer entire balance to owner (includes profit)
+    [OWNER_SLOT] sload
+    [TRANSFER_SELECTOR] 0x00 mstore
+    dup2 0x04 mstore            // to owner
+    dup2 0x24 mstore            // amount
+    0x01 0x00 0x44 0x00 0x00 dup5 gas call
+    pop
+    
+    no_profit_mev:
+        pop pop
+}
+
+/// @notice Optimized withdraw function
+#define macro WITHDRAW_OPTIMIZED() = takes (0) returns (0) {
+    [OWNER_SLOT] sload caller xor withdraw_ok jumpi
+    0x00 0x00 revert
+    
+    withdraw_ok:
+    0x04 calldataload           // token
+    
+    // Get balance and transfer in one flow
+    [BALANCE_OF_SELECTOR] 0x00 mstore
+    address 0x04 mstore
+    0x20 0x00 0x24 0x00 0x00 dup2 gas staticcall
+    pop
+    0x00 mload                  // balance
+    
+    dup1 iszero no_withdraw_opt jumpi
+    
+    [OWNER_SLOT] sload
+    [TRANSFER_SELECTOR] 0x00 mstore
+    dup2 0x04 mstore
+    dup2 0x24 mstore
+    0x01 0x00 0x44 0x00 0x00 dup5 gas call
+    
+    no_withdraw_opt:
+        pop pop pop
+        stop
+}
+
+/// @notice Constructor
+#define macro CONSTRUCTOR() = takes (0) returns (0) {
+    caller [OWNER_SLOT] sstore
+}

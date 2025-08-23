@@ -1,0 +1,44 @@
+# Signal Relay Configuration
+# Reliable relay with checksum validation for trading signals
+
+[relay]
+domain = 2
+name = "signal"
+description = "Reliable signal relay for trading strategies and alerts"
+
+[transport]
+mode = "unix_socket"
+path = "/tmp/alphapulse/signals.sock"
+use_topology = false
+
+# Will be updated to use infra/transport:
+# mode = "topology"
+# channel = "signals"
+# use_topology = true
+
+[validation]
+checksum = true         # Enable checksum validation for reliability
+audit = false          # No audit logging (not critical)
+strict = true          # Fail on validation errors
+max_message_size = 32768  # 32KB max message size
+
+[topics]
+default = "signals_all"
+available = [
+    "arbitrage_signals",
+    "trend_signals",
+    "momentum_signals",
+    "risk_signals",
+    "market_maker_signals",
+    "liquidation_signals",
+    "volume_signals"
+]
+auto_discover = false   # Don't auto-create topics
+extraction_strategy = "source_type"  # Extract from message source
+
+[performance]
+target_throughput = 100_000  # >100K messages/second
+buffer_size = 32768          # 32KB buffer
+max_connections = 100        # Limited connections for signals
+batch_size = 50             # Smaller batches for lower latency
+monitoring = true           # Enable metrics collection

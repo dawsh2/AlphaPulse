@@ -1,23 +1,23 @@
 {
   "summary": {
-    "total_messages_processed": 2547,
-    "valid_messages": 2542,
+    "total_messages_processed": 2560,
+    "valid_messages": 2555,
     "invalid_messages": 5,
-    "validation_pass_rate": 99.80369061641147,
-    "total_samples_collected": 2544
+    "validation_pass_rate": 99.8046875,
+    "total_samples_collected": 2557
   },
   "performance": {
-    "average_processing_time_ms": 0.003311854012348533,
-    "max_processing_time_ms": 0.18716789782047272,
-    "p99_processing_time_ms": 0.04137493669986725,
-    "throughput_msg_per_sec": 301945.6764312116
+    "average_processing_time_ms": 0.0017329410127331357,
+    "max_processing_time_ms": 0.04400000034365803,
+    "p99_processing_time_ms": 0.020416999177541584,
+    "throughput_msg_per_sec": 577053.6865665347
   },
   "precision_analysis": {
     "max_error": 0.0,
     "average_error": 0.0,
     "median_error": 0.0,
     "samples_with_precision_loss": 0,
-    "total_precision_measurements": 5088
+    "total_precision_measurements": 5114
   },
   "error_analysis": {
     "total_range_violations": 5,

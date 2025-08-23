@@ -1,0 +1,420 @@
+# Multi-Node Production Configuration
+# Production deployment with NUMA optimization and inter-node networking
+
+version: "1.0.0"
+metadata:
+  name: "multi-node-production"
+  description: "Production multi-node deployment with NUMA optimization"
+  environment: "production"
+  tags: ["production", "multi-node", "numa", "high-performance"]
+  created_by: "alphapulse-topology"
+
+actors:
+  polygon_collector:
+    id: "polygon_collector"
+    actor_type: "Producer"
+    inputs: []
+    outputs: ["market_data"]
+    source_id: 1
+    
+    state:
+      state_type:
+        Persistent:
+          storage_backend:
+            LocalFile:
+              base_path: "/var/lib/alphapulse/polygon_collector"
+              sync_writes: true
+          consistency_level: "Strong"
+      checkpoint_interval: "30s"
+      max_state_size: 2147483648  # 2GB
+      compression: true
+    
+    persistence:
+      enabled: true
+      recovery_strategy:
+        FromCheckpoint:
+          max_data_loss: "30s"
+      backup_retention:
+        max_backups: 10
+        retention_period: "168h"  # 7 days
+        compression: true
+    
+    resources:
+      min_memory_mb: 1024
+      max_memory_mb: 2048
+      min_cpu_cores: 2
+      max_cpu_cores: 4
+      disk_space_mb: 10240  # 10GB
+      network_bandwidth_mbps: 1000
+      gpu_required: false
+
+  binance_collector:
+    id: "binance_collector"
+    actor_type: "Producer"
+    inputs: []
+    outputs: ["market_data"]
+    source_id: 2
+    
+    state:
+      state_type:
+        Persistent:
+          storage_backend:
+            LocalFile:
+              base_path: "/var/lib/alphapulse/binance_collector"
+              sync_writes: true
+          consistency_level: "Strong"
+      checkpoint_interval: "30s"
+      max_state_size: 2147483648  # 2GB
+      compression: true
+    
+    resources:
+      min_memory_mb: 1024
+      max_memory_mb: 2048
+      min_cpu_cores: 2
+      max_cpu_cores: 4
+      disk_space_mb: 10240
+      network_bandwidth_mbps: 1000
+      gpu_required: false
+
+  flash_arbitrage:
+    id: "flash_arbitrage"
+    actor_type: "Transformer"
+    inputs: ["market_data"]
+    outputs: ["arbitrage_signals"]
+    source_id: 20
+    
+    state:
+      state_type:
+        Replicated:
+          replication_factor: 2
+          storage_backend:
+            LocalFile:
+              base_path: "/var/lib/alphapulse/flash_arbitrage"
+              sync_writes: false
+      checkpoint_interval: "10s"
+      max_state_size: 1073741824  # 1GB
+      compression: true
+    
+    persistence:
+      enabled: true
+      recovery_strategy:
+        FromCheckpoint:
+          max_data_loss: "10s"
+    
+    resources:
+      min_memory_mb: 2048
+      max_memory_mb: 4096
+      min_cpu_cores: 4
+      max_cpu_cores: 8
+      disk_space_mb: 5120
+      network_bandwidth_mbps: 1000
+      gpu_required: false
+    
+    health_check:
+      enabled: true
+      check_interval: "5s"
+      timeout: "2s"
+      failure_threshold: 2
+      recovery_threshold: 3
+      check_type:
+        ProcessingRate:
+          min_messages_per_second: 100.0
+
+  risk_monitor:
+    id: "risk_monitor"
+    actor_type: "Transformer"
+    inputs: ["arbitrage_signals"]
+    outputs: ["risk_alerts"]
+    source_id: 21
+    
+    resources:
+      min_memory_mb: 512
+      max_memory_mb: 1024
+      min_cpu_cores: 1
+      max_cpu_cores: 2
+      disk_space_mb: 2048
+      network_bandwidth_mbps: 100
+      gpu_required: false
+
+  execution_coordinator:
+    id: "execution_coordinator"
+    actor_type: "Consumer"
+    inputs: ["arbitrage_signals"]
+    source_id: 40
+    
+    state:
+      state_type:
+        Persistent:
+          storage_backend:
+            LocalFile:
+              base_path: "/var/lib/alphapulse/execution_coordinator"
+              sync_writes: true
+          consistency_level: "Strong"
+    
+    resources:
+      min_memory_mb: 512
+      max_memory_mb: 1024
+      min_cpu_cores: 1
+      max_cpu_cores: 2
+      disk_space_mb: 5120
+      network_bandwidth_mbps: 1000
+      gpu_required: false
+
+nodes:
+  data_node_01:
+    hostname: "data-01.alphapulse.internal"
+    numa_topology: [0, 1]
+    
+    local_channels:
+      market_data:
+        channel_type: "SPMC"
+        buffer_size: 536870912  # 512MB
+        numa_node: 0
+        huge_pages: true
+        priority: "RealTime"
+    
+    actor_placements:
+      polygon_collector:
+        numa: 0
+        cpu: [0, 1]
+        memory_limit_mb: 2048
+        priority:
+          RealTime:
+            policy: "FIFO"
+        isolation:
+          cpu_affinity: true
+          memory_isolation: true
+          network_namespace: null
+          cgroup: "alphapulse/data"
+      
+      binance_collector:
+        numa: 1
+        cpu: [8, 9]
+        memory_limit_mb: 2048
+        priority:
+          RealTime:
+            policy: "FIFO"
+        isolation:
+          cpu_affinity: true
+          memory_isolation: true
+          network_namespace: null
+          cgroup: "alphapulse/data"
+    
+    node_resources:
+      total_memory_mb: 32768  # 32GB
+      total_cpu_cores: 16
+      numa_nodes:
+        - id: 0
+          memory_mb: 16384
+          cpu_cores: [0, 1, 2, 3, 4, 5, 6, 7]
+          local_storage: ["/var/lib/alphapulse"]
+        - id: 1
+          memory_mb: 16384
+          cpu_cores: [8, 9, 10, 11, 12, 13, 14, 15]
+          local_storage: []
+      network_interfaces:
+        - name: "eth0"
+          bandwidth_mbps: 10000  # 10Gbps
+          mtu: 9000
+          numa_node: 0
+        - name: "eth1"
+          bandwidth_mbps: 10000  # 10Gbps (backup)
+          mtu: 9000
+          numa_node: 1
+      storage:
+        - path: "/var/lib/alphapulse"
+          device_type: "NVMe"
+          capacity_mb: 1048576  # 1TB
+          iops: 500000
+          numa_node: 0
+      gpu: null
+
+  strategy_node_01:
+    hostname: "strategy-01.alphapulse.internal"
+    numa_topology: [0, 1]
+    
+    local_channels:
+      arbitrage_signals:
+        channel_type: "MPSC"
+        buffer_size: 134217728  # 128MB
+        numa_node: 0
+        huge_pages: true
+        priority: "RealTime"
+      
+      risk_alerts:
+        channel_type: "SPMC"
+        buffer_size: 16777216  # 16MB
+        numa_node: 1
+        huge_pages: false
+        priority: "High"
+    
+    actor_placements:
+      flash_arbitrage:
+        numa: 0
+        cpu: [0, 1, 2, 3]
+        memory_limit_mb: 4096
+        priority:
+          RealTime:
+            policy: "FIFO"
+        isolation:
+          cpu_affinity: true
+          memory_isolation: true
+          network_namespace: null
+          cgroup: "alphapulse/strategy"
+      
+      risk_monitor:
+        numa: 1
+        cpu: [8, 9]
+        memory_limit_mb: 1024
+        priority: "High"
+        isolation:
+          cpu_affinity: true
+          memory_isolation: false
+          network_namespace: null
+          cgroup: "alphapulse/monitoring"
+    
+    node_resources:
+      total_memory_mb: 65536  # 64GB
+      total_cpu_cores: 16
+      numa_nodes:
+        - id: 0
+          memory_mb: 32768
+          cpu_cores: [0, 1, 2, 3, 4, 5, 6, 7]
+          local_storage: ["/var/lib/alphapulse"]
+        - id: 1
+          memory_mb: 32768
+          cpu_cores: [8, 9, 10, 11, 12, 13, 14, 15]
+          local_storage: []
+      network_interfaces:
+        - name: "eth0"
+          bandwidth_mbps: 10000
+          mtu: 9000
+          numa_node: 0
+      storage:
+        - path: "/var/lib/alphapulse"
+          device_type: "NVMe"
+          capacity_mb: 512000  # 500GB
+          iops: 500000
+          numa_node: 0
+      gpu: null
+
+  execution_node_01:
+    hostname: "execution-01.alphapulse.internal"
+    numa_topology: [0]
+    
+    actor_placements:
+      execution_coordinator:
+        numa: 0
+        cpu: [0, 1]
+        memory_limit_mb: 1024
+        priority: "High"
+        isolation:
+          cpu_affinity: true
+          memory_isolation: true
+          network_namespace: null
+          cgroup: "alphapulse/execution"
+    
+    node_resources:
+      total_memory_mb: 16384  # 16GB
+      total_cpu_cores: 8
+      numa_nodes:
+        - id: 0
+          memory_mb: 16384
+          cpu_cores: [0, 1, 2, 3, 4, 5, 6, 7]
+          local_storage: ["/var/lib/alphapulse"]
+      network_interfaces:
+        - name: "eth0"
+          bandwidth_mbps: 1000  # 1Gbps
+          mtu: 1500
+          numa_node: 0
+      storage:
+        - path: "/var/lib/alphapulse"
+          device_type: "SSD"
+          capacity_mb: 256000  # 250GB
+          iops: 50000
+          numa_node: 0
+      gpu: null
+
+inter_node:
+  routes:
+    # Data node to strategy node
+    - source_node: "data_node_01"
+      target_node: "strategy_node_01"
+      channels: ["market_data"]
+      transport_override:
+        protocol_type: "Tcp"
+        addressing:
+          method:
+            Static:
+              addresses: ["10.0.1.10:8081"]
+          timeout: "5s"
+          cache_ttl: "300s"
+        connection:
+          pool_size: 4
+          connect_timeout: "1s"
+          idle_timeout: "30s"
+          keepalive_interval: "10s"
+          max_reconnect_attempts: 3
+          backoff_strategy:
+            Exponential:
+              base: "100ms"
+              max: "5s"
+        reliability:
+          failure_detection:
+            heartbeat_interval: "5s"
+            failure_threshold: 3
+            recovery_threshold: 2
+          recovery_strategy:
+            Retry:
+              max_attempts: 3
+          circuit_breaker:
+            failure_threshold: 5
+            success_threshold: 2
+            timeout: "30s"
+            half_open_max_calls: 1
+      bandwidth_limit_mbps: 1000
+      latency_target_ms: 0.5
+    
+    # Strategy node to execution node
+    - source_node: "strategy_node_01"
+      target_node: "execution_node_01"
+      channels: ["arbitrage_signals"]
+      bandwidth_limit_mbps: 100
+      latency_target_ms: 2.0
+  
+  default_transport:
+    protocol_type: "Tcp"
+    addressing:
+      method:
+        Dns:
+          hostname: "localhost"
+          port: 8080
+      timeout: "5s"
+      cache_ttl: "300s"
+    connection:
+      pool_size: 2
+      connect_timeout: "5s"
+      idle_timeout: "60s"
+      keepalive_interval: "30s"
+      max_reconnect_attempts: 3
+      backoff_strategy:
+        Linear:
+          increment: "1s"
+    reliability:
+      failure_detection:
+        heartbeat_interval: "10s"
+        failure_threshold: 3
+        recovery_threshold: 2
+      recovery_strategy:
+        CircuitBreaker: null
+      circuit_breaker:
+        failure_threshold: 5
+        success_threshold: 2
+        timeout: "60s"
+        half_open_max_calls: 1
+  
+  service_discovery:
+    provider: "Consul"
+    endpoint: "http://consul.alphapulse.internal:8500"
+    namespace: "alphapulse"
+    ttl: "30s"

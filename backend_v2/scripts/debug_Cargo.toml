@@ -1,0 +1,11 @@
+[package]
+name = "debug_tlv"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "debug_tlv"
+path = "debug_tlv_corruption.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }

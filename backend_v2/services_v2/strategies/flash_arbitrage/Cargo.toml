@@ -1,0 +1,49 @@
+[package]
+name = "alphapulse-flash-arbitrage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Protocol dependencies
+protocol_v2 = { path = "../../../protocol_v2" }
+alphapulse-adapter-service = { path = "../../adapters" }
+alphapulse-amm = { path = "../../../libs/amm" }
+# State management - embedded for microsecond latency
+alphapulse-state-market = { path = "../../../libs/state/market" }
+alphapulse-state-core = { path = "../../../libs/state/core" }
+tokio = { workspace = true }
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+ethers-core = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+reqwest = { workspace = true }
+url = { workspace = true }
+
+# Strategy-specific dependencies
+ethers = { version = "2.0", features = ["ws", "rustls"] }
+ethers-signers = "2.0"
+rand = "0.8"
+zerocopy = "0.7"
+hex = "0.4"
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+criterion = { workspace = true }
+proptest = "1.5"
+rand = "0.8"
+hex = "0.4"
+approx = "0.5"
+test-case = "3.1"
+mockall = "0.12"
+
+
+[[bench]]
+name = "amm_math"
+harness = false

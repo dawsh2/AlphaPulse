@@ -1,0 +1,10 @@
+/// Quick test to verify enhanced opportunity detection and V3 math
+use defi_scanner::test_opportunities::OpportunityTester;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+    
+    let tester = OpportunityTester::new();
+    tester.run_tests().await
+}

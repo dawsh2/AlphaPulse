@@ -1,14 +1,14 @@
 use alphapulse_protocol::{
-    MessageHeader, MessageType, SymbolMappingMessage, TradeMessage, L2SnapshotMessage, L2DeltaMessage,
-    SymbolSequenceTracker, SequenceCheck, MAGIC_BYTE
+    // Import only what relay needs - minimal dependencies
+    MessageHeader, MESSAGE_MAGIC,
+    message_protocol::MessageHeader as NewMessageHeader,
+    // Relay should NOT process schemas - just forward bytes
 };
-use zerocopy::{AsBytes, FromBytes};
+// use zerocopy::AsBytes; // Unused
 use anyhow::{Context, Result};
 use crossbeam_channel::{bounded, Sender, Receiver};
 use dashmap::DashMap;
 use metrics::{counter, gauge, histogram};
-use parking_lot::RwLock;
-use std::collections::HashMap;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
@@ -16,8 +16,80 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::task;
 use tracing::{debug, error, info, warn};
+use thiserror::Error;
+use serde::{Deserialize, Serialize};
 
-const RELAY_BIND_PATH: &str = "/tmp/alphapulse/relay.sock";
+/// Relay-specific error types
+#[derive(Debug, Error)]
+pub enum RelayError {
+    #[error("Invalid message format: magic={magic:08x}")]
+    InvalidMagic { magic: u32 },
+    
+    #[error("Checksum mismatch: expected={expected:08x}, actual={actual:08x}")]
+    ChecksumMismatch { expected: u32, actual: u32 },
+    
+    #[error("Circuit breaker activated: queue size {size} exceeds threshold")]
+    CircuitBreakerActive { size: usize },
+    
+    #[error("Message too small: {size} bytes, minimum {minimum} bytes")]
+    MessageTooSmall { size: usize, minimum: usize },
+    
+    #[error("Socket error: {0}")]
+    SocketError(#[from] std::io::Error),
+    
+    #[error("Channel error: {0}")]
+    ChannelError(String),
+}
+
+/// Relay configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RelayConfig {
+    pub bind_path: String,
+    pub max_queue_size: usize,
+    pub circuit_breaker_threshold: usize,
+    pub validate_checksums: bool,
+    pub exchanges: Vec<String>,
+    pub message_types: Option<Vec<u8>>,  // Filter for specific message types
+    pub relay_name: Option<String>,      // For logging identification
+}
+
+/// Transport abstraction for relay - allows Unix socket or shared memory
+pub trait MessageTransport: Send + Sync {
+    fn send(&self, data: &[u8]) -> Result<(), anyhow::Error>;
+    fn receive(&self, buffer: &mut [u8]) -> Result<usize, anyhow::Error>;
+    fn flush(&self) -> Result<(), anyhow::Error>;
+}
+
+/// Unix socket transport implementation
+pub struct UnixSocketTransport {
+    stream: UnixStream,
+}
+
+impl MessageTransport for UnixSocketTransport {
+    fn send(&self, data: &[u8]) -> Result<(), anyhow::Error> {
+        use std::io::Write;
+        let mut stream = self.stream.try_clone()?;
+        stream.write_all(data)?;
+        Ok(())
+    }
+    
+    fn receive(&self, buffer: &mut [u8]) -> Result<usize, anyhow::Error> {
+        use std::io::Read;
+        let mut stream = self.stream.try_clone()?;
+        let n = stream.read(buffer)?;
+        Ok(n)
+    }
+    
+    fn flush(&self) -> Result<(), anyhow::Error> {
+        use std::io::Write;
+        let mut stream = self.stream.try_clone()?;
+        stream.flush()?;
+        Ok(())
+    }
+}
+
+const DEFAULT_RELAY_BIND_PATH: &str = "/tmp/alphapulse/relay.sock";
+const MARKET_DATA_RELAY_PATH: &str = "/tmp/alphapulse/market_data.sock";
 const MAX_QUEUE_SIZE: usize = 100000;
 const CIRCUIT_BREAKER_THRESHOLD: usize = 80000;
 
@@ -84,21 +156,91 @@ struct RelayServer {
     clients: Arc<DashMap<usize, UnixStream>>,
     sequence_tracker: Arc<SequenceTracker>,
     circuit_breaker_active: Arc<AtomicBool>,
-    l2_snapshots: Arc<DashMap<(u16, u64), Vec<u8>>>, // (exchange_id, symbol_hash) -> encoded snapshot
-    symbol_sequences: Arc<RwLock<SymbolSequenceTracker>>,
+    config: RelayConfig,
+    // Relay is a dumb pipe - no schema processing needed
 }
 
 impl RelayServer {
-    fn new() -> Self {
-        let (tx, rx) = bounded(MAX_QUEUE_SIZE);
+    /// Check if message type should be relayed based on configuration
+    fn should_relay_message(data: &[u8], allowed_types: &Option<Vec<u8>>) -> bool {
+        // If no filter specified, relay all messages
+        let Some(allowed) = allowed_types else {
+            return true;
+        };
         
-        let exchanges = vec![
-            ExchangeSocket::new("kraken"),
-            ExchangeSocket::new("coinbase"),
-            ExchangeSocket::new("binance"),
-            ExchangeSocket::new("alpaca"),
-            ExchangeSocket::new("polygon"),
-        ];
+        // Extract message type from header (byte offset 4)
+        if data.len() < 5 {
+            return false;
+        }
+        
+        let message_type = data[4];
+        allowed.contains(&message_type)
+    }
+    
+    /// Validate message format and checksum
+    fn validate_message(data: &[u8], validate_checksum: bool) -> Result<(), RelayError> {
+        let header_size = std::mem::size_of::<MessageHeader>();
+        
+        if data.len() < header_size {
+            return Err(RelayError::MessageTooSmall { 
+                size: data.len(), 
+                minimum: header_size 
+            });
+        }
+        
+        // Check magic number
+        let magic = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
+        if magic != MESSAGE_MAGIC {
+            return Err(RelayError::InvalidMagic { magic });
+        }
+        
+        // Validate checksum if enabled
+        if validate_checksum && data.len() >= header_size {
+            // Parse header to get checksum
+            if let Ok(header) = NewMessageHeader::from_bytes(&data[..header_size]) {
+                // Calculate checksum (excluding the checksum field itself)
+                // Checksum is last 4 bytes of header
+                let checksum_offset = header_size - 4;
+                let calculated = crc32fast::hash(&data[..checksum_offset]);
+                
+                if calculated != header.checksum {
+                    return Err(RelayError::ChecksumMismatch {
+                        expected: header.checksum,
+                        actual: calculated,
+                    });
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Extract message size from header for proper framing
+    /// IMPORTANT: Clients should use this same logic to parse messages from the relay!
+    /// 1. Read at least size_of::<MessageHeader>() bytes
+    /// 2. Parse header to get payload_size
+    /// 3. Read exactly (header_size + payload_size) bytes for complete message
+    /// 4. Process message, then repeat
+    pub fn get_message_size(data: &[u8]) -> Option<usize> {
+        if data.len() < std::mem::size_of::<MessageHeader>() {
+            return None;
+        }
+        
+        // Parse header to get payload size
+        let header_bytes = &data[..std::mem::size_of::<MessageHeader>()];
+        if let Ok(header) = NewMessageHeader::from_bytes(header_bytes) {
+            Some(std::mem::size_of::<MessageHeader>() + header.payload_size as usize)
+        } else {
+            None
+        }
+    }
+
+    fn new(config: RelayConfig) -> Self {
+        let (tx, rx) = bounded(config.max_queue_size);
+        
+        let exchanges = config.exchanges.iter()
+            .map(|name| ExchangeSocket::new(name))
+            .collect();
         
         Self {
             exchange_sockets: exchanges,
@@ -107,8 +249,7 @@ impl RelayServer {
             clients: Arc::new(DashMap::new()),
             sequence_tracker: Arc::new(SequenceTracker::new()),
             circuit_breaker_active: Arc::new(AtomicBool::new(false)),
-            l2_snapshots: Arc::new(DashMap::new()),
-            symbol_sequences: Arc::new(RwLock::new(SymbolSequenceTracker::new())),
+            config,
         }
     }
 
@@ -120,16 +261,17 @@ impl RelayServer {
         
         let exchange_handles = self.spawn_exchange_listeners();
         
-        let relay_handle = self.spawn_relay_listener();
+        let _relay_handle = self.spawn_relay_listener();
         
-        let broadcast_handle = self.spawn_broadcaster();
+        let _broadcast_handle = self.spawn_broadcaster();
         
-        let monitor_handle = self.spawn_monitor();
+        let _monitor_handle = self.spawn_monitor();
         
         info!("Relay server started successfully");
         info!("Listening for exchanges on: {:?}", 
             self.exchange_sockets.iter().map(|e| &e.path).collect::<Vec<_>>());
-        info!("Client connections on: {}", RELAY_BIND_PATH);
+        let relay_name = self.config.relay_name.clone().unwrap_or_else(|| "relay".to_string());
+        info!("Client connections on: {} ({})", self.config.bind_path, relay_name);
         
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
@@ -160,8 +302,8 @@ impl RelayServer {
                 tokio::fs::remove_file(&socket.path).await.ok();
             }
         }
-        if Path::new(RELAY_BIND_PATH).exists() {
-            tokio::fs::remove_file(RELAY_BIND_PATH).await.ok();
+        if Path::new(&self.config.bind_path).exists() {
+            tokio::fs::remove_file(&self.config.bind_path).await.ok();
         }
         Ok(())
     }
@@ -178,8 +320,10 @@ impl RelayServer {
             let sender = self.broadcast_sender.clone();
             let sequence_tracker = self.sequence_tracker.clone();
             let circuit_breaker = self.circuit_breaker_active.clone();
-            let l2_snapshots = self.l2_snapshots.clone();
-            let symbol_sequences = self.symbol_sequences.clone();
+            
+            let allowed_types = self.config.message_types.clone();
+            let validate_checksum = self.config.validate_checksums;
+            let circuit_breaker_threshold = self.config.circuit_breaker_threshold;
             
             let handle = task::spawn_blocking(move || {
                 Self::exchange_listener_thread(
@@ -189,8 +333,9 @@ impl RelayServer {
                     sender,
                     sequence_tracker,
                     circuit_breaker,
-                    l2_snapshots,
-                    symbol_sequences,
+                    allowed_types,
+                    validate_checksum,
+                    circuit_breaker_threshold,
                 );
             });
             
@@ -201,14 +346,15 @@ impl RelayServer {
     }
 
     fn exchange_listener_thread(
-        exchange_id: u16,
+        _exchange_id: u16,
         exchange_name: String,
         socket_path: String,
         sender: Sender<Vec<u8>>,
-        sequence_tracker: Arc<SequenceTracker>,
+        _sequence_tracker: Arc<SequenceTracker>,
         circuit_breaker: Arc<AtomicBool>,
-        l2_snapshots: Arc<DashMap<(u16, u64), Vec<u8>>>,
-        symbol_sequences: Arc<RwLock<SymbolSequenceTracker>>,
+        allowed_message_types: Option<Vec<u8>>,
+        validate_checksum: bool,
+        circuit_breaker_threshold: usize,
     ) {
         let listener = match UnixListener::bind(&socket_path) {
             Ok(l) => l,
@@ -239,170 +385,66 @@ impl RelayServer {
                             Ok(n) => {
                                 pending_data.extend_from_slice(&buffer[..n]);
                                 
-                                while pending_data.len() >= MessageHeader::SIZE {
-                                    // Always log first few bytes to diagnose magic byte issue
-                                    if pending_data[0] != MAGIC_BYTE {
-                                        error!("{} wrong magic byte! Expected 0xFE, got 0x{:02x}. First 32 bytes: {:02x?}", 
-                                            exchange_name, pending_data[0], 
-                                            &pending_data[..std::cmp::min(32, pending_data.len())]);
+                                // Process complete messages
+                                while let Some(msg_size) = Self::get_message_size(&pending_data) {
+                                    if pending_data.len() < msg_size {
+                                        break; // Wait for more data
                                     }
                                     
-                                    let header = match MessageHeader::read_from_prefix(
-                                        &pending_data[..MessageHeader::SIZE]
-                                    ) {
-                                        Some(h) => h,
-                                        None => {
-                                            error!("{} failed to parse header from bytes: {:02x?}",
-                                                exchange_name, &pending_data[..MessageHeader::SIZE]);
-                                            break;
-                                        }
-                                    };
+                                    // Extract complete message
+                                    let message_bytes = pending_data[..msg_size].to_vec();
+                                    pending_data.drain(..msg_size);
                                     
-                                    if let Err(e) = header.validate() {
-                                        error!("Invalid header from {}: {}", exchange_name, e);
-                                        // Try to resync by finding next magic byte
-                                        if let Some(pos) = pending_data[1..].iter().position(|&b| b == MAGIC_BYTE) {
-                                            warn!("{} resyncing: skipping {} bytes to next magic byte", exchange_name, pos + 1);
-                                            pending_data.drain(..pos + 1);
-                                            continue;
-                                        } else {
-                                            warn!("{} no magic byte found in buffer, clearing all {} bytes", exchange_name, pending_data.len());
-                                            pending_data.clear();
-                                            break;
-                                        }
+                                    // Check if this message type should be relayed
+                                    if !Self::should_relay_message(&message_bytes, &allowed_message_types) {
+                                        debug!("{} filtered out message type {}", exchange_name, 
+                                               if message_bytes.len() >= 5 { message_bytes[4] } else { 0 });
+                                        continue;
                                     }
                                     
-                                    let total_size = MessageHeader::SIZE + header.get_length() as usize;
-                                    
-                                    if pending_data.len() < total_size {
-                                        debug!("{} waiting for more data: have {}, need {} total ({} header + {} payload)",
-                                            exchange_name, pending_data.len(), total_size, MessageHeader::SIZE, header.get_length());
-                                        break;
-                                    }
-                                    
-                                    debug!("{} processing message type {:?}, total {} bytes", 
-                                        exchange_name, header.get_type(), total_size);
-                                    
-                                    let sequence = header.get_sequence();
-                                    sequence_tracker.validate_and_update(exchange_id, sequence);
-                                    
-                                    // Handle L2 snapshots specially
-                                    if let Ok(MessageType::L2Snapshot) = header.get_type() {
-                                        info!("{} received L2 snapshot message, size: {}", exchange_name, total_size);
-                                        match L2SnapshotMessage::decode(&pending_data[MessageHeader::SIZE..total_size]) {
-                                            Ok(snapshot) => {
-                                                let key = (exchange_id, snapshot.symbol_hash);
-                                                let encoded = pending_data[..total_size].to_vec();
-                                                l2_snapshots.insert(key, encoded.clone());
-                                                info!("Stored L2 snapshot for {}:{} (exchange_id: {}, {} bids, {} asks)", 
-                                                    exchange_name, snapshot.symbol_hash, exchange_id,
-                                                    snapshot.bids.len(), snapshot.asks.len());
-                                            }
-                                            Err(e) => {
-                                                error!("Failed to decode L2 snapshot from {}: {}", exchange_name, e);
-                                            }
-                                        }
-                                    }
-                                    
-                                    // Handle SymbolMapping messages specially - ALWAYS forward these!
-                                    if let Ok(MessageType::SymbolMapping) = header.get_type() {
-                                        info!("{} received SymbolMapping message, size: {} - FORWARDING to WS Bridge", exchange_name, total_size);
-                                        match SymbolMappingMessage::decode(&pending_data[MessageHeader::SIZE..total_size]) {
-                                            Ok(mapping) => {
-                                                info!("Decoded SymbolMapping: hash={}, symbol={}", 
-                                                    mapping.symbol_hash, mapping.symbol_string);
-                                            }
-                                            Err(e) => {
-                                                error!("Failed to decode SymbolMapping from {}: {}", exchange_name, e);
-                                            }
-                                        }
-                                        // IMMEDIATELY forward SymbolMapping messages - don't wait for general forwarding section
-                                        if !circuit_breaker.load(Ordering::Acquire) {
-                                            let message = pending_data[..total_size].to_vec();
+                                    // Validate message (magic number and optionally checksum)
+                                    match Self::validate_message(&message_bytes, validate_checksum) {
+                                        Ok(()) => {
+                                            // RELAY AS DUMB PIPE - Forward original bytes unchanged
                                             let start = Instant::now();
-                                            match sender.try_send(message) {
-                                                Ok(_) => {
-                                                    let latency_us = start.elapsed().as_micros() as f64;
-                                                    histogram!("relay.forward_latency_us").record(latency_us);
-                                                    counter!("relay.messages_forwarded").increment(1);
-                                                    info!("✅ Successfully forwarded SymbolMapping to WS Bridge");
+                                            if !circuit_breaker.load(Ordering::Acquire) {
+                                                match sender.try_send(message_bytes) {
+                                                    Ok(_) => {
+                                                        let latency_us = start.elapsed().as_micros() as f64;
+                                                        histogram!("relay.forward_latency_us").record(latency_us);
+                                                        counter!("relay.messages_forwarded").increment(1);
+                                                        debug!("✅ Forwarded message from {} in {:.2}μs", exchange_name, latency_us);
+                                                    }
+                                                    Err(e) => {
+                                                        error!("{} failed to forward message: {}", exchange_name, e);
+                                                        // Use configured circuit breaker threshold
+                        if sender.len() > circuit_breaker_threshold {
+                                                            circuit_breaker.store(true, Ordering::Release);
+                                                            warn!("Circuit breaker activated due to queue overflow");
+                                                        }
+                                                    }
                                                 }
-                                                Err(e) => {
-                                                    error!("❌ Failed to forward SymbolMapping: {}", e);
-                                                }
+                                            } else {
+                                                warn!("Circuit breaker active - dropping message from {}", exchange_name);
+                                                counter!("relay.circuit_breaker_drops").increment(1);
                                             }
                                         }
-                                    }
-                                    
-                                    // Check L2 delta sequences
-                                    if let Ok(MessageType::L2Delta) = header.get_type() {
-                                        if let Ok(delta) = L2DeltaMessage::decode(&pending_data[MessageHeader::SIZE..total_size]) {
-                                            let mut seq_tracker = symbol_sequences.write();
-                                            match seq_tracker.check_sequence(delta.symbol_hash, delta.sequence) {
-                                                SequenceCheck::Gap(gap) => {
-                                                    warn!("L2 sequence gap of {} for {}:{}", gap, exchange_id, delta.symbol_hash);
-                                                    // Send reset message to clients
-                                                    let reset_header = MessageHeader::new(MessageType::L2Reset, 10, sequence);
-                                                    let mut reset_msg = Vec::new();
-                                                    reset_msg.extend_from_slice(AsBytes::as_bytes(&reset_header));
-                                                    reset_msg.extend_from_slice(&delta.symbol_hash.to_le_bytes());
-                                                    reset_msg.extend_from_slice(&exchange_id.to_le_bytes());
-                                                    let _ = sender.try_send(reset_msg);
+                                        Err(e) => {
+                                            warn!("{} received invalid message: {}", exchange_name, e);
+                                            counter!("relay.invalid_messages").increment(1);
+                                            
+                                            // Log specific error types for monitoring
+                                            match e {
+                                                RelayError::InvalidMagic { .. } => {
+                                                    counter!("relay.invalid_magic").increment(1);
                                                 }
-                                                SequenceCheck::OutOfOrder => {
-                                                    debug!("Out of order L2 message for {}:{}", exchange_id, delta.symbol_hash);
+                                                RelayError::ChecksumMismatch { .. } => {
+                                                    counter!("relay.checksum_errors").increment(1);
                                                 }
                                                 _ => {}
                                             }
                                         }
                                     }
-                                    
-                                    if !circuit_breaker.load(Ordering::Acquire) {
-                                        let mut message = pending_data[..total_size].to_vec();
-                                        
-                                        if let Ok(MessageType::Trade) = header.get_type() {
-                                            // Set relay timestamp for latency tracking
-                                            if message.len() >= MessageHeader::SIZE + TradeMessage::SIZE {
-                                                if let Some(mut trade) = TradeMessage::read_from_prefix(&message[MessageHeader::SIZE..]) {
-                                                    trade.set_relay_timestamp();
-                                                    // Copy the updated trade back to the message
-                                                    message[MessageHeader::SIZE..MessageHeader::SIZE + TradeMessage::SIZE]
-                                                        .copy_from_slice(trade.as_bytes());
-                                                }
-                                            }
-                                            
-                                            if message.len() >= MessageHeader::SIZE + 30 {
-                                                let exchange_offset = MessageHeader::SIZE + 28;
-                                                message[exchange_offset] = (exchange_id & 0xFF) as u8;
-                                                message[exchange_offset + 1] = ((exchange_id >> 8) & 0xFF) as u8;
-                                            }
-                                        }
-                                        
-                                        let start = Instant::now();
-                                        match sender.try_send(message) {
-                                            Ok(_) => {
-                                                let latency_us = start.elapsed().as_micros() as f64;
-                                                histogram!("relay.forward_latency_us").record(latency_us);
-                                                counter!("relay.messages_forwarded").increment(1);
-                                            }
-                                            Err(e) => {
-                                                if sender.len() > CIRCUIT_BREAKER_THRESHOLD {
-                                                    warn!("Circuit breaker activated - queue size: {}", sender.len());
-                                                    circuit_breaker.store(true, Ordering::Release);
-                                                }
-                                                debug!("Failed to forward message from {}: {}", exchange_name, e);
-                                            }
-                                        }
-                                    } else {
-                                        counter!("relay.messages_dropped_circuit_breaker").increment(1);
-                                        
-                                        if sender.len() < CIRCUIT_BREAKER_THRESHOLD / 2 {
-                                            circuit_breaker.store(false, Ordering::Release);
-                                            info!("Circuit breaker deactivated");
-                                        }
-                                    }
-                                    
-                                    pending_data.drain(..total_size);
                                 }
                             }
                             Err(e) => {
@@ -421,17 +463,19 @@ impl RelayServer {
 
     fn spawn_relay_listener(&self) -> task::JoinHandle<()> {
         let clients = self.clients.clone();
+        let bind_path = self.config.bind_path.clone();
+        let relay_name = self.config.relay_name.clone().unwrap_or_else(|| "relay".to_string());
         
         task::spawn_blocking(move || {
-            let listener = match UnixListener::bind(RELAY_BIND_PATH) {
+            let listener = match UnixListener::bind(&bind_path) {
                 Ok(l) => l,
                 Err(e) => {
-                    error!("Failed to bind relay listener: {}", e);
+                    error!("Failed to bind {} listener: {}", relay_name, e);
                     return;
                 }
             };
             
-            info!("Relay listener bound at {}", RELAY_BIND_PATH);
+            info!("{} listener bound at {}", relay_name, bind_path);
             
             let mut client_id = 0usize;
             
@@ -457,15 +501,35 @@ impl RelayServer {
         
         task::spawn_blocking(move || {
             while let Ok(message) = receiver.recv() {
+                // Relay validates messages before sending - always broadcast
+                // (Invalid messages are filtered at input)
                 let mut disconnected = Vec::new();
+                
+                // CRITICAL: Send complete message with proper framing
+                // The message already contains the header with size information
+                // Clients can parse using the same get_message_size() logic
                 
                 for entry in clients.iter() {
                     let client_id = *entry.key();
-                    let mut stream = entry.value().try_clone().unwrap();
                     
+                    // Send the complete message - it's already properly framed
                     use std::io::Write;
-                    if let Err(_) = stream.write_all(&message) {
-                        disconnected.push(client_id);
+                    match entry.value().try_clone() {
+                        Ok(mut stream) => {
+                            // Set TCP_NODELAY for low latency (if applicable)
+                            // Write complete message - client will parse header for size
+                            if let Err(e) = stream.write_all(&message) {
+                                debug!("Client {} write failed: {}", client_id, e);
+                                disconnected.push(client_id);
+                            } else if let Err(e) = stream.flush() {
+                                debug!("Client {} flush failed: {}", client_id, e);
+                                disconnected.push(client_id);
+                            }
+                        }
+                        Err(e) => {
+                            error!("Failed to clone stream for client {}: {}", client_id, e);
+                            disconnected.push(client_id);
+                        }
                     }
                 }
                 
@@ -507,9 +571,59 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    info!("Starting relay server");
+    // Check environment variable to determine relay type
+    let relay_type = std::env::var("RELAY_TYPE").unwrap_or_else(|_| "market_data".to_string());
     
-    let server = RelayServer::new();
+    let config = match relay_type.as_str() {
+        "market_data" => RelayConfig {
+            bind_path: MARKET_DATA_RELAY_PATH.to_string(),
+            max_queue_size: 1_000_000,  // High throughput for market data
+            circuit_breaker_threshold: 800_000,
+            validate_checksums: false,   // Speed over validation for market data
+            message_types: Some(vec![1, 2, 3, 4, 5, 10, 11, 12]), // Market data types
+            relay_name: Some("MarketDataRelay".to_string()),
+            exchanges: vec![
+                "kraken".to_string(), "coinbase".to_string(), "binance".to_string(), 
+                "alpaca".to_string(), "polygon".to_string()
+            ],
+        },
+        "signal" => RelayConfig {
+            bind_path: "/tmp/alphapulse/signals.sock".to_string(),
+            max_queue_size: 100_000,     // Lower throughput for signals
+            circuit_breaker_threshold: 80_000,
+            validate_checksums: true,    // Validate strategy signals
+            message_types: Some(vec![20, 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36]), // Signal types
+            relay_name: Some("SignalRelay".to_string()),
+            exchanges: vec![
+                "kraken".to_string(), "coinbase".to_string(), "binance".to_string(), 
+                "alpaca".to_string(), "polygon".to_string()
+            ],
+        },
+        _ => RelayConfig {
+            bind_path: DEFAULT_RELAY_BIND_PATH.to_string(),
+            max_queue_size: MAX_QUEUE_SIZE,
+            circuit_breaker_threshold: CIRCUIT_BREAKER_THRESHOLD,
+            validate_checksums: false,
+            message_types: None, // No filtering
+            relay_name: Some("LegacyRelay".to_string()),
+            exchanges: vec![
+                "kraken".to_string(), "coinbase".to_string(), "binance".to_string(), 
+                "alpaca".to_string(), "polygon".to_string()
+            ],
+        }
+    };
+
+    info!("Starting {} at {}", 
+          config.relay_name.as_deref().unwrap_or("relay"), 
+          config.bind_path);
+    
+    if let Some(ref types) = config.message_types {
+        info!("Filtering message types: {:?}", types);
+    } else {
+        info!("No message type filtering (legacy mode)");
+    }
+    
+    let server = RelayServer::new(config);
     server.start().await?;
     
     Ok(())

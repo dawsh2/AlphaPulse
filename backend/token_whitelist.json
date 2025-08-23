@@ -1,0 +1,63 @@
+{
+  "polygon": {
+    "verified_tokens": {
+      "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": {
+        "symbol": "WETH",
+        "name": "Wrapped Ether",
+        "decimals": 18,
+        "category": "major",
+        "priority": 500
+      },
+      "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": {
+        "symbol": "USDC",
+        "name": "USD Coin",
+        "decimals": 6,
+        "category": "stablecoin",
+        "priority": 1000
+      },
+      "0xc2132d05d31c914a87c6611c10748aeb04b58e8f": {
+        "symbol": "USDT",
+        "name": "Tether USD",
+        "decimals": 6,
+        "category": "stablecoin",
+        "priority": 1000
+      },
+      "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063": {
+        "symbol": "DAI",
+        "name": "Dai Stablecoin",
+        "decimals": 18,
+        "category": "stablecoin",
+        "priority": 1000
+      },
+      "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": {
+        "symbol": "WMATIC",
+        "name": "Wrapped Matic",
+        "decimals": 18,
+        "category": "native",
+        "priority": 100
+      },
+      "0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6": {
+        "symbol": "WBTC",
+        "name": "Wrapped BTC",
+        "decimals": 8,
+        "category": "major",
+        "priority": 499
+      },
+      "0x455e53724f9266ca11607ef1e22d3f2c4c5f34b1": {
+        "symbol": "LINK",
+        "name": "ChainLink Token",
+        "decimals": 18,
+        "category": "defi",
+        "priority": 50
+      }
+    },
+    "known_fakes": {
+      "0x4c28f48448720e9000907bc2611f73022fdce1fa": {
+        "fake_symbol": "WETH",
+        "real_token": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+        "reason": "Missing core WETH functions (deposit/withdraw)",
+        "detected_date": "2025-08-17"
+      }
+    }
+  }
+}

@@ -262,7 +262,7 @@ impl InstrumentRegistry {
         
         // Polygon DEX tokens  
         let dex_tokens = vec![
-            "POL", "USDC", "USDT", "WETH", "DAI", "WBTC", "LINK", "AAVE"
+            "POL", "USDC", "USDC.e", "USDT", "WETH", "DAI", "WBTC", "LINK", "AAVE"
         ];
         
         // Register all DEX pairs
@@ -309,6 +309,7 @@ impl InstrumentRegistry {
         let polygon_tokens = vec![
             TokenConfig::new("POL", 18, "polygon", Some("0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"), false, 4),
             TokenConfig::new("USDC", 6, "polygon", Some("0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"), true, 4),
+            TokenConfig::new("USDC.e", 6, "polygon", Some("0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"), true, 4),
             TokenConfig::new("USDT", 6, "polygon", Some("0xc2132D05D31c914a87C6611C10748AEb04B58e8F"), true, 4),
             TokenConfig::new("WETH", 18, "polygon", Some("0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619"), false, 4),
             TokenConfig::new("DAI", 18, "polygon", Some("0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"), true, 4),

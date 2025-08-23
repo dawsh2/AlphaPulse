@@ -1,0 +1,282 @@
+//! Domain-specific message validation policies
+
+use crate::{RelayError, RelayResult, ValidationPolicy};
+use protocol_v2::MessageHeader;
+use tracing::{debug, warn};
+
+/// Message validator trait
+pub trait MessageValidator: Send + Sync {
+    /// Validate a message according to policy
+    fn validate(&self, header: &MessageHeader, data: &[u8]) -> RelayResult<()>;
+
+    /// Get validation policy name
+    fn policy_name(&self) -> &str;
+}
+
+/// Create validator based on policy
+pub fn create_validator(policy: &ValidationPolicy) -> Box<dyn MessageValidator> {
+    if !policy.checksum && !policy.audit {
+        // Performance mode - minimal validation
+        Box::new(PerformanceValidator::new(policy.clone()))
+    } else if policy.checksum && !policy.audit {
+        // Reliability mode - checksum validation
+        Box::new(ReliabilityValidator::new(policy.clone()))
+    } else {
+        // Security mode - full validation with audit
+        Box::new(SecurityValidator::new(policy.clone()))
+    }
+}
+
+/// Performance validator - minimal validation for maximum throughput
+struct PerformanceValidator {
+    policy: ValidationPolicy,
+}
+
+impl PerformanceValidator {
+    fn new(policy: ValidationPolicy) -> Self {
+        Self { policy }
+    }
+}
+
+impl MessageValidator for PerformanceValidator {
+    fn validate(&self, header: &MessageHeader, data: &[u8]) -> RelayResult<()> {
+        // Only validate size if configured
+        if let Some(max_size) = self.policy.max_message_size {
+            if data.len() > max_size {
+                return Err(RelayError::Validation(format!(
+                    "Message too large: {} > {}",
+                    data.len(),
+                    max_size
+                )));
+            }
+        }
+
+        // Skip checksum validation for performance
+        debug!("Performance validation passed (no checksum)");
+        Ok(())
+    }
+
+    fn policy_name(&self) -> &str {
+        "performance"
+    }
+}
+
+/// Reliability validator - checksum validation for data integrity
+struct ReliabilityValidator {
+    policy: ValidationPolicy,
+}
+
+impl ReliabilityValidator {
+    fn new(policy: ValidationPolicy) -> Self {
+        Self { policy }
+    }
+}
+
+impl MessageValidator for ReliabilityValidator {
+    fn validate(&self, header: &MessageHeader, data: &[u8]) -> RelayResult<()> {
+        // Validate size
+        if let Some(max_size) = self.policy.max_message_size {
+            if data.len() > max_size {
+                return Err(RelayError::Validation(format!(
+                    "Message too large: {} > {}",
+                    data.len(),
+                    max_size
+                )));
+            }
+        }
+
+        // Validate checksum
+        if header.checksum != 0 {
+            let calculated = crc32fast::hash(data);
+            if calculated != header.checksum {
+                return Err(RelayError::Validation(format!(
+                    "Checksum mismatch: expected {}, got {}",
+                    { header.checksum },
+                    calculated
+                )));
+            }
+            debug!("Checksum validation passed");
+        } else {
+            warn!("Message has no checksum, skipping validation");
+        }
+
+        Ok(())
+    }
+
+    fn policy_name(&self) -> &str {
+        "reliability"
+    }
+}
+
+/// Security validator - full validation with audit logging
+struct SecurityValidator {
+    policy: ValidationPolicy,
+}
+
+impl SecurityValidator {
+    fn new(policy: ValidationPolicy) -> Self {
+        Self { policy }
+    }
+
+    fn audit_log(&self, header: &MessageHeader, data: &[u8], validation_result: &RelayResult<()>) {
+        // In production, this would write to an audit log file or service
+        let status = if validation_result.is_ok() {
+            "PASS"
+        } else {
+            "FAIL"
+        };
+
+        tracing::info!(
+            target: "audit",
+            "AUDIT: Message validation {} - Domain: {}, Source: {}, Sequence: {}, Size: {} bytes",
+            status,
+            header.relay_domain,
+            header.source,
+            { header.sequence },
+            data.len()
+        );
+
+        if let Err(e) = validation_result {
+            tracing::warn!(
+                target: "audit",
+                "AUDIT: Validation failure reason: {}",
+                e
+            );
+        }
+    }
+}
+
+impl MessageValidator for SecurityValidator {
+    fn validate(&self, header: &MessageHeader, data: &[u8]) -> RelayResult<()> {
+        // Comprehensive validation
+        let mut result = Ok(());
+
+        // Validate size
+        if let Some(max_size) = self.policy.max_message_size {
+            if data.len() > max_size {
+                result = Err(RelayError::Validation(format!(
+                    "Message too large: {} > {}",
+                    data.len(),
+                    max_size
+                )));
+            }
+        }
+
+        // Validate checksum if no size error
+        if result.is_ok() {
+            if header.checksum != 0 {
+                let calculated = crc32fast::hash(data);
+                if calculated != header.checksum {
+                    result = Err(RelayError::Validation(format!(
+                        "Checksum mismatch: expected {}, got {}",
+                        { header.checksum },
+                        calculated
+                    )));
+                }
+            } else if self.policy.strict {
+                result = Err(RelayError::Validation(
+                    "Strict mode requires checksum".to_string(),
+                ));
+            }
+        }
+
+        // Validate header fields if no other errors
+        if result.is_ok() {
+            // Check for valid relay domain
+            if header.relay_domain == 0 || header.relay_domain > 3 {
+                result = Err(RelayError::Validation(format!(
+                    "Invalid relay domain: {}",
+                    header.relay_domain
+                )));
+            }
+
+            // Check for valid source type
+            if header.source == 0 || header.source > 100 {
+                result = Err(RelayError::Validation(format!(
+                    "Invalid source type: {}",
+                    header.source
+                )));
+            }
+        }
+
+        // Audit log the validation
+        if self.policy.audit {
+            self.audit_log(header, data, &result);
+        }
+
+        result
+    }
+
+    fn policy_name(&self) -> &str {
+        "security"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_performance_validator() {
+        let policy = ValidationPolicy {
+            checksum: false,
+            audit: false,
+            strict: false,
+            max_message_size: Some(1000),
+        };
+
+        let validator = PerformanceValidator::new(policy);
+
+        let header = MessageHeader {
+            magic: protocol_v2::MESSAGE_MAGIC,
+            version: 1,
+            message_type: 1,
+            relay_domain: 1,
+            source_type: 1,
+            sequence: 1,
+            timestamp_ns: 0,
+            instrument_id: 0,
+            checksum: 0,
+        };
+
+        let data = vec![0u8; 100];
+        assert!(validator.validate(&header, &data).is_ok());
+
+        let large_data = vec![0u8; 2000];
+        assert!(validator.validate(&header, &large_data).is_err());
+    }
+
+    #[test]
+    fn test_reliability_validator() {
+        let policy = ValidationPolicy {
+            checksum: true,
+            audit: false,
+            strict: false,
+            max_message_size: Some(1000),
+        };
+
+        let validator = ReliabilityValidator::new(policy);
+
+        let data = b"test message";
+        let checksum = crc32fast::hash(data);
+
+        let header = MessageHeader {
+            magic: protocol_v2::MESSAGE_MAGIC,
+            version: 1,
+            message_type: 1,
+            relay_domain: 1,
+            source_type: 1,
+            sequence: 1,
+            timestamp_ns: 0,
+            instrument_id: 0,
+            checksum,
+        };
+
+        assert!(validator.validate(&header, data).is_ok());
+
+        // Test with wrong checksum
+        let mut bad_header = header;
+        bad_header.checksum = 12345;
+        assert!(validator.validate(&bad_header, data).is_err());
+    }
+}

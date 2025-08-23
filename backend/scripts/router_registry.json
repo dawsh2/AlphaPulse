@@ -1,0 +1,22 @@
+{
+  "0x6d9e8dbb2779853db00418d4dcf96f3987cfc9d2": {
+    "router": "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
+    "dex": "QuickSwap",
+    "type": "V2"
+  },
+  "0x380615f37993b5a96adf3d443b6e0ac50a211998": {
+    "router": "0xbE75Dd16D029c6B32B7aD57A0FD9C1c20Dd2862e",
+    "dex": "Dystopia-Stable",
+    "type": "Stable"
+  },
+  "0xec15624fbb314eb05baad4ca49b7904c0cb6b645": {
+    "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+    "dex": "UniswapV3",
+    "type": "V3"
+  },
+  "0x6e7a5fafcec6bb1e78bae2a1f0b612012bf14827": {
+    "router": "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
+    "dex": "QuickSwap",
+    "type": "V2"
+  }
+}

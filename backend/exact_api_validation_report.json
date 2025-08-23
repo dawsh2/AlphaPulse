@@ -1,0 +1,76 @@
+{
+  "timestamp": 1755314051.4397051,
+  "raw_events_captured": 0,
+  "ground_truth_validations": 4,
+  "frontend_trades_captured": 84,
+  "validations_performed": 8,
+  "exact_matches": 0,
+  "close_matches": 3,
+  "significant_deviations": 5,
+  "validation_details": [
+    {
+      "match_status": "SIGNIFICANT_DEVIATION",
+      "deviations": {
+        "price": 6843.364362081347
+      },
+      "raw_tx": "ground_truth",
+      "frontend_symbol": "polygon:0x05c379e6d02cf0990c6a861643ea46da96ca36b5:USDC/UAE"
+    },
+    {
+      "match_status": "SIGNIFICANT_DEVIATION",
+      "deviations": {
+        "price": 118155.9771977588
+      },
+      "raw_tx": "ground_truth",
+      "frontend_symbol": "polygon:0xf6a637525402643b0654a54bead2cb9a83c8b498:WBTC/USDC"
+    },
+    {
+      "match_status": "SIGNIFICANT_DEVIATION",
+      "deviations": {
+        "price": 6802.352476080551
+      },
+      "raw_tx": "ground_truth",
+      "frontend_symbol": "polygon:0x05c379e6d02cf0990c6a861643ea46da96ca36b5:USDC/UAE"
+    },
+    {
+      "match_status": "CLOSE_MATCH",
+      "deviations": {
+        "price": 0.0025780993654893583
+      },
+      "raw_tx": "ground_truth",
+      "frontend_symbol": "polygon:0x6e7a5fafcec6bb1e78bae2a1f0b612012bf14827:WMATIC/USDC"
+    },
+    {
+      "match_status": "CLOSE_MATCH",
+      "deviations": {
+        "price": 0.003401003115025806
+      },
+      "raw_tx": "ground_truth",
+      "frontend_symbol": "polygon:0x6e7a5fafcec6bb1e78bae2a1f0b612012bf14827:WMATIC/USDC"
+    },
+    {
+      "match_status": "CLOSE_MATCH",
+      "deviations": {
+        "price": 0.00928938206580331
+      },
+      "raw_tx": "ground_truth",
+      "frontend_symbol": "polygon:0x55ff76bffc3cdd9d5fdbbc2ece4528ecce45047e:WMATIC/USDT"
+    },
+    {
+      "match_status": "SIGNIFICANT_DEVIATION",
+      "deviations": {
+        "price": 35.72293503683931
+      },
+      "raw_tx": "ground_truth",
+      "frontend_symbol": "polygon:0xfc067766349d0960bdc993806ea2e13fcfc03c4d:WETH/DDAO"
+    },
+    {
+      "match_status": "SIGNIFICANT_DEVIATION",
+      "deviations": {
+        "price": 35.9424546251232
+      },
+      "raw_tx": "ground_truth",
+      "frontend_symbol": "polygon:0xfc067766349d0960bdc993806ea2e13fcfc03c4d:WETH/DDAO"
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+[package]
+name = "alphapulse-adapter-service"
+version = "0.1.0"
+edition = "2021"
+authors = ["AlphaPulse Team"]
+description = "Exchange data collection and distribution adapters for AlphaPulse trading system"
+
+# Remove workspace declaration to prevent conflicts
+
+[features]
+default = []
+strict-validation = []
+metrics = ["prometheus"]
+
+[[bin]]
+name = "polygon_publisher"
+path = "src/bin/polygon_publisher.rs"
+
+[dependencies]
+# Core protocol
+protocol_v2 = { workspace = true }
+alphapulse-state-market = { workspace = true }
+async-trait = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+futures-util = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling and logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Utilities
+hex = { workspace = true }
+dashmap = { workspace = true }
+once_cell = { workspace = true }
+rust_decimal = { workspace = true }
+bytemuck = { workspace = true }
+zerocopy = { workspace = true }
+
+# HTTP client for REST fallbacks
+reqwest = { workspace = true }
+url = { workspace = true }
+
+# Web3 and Ethereum
+web3 = { workspace = true }
+ethabi = { workspace = true }
+
+# Rate limiting
+governor = { workspace = true }
+nonzero_ext = { workspace = true }
+
+# Metrics
+prometheus = { version = "0.13", optional = true }
+
+# Pool cache persistence
+memmap2 = { workspace = true }
+crc32fast = { workspace = true }
+crossbeam-channel = { workspace = true }
+chrono = { workspace = true }
+
+# Documentation enhancements
+aquamarine = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockito = "1.5"
+criterion = "0.5"
+tracing-subscriber = "0.3"
+rand = "0.8"
+rand_chacha = "0.3"
+hex-literal = "0.4"
+tempfile = "3.0"
+
+
+[[bench]]
+name = "message_processing"
+harness = false

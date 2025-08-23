@@ -1,0 +1,108 @@
+# AlphaPulse System Configuration
+
+[system]
+# Socket directory for Unix domain sockets
+socket_dir = "/tmp/alphapulse"
+
+# Log directory
+log_dir = "/tmp/alphapulse_logs"
+
+# PID file location
+pid_file = "/tmp/alphapulse_system.pids"
+
+[relays]
+# Market data relay configuration
+[relays.market_data]
+socket_path = "/tmp/alphapulse/market_data.sock"
+buffer_size = 8192
+max_connections = 100
+
+# Signal relay configuration  
+[relays.signals]
+socket_path = "/tmp/alphapulse/signals.sock"
+buffer_size = 4096
+max_connections = 50
+
+# Execution relay configuration
+[relays.execution]
+socket_path = "/tmp/alphapulse/execution.sock"
+buffer_size = 4096
+max_connections = 50
+
+[adapters]
+# Kraken collector configuration
+[adapters.kraken]
+# Use live Kraken WebSocket feed
+use_live_data = true
+websocket_url = "wss://ws.kraken.com"
+
+# Reconnection settings
+max_reconnect_attempts = 10
+reconnect_delay_ms = 5000
+
+# Subscription settings
+subscribe_to_trades = true
+subscribe_to_orderbook = false
+subscribe_to_ticker = false
+
+# Symbol pairs to track
+symbols = ["BTC/USD", "ETH/USD", "XRP/USD"]
+
+[strategies]
+# Kraken signals strategy configuration
+[strategies.kraken_signals]
+# Strategy parameters
+strategy_id = 20
+min_confidence_threshold = 60
+max_position_size_usd = 1000.0
+
+# Technical indicators
+[strategies.kraken_signals.indicators]
+sma_short_period = 10
+sma_long_period = 30
+momentum_period = 14
+volatility_window = 20
+
+# Signal thresholds
+momentum_threshold = 0.02
+volatility_threshold = 0.05
+
+[dashboard]
+# Dashboard WebSocket server configuration
+bind_address = "127.0.0.1"
+port = 8080
+max_connections = 1000
+
+# CORS settings
+enable_cors = true
+
+# Message settings
+heartbeat_interval_secs = 30
+client_buffer_size = 1000
+
+[logging]
+# Global logging configuration
+default_level = "info"
+rust_log = "alphapulse=info,warn"
+
+# Service-specific log levels
+[logging.services]
+market_data_relay = "info"
+signal_relay = "info"
+execution_relay = "info"
+kraken_collector = "info"
+kraken_strategy = "debug"
+dashboard_server = "info"
+
+[monitoring]
+# Health check settings
+health_check_interval_secs = 60
+max_failed_health_checks = 3
+
+# Performance monitoring
+enable_metrics = true
+metrics_port = 9090
+
+# Alert thresholds
+max_latency_ms = 100
+min_throughput_msg_per_sec = 100.0

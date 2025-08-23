@@ -8,7 +8,7 @@ import { WebSocketFirehose } from './components/WebSocketFirehose';
 import { TodoList } from './components/TodoList';
 import { FileExplorer } from './components/FileExplorer';
 import { AlpacaStreaming } from './components/AlpacaStreaming';
-import { DeFiArbitrage } from './components/DeFiArbitrage';
+import { DeFiArbitrageTable } from './components/DeFiArbitrageTable';
 import { useWebSocketFirehose } from './hooks/useWebSocketFirehose';
 import './styles/dashboard.css';
 
@@ -112,7 +112,7 @@ export function App() {
       case 'defi':
         return (
           <div className="tab-content defi-tab">
-            <DeFiArbitrage />
+            <DeFiArbitrageTable />
           </div>
         );
       case 'todos':

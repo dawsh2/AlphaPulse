@@ -1,0 +1,42 @@
+{
+  "capture_session": {
+    "timestamp": "2025-08-22T20:11:59.470821+00:00",
+    "duration_seconds": 30,
+    "symbols_monitored": [
+      "BTC-USD",
+      "ETH-USD",
+      "LTC-USD"
+    ]
+  },
+  "trade_data_analysis": {
+    "message_count": 447,
+    "sample_message_structure": {
+      "type": "match",
+      "trade_id": 865127782,
+      "maker_order_id": "5f4bb11b-f065-4025-ad53-2091b10ad2cf",
+      "taker_order_id": "66715b57-0167-4ae9-8b2b-75a064a923f4",
+      "side": "buy",
+      "size": "0.00004147",
+      "price": "116827.85",
+      "product_id": "BTC-USD",
+      "sequence": 110614077300,
+      "time": "2025-08-22T20:11:30.012637Z"
+    },
+    "observed_fields": [
+      "type",
+      "trade_id",
+      "maker_order_id",
+      "taker_order_id",
+      "side",
+      "size",
+      "price",
+      "product_id",
+      "sequence",
+      "time"
+    ],
+    "price_format": "str",
+    "size_format": "str",
+    "time_format": "str"
+  },
+  "l2_data_analysis": {}
+}

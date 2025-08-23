@@ -1,0 +1,162 @@
+/// @title FlashArbSpecialized - Ultra-optimized for QuickSwap->SushiSwap USDC/WETH
+/// @notice Hardcoded for maximum gas efficiency on specific route
+/// @dev No loops, no dynamic routing - pure speed
+
+// Fixed addresses for this route
+#define constant AAVE_POOL = 0x794a61358D6845594F94dc1DB02A252b5b4814aD
+#define constant USDC = 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+#define constant WETH = 0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619
+#define constant QUICKSWAP_ROUTER = 0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff
+#define constant SUSHISWAP_ROUTER = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506
+
+#define constant OWNER_SLOT = 0x00
+
+// Precomputed selectors
+#define constant EXECUTE_ARBITRAGE_SIG = 0x3cd12659
+#define constant EXECUTE_OPERATION_SIG = 0x1b11d0ff
+#define constant APPROVE_SELECTOR = 0x095ea7b3
+#define constant SWAP_SELECTOR = 0x38ed1739
+#define constant BALANCE_OF_SELECTOR = 0x70a08231
+#define constant TRANSFER_SELECTOR = 0xa9059cbb
+#define constant FLASH_LOAN_SELECTOR = 0x42b0b77c
+
+/// @notice Ultra-fast dispatcher
+#define macro MAIN() = takes (0) returns (0) {
+    0x00 calldataload 0xE0 shr
+    
+    dup1 [EXECUTE_OPERATION_SIG] eq executeOperation jumpi
+    dup1 [EXECUTE_ARBITRAGE_SIG] eq executeArbitrage jumpi
+    
+    0x00 0x00 revert
+
+    executeOperation:
+        EXECUTE_OPERATION_SPECIALIZED()
+    executeArbitrage:
+        EXECUTE_ARBITRAGE_SPECIALIZED()
+}
+
+/// @notice Hardcoded arbitrage: USDC->WETH on QuickSwap, WETH->USDC on SushiSwap
+#define macro EXECUTE_ARBITRAGE_SPECIALIZED() = takes (0) returns (0) {
+    [OWNER_SLOT] sload caller xor owner_ok jumpi
+    0x00 0x00 revert
+    
+    owner_ok:
+    // Only need: amount, minProfit
+    0x04 calldataload   // amount
+    0x24 calldataload   // minProfit
+    
+    // Build flash loan call with hardcoded params
+    [FLASH_LOAN_SELECTOR] 0x00 mstore
+    address 0x04 mstore
+    [USDC] 0x24 mstore
+    dup2 0x44 mstore           // amount
+    0x80 0x64 mstore           // params offset
+    0x00 0x84 mstore           // referralCode
+    
+    // Minimal params: just minProfit
+    0x20 0x80 mstore           // params length
+    dup1 0xa0 mstore           // minProfit
+    
+    // Execute flash loan
+    0x00 0x00 0xc0 0x00 0x00 [AAVE_POOL] gas call
+    pop pop
+    stop
+}
+
+/// @notice Hardcoded flash loan callback
+#define macro EXECUTE_OPERATION_SPECIALIZED() = takes (0) returns (0) {
+    caller [AAVE_POOL] xor aave_ok jumpi
+    0x00 0x00 revert
+    
+    aave_ok:
+    0x24 calldataload   // amount
+    0x44 calldataload   // premium
+    0xa0 calldataload   // minProfit
+    
+    // === HARDCODED ARBITRAGE SEQUENCE ===
+    
+    // 1. Approve USDC to QuickSwap
+    [APPROVE_SELECTOR] 0x00 mstore
+    [QUICKSWAP_ROUTER] 0x04 mstore
+    dup3 0x24 mstore
+    0x01 0x00 0x44 0x00 0x00 [USDC] gas call
+    pop
+    
+    // 2. Swap USDC->WETH on QuickSwap (hardcoded path)
+    [SWAP_SELECTOR] 0x00 mstore
+    dup3 0x04 mstore           // amountIn
+    0x00 0x24 mstore           // amountOutMin (calculate off-chain)
+    0x80 0x44 mstore           // path offset
+    address 0x64 mstore        // to
+    timestamp 0x012c add 0x84 mstore // deadline
+    0x02 0x80 mstore           // path length = 2
+    [USDC] 0xa0 mstore         // path[0] = USDC
+    [WETH] 0xc0 mstore         // path[1] = WETH
+    
+    0x40 0x00 0xe0 0x00 0x00 [QUICKSWAP_ROUTER] gas call
+    pop
+    0x20 mload                 // WETH amount received
+    
+    // 3. Approve WETH to SushiSwap
+    [APPROVE_SELECTOR] 0x00 mstore
+    [SUSHISWAP_ROUTER] 0x04 mstore
+    dup1 0x24 mstore
+    0x01 0x00 0x44 0x00 0x00 [WETH] gas call
+    pop
+    
+    // 4. Calculate minimum USDC out
+    dup4 dup4 add dup4 add     // amount + premium + minProfit
+    
+    // 5. Swap WETH->USDC on SushiSwap (hardcoded path)
+    [SWAP_SELECTOR] 0x00 mstore
+    dup2 0x04 mstore           // amountIn (WETH)
+    dup2 0x24 mstore           // amountOutMin
+    0x80 0x44 mstore           // path offset
+    address 0x64 mstore        // to
+    timestamp 0x012c add 0x84 mstore // deadline
+    0x02 0x80 mstore           // path length = 2
+    [WETH] 0xa0 mstore         // path[0] = WETH
+    [USDC] 0xc0 mstore         // path[1] = USDC
+    
+    0x40 0x00 0xe0 0x00 0x00 [SUSHISWAP_ROUTER] gas call
+    pop
+    
+    // 6. Approve Aave repayment
+    dup5 dup5 add              // totalDebt
+    [APPROVE_SELECTOR] 0x00 mstore
+    [AAVE_POOL] 0x04 mstore
+    dup2 0x24 mstore
+    0x01 0x00 0x44 0x00 0x00 [USDC] gas call
+    pop
+    
+    // 7. Transfer profit to owner
+    [BALANCE_OF_SELECTOR] 0x00 mstore
+    address 0x04 mstore
+    0x20 0x00 0x24 0x00 0x00 [USDC] gas staticcall
+    pop
+    0x00 mload                 // balance
+    dup1 dup7 gt profit_available jumpi
+    pop jump no_profit
+    
+    profit_available:
+        dup6 sub               // profit = balance - totalDebt
+        dup1 iszero no_profit jumpi
+        
+        [OWNER_SLOT] sload
+        [TRANSFER_SELECTOR] 0x00 mstore
+        dup2 0x04 mstore       // to owner
+        dup2 0x24 mstore       // amount
+        0x01 0x00 0x44 0x00 0x00 [USDC] gas call
+        pop
+    
+    no_profit:
+    // Clean and return
+    pop pop pop pop pop pop
+    0x01 0x00 mstore
+    0x20 0x00 return
+}
+
+/// @notice Constructor
+#define macro CONSTRUCTOR() = takes (0) returns (0) {
+    caller [OWNER_SLOT] sstore
+}

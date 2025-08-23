@@ -75,8 +75,17 @@ export interface SystemStatus {
   uptime_seconds: number;
 }
 
+export interface StatusUpdate {
+  gas_price_gwei: number;      // Current gas price in Gwei
+  gas_price_fast: number;       // Fast gas price (higher priority)
+  gas_price_instant: number;    // Instant gas price (highest priority)
+  native_price_usd: number;     // POL/MATIC price in USD
+  block_number: number;         // Current block number
+  timestamp: number;            // Timestamp in nanoseconds
+}
+
 export interface WebSocketMessage {
-  msg_type: 'trade' | 'orderbook' | 'l2_snapshot' | 'l2_delta' | 'symbol_mapping' | 'metrics' | 'system' | 'firehose' | 'subscribed';
+  msg_type: 'trade' | 'orderbook' | 'l2_snapshot' | 'l2_delta' | 'symbol_mapping' | 'metrics' | 'system' | 'firehose' | 'subscribed' | 'status_update';
   data?: any;
   streams?: Record<string, any>;
 }

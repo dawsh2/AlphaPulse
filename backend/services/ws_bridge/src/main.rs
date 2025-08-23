@@ -1,4 +1,5 @@
 use alphapulse_protocol::*;
+use alphapulse_protocol::{MARKET_DATA_RELAY_PATH, SIGNAL_RELAY_PATH};
 use zerocopy::FromBytes;
 use anyhow::{Context, Result};
 use dashmap::DashMap;
@@ -251,11 +252,10 @@ impl BridgeServer {
             let max_retry_delay = 30; // Maximum retry delay in seconds
             
             loop {
-                // Connect to relay server instead of direct exchange socket
-                let relay_socket_path = "/tmp/alphapulse/relay.sock";
-                match UnixStream::connect(relay_socket_path) {
+                // Connect to MarketDataRelay
+                match UnixStream::connect(MARKET_DATA_RELAY_PATH) {
                     Ok(mut stream) => {
-                        info!("Connected to relay server at {}", relay_socket_path);
+                        info!("Connected to MarketDataRelay at {}", MARKET_DATA_RELAY_PATH);
                         retry_count = 0; // Reset retry count on successful connection
                         
                         let mut buffer = vec![0u8; 65536];

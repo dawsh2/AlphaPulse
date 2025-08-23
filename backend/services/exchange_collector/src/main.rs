@@ -2,17 +2,24 @@ mod exchanges;
 mod instruments;
 mod unix_socket;
 mod validation;
-mod token_registry;
 mod pool_discovery;
 mod dex_registry;
 mod graph_client;
+mod connection_manager;
 
 use alphapulse_protocol::*;
+use alphapulse_protocol::{
+    SchemaTransformCache, InstrumentId, VenueId, AssetType, SourceType,
+    NewTradeMessage, InstrumentDiscoveredMessage, CachedObject, 
+    InstrumentMetadata, TokenMetadata, PoolMetadata
+};
+use connection_manager::ConnectionManager;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::signal;
 use tracing::{error, info};
+
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,7 +31,11 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    info!("Starting exchange collector service");
+    info!("Starting exchange collector service with new protocol architecture");
+
+    // Initialize the new SchemaTransformCache for bijective ID management
+    let schema_cache = Arc::new(SchemaTransformCache::new());
+    info!("✅ Initialized SchemaTransformCache for bijective instrument IDs");
 
     // TEMPORARY: Force Polygon mode for debugging
     let exchange_name = std::env::var("EXCHANGE_NAME").unwrap_or_else(|_| "polygon".to_string());
@@ -33,6 +44,10 @@ async fn main() -> Result<()> {
     
     let socket_writer = Arc::new(unix_socket::UnixSocketWriter::new(&socket_path));
     // Don't call start() - we connect TO the relay server, not create our own socket
+
+    // Schema cache handles all instrument/token caching via bijective IDs
+    let cache_stats = schema_cache.stats();
+    info!("✅ SchemaTransformCache initialized with {} instruments", cache_stats.object_count);
 
     // Placeholder for legacy signature - will be removed
     let symbol_mapper = Arc::new(parking_lot::RwLock::new(std::collections::HashMap::<String, u32>::new()));
@@ -106,25 +121,26 @@ async fn main() -> Result<()> {
             }
         }
         "polygon" => {
-            let polygon = exchanges::polygon::PolygonCollector::new(socket_writer.clone());
+            let polygon = exchanges::polygon::PolygonCollector::new_with_schema_cache(
+                socket_writer.clone(),
+                schema_cache.clone()
+            );
+            let connection_mgr = Arc::new(ConnectionManager::new());
             tokio::spawn(async move {
                 loop {
-                    match polygon.start().await {
+                    let result = connection_mgr.connect_with_backoff(|| {
+                        polygon.start()
+                    }).await;
+                    
+                    match result {
                         Ok(_) => {
-                            info!("Polygon collector disconnected, attempting immediate reconnect");
+                            info!("Polygon collector completed, will reconnect");
                         }
                         Err(e) => {
-                            let error_msg = e.to_string();
-                            error!("Polygon collector error: {}", error_msg);
-                            
-                            // Add delay for rate limiting errors
-                            if error_msg.contains("429") || error_msg.contains("Too Many Requests") {
-                                info!("Rate limited - waiting 10 seconds before reconnect");
-                                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-                            } else {
-                                // Short delay for other errors
-                                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                            }
+                            error!("Polygon collector failed after retries: {}", e);
+                            // Connection manager already handled backoff
+                            // Wait a bit before trying the whole sequence again
+                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                         }
                     }
                 }
@@ -163,3 +179,4 @@ async fn metrics_server() {
         Err(e) => error!("Failed to start metrics server: {}", e),
     }
 }
+

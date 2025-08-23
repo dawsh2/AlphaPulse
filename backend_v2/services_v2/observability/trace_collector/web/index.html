@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaPulse Message Flow Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0b0f;
+            color: #e0e6ed;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a5f, #2d5a87);
+            padding: 12px 24px;
+            border-bottom: 2px solid #3d6b99;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .subtitle {
+            color: #a8c8ec;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: #141920;
+            border-right: 1px solid #2a3441;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .main-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0f1419;
+        }
+        
+        .stats-bar {
+            background: #1a242e;
+            padding: 12px 24px;
+            border-bottom: 1px solid #2a3441;
+            display: flex;
+            gap: 30px;
+        }
+        
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .stat-value {
+            color: #4ade80;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+        
+        .flow-canvas {
+            flex: 1;
+            position: relative;
+        }
+        
+        .service-card {
+            background: #1e2732;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .service-card:hover {
+            background: #252f3c;
+            border-color: #4ade80;
+        }
+        
+        .service-title {
+            color: #f3f4f6;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .service-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.error {
+            background: #ef4444;
+        }
+        
+        .status-indicator.warning {
+            background: #f59e0b;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        
+        .metric-label {
+            color: #9ca3af;
+        }
+        
+        .metric-value {
+            color: #e5e7eb;
+            font-weight: 500;
+        }
+        
+        .trace-flow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        
+        .node {
+            fill: #1e3a5f;
+            stroke: #3d6b99;
+            stroke-width: 2;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .node:hover {
+            fill: #2d5a87;
+            stroke: #4ade80;
+        }
+        
+        .node.active {
+            fill: #4ade80;
+            stroke: #34d399;
+            animation: glow 1.5s infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { stroke-width: 2; }
+            to { stroke-width: 4; }
+        }
+        
+        .link {
+            fill: none;
+            stroke: #374151;
+            stroke-width: 2;
+            opacity: 0.6;
+        }
+        
+        .link.active {
+            stroke: #4ade80;
+            stroke-width: 3;
+            opacity: 1;
+            animation: flow 1s infinite linear;
+        }
+        
+        @keyframes flow {
+            0% { stroke-dashoffset: 0; }
+            100% { stroke-dashoffset: -20; }
+        }
+        
+        .node-label {
+            fill: #e5e7eb;
+            font-size: 12px;
+            font-weight: 600;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+        
+        .trace-popup {
+            position: absolute;
+            background: rgba(30, 55, 95, 0.95);
+            border: 1px solid #4ade80;
+            border-radius: 8px;
+            padding: 12px;
+            color: #e5e7eb;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .trace-id {
+            color: #4ade80;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #9ca3af;
+            font-size: 16px;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            background: #1e3a5f;
+            border: 1px solid #3d6b99;
+            color: #e5e7eb;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #2d5a87;
+            border-color: #4ade80;
+        }
+        
+        .btn.active {
+            background: #4ade80;
+            color: #0a0b0f;
+            border-color: #34d399;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 AlphaPulse Message Flow Visualizer</h1>
+        <div class="subtitle">Real-time distributed tracing • Polygon → Market Data Relay → Arbitrage Strategy</div>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <div class="service-card">
+                <div class="service-title">🔗 Polygon Collector</div>
+                <div class="service-status">
+                    <div class="status-indicator" id="polygon-status"></div>
+                    <span id="polygon-status-text">Connecting...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Events/sec:</span>
+                    <span class="metric-value" id="polygon-rate">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total Messages:</span>
+                    <span class="metric-value" id="polygon-total">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Avg Latency:</span>
+                    <span class="metric-value" id="polygon-latency">0ms</span>
+                </div>
+            </div>
+            
+            <div class="service-card">
+                <div class="service-title">📡 Market Data Relay</div>
+                <div class="service-status">
+                    <div class="status-indicator" id="relay-status"></div>
+                    <span id="relay-status-text">Connecting...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Consumers:</span>
+                    <span class="metric-value" id="relay-consumers">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Messages/sec:</span>
+                    <span class="metric-value" id="relay-rate">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Queue Depth:</span>
+                    <span class="metric-value" id="relay-queue">0</span>
+                </div>
+            </div>
+            
+            <div class="service-card">
+                <div class="service-title">🎯 Arbitrage Strategy</div>
+                <div class="service-status">
+                    <div class="status-indicator" id="strategy-status"></div>
+                    <span id="strategy-status-text">Connecting...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Opportunities:</span>
+                    <span class="metric-value" id="strategy-opportunities">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Success Rate:</span>
+                    <span class="metric-value" id="strategy-success">0%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total Profit:</span>
+                    <span class="metric-value" id="strategy-profit">$0.00</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-view">
+            <div class="stats-bar">
+                <div class="stat">
+                    <div class="stat-value" id="total-traces">0</div>
+                    <div class="stat-label">Active Traces</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="avg-latency">0ms</div>
+                    <div class="stat-label">Avg E2E Latency</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="messages-per-sec">0</div>
+                    <div class="stat-label">Messages/sec</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="error-rate">0%</div>
+                    <div class="stat-label">Error Rate</div>
+                </div>
+            </div>
+            
+            <div class="flow-canvas">
+                <div class="controls">
+                    <button class="btn" id="play-pause">⏸️ Pause</button>
+                    <button class="btn" id="clear-traces">🗑️ Clear</button>
+                    <button class="btn" id="export-data">📊 Export</button>
+                </div>
+                
+                <svg class="trace-flow" id="flow-svg">
+                    <!-- D3.js will render the flow visualization here -->
+                </svg>
+                
+                <div class="loading" id="loading">
+                    <div>Loading trace data...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="visualizer.js"></script>
+</body>
+</html>

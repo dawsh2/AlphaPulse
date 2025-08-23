@@ -6,59 +6,59 @@
     "test_count": 5
   },
   "throughput": {
-    "max_msg_per_sec": 1062343.9779542875,
-    "min_msg_per_sec": 76232.18560773767,
-    "average_msg_per_sec": 710671.129505041
+    "max_msg_per_sec": 1606274.5098039217,
+    "min_msg_per_sec": 81997.99418587601,
+    "average_msg_per_sec": 786920.5086180248
   },
   "latency": {
-    "average_us": 1.2411595659053072,
-    "median_us": 0.9145587682723999,
-    "p95_us": 1.5422701835632324,
-    "p99_us": 1.8328428268432617,
-    "p999_us": 2.039596438407898,
-    "min_us": 0.6239861249923706,
-    "max_us": 23347.707465291023
+    "average_us": 0.9978319479721014,
+    "median_us": 0.957999873207882,
+    "p95_us": 1.0000003385357559,
+    "p99_us": 1.1250012903474271,
+    "p999_us": 2.1659980120602995,
+    "min_us": 0.4159992386121303,
+    "max_us": 6325.209000351606
   },
   "memory": {
-    "peak_mb": 35.65625,
-    "average_mb": 27.821428571428573,
-    "min_mb": 22.96875
+    "peak_mb": 36.515625,
+    "average_mb": 28.48125,
+    "min_mb": 23.484375
   },
   "test_results": [
     {
       "name": "single_thread_performance",
       "messages": 10000,
-      "throughput": 872214.2738313093,
+      "throughput": 812345.8320421444,
       "errors": 0,
-      "duration_sec": 0.011465072631835938
+      "duration_sec": 0.012310028076171875
     },
     {
       "name": "multi_thread_performance_4",
       "messages": 50000,
-      "throughput": 1017955.8869214042,
+      "throughput": 935034.7324398312,
       "errors": 0,
-      "duration_sec": 0.0491180419921875
+      "duration_sec": 0.05347394943237305
     },
     {
       "name": "memory_stress",
       "messages": 100000,
-      "throughput": 524609.3232104664,
+      "throughput": 498949.47461835033,
       "errors": 0,
-      "duration_sec": 0.19061803817749023
+      "duration_sec": 0.20042109489440918
     },
     {
       "name": "burst_load",
       "messages": 50000,
-      "throughput": 76232.18560773767,
+      "throughput": 81997.99418587601,
       "errors": 0,
-      "duration_sec": 0.655890941619873
+      "duration_sec": 0.6097710132598877
     },
     {
       "name": "precision_under_load",
       "messages": 25000,
-      "throughput": 1062343.9779542875,
+      "throughput": 1606274.5098039217,
       "errors": 0,
-      "duration_sec": 0.023532867431640625
+      "duration_sec": 0.01556396484375
     }
   ]
 }

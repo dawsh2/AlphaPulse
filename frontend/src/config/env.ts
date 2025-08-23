@@ -4,7 +4,7 @@
 
 export const env = {
   // API endpoints
-  API_URL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
+  API_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
   WS_URL: import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws',
   
   // Feature flags

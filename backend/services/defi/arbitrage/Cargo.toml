@@ -1,0 +1,87 @@
+[package]
+name = "arbitrage"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "arbitrage-bot"
+path = "src/bin/arbitrage_bot.rs"
+
+[[bin]]
+name = "compound-arb"
+path = "src/bin/compound_arb.rs"
+
+[[bin]]
+name = "simple-arb"
+path = "src/bin/simple_arb.rs"
+
+[[bin]]
+name = "balance-check"
+path = "src/bin/balance_check.rs"
+
+[[bin]]
+name = "run-testnet-swaps"
+path = "src/bin/run_testnet_swaps.rs"
+
+[[bin]]
+name = "test-oracle"
+path = "src/bin/test_oracle.rs"
+
+[dependencies]
+# Workspace dependencies
+alphapulse-protocol.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# DeFi-specific
+ethers.workspace = true
+web3.workspace = true
+rust_decimal.workspace = true
+
+# Ethers without abigen features (not available in 2.0)
+ethers-core = "2.0"
+ethers-contract = "2.0"
+
+# Async and utilities
+futures-util.workspace = true
+futures = "0.3"
+dashmap.workspace = true
+parking_lot.workspace = true
+once_cell.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+byteorder.workspace = true
+zerocopy.workspace = true
+
+# WebSocket server dependencies
+axum = { version = "0.7", features = ["ws"] }
+tower-http = { version = "0.5", features = ["cors"] }
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# Metrics
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
+
+# Additional for unified arbitrage
+reqwest = { version = "0.12", features = ["json"] }
+hex = "0.4"
+sha3 = "0.10"
+async-trait = "0.1"
+
+# MEV protection dependencies  
+toml = "0.8"
+
+# Logging dependencies
+redis = { version = "0.25", features = ["aio", "tokio-comp"] }
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+url = "2.4"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.0"

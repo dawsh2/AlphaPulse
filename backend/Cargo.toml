@@ -1,11 +1,13 @@
 [workspace]
 members = [
     "protocol", 
-    "services/capital_arb_bot",
+    "protocol_v2",
     "services/data_writer",
     "services/exchange_collector",
     "services/relay_server",
+    "services/signal_relay",
     "services/ws_bridge",
+    "services/defi/scanner",
 ]
 resolver = "2"
 
@@ -15,6 +17,8 @@ edition = "2021"
 authors = ["AlphaPulse"]
 
 [workspace.dependencies]
+# Core dependencies
+alphapulse-protocol = { path = "protocol" }
 tokio = { version = "1.40", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 tokio-postgres = "0.7"
@@ -39,6 +43,17 @@ metrics-exporter-prometheus = "0.15"
 chrono = "0.4"
 rust_decimal = "1.37"
 rand = "0.8"
+
+# DeFi-specific dependencies
+ethers = "2.0"
+web3 = "0.19"
+
+# Additional dependencies
+crc32fast = "1.4"
+toml = "0.8"
+hex = "0.4"
+blake3 = "1.5"
+uuid = { version = "1.10", features = ["v4", "serde"] }
 
 [profile.release]
 opt-level = 3

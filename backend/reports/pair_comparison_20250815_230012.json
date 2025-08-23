@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-08-16T05:00:00Z",
+  "websocket_total": 5,
+  "dashboard_total": 3,
+  "common_pairs": 3,
+  "websocket_only": [
+    "ETH-USD",
+    "BTC-USD"
+  ],
+  "dashboard_only": [],
+  "common_pairs_list": [
+    "WMATIC/APEPE",
+    "WMATIC/USDT",
+    "DAI/LGNS"
+  ],
+  "filtering_ratio": 40.0
+}

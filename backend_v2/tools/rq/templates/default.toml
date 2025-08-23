@@ -1,0 +1,41 @@
+# Default rq configuration
+# Place this file as .rq.toml in your project root
+
+[cache]
+# Cache location (defaults to ~/.cache/rq)
+# location = "~/.cache/rq"
+max_size_mb = 500
+expire_after_days = 7
+auto_update = false
+
+[ui]
+theme = "default"
+max_suggestions = 5
+fuzzy_threshold = 0.7
+
+# Command aliases for quick access
+[aliases]
+# Add your custom aliases here
+# Example:
+# val = "similar validate"
+# ps = "find --type struct Pool"
+
+# Custom patterns for CI/CD checks
+[[patterns]]
+name = "todo_comments"
+pattern = "TODO|FIXME|HACK"
+description = "Code contains TODO comments"
+severity = "warning"
+
+[[patterns]]
+name = "console_log"
+pattern = "console\\.log|println!"
+description = "Debug output left in code"
+severity = "error"
+
+# Plugins for domain-specific functionality
+# [plugins.my_plugin]
+# enabled = true
+# path = "~/.rq/plugins/my_plugin.so"
+# [plugins.my_plugin.config]
+# option1 = "value1"

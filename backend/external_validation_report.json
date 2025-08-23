@@ -1,0 +1,26 @@
+{
+  "timestamp": 1755312898.698835,
+  "price_validations": 2,
+  "liquidity_validations": 0,
+  "results": {
+    "price_comparisons": [
+      {
+        "symbol": "WMATIC/POL",
+        "our_price": 0.21936466666666665,
+        "external_price": 0.234528,
+        "deviation_percent": 6.465468231227545,
+        "source": "CoinGecko",
+        "accuracy_level": "LOW"
+      },
+      {
+        "symbol": "WETH",
+        "our_price": 4449.654111,
+        "external_price": 4446.21,
+        "deviation_percent": 0.07746172582940962,
+        "source": "CoinGecko",
+        "accuracy_level": "HIGH"
+      }
+    ],
+    "liquidity_comparisons": []
+  }
+}

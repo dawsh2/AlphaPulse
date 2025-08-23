@@ -1,0 +1,102 @@
+[workspace]
+resolver = "2"
+members = [
+    "protocol_v2",
+    "services_v2/adapters", 
+    "services_v2/strategies/flash_arbitrage",
+    "services_v2/strategies/kraken_signals", 
+    "services_v2/dashboard/websocket_server",
+    "services_v2/observability/trace_collector",
+    "network/topology",
+    "network/transport",
+    "relays",
+    # Shared libraries
+    "libs/amm",
+    "libs/mev", 
+    "libs/state/core",
+    "libs/state/market",
+    "libs/state/execution",
+    "libs/state/portfolio",
+]
+
+exclude = ["temp_test", "tests/e2e", "tools/rq"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["AlphaPulse Team"]
+
+[workspace.dependencies]
+# Core protocol
+protocol_v2 = { path = "protocol_v2" }
+alphapulse-protocol = { path = "protocol_v2" }
+
+# Internal libs
+alphapulse-state-core = { path = "libs/state/core" }
+alphapulse-state-market = { path = "libs/state/market" }
+alphapulse-state-execution = { path = "libs/state/execution" }
+alphapulse-state-portfolio = { path = "libs/state/portfolio" }
+alphapulse-amm = { path = "libs/amm" }
+alphapulse-mev = { path = "libs/mev" }
+
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling and logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Common utilities
+hex = "0.4"
+dashmap = "6.0"
+once_cell = "1.19"
+parking_lot = "0.12"
+bincode = "1.3"
+crossbeam-channel = "0.5"
+crc32fast = "1.4"
+memmap2 = "0.9"
+zerocopy = { version = "0.7", features = ["derive"] }
+web3 = { version = "0.19", features = ["http"] }
+async-trait = "0.1"
+bytemuck = { version = "1.17", features = ["derive"] }
+ethabi = "18.0"
+governor = "0.6"
+nonzero_ext = "0.3"
+prometheus = "0.13"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Math and precision
+rust_decimal = "1.36"
+rust_decimal_macros = "1.36"
+ethers-core = "2.0"
+
+# Networking
+reqwest = { version = "0.12", features = ["json"] }
+url = "2.5"
+
+# Development dependencies
+tokio-test = "0.4"
+mockito = "1.5"
+criterion = "0.5"
+
+# Documentation enhancements
+aquamarine = "0.5"
+
+# Code navigation and discovery
+clap = { version = "4.5", features = ["derive"] }
+dirs = "5.0"
+walkdir = "2.4"
+fuzzy-matcher = "0.3"
+colored = "2.1"
+regex = "1.10"
+
+# Zero-copy serialization  
+num_enum = "0.7"

@@ -1,0 +1,46 @@
+# Market Data Relay Configuration
+# Handles market data domain messages (types 1-19)
+
+[relay]
+# Unix socket path for market data relay listener
+bind_path = "/tmp/alphapulse/market_data.sock"
+
+# Maximum queue size for message buffer
+max_queue_size = 100000
+
+# Circuit breaker threshold (activates when queue reaches this size)
+circuit_breaker_threshold = 80000
+
+# Enable checksum validation (slight performance cost)
+validate_checksums = false  # Speed priority for market data
+
+# Message type filtering - only accept market data (1-19)
+allowed_message_types = [1, 2, 3, 4, 5, 10, 11, 12]
+
+# Exchanges to listen for
+exchanges = ["kraken", "coinbase", "binance", "alpaca", "polygon"]
+
+[transport]
+# Transport type: "unix_socket" or "shared_memory" (future)
+type = "unix_socket"
+
+[monitoring]
+# Metrics port for Prometheus
+metrics_port = 9090
+
+# Log level: trace, debug, info, warn, error
+log_level = "info"
+
+[performance]
+# Performance tuning options
+buffer_size = 65536
+tcp_nodelay = true  # For TCP sockets
+
+# Development vs Production
+[profiles.development]
+validate_checksums = false
+log_level = "debug"
+
+[profiles.production]
+validate_checksums = true
+log_level = "info"

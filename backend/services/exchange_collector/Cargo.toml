@@ -7,14 +7,6 @@ edition.workspace = true
 name = "exchange-collector"
 path = "src/main.rs"
 
-[[bin]]
-name = "generate-hashes"
-path = "src/bin/generate_hashes.rs"
-
-[[bin]]
-name = "test-components"
-path = "src/bin/test_components.rs"
-
 [dependencies]
 alphapulse-protocol = { path = "../../protocol" }
 async-trait = "0.1"
@@ -38,3 +30,6 @@ chrono = { workspace = true }
 reqwest = { version = "0.11", features = ["json"] }
 rust_decimal = { workspace = true }
 rand = { workspace = true }
+uuid = { version = "1.6", features = ["v4"] }
+sha3 = "0.10"
+hex = "0.4"

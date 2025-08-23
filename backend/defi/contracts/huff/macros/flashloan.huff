@@ -1,0 +1,300 @@
+/// @title Flash Loan Macros - Optimized flash loan operations
+/// @notice Gas-optimized flash loan macros for Aave V3 and Balancer
+
+// Flash loan provider constants
+#define constant AAVE_POOL = 0x794a61358D6845594F94dc1DB02A252b5b4814aD
+#define constant BALANCER_VAULT = 0xBA12222222228d8Ba445958a75a0704d566BF2C8
+
+// Function selectors
+#define constant FLASHLOAN_SELECTOR = 0xab9c4b5d           // Aave flashLoan
+#define constant BALANCER_FLASHLOAN_SELECTOR = 0x5c19a95c  // Balancer flashLoan
+
+/// @notice Execute Aave V3 flash loan
+/// @dev Optimized flash loan request with minimal calldata preparation
+#define macro AAVE_FLASH_LOAN() = takes (2) returns (0) {
+    // Stack: [token, amount]
+    
+    0x40 mload                          // [ptr, token, amount]
+    
+    // Function selector
+    [FLASHLOAN_SELECTOR] dup2 mstore    // [ptr, token, amount]
+    
+    // receiverAddress = this
+    address 0x04 dup3 add mstore        // [ptr, token, amount]
+    
+    // Optimized memory layout for single token flash loan
+    BUILD_AAVE_SINGLE_TOKEN_CALLDATA()  // [ptr, token, amount]
+    
+    // Execute flash loan call
+    0x00 0x00 0x1e0 dup4 0x00 [AAVE_POOL] gas call // [success, ptr, token, amount]
+    
+    aave_flash_success jumpi
+    
+    // Flash loan failed - revert
+    0x00 0x00 revert
+    
+    aave_flash_success:
+        pop pop pop pop                 // []
+}
+
+/// @notice Execute Balancer flash loan (zero fees)
+/// @dev Optimized for Balancer's fee-free flash loans
+#define macro BALANCER_FLASH_LOAN() = takes (2) returns (0) {
+    // Stack: [token, amount]
+    
+    0x40 mload                          // [ptr, token, amount]
+    
+    // Function selector  
+    [BALANCER_FLASHLOAN_SELECTOR] dup2 mstore // [ptr, token, amount]
+    
+    // recipient = this
+    address 0x04 dup3 add mstore        // [ptr, token, amount]
+    
+    // Build simplified calldata for Balancer
+    BUILD_BALANCER_CALLDATA()           // [ptr, token, amount]
+    
+    // Execute flash loan call
+    0x00 0x00 0x100 dup4 0x00 [BALANCER_VAULT] gas call // [success, ptr, token, amount]
+    
+    balancer_flash_success jumpi
+    
+    // Flash loan failed - revert
+    0x00 0x00 revert
+    
+    balancer_flash_success:
+        pop pop pop pop                 // []
+}
+
+/// @notice Build optimized Aave calldata for single token
+/// @dev Minimal memory allocation for single token flash loans
+#define macro BUILD_AAVE_SINGLE_TOKEN_CALLDATA() = takes (3) returns (3) {
+    // Stack: [ptr, token, amount]
+    
+    // assets array offset (0xe0)
+    0xe0 0x24 dup3 add mstore           // [ptr, token, amount]
+    
+    // amounts array offset (0x120)
+    0x120 0x44 dup3 add mstore          // [ptr, token, amount]
+    
+    // modes array offset (0x160)  
+    0x160 0x64 dup3 add mstore          // [ptr, token, amount]
+    
+    // onBehalfOf = this
+    address 0x84 dup3 add mstore        // [ptr, token, amount]
+    
+    // params offset (0x1a0)
+    0x1a0 0xa4 dup3 add mstore          // [ptr, token, amount]
+    
+    // referralCode = 0
+    0x00 0xc4 dup3 add mstore           // [ptr, token, amount]
+    
+    // Assets array: length = 1, [token]
+    0x01 0xe0 dup3 add mstore           // [ptr, token, amount]
+    dup2 0x100 dup3 add mstore          // [ptr, token, amount]
+    
+    // Amounts array: length = 1, [amount]  
+    0x01 0x120 dup3 add mstore          // [ptr, token, amount]
+    dup1 0x140 dup3 add mstore          // [ptr, token, amount]
+    
+    // Modes array: length = 1, [0] (no debt)
+    0x01 0x160 dup3 add mstore          // [ptr, token, amount]
+    0x00 0x180 dup3 add mstore          // [ptr, token, amount]
+    
+    // Empty params
+    0x00 0x1a0 dup3 add mstore          // [ptr, token, amount]
+    
+    // Update free memory pointer
+    dup1 0x1c0 add 0x40 mstore          // [ptr, token, amount]
+}
+
+/// @notice Build optimized Balancer calldata
+/// @dev Simplified calldata for Balancer flash loans
+#define macro BUILD_BALANCER_CALLDATA() = takes (3) returns (3) {
+    // Stack: [ptr, token, amount]
+    
+    // tokens array offset (0x80)
+    0x80 0x24 dup3 add mstore           // [ptr, token, amount]
+    
+    // amounts array offset (0xc0)  
+    0xc0 0x44 dup3 add mstore           // [ptr, token, amount]
+    
+    // userData offset (0x100)
+    0x100 0x64 dup3 add mstore          // [ptr, token, amount]
+    
+    // Tokens array: length = 1, [token]
+    0x01 0x80 dup3 add mstore           // [ptr, token, amount]
+    dup2 0xa0 dup3 add mstore           // [ptr, token, amount]
+    
+    // Amounts array: length = 1, [amount]
+    0x01 0xc0 dup3 add mstore           // [ptr, token, amount]
+    dup1 0xe0 dup3 add mstore           // [ptr, token, amount]
+    
+    // Empty userData
+    0x00 0x100 dup3 add mstore          // [ptr, token, amount]
+    
+    // Update free memory pointer
+    dup1 0x120 add 0x40 mstore          // [ptr, token, amount]
+}
+
+/// @notice Multi-token flash loan for complex arbitrage
+/// @dev Supports flash loans of multiple tokens simultaneously
+#define macro MULTI_TOKEN_FLASH_LOAN() = takes (3) returns (0) {
+    // Stack: [tokens_ptr, amounts_ptr, count]
+    
+    0x40 mload                          // [ptr, tokens_ptr, amounts_ptr, count]
+    
+    // Function selector
+    [FLASHLOAN_SELECTOR] dup2 mstore    // [ptr, tokens_ptr, amounts_ptr, count]
+    
+    // receiverAddress = this
+    address 0x04 dup3 add mstore        // [ptr, tokens_ptr, amounts_ptr, count]
+    
+    // Calculate dynamic offsets based on count
+    dup1 CALCULATE_DYNAMIC_OFFSETS()    // [ptr, tokens_ptr, amounts_ptr, count]
+    
+    // Copy token and amount arrays
+    COPY_TOKEN_ARRAYS()                 // [ptr, tokens_ptr, amounts_ptr, count]
+    
+    // Build modes array (all zeros)
+    BUILD_MODES_ARRAY()                 // [ptr, tokens_ptr, amounts_ptr, count]
+    
+    // Execute multi-token flash loan
+    0x00 0x00 dup2 dup4 0x00 [AAVE_POOL] gas call // [success, ptr, tokens_ptr, amounts_ptr, count]
+    
+    multi_flash_success jumpi
+    0x00 0x00 revert
+    
+    multi_flash_success:
+        pop pop pop pop pop             // []
+}
+
+/// @notice Calculate dynamic offsets for multi-token flash loans
+/// @dev Computes memory offsets based on number of tokens
+#define macro CALCULATE_DYNAMIC_OFFSETS() = takes (4) returns (4) {
+    // Stack: [ptr, tokens_ptr, amounts_ptr, count]
+    
+    // Base offset calculation: base + count * 0x20
+    dup4 0x20 mul                       // [count*32, ptr, tokens_ptr, amounts_ptr, count]
+    
+    // assets offset = 0xe0
+    0xe0 0x24 dup4 add mstore           // [count*32, ptr, tokens_ptr, amounts_ptr, count]
+    
+    // amounts offset = 0xe0 + 0x20 + count*0x20  
+    dup1 0x100 add 0x44 dup4 add mstore // [count*32, ptr, tokens_ptr, amounts_ptr, count]
+    
+    // modes offset = amounts_offset + 0x20 + count*0x20
+    dup1 0x120 add add 0x64 dup4 add mstore // [count*32, ptr, tokens_ptr, amounts_ptr, count]
+    
+    pop                                 // [ptr, tokens_ptr, amounts_ptr, count]
+}
+
+/// @notice Copy token and amount arrays to calldata
+/// @dev Efficiently copies arrays using loops
+#define macro COPY_TOKEN_ARRAYS() = takes (4) returns (4) {
+    // Stack: [ptr, tokens_ptr, amounts_ptr, count]
+    
+    // Store array lengths
+    dup4 0xe0 dup3 add mstore           // tokens.length
+    dup4 dup4 0x20 mul 0x100 add dup4 add mstore // amounts.length
+    
+    // Copy tokens array
+    0x00                                // [i=0, ptr, tokens_ptr, amounts_ptr, count]
+    
+    copy_tokens_loop:
+        dup1 dup6 eq copy_amounts jumpi // if i == count, move to amounts
+        
+        // Copy tokens[i]
+        dup1 0x20 mul dup4 add mload    // [token, i, ptr, tokens_ptr, amounts_ptr, count]
+        dup3 0x100 add dup3 0x20 mul add mstore // Store token
+        
+        0x01 add                        // i++
+        copy_tokens_loop jump
+    
+    copy_amounts:
+        pop                             // [ptr, tokens_ptr, amounts_ptr, count]
+        dup4 0x20 mul 0x120 add dup2 add // [amounts_start, ptr, tokens_ptr, amounts_ptr, count]
+        0x00                            // [i=0, amounts_start, ptr, tokens_ptr, amounts_ptr, count]
+        
+    copy_amounts_loop:
+        dup1 dup7 eq copy_done jumpi    // if i == count, done
+        
+        // Copy amounts[i]
+        dup1 0x20 mul dup6 add mload    // [amount, i, amounts_start, ptr, tokens_ptr, amounts_ptr, count]
+        dup3 dup3 0x20 mul add mstore   // Store amount
+        
+        0x01 add                        // i++
+        copy_amounts_loop jump
+        
+    copy_done:
+        pop pop                         // [ptr, tokens_ptr, amounts_ptr, count]
+}
+
+/// @notice Build modes array (all zeros for no debt)
+/// @dev Creates modes array with all elements set to 0
+#define macro BUILD_MODES_ARRAY() = takes (4) returns (4) {
+    // Stack: [ptr, tokens_ptr, amounts_ptr, count]
+    
+    // modes array starts after amounts array
+    dup4 0x40 mul 0x140 add dup2 add    // [modes_start, ptr, tokens_ptr, amounts_ptr, count]
+    
+    // Store modes array length
+    dup5 dup2 mstore                    // [modes_start, ptr, tokens_ptr, amounts_ptr, count]
+    
+    // Fill with zeros
+    0x00                                // [i=0, modes_start, ptr, tokens_ptr, amounts_ptr, count]
+    
+    fill_modes_loop:
+        dup1 dup7 eq modes_done jumpi   // if i == count, done
+        
+        // Set modes[i] = 0
+        0x00 dup3 0x20 add dup3 0x20 mul add mstore
+        
+        0x01 add                        // i++
+        fill_modes_loop jump
+        
+    modes_done:
+        pop pop                         // [ptr, tokens_ptr, amounts_ptr, count]
+}
+
+/// @notice Smart flash loan provider selection
+/// @dev Automatically selects cheapest flash loan provider
+#define macro SMART_FLASH_LOAN() = takes (2) returns (0) {
+    // Stack: [token, amount]
+    
+    // Check if Balancer has liquidity (fee-free)
+    dup2 dup2 CHECK_BALANCER_LIQUIDITY() // [has_liquidity, token, amount]
+    
+    balancer_available jumpi
+    
+    // Use Aave if Balancer unavailable
+    AAVE_FLASH_LOAN()                   // [token, amount] -> []
+    
+    balancer_available:
+        pop                             // [token, amount]
+        BALANCER_FLASH_LOAN()           // [token, amount] -> []
+}
+
+/// @notice Check Balancer vault liquidity
+/// @dev Verifies if Balancer has sufficient token liquidity
+#define macro CHECK_BALANCER_LIQUIDITY() = takes (2) returns (1) {
+    // Stack: [token, amount]
+    
+    // Get Balancer vault balance for token
+    0x40 mload                          // [ptr, token, amount]
+    0x70a0823100000000000000000000000000000000000000000000000000000000 // balanceOf selector
+    dup2 mstore                         // [ptr, token, amount]
+    
+    [BALANCER_VAULT] 0x04 dup3 add mstore // [ptr, token, amount]
+    
+    // Check balance
+    0x20 dup2 0x24 dup4 dup7 gas staticcall // [success, ptr, token, amount]
+    
+    balance_check_success jumpi
+    0x00 swap3 pop pop pop              // [false]
+    
+    balance_check_success:
+        mload                           // [balance, token, amount]
+        dup3 dup2 lt                    // [insufficient, balance, token, amount]
+        iszero                          // [sufficient, balance, token, amount]
+        swap3 pop pop pop               // [sufficient]
+}

@@ -1,0 +1,152 @@
+[
+  {
+    "type": "update",
+    "eventId": 36902233362,
+    "socket_sequence": 661,
+    "events": [
+      {
+        "type": "trade",
+        "tid": 36902233362,
+        "price": "23570.44",
+        "amount": "0.0009",
+        "makerSide": "ask",
+        "timestampms": 1629464726493
+      }
+    ]
+  },
+  {
+    "type": "update",
+    "eventId": 36902233363,
+    "socket_sequence": 662,
+    "events": [
+      {
+        "type": "trade",
+        "tid": 36902233363,
+        "price": "23571.00",
+        "amount": "0.05",
+        "makerSide": "bid",
+        "timestampms": 1629464726500
+      }
+    ]
+  },
+  {
+    "type": "update",
+    "eventId": 36902233364,
+    "socket_sequence": 663,
+    "events": [
+      {
+        "type": "trade",
+        "tid": 36902233364,
+        "price": "23569.99",
+        "amount": "1.25",
+        "makerSide": "ask",
+        "timestampms": 1629464726510
+      }
+    ]
+  },
+  {
+    "type": "update",
+    "eventId": 36902233365,
+    "socket_sequence": 664,
+    "events": [
+      {
+        "type": "trade",
+        "tid": 36902233365,
+        "price": "23572.12",
+        "amount": "0.00001",
+        "makerSide": "bid",
+        "timestampms": 1629464726520
+      }
+    ]
+  },
+  {
+    "type": "update",
+    "eventId": 36902233366,
+    "socket_sequence": 665,
+    "events": [
+      {
+        "type": "trade",
+        "tid": 36902233366,
+        "price": "50000.00",
+        "amount": "10.0",
+        "makerSide": "ask",
+        "timestampms": 1629464726530
+      }
+    ]
+  },
+  {
+    "type": "update",
+    "eventId": 36902233367,
+    "socket_sequence": 666,
+    "events": [
+      {
+        "type": "trade",
+        "tid": 36902233367,
+        "price": "4123.456789",
+        "amount": "0.123456789",
+        "makerSide": "bid",
+        "timestampms": 1629464726540
+      }
+    ]
+  },
+  {
+    "type": "update",
+    "eventId": 36902233368,
+    "socket_sequence": 667,
+    "events": [
+      {
+        "type": "trade",
+        "tid": 36902233368,
+        "price": "1.99",
+        "amount": "1000.0",
+        "makerSide": "ask",
+        "timestampms": 1629464726550
+      }
+    ]
+  },
+  {
+    "type": "update",
+    "eventId": 36902233369,
+    "socket_sequence": 668,
+    "events": [
+      {
+        "type": "trade",
+        "tid": 36902233369,
+        "price": "100000.01",
+        "amount": "0.001",
+        "makerSide": "bid",
+        "timestampms": 1629464726560
+      }
+    ]
+  },
+  {
+    "type": "update",
+    "eventId": 36902233370,
+    "socket_sequence": 669,
+    "events": [
+      {
+        "type": "trade",
+        "tid": 36902233370,
+        "price": "2500.125",
+        "amount": "5.5",
+        "makerSide": "ask",
+        "timestampms": 1629464726570
+      }
+    ]
+  },
+  {
+    "type": "update",
+    "eventId": 36902233371,
+    "socket_sequence": 670,
+    "events": [
+      {
+        "type": "trade",
+        "tid": 36902233371,
+        "price": "75000.999",
+        "amount": "0.0001",
+        "makerSide": "bid",
+        "timestampms": 1629464726580
+      }
+    ]
+  }
+]

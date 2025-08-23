@@ -1,0 +1,359 @@
+/// @title FlashLoanArbitrageOptimized - Gas-optimized Huff implementation
+/// @notice Implements optimizations from MEV Yul/Huff article
+/// @dev Focuses on: memory layout, approval caching, stack efficiency
+
+// Interface definitions
+#define function executeArbitrage(uint256,address,address,address,uint256) nonpayable returns ()
+#define function executeOperation(address,uint256,uint256,address,bytes) nonpayable returns (bool)
+#define function withdraw(address) nonpayable returns ()
+
+// Constants - packed for efficiency
+#define constant AAVE_POOL = 0x794a61358D6845594F94dc1DB02A252b5b4814aD
+#define constant USDC = 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+
+// Storage layout - optimized packing
+#define constant OWNER_SLOT = 0x00
+#define constant APPROVAL_CACHE_SLOT = 0x01  // Cache approval states
+
+// Function selectors - pre-calculated
+#define constant APPROVE_SELECTOR = 0x095ea7b3
+#define constant SWAP_SELECTOR = 0x38ed1739
+#define constant BALANCE_OF_SELECTOR = 0x70a08231
+#define constant TRANSFER_SELECTOR = 0xa9059cbb
+#define constant FLASH_LOAN_SELECTOR = 0x42b0b77c
+
+// Memory layout - fixed positions to avoid mload overhead
+#define constant MEMORY_SCRATCH = 0x00     // Scratch space for calls
+#define constant MEMORY_PATH = 0x80        // Path array location
+#define constant MEMORY_PARAMS = 0x100     // Parameters encoding
+
+/// @notice Optimized main dispatcher using jump table
+#define macro MAIN() = takes (0) returns (0) {
+    // Load function selector once
+    0x00 calldataload 0xE0 shr
+    
+    // Optimized jump table - most common functions first
+    dup1 __FUNC_SIG(executeOperation) eq executeOperation jumpi
+    dup1 __FUNC_SIG(executeArbitrage) eq executeArbitrage jumpi  
+    dup1 __FUNC_SIG(withdraw) eq withdraw jumpi
+
+    // Invalid function - revert with specific error
+    0x08c379a000000000000000000000000000000000000000000000000000000000 0x00 mstore
+    0x20 0x00 revert
+
+    executeOperation:
+        EXECUTE_OPERATION_OPTIMIZED()
+    executeArbitrage:
+        EXECUTE_ARBITRAGE_OPTIMIZED()
+    withdraw:
+        WITHDRAW_OPTIMIZED()
+}
+
+/// @notice Optimized arbitrage execution with minimal stack operations
+#define macro EXECUTE_ARBITRAGE_OPTIMIZED() = takes (0) returns (0) {
+    // Owner check with early exit
+    [OWNER_SLOT] sload caller xor iszero owner_ok jumpi
+    REVERT_UNAUTHORIZED()
+    
+    owner_ok:
+    // Load all parameters at once to minimize calldata access
+    0x04 calldataload   // amount
+    0x24 calldataload   // buyRouter
+    0x44 calldataload   // sellRouter  
+    0x64 calldataload   // tokenB
+    0x84 calldataload   // minProfit
+    
+    // Encode parameters efficiently at fixed memory location
+    ENCODE_PARAMS_OPTIMIZED()
+    
+    // Execute flash loan with pre-built call data
+    FLASH_LOAN_OPTIMIZED()
+    
+    stop
+}
+
+/// @notice Highly optimized flash loan callback
+#define macro EXECUTE_OPERATION_OPTIMIZED() = takes (0) returns (0) {
+    // Efficient caller verification
+    caller [AAVE_POOL] xor iszero aave_ok jumpi
+    REVERT_UNAUTHORIZED()
+    
+    aave_ok:
+    // Load critical parameters efficiently
+    0x24 calldataload   // amount
+    0x44 calldataload   // premium
+    
+    // Decode parameters from fixed memory location
+    DECODE_PARAMS_OPTIMIZED()
+    
+    // Execute arbitrage sequence with minimal stack operations
+    ARBITRAGE_SEQUENCE_OPTIMIZED()
+    
+    // Return true efficiently
+    0x01 0x00 mstore
+    0x20 0x00 return
+}
+
+/// @notice Optimized parameter encoding with fixed memory layout
+#define macro ENCODE_PARAMS_OPTIMIZED() = takes (5) returns (0) {
+    // Stack: [amount, buyRouter, sellRouter, tokenB, minProfit]
+    // Use fixed memory positions to avoid memory pointer management
+    
+    dup2 [MEMORY_PARAMS] mstore           // buyRouter at 0x100
+    dup3 [MEMORY_PARAMS] 0x20 add mstore  // sellRouter at 0x120
+    [USDC] [MEMORY_PARAMS] 0x40 add mstore // tokenA at 0x140
+    dup4 [MEMORY_PARAMS] 0x60 add mstore  // tokenB at 0x160
+    dup5 [MEMORY_PARAMS] 0x80 add mstore  // minProfit at 0x180
+    
+    // Clean stack
+    pop pop pop pop pop
+}
+
+/// @notice Decode parameters with minimal operations
+#define macro DECODE_PARAMS_OPTIMIZED() = takes (0) returns (5) {
+    // Load from fixed memory positions
+    [MEMORY_PARAMS] mload           // buyRouter
+    [MEMORY_PARAMS] 0x20 add mload  // sellRouter
+    [MEMORY_PARAMS] 0x40 add mload  // tokenA (USDC)
+    [MEMORY_PARAMS] 0x60 add mload  // tokenB
+    [MEMORY_PARAMS] 0x80 add mload  // minProfit
+}
+
+/// @notice Optimized arbitrage sequence with approval caching
+#define macro ARBITRAGE_SEQUENCE_OPTIMIZED() = takes (7) returns (0) {
+    // Stack: [amount, premium, buyRouter, sellRouter, tokenA, tokenB, minProfit]
+    
+    // Step 1: Cached approval for USDC -> buyRouter
+    dup5 dup3 dup8 CACHED_APPROVE()
+    
+    // Step 2: Optimized swap USDC -> tokenB
+    dup8 dup3 dup6 dup4 OPTIMIZED_SWAP() // Returns tokenB received
+    
+    // Step 3: Cached approval for tokenB -> sellRouter  
+    dup3 dup5 dup1 CACHED_APPROVE()
+    
+    // Step 4: Calculate minimum out and swap back
+    dup8 dup8 add dup3 add  // minOut = amount + premium + minProfit
+    dup1 dup6 dup4 dup7 OPTIMIZED_SWAP()
+    
+    // Step 5: Final approval and profit transfer
+    dup9 dup9 add           // totalDebt
+    dup8 [AAVE_POOL] dup2 CACHED_APPROVE()
+    
+    TRANSFER_PROFIT_OPTIMIZED()
+    
+    // Clean stack
+    pop pop pop pop pop pop pop
+}
+
+/// @notice Approval with caching to avoid redundant operations
+#define macro CACHED_APPROVE() = takes (3) returns (0) {
+    // Stack: [token, spender, amount]
+    
+    // Generate cache key: keccak256(token, spender)
+    dup2 0x00 mstore
+    dup3 0x20 mstore
+    0x40 0x00 sha3
+    
+    // Check if already approved for this amount
+    dup1 [APPROVAL_CACHE_SLOT] add sload
+    dup4 eq already_approved jumpi
+    
+    // Need to approve - use optimized call
+    OPTIMIZED_APPROVE()
+    
+    // Cache the approval
+    dup4 dup2 [APPROVAL_CACHE_SLOT] add sstore
+    
+    already_approved:
+        pop pop pop pop
+}
+
+/// @notice Optimized approval with minimal call overhead
+#define macro OPTIMIZED_APPROVE() = takes (3) returns (0) {
+    // Stack: [token, spender, amount]
+    
+    // Build call data at scratch space
+    [APPROVE_SELECTOR] [MEMORY_SCRATCH] mstore
+    dup2 [MEMORY_SCRATCH] 0x04 add mstore
+    dup1 [MEMORY_SCRATCH] 0x24 add mstore
+
+    // Optimized call with minimal return data handling
+    0x01 [MEMORY_SCRATCH] 0x44 [MEMORY_SCRATCH] 0x00 dup6 gas call
+    iszero approve_fail jumpi
+    
+    pop pop pop
+    jump approve_success
+    
+    approve_fail:
+        REVERT_APPROVE_FAILED()
+    approve_success:
+}
+
+/// @notice Optimized swap with pre-built path array
+#define macro OPTIMIZED_SWAP() = takes (4) returns (1) {
+    // Stack: [amountIn, router, tokenIn, tokenOut]
+    
+    // Pre-build path array at fixed location
+    0x02 [MEMORY_PATH] mstore
+    dup3 [MEMORY_PATH] 0x20 add mstore
+    dup3 [MEMORY_PATH] 0x40 add mstore
+    
+    // Build swap call data efficiently
+    [SWAP_SELECTOR] [MEMORY_SCRATCH] mstore
+    dup4 [MEMORY_SCRATCH] 0x04 add mstore    // amountIn
+    0x00 [MEMORY_SCRATCH] 0x24 add mstore    // amountOutMin = 0 (calculated off-chain)
+    0x60 [MEMORY_SCRATCH] 0x44 add mstore    // path offset
+    address [MEMORY_SCRATCH] 0x64 add mstore // to
+    timestamp 0x012c add [MEMORY_SCRATCH] 0x84 add mstore // deadline
+    
+    // Execute swap with optimized return handling
+    0x40 [MEMORY_SCRATCH] 0xa4 [MEMORY_SCRATCH] 0x00 dup3 gas call
+    iszero swap_fail jumpi
+    
+    // Extract amount from return data (last element)
+    [MEMORY_SCRATCH] mload      // array length
+    0x01 sub 0x20 mul           // offset to last element
+    [MEMORY_SCRATCH] 0x20 add add mload  // load amount
+    
+    // Clean stack and return amount
+    swap4 pop pop pop pop
+    jump swap_success
+    
+    swap_fail:
+        REVERT_SWAP_FAILED()
+    swap_success:
+}
+
+/// @notice Flash loan with pre-built call data
+#define macro FLASH_LOAN_OPTIMIZED() = takes (0) returns (0) {
+    // Build call data at scratch space
+    [FLASH_LOAN_SELECTOR] [MEMORY_SCRATCH] mstore
+    address [MEMORY_SCRATCH] 0x04 add mstore
+    [USDC] [MEMORY_SCRATCH] 0x24 add mstore
+    0x04 calldataload [MEMORY_SCRATCH] 0x44 add mstore  // amount
+    0xa0 [MEMORY_SCRATCH] 0x64 add mstore              // params offset
+    0x00 [MEMORY_SCRATCH] 0x84 add mstore              // referralCode
+    
+    // Add params (already encoded at MEMORY_PARAMS)
+    0xa0 [MEMORY_SCRATCH] 0xa0 add mstore              // params length
+    
+    // Execute flash loan
+    0x00 [MEMORY_SCRATCH] 0x140 [MEMORY_SCRATCH] 0x00 [AAVE_POOL] gas call
+    iszero flash_fail jumpi
+    jump flash_success
+    
+    flash_fail:
+        REVERT_FLASH_FAILED()
+    flash_success:
+}
+
+/// @notice Optimized profit transfer
+#define macro TRANSFER_PROFIT_OPTIMIZED() = takes (0) returns (0) {
+    // Get balance efficiently
+    [BALANCE_OF_SELECTOR] [MEMORY_SCRATCH] mstore
+    address [MEMORY_SCRATCH] 0x04 add mstore
+    
+    0x20 [MEMORY_SCRATCH] 0x24 [MEMORY_SCRATCH] 0x00 [USDC] gas staticcall
+    iszero balance_fail jumpi
+    
+    [MEMORY_SCRATCH] mload  // balance
+    dup1 iszero no_profit jumpi
+    
+    // Transfer to owner
+    [OWNER_SLOT] sload
+    [USDC] dup2 dup3 OPTIMIZED_TRANSFER()
+    
+    no_profit:
+        pop
+    jump profit_done
+    
+    balance_fail:
+        REVERT_BALANCE_FAILED()
+    profit_done:
+}
+
+/// @notice Optimized token transfer
+#define macro OPTIMIZED_TRANSFER() = takes (3) returns (0) {
+    // Stack: [token, to, amount]
+    [TRANSFER_SELECTOR] [MEMORY_SCRATCH] mstore
+    dup2 [MEMORY_SCRATCH] 0x04 add mstore
+    dup1 [MEMORY_SCRATCH] 0x24 add mstore
+    
+    0x01 [MEMORY_SCRATCH] 0x44 [MEMORY_SCRATCH] 0x00 dup4 gas call
+    iszero transfer_fail jumpi
+    
+    pop pop pop
+    jump transfer_success
+    
+    transfer_fail:
+        REVERT_TRANSFER_FAILED()
+    transfer_success:
+}
+
+/// @notice Optimized withdraw
+#define macro WITHDRAW_OPTIMIZED() = takes (0) returns (0) {
+    [OWNER_SLOT] sload caller xor iszero withdraw_ok jumpi
+    REVERT_UNAUTHORIZED()
+    
+    withdraw_ok:
+        0x04 calldataload [USDC] address OPTIMIZED_BALANCE()
+        dup1 iszero no_withdraw jumpi
+        [OWNER_SLOT] sload [USDC] dup2 dup3 OPTIMIZED_TRANSFER()
+    
+    no_withdraw:
+        pop stop
+}
+
+/// @notice Get token balance optimized
+#define macro OPTIMIZED_BALANCE() = takes (2) returns (1) {
+    // Stack: [token, account]
+    [BALANCE_OF_SELECTOR] [MEMORY_SCRATCH] mstore
+    dup1 [MEMORY_SCRATCH] 0x04 add mstore
+    
+    0x20 [MEMORY_SCRATCH] 0x24 [MEMORY_SCRATCH] 0x00 dup3 gas staticcall
+    iszero balance_fail_2 jumpi
+    [MEMORY_SCRATCH] mload
+    swap2 pop pop
+    jump balance_success_2
+    
+    balance_fail_2:
+        REVERT_BALANCE_FAILED()
+    balance_success_2:
+}
+
+/// @notice Efficient error handling with specific revert reasons
+#define macro REVERT_UNAUTHORIZED() = takes (0) returns (0) {
+    0x82b4290000000000000000000000000000000000000000000000000000000000 0x00 mstore
+    0x04 0x00 revert
+}
+
+#define macro REVERT_APPROVE_FAILED() = takes (0) returns (0) {
+    0x8c379a000000000000000000000000000000000000000000000000000000000 0x00 mstore
+    0x04 0x00 revert
+}
+
+#define macro REVERT_SWAP_FAILED() = takes (0) returns (0) {
+    0x8c379a100000000000000000000000000000000000000000000000000000000 0x00 mstore
+    0x04 0x00 revert
+}
+
+#define macro REVERT_FLASH_FAILED() = takes (0) returns (0) {
+    0x8c379a200000000000000000000000000000000000000000000000000000000 0x00 mstore
+    0x04 0x00 revert
+}
+
+#define macro REVERT_BALANCE_FAILED() = takes (0) returns (0) {
+    0x8c379a300000000000000000000000000000000000000000000000000000000 0x00 mstore
+    0x04 0x00 revert
+}
+
+#define macro REVERT_TRANSFER_FAILED() = takes (0) returns (0) {
+    0x8c379a400000000000000000000000000000000000000000000000000000000 0x00 mstore
+    0x04 0x00 revert
+}
+
+/// @notice Constructor
+#define macro CONSTRUCTOR() = takes (0) returns (0) {
+    caller [OWNER_SLOT] sstore
+}

@@ -1,0 +1,97 @@
+{
+  "timestamp": 1755313695.9372811,
+  "total_cases_analyzed": 169,
+  "preservation_issues": {
+    "decimal_adjustment_issues": 5,
+    "price_anomalies": 5,
+    "stablecoin_issues": 23
+  },
+  "issue_examples": [
+    {
+      "symbol": "polygon:0x55ff76bffc3cdd9d5fdbbc2ece4528ecce45047e:WMATIC/USDT",
+      "price": 0.23319662,
+      "issues": [
+        "Stablecoin price far from $1.00"
+      ],
+      "pool": "0x55ff76bf"
+    },
+    {
+      "symbol": "polygon:0x55ff76bffc3cdd9d5fdbbc2ece4528ecce45047e:WMATIC/USDT",
+      "price": 0.2338797,
+      "issues": [
+        "Stablecoin price far from $1.00"
+      ],
+      "pool": "0x55ff76bf"
+    },
+    {
+      "symbol": "polygon:0x604229c960e5cacf2aaeac8be68ac07ba9df81c3:WMATIC/USDT",
+      "price": 0.23281267,
+      "issues": [
+        "Stablecoin price far from $1.00"
+      ],
+      "pool": "0x604229c9"
+    },
+    {
+      "symbol": "polygon:0x6d9e8dbb2779853db00418d4dcf96f3987cfc9d2:WMATIC/USDC",
+      "price": 0.22155551,
+      "issues": [
+        "Stablecoin price far from $1.00"
+      ],
+      "pool": "0x6d9e8dbb"
+    },
+    {
+      "symbol": "polygon:0x604229c960e5cacf2aaeac8be68ac07ba9df81c3:WMATIC/USDT",
+      "price": 0.23281053,
+      "issues": [
+        "Stablecoin price far from $1.00"
+      ],
+      "pool": "0x604229c9"
+    },
+    {
+      "symbol": "polygon:0x6d9e8dbb2779853db00418d4dcf96f3987cfc9d2:WMATIC/USDC",
+      "price": 0.21935159,
+      "issues": [
+        "Stablecoin price far from $1.00"
+      ],
+      "pool": "0x6d9e8dbb"
+    },
+    {
+      "symbol": "polygon:0xd1bb165d4d611a38e8dfe1f332acf2b6fe250302:USDC/YAPP",
+      "price": 33484.16930205,
+      "issues": [
+        "Stablecoin price far from $1.00"
+      ],
+      "pool": "0xd1bb165d"
+    },
+    {
+      "symbol": "polygon:0x55ff76bffc3cdd9d5fdbbc2ece4528ecce45047e:WMATIC/USDT",
+      "price": 0.23303632,
+      "issues": [
+        "Stablecoin price far from $1.00"
+      ],
+      "pool": "0x55ff76bf"
+    },
+    {
+      "symbol": "polygon:0x604229c960e5cacf2aaeac8be68ac07ba9df81c3:WMATIC/USDT",
+      "price": 0.23317568,
+      "issues": [
+        "Stablecoin price far from $1.00"
+      ],
+      "pool": "0x604229c9"
+    },
+    {
+      "symbol": "polygon:0x55ff76bffc3cdd9d5fdbbc2ece4528ecce45047e:WMATIC/USDT",
+      "price": 0.23393058,
+      "issues": [
+        "Stablecoin price far from $1.00"
+      ],
+      "pool": "0x55ff76bf"
+    }
+  ],
+  "next_steps": [
+    "Compare frontend prices with raw blockchain data",
+    "Trace exact decimal adjustments through collector",
+    "Verify TokenRegistry mappings are accurate",
+    "Add preservation validation to CI/CD pipeline"
+  ]
+}
