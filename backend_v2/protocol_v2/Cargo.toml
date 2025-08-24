@@ -1,7 +1,7 @@
 [package]
 name = "protocol_v2"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "AlphaPulse TLV-based universal message protocol"
 
 [dependencies]
@@ -69,6 +69,6 @@ path = "src/bin/test_fixed_parsing.rs"
 # name = "semantic_correctness_proof"
 # path = "../semantic_correctness_proof.rs"
 
-# [[bench]]
-# name = "throughput_benchmark"
-# harness = false
+[[bench]]
+name = "message_builder_comparison"
+harness = false

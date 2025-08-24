@@ -1,11 +1,13 @@
-//! Zero-copy TLV demonstration
+//! Zero-copy TLV demonstration and Builder Performance Comparison
 //!
-//! Shows that the zero-copy implementation works correctly without workspace dependencies
+//! Shows both zero-copy TLV operations and the performance improvement
+//! achieved by the ZeroCopyTLVMessageBuilder over the legacy builder.
 
 use protocol_v2::tlv::address::{AddressConversion, AddressExtraction};
 use protocol_v2::tlv::market_data::{PoolSwapTLV, PoolSyncTLV, QuoteTLV, TradeTLV};
 use protocol_v2::tlv::pool_state::PoolStateTLV;
-use protocol_v2::{InstrumentId, VenueId};
+use protocol_v2::tlv::{TLVMessageBuilder, TLVType, ZeroCopyTLVMessageBuilder};
+use protocol_v2::{InstrumentId, RelayDomain, SourceType, VenueId};
 use std::time::Instant;
 use zerocopy::{AsBytes, FromBytes};
 
@@ -140,8 +142,113 @@ fn main() {
     assert_eq!(*quote_ref, quote);
     println!("✅ QuoteTLV zero-copy: {} bytes", quote_bytes.len());
 
+    // Test 6: Message Builder Performance Comparison
+    println!("\n🏆 Message Builder Performance Comparison:");
+
+    let iterations = 50_000;
+
+    // Legacy builder benchmark
+    println!("Benchmarking Legacy Builder ({} iterations)...", iterations);
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let _message =
+            TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector)
+                .add_tlv(TLVType::Trade, &trade)
+                .build();
+        std::hint::black_box(_message);
+    }
+    let legacy_duration = start.elapsed();
+    let legacy_ns_per_op = legacy_duration.as_nanos() as f64 / iterations as f64;
+    let legacy_ops_per_sec = 1_000_000_000.0 / legacy_ns_per_op;
+
+    // Zero-copy builder benchmark
+    println!(
+        "Benchmarking Zero-Copy Builder ({} iterations)...",
+        iterations
+    );
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let _message =
+            ZeroCopyTLVMessageBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector)
+                .add_tlv_ref(TLVType::Trade, &trade)
+                .build();
+        std::hint::black_box(_message);
+    }
+    let zero_copy_duration = start.elapsed();
+    let zero_copy_ns_per_op = zero_copy_duration.as_nanos() as f64 / iterations as f64;
+    let zero_copy_ops_per_sec = 1_000_000_000.0 / zero_copy_ns_per_op;
+
+    // Zero-copy with buffer reuse
+    let builder =
+        ZeroCopyTLVMessageBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector)
+            .add_tlv_ref(TLVType::Trade, &trade);
+    let buffer_size = builder.calculate_size();
+    let mut buffer = vec![0u8; buffer_size];
+
+    println!(
+        "Benchmarking Zero-Copy with Buffer Reuse ({} iterations)...",
+        iterations
+    );
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let builder =
+            ZeroCopyTLVMessageBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector)
+                .add_tlv_ref(TLVType::Trade, &trade);
+        let _size = builder.build_into_buffer(&mut buffer).unwrap();
+        std::hint::black_box(_size);
+    }
+    let buffer_duration = start.elapsed();
+    let buffer_ns_per_op = buffer_duration.as_nanos() as f64 / iterations as f64;
+    let buffer_ops_per_sec = 1_000_000_000.0 / buffer_ns_per_op;
+
+    println!("\n📊 Message Builder Results:");
+    println!("---------------------------");
+    println!(
+        "Legacy Builder:           {:.2} ns/op ({:.2}M ops/sec)",
+        legacy_ns_per_op,
+        legacy_ops_per_sec / 1_000_000.0
+    );
+    println!(
+        "Zero-Copy Builder:        {:.2} ns/op ({:.2}M ops/sec)",
+        zero_copy_ns_per_op,
+        zero_copy_ops_per_sec / 1_000_000.0
+    );
+    println!(
+        "Zero-Copy with Buffer:    {:.2} ns/op ({:.2}M ops/sec)",
+        buffer_ns_per_op,
+        buffer_ops_per_sec / 1_000_000.0
+    );
+
+    let zero_copy_improvement =
+        ((legacy_ns_per_op - zero_copy_ns_per_op) / legacy_ns_per_op) * 100.0;
+    let buffer_improvement = ((legacy_ns_per_op - buffer_ns_per_op) / legacy_ns_per_op) * 100.0;
+
+    println!("\n🚀 Performance Improvements:");
+    println!("----------------------------");
+    println!(
+        "Zero-Copy Builder:        {:.1}% faster",
+        zero_copy_improvement
+    );
+    println!(
+        "Zero-Copy with Buffer:    {:.1}% faster",
+        buffer_improvement
+    );
+
+    println!("\n💡 The Problem with Legacy Builder:");
+    println!("• Does `bytes.to_vec()` on every TLV addition");
+    println!("• Creates N allocations for N TLVs");
+    println!("• Copies data multiple times");
+    println!("\n✅ Zero-Copy Builder Solution:");
+    println!("• Uses references until final assembly");
+    println!("• Single allocation for final message");
+    println!("• Buffer reuse eliminates all allocations");
+
     println!("\n🎉 Zero-Copy TLV Implementation: SUCCESS!");
     println!("📈 Achieved sub-microsecond serialization/deserialization");
     println!("🔒 Memory-safe with proper address validation");
     println!("⚡ Ready for >1M msg/sec throughput with Protocol V2");
+    println!(
+        "🏆 Message construction {:.0}% faster with zero-copy builder",
+        zero_copy_improvement
+    );
 }

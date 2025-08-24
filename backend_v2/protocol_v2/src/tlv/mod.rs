@@ -286,8 +286,10 @@
 //! - [`pool_state`] - DEX pool state management and tracking
 //! - [`type_safe`] - Type-safe wrappers and validation utilities
 
+pub mod address;
 pub mod builder;
 pub mod demo_defi;
+pub mod dynamic_payload;
 pub mod extended;
 pub mod market_data;
 pub mod parser;
@@ -297,13 +299,20 @@ pub mod relay_parser;
 pub mod system;
 pub mod type_safe;
 pub mod types;
+pub mod zero_copy_builder;
+pub mod zero_copy_tests;
 
+pub use address::{AddressConversion, AddressExtraction, PaddedAddress};
 pub use builder::*;
+pub use dynamic_payload::{
+    DynamicPayload, FixedStr, FixedVec, PayloadError, MAX_INSTRUMENTS, MAX_POOL_TOKENS,
+};
 pub use extended::*;
 pub use market_data::*;
 pub use parser::*;
 pub use relay_parser::*;
 pub use types::*;
+pub use zero_copy_builder::{TLVRef, ZeroCopyTLVMessageBuilder};
 // Export pool_state PoolType explicitly (it's a type alias for DEXProtocol)
 pub use demo_defi::*;
 pub use pool_state::{DEXProtocol, PoolStateTLV, PoolStateTracker, PoolType};
@@ -350,7 +359,7 @@ pub enum ParseError {
 ///
 /// Used for standard TLV messages with payloads up to 255 bytes.
 /// This is the most common format for performance-critical messages.
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct SimpleTLVHeader {
     /// TLV type number (1-254, 255 reserved for extended format)
@@ -363,6 +372,7 @@ pub struct SimpleTLVHeader {
 ///
 /// Used for messages requiring more than 255 bytes of payload data.
 /// The extended format embeds the actual TLV type and uses a 16-bit length field.
+/// Packed to achieve exactly 5 bytes
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy)]
 pub struct ExtendedTLVHeader {

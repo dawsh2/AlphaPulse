@@ -9,20 +9,27 @@ use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
-/// Snapshot TLV (Type 101, variable length)
+/// Snapshot TLV (Type 101, 32 bytes header)
 /// Contains compressed state checkpoint data
-#[repr(C, packed)]
+///
+/// Fields ordered to eliminate padding: u64 → u32 → u8
+#[repr(C)]
 #[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
 pub struct SnapshotTLVHeader {
-    pub tlv_type: u8,           // 101
-    pub tlv_length: u8,         // Length of header (remaining data is variable)
+    // Group 64-bit fields first
+    pub sequence: u64,  // Sequence number this snapshot represents
+    pub timestamp: u64, // When snapshot was created (nanoseconds)
+
+    // Then 32-bit fields
     pub snapshot_id: u32,       // Unique snapshot identifier
-    pub sequence: u64,          // Sequence number this snapshot represents
-    pub timestamp: u64,         // When snapshot was created (nanoseconds)
-    pub compression_type: u8,   // Compression algorithm used
     pub checksum: u32,          // CRC32 of uncompressed data
     pub uncompressed_size: u32, // Size of data after decompression
-    pub reserved: [u8; 3],      // Alignment padding
+
+    // Finally 8-bit fields (need 4 bytes to reach 32 total)
+    pub tlv_type: u8,         // 101
+    pub tlv_length: u8,       // Length of header (remaining data is variable)
+    pub compression_type: u8, // Compression algorithm used
+    pub _padding: u8,         // Explicit padding to reach 32 bytes
 }
 
 /// Compression types for snapshot data
@@ -180,7 +187,7 @@ impl SnapshotBuilder {
             compression_type: actual_compression as u8,
             checksum,
             uncompressed_size: serialized_data.len() as u32,
-            reserved: [0; 3],
+            _padding: 0,
         };
 
         // Build message with extended TLV if needed
@@ -207,6 +214,7 @@ pub struct SnapshotLoader;
 
 impl SnapshotLoader {
     /// Parse snapshot from TLV payload
+    #[allow(clippy::type_complexity)]
     pub fn parse_snapshot(
         payload: &[u8],
     ) -> Result<(SnapshotTLVHeader, SnapshotData), ProtocolError> {
@@ -268,6 +276,7 @@ impl SnapshotLoader {
     }
 
     /// Apply snapshot to restore relay state
+    #[allow(clippy::type_complexity)]
     pub fn apply_snapshot(snapshot_data: SnapshotData) -> Result<(u64, RelayState), ProtocolError> {
         // Validate snapshot version
         if snapshot_data.version != 1 {
