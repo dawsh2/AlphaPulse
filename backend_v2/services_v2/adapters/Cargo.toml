@@ -16,6 +16,10 @@ metrics = ["prometheus"]
 name = "polygon_publisher"
 path = "src/bin/polygon_publisher.rs"
 
+[[bin]]
+name = "unified_polygon"
+path = "src/bin/polygon/polygon.rs"
+
 [dependencies]
 # Core protocol
 protocol_v2 = { workspace = true }
@@ -30,6 +34,7 @@ futures-util = { workspace = true }
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
+toml = { workspace = true }
 
 # Error handling and logging
 tracing = { workspace = true }

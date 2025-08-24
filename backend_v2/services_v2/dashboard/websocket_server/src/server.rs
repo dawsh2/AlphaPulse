@@ -8,7 +8,6 @@ use futures_util::StreamExt;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
-use tokio_tungstenite::accept_async;
 use tracing::{error, info, warn};
 use warp::Filter;
 
@@ -226,7 +225,7 @@ impl DashboardServer {
                 interval.tick().await;
 
                 let heartbeat_msg = serde_json::json!({
-                    "type": "heartbeat",
+                    "msg_type": "heartbeat",
                     "timestamp": std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()

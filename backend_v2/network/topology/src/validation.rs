@@ -4,7 +4,7 @@
 //! resource compatibility, and deployment feasibility.
 
 use crate::{
-    actors::ActorStateType, Actor, ActorType, Node, Result, TopologyConfig, TopologyError,
+    actors::ActorStateType, ActorType, Node, Result, TopologyConfig, TopologyError,
     MAX_ACTORS_PER_NODE, MAX_CPU_CORES_PER_ACTOR,
 };
 use std::collections::{HashMap, HashSet};
@@ -381,10 +381,10 @@ impl<'a> TopologyValidator<'a> {
             let mut total_memory = 0usize;
             let mut total_cpu_cores = HashSet::<u8>::new();
             let mut total_disk = 0usize;
-            let mut total_bandwidth = 0usize;
+            let mut _total_bandwidth = 0usize;
             let mut gpu_required = false;
 
-            for (actor_id, _placement) in &node.actor_placements {
+            for actor_id in node.actor_placements.keys() {
                 if let Some(actor) = self.config.actors.get(actor_id) {
                     total_memory += actor
                         .resources
@@ -403,7 +403,7 @@ impl<'a> TopologyValidator<'a> {
                     }
 
                     if let Some(bandwidth) = actor.resources.network_bandwidth_mbps {
-                        total_bandwidth += bandwidth;
+                        _total_bandwidth += bandwidth;
                     }
 
                     if actor.resources.gpu_required {

@@ -175,7 +175,7 @@ While we build the full architecture:
 
 1. **Get First Trade** (Today)
 ```bash
-export PRIVATE_KEY="<your_key>"
+export PRIVATE_KEY="YOUR_WALLET_KEY"
 ./quick_first_trade.py  # Find and execute one trade
 ```
 

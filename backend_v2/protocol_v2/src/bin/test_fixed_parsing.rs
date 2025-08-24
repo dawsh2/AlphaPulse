@@ -8,7 +8,6 @@ use protocol_v2::{
 };
 use std::time::Instant;
 use tracing::{info, Level};
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

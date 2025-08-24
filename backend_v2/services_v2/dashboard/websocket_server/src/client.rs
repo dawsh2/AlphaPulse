@@ -1,13 +1,12 @@
 //! WebSocket client management
 
 use crate::error::{DashboardError, Result};
-use futures_util::{SinkExt, StreamExt};
+use futures_util::SinkExt;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
-use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 use uuid::Uuid;
 
 /// WebSocket client representation

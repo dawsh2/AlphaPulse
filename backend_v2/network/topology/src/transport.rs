@@ -10,6 +10,7 @@ use std::time::Duration;
 
 /// Transport configuration for actor communication
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum Transport {
     /// Shared memory for same-node communication
     SharedMemory {
@@ -200,8 +201,10 @@ impl Transport {
 
     /// Create high-performance transport for low-latency requirements
     pub fn high_performance(source_node: String, target_node: String) -> Self {
-        let mut protocol = NetworkProtocol::default();
-        protocol.protocol_type = ProtocolType::Rdma; // Use RDMA if available
+        let mut protocol = NetworkProtocol {
+            protocol_type: ProtocolType::Rdma, // Use RDMA if available
+            ..Default::default()
+        };
         protocol.connection.pool_size = 1; // Single dedicated connection
         protocol.connection.connect_timeout = Duration::from_millis(100);
 

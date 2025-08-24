@@ -4,10 +4,10 @@
 //! hot-reload capabilities for actor placement without system restart.
 
 use crate::{
-    actors::ActorStateType, nodes::ActorPlacement, Actor, Node, Result, TopologyConfig,
+    nodes::ActorPlacement, Actor, Node, Result, TopologyConfig,
     TopologyError, Transport,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
@@ -71,6 +71,7 @@ pub enum ActorStatus {
 
 /// Transport graph for routing optimization
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TransportGraph {
     /// Node-to-node transport configurations
     node_transports: HashMap<(String, String), Transport>,
@@ -105,6 +106,7 @@ pub struct ActorHealthMonitor {
 
 /// Circuit breaker for actor health management
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CircuitBreaker {
     failure_threshold: u32,
     success_threshold: u32,
@@ -113,6 +115,82 @@ pub struct CircuitBreaker {
     failure_count: u32,
     success_count: u32,
 }
+
+// =============================================================================
+// FUTURE: EVENT-DRIVEN SERVICE DISCOVERY
+// =============================================================================
+
+/// Future service discovery architecture for autonomous system activation
+/// 
+/// **Current State**: Manual service startup with hardcoded connections
+/// **Future Vision**: Services announce capabilities and auto-discover dependencies
+/// 
+/// ## Event-Driven Activation Pattern
+/// 
+/// ```rust
+/// // Services announce their capabilities to topology resolver
+/// polygon.announce("produces: market_data.polygon.dex_events");
+/// relay.announce("consumes: market_data.*, produces: signals.arbitrage");
+/// strategy.announce("consumes: signals.arbitrage, produces: execution.orders");
+/// 
+/// // System self-assembles through topology resolver
+/// let relay_endpoint = resolver.discover_consumers("market_data.polygon.*")?;
+/// let strategy_endpoints = resolver.discover_consumers("signals.arbitrage")?;
+/// 
+/// // Automatic transport selection based on actor placement
+/// let transport = resolver.optimal_transport("polygon", "market_data_relay")?;
+/// match transport {
+///     Transport::UnixSocket(path) => connect_local(path),
+///     Transport::SharedMemory(channel) => connect_shm(channel), 
+///     Transport::Network(endpoint) => connect_tcp(endpoint),
+/// }
+/// ```
+/// 
+/// ## Organic System Growth
+/// 
+/// **Startup Sequence** (no hardcoded ordering):
+/// 1. `polygon` starts → announces "produces: market_data.polygon.*"
+/// 2. `topology_resolver` sees unrouted data → spawns `market_data_relay`  
+/// 3. `market_data_relay` starts → announces "consumes: market_data.*"
+/// 4. `polygon` discovers relay → establishes connection → data flows
+/// 5. `arbitrage_strategy` starts → discovers relay → subscribes to signals
+/// 6. System reaches steady state through organic connection formation
+/// 
+/// **Benefits**:
+/// - **Zero configuration**: No hardcoded connection paths
+/// - **Fault tolerance**: Dead services auto-discovered and replaced
+/// - **Load balancing**: Multiple instances of same service auto-discovered
+/// - **A/B testing**: Run parallel service versions, compare performance
+/// 
+/// ## Implementation Requirements
+/// 
+/// **Service Registration API**:
+/// ```rust
+/// trait ServiceDiscovery {
+///     async fn announce(&self, capabilities: &str) -> Result<()>;
+///     async fn discover(&self, pattern: &str) -> Result<Vec<ServiceEndpoint>>;
+///     async fn watch(&self, pattern: &str) -> Result<ServiceStream>;
+/// }
+/// ```
+/// 
+/// **Topology Integration**:
+/// - Extend `TopologyResolver` with dynamic service registry
+/// - Add capability-based routing to `TransportGraph`
+/// - Implement auto-spawning via `DeploymentEngine`
+/// 
+/// **Message Bus Evolution**:
+/// Current: Hardcoded Unix sockets between known services
+/// Future: Capability-driven routing with automatic endpoint resolution
+/// 
+/// ```rust
+/// // Current: Hardcoded 
+/// RelayOutput::new("/tmp/alphapulse/market_data.sock", RelayDomain::MarketData)
+/// 
+/// // Future: Discovery-driven
+/// let endpoints = resolver.discover("consumes:market_data.*")?;
+/// RelayOutput::new_discoverable(endpoints, RelayDomain::MarketData)
+/// ```
+pub struct FutureServiceDiscovery;
 
 impl TopologyResolver {
     pub fn new(config: TopologyConfig) -> Self {
@@ -260,7 +338,7 @@ impl TopologyResolver {
             let config = self.config.read().await;
             config.actors.get(actor_id).and_then(|_actor| {
                 // Find the placement in the node that contains this actor
-                for (_node_id, node) in &config.nodes {
+                for node in config.nodes.values() {
                     if let Some(placement) = node.actor_placements.get(actor_id) {
                         return Some(placement.clone());
                     }
@@ -545,7 +623,7 @@ impl TopologyResolver {
         let mut changes = Vec::new();
 
         // Compare actor placements
-        for (actor_id, _) in &new_config.actors {
+        for actor_id in new_config.actors.keys() {
             let old_node = self.find_actor_node(old_config, actor_id);
             let new_node = self.find_actor_node(new_config, actor_id);
 
@@ -596,7 +674,7 @@ impl TopologyResolver {
         Ok(())
     }
 
-    async fn find_best_node_for_actor(&self, actor_id: &str) -> Result<String> {
+    async fn find_best_node_for_actor(&self, _actor_id: &str) -> Result<String> {
         let config = self.config.read().await;
 
         // Simple heuristic: find node with lowest CPU usage
@@ -604,7 +682,7 @@ impl TopologyResolver {
         let mut best_node = None;
         let mut best_usage = f64::MAX;
 
-        for (node_id, _node) in &config.nodes {
+        for node_id in config.nodes.keys() {
             // Get node CPU usage (mock implementation)
             let usage = 50.0; // Would get real metrics
 
@@ -715,6 +793,7 @@ impl ActorHealthMonitor {
     }
 }
 
+#[allow(dead_code)]
 impl CircuitBreaker {
     fn new() -> Self {
         Self {

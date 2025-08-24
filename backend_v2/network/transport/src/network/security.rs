@@ -70,7 +70,7 @@ impl SecurityLayer {
             
             #[cfg(feature = "encryption")]
             EncryptionType::ChaCha20Poly1305 { key } => {
-                let key = key.clone();
+                let key = *key;
                 self.initialize_chacha(&key)?;
             }
 

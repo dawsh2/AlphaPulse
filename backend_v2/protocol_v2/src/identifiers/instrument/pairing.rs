@@ -24,7 +24,7 @@ pub enum PoolProtocol {
 
 /// Legacy functions for backward compatibility (deprecated)
 /// These now return constant values since we no longer use hash-based IDs
-
+///
 /// Generate a canonical pool ID from two token asset_ids (DEPRECATED)
 /// Returns a constant value - use full addresses instead
 #[deprecated(note = "Use full 20-byte addresses instead of hash-based IDs")]

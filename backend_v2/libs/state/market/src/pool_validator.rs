@@ -12,6 +12,7 @@ use web3::{
 };
 
 /// Pool validator that combines caching with validation
+#[allow(dead_code)]
 pub struct PoolValidator {
     /// Pool cache with RPC discovery
     pool_cache: Arc<PoolCache>,
@@ -64,7 +65,7 @@ impl PoolValidator {
     }
 
     /// Validate pool tokens match expected configuration
-    async fn validate_pool_tokens(&self, pool_info: &PoolInfo, log: &Log) -> Result<(), String> {
+    async fn validate_pool_tokens(&self, pool_info: &PoolInfo, _log: &Log) -> Result<(), String> {
         // Additional validation logic can go here
         // For example, cross-check with known token lists
 

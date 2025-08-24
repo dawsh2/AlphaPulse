@@ -36,12 +36,14 @@ pub trait SearchStrategy: Send + Sync {
 }
 
 /// MEV searcher engine
+#[allow(dead_code)]
 pub struct MevSearcher {
     strategies: Vec<Box<dyn SearchStrategy>>,
     search_interval: Duration,
     profit_threshold: Decimal,
 }
 
+#[allow(dead_code)]
 impl MevSearcher {
     pub fn new(profit_threshold: Decimal) -> Self {
         Self {
@@ -72,7 +74,7 @@ impl MevSearcher {
         }
 
         // Sort by profit descending
-        opportunities.sort_by(|a, b| self.get_profit(b).cmp(&self.get_profit(a)));
+        opportunities.sort_by_key(|b| std::cmp::Reverse(self.get_profit(b)));
 
         Ok(opportunities)
     }
@@ -80,18 +82,18 @@ impl MevSearcher {
     pub async fn create_bundle(
         &self,
         opportunity: &MevOpportunity,
-        target_block: u64,
+        _target_block: u64,
     ) -> anyhow::Result<Bundle> {
         match opportunity {
-            MevOpportunity::Arbitrage { pools, .. } => {
+            MevOpportunity::Arbitrage { .. } => {
                 // Create arbitrage bundle
                 todo!("Implement arbitrage bundle creation")
             }
-            MevOpportunity::Liquidation { target_address, .. } => {
+            MevOpportunity::Liquidation { .. } => {
                 // Create liquidation bundle
                 todo!("Implement liquidation bundle creation")
             }
-            MevOpportunity::Sandwich { target_tx, .. } => {
+            MevOpportunity::Sandwich { .. } => {
                 // Create sandwich bundle
                 todo!("Implement sandwich bundle creation")
             }

@@ -80,7 +80,7 @@ impl TopologyResolver {
             // In a real implementation, query topology service
             warn!("Actor {} not found in topology", actor_id);
             Err(TransportError::resolution(
-                &format!("Actor {} not found", actor_id),
+                format!("Actor {} not found", actor_id),
                 Some(actor_id)
             ))
         }

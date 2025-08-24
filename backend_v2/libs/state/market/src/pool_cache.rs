@@ -60,18 +60,18 @@ pub struct PoolInfo {
 impl PoolInfo {
     /// Convert to TLV format for persistence
     pub fn to_tlv(&self) -> PoolInfoTLV {
-        PoolInfoTLV::new(
-            self.pool_address,
-            self.token0,
-            self.token1,
-            self.token0_decimals,
-            self.token1_decimals,
-            pool_type_to_cache_type(self.pool_type),
-            self.fee_tier.unwrap_or(0),
-            self.venue,
-            self.discovered_at,
-            self.last_seen,
-        )
+        PoolInfoTLV::new(protocol_v2::tlv::pool_cache::PoolInfoConfig {
+            pool_address: self.pool_address,
+            token0_address: self.token0,
+            token1_address: self.token1,
+            token0_decimals: self.token0_decimals,
+            token1_decimals: self.token1_decimals,
+            pool_type: pool_type_to_cache_type(self.pool_type),
+            fee_tier: self.fee_tier.unwrap_or(0),
+            venue: self.venue,
+            discovered_at: self.discovered_at,
+            last_seen: self.last_seen,
+        })
     }
 
     /// Create from TLV format
@@ -127,6 +127,7 @@ fn cache_type_to_pool_type(cache_type: CachePoolType) -> DEXProtocol {
 
 /// Cache update message for background persistence
 #[derive(Debug)]
+#[allow(dead_code)]
 enum CacheUpdate {
     Add(PoolInfo),
     Update(PoolInfo),
@@ -135,6 +136,7 @@ enum CacheUpdate {
 }
 
 /// Pool cache with RPC discovery and cold storage persistence
+#[allow(dead_code)]
 pub struct PoolCache {
     /// Pool address -> PoolInfo mapping (hot path)
     pools: DashMap<[u8; 20], PoolInfo>,
@@ -275,9 +277,11 @@ impl PoolCache {
 
     /// Create with persistence enabled
     pub fn with_persistence(cache_dir: PathBuf, chain_id: u64) -> Self {
-        let mut config = PoolCacheConfig::default();
-        config.cache_dir = Some(cache_dir);
-        config.chain_id = chain_id;
+        let config = PoolCacheConfig {
+            cache_dir: Some(cache_dir),
+            chain_id,
+            ..Default::default()
+        };
         Self::new(config)
     }
 
@@ -640,7 +644,7 @@ impl PoolCache {
     /// Perform health check on the pool cache
     pub fn health_check(&self) -> Result<(), PoolCacheError> {
         // Check if web3 connection is available
-        if let Some(ref web3) = self.web3 {
+        if let Some(ref _web3) = self.web3 {
             // Simple connectivity test - web3 should be responsive
             // For a more thorough check, we could make an actual RPC call
             debug!("Pool cache health check: Web3 connection available");
@@ -649,7 +653,7 @@ impl PoolCache {
         }
 
         // Check if persistence layer is operational
-        if let Some(ref persistence) = self.persistence {
+        if let Some(ref _persistence) = self.persistence {
             debug!("Pool cache health check: Persistence layer available");
         } else {
             debug!("Pool cache health check: No persistence layer configured");
@@ -677,7 +681,7 @@ impl PoolCache {
         self.pools.clear();
 
         // Clear journal if persistence is enabled
-        if let Some(ref persistence) = self.persistence {
+        if let Some(ref _persistence) = self.persistence {
             // Note: This doesn't actually clear the journal file, just the in-memory state
             // In a production system, you might want to truncate the journal file
             debug!("Pool cache reset completed (persistence journal not cleared)");
@@ -893,6 +897,7 @@ impl Stateful for PoolCache {
     }
 }
 
+#[allow(dead_code)]
 impl PersistenceLayer {
     /// Create new persistence layer
     fn new(cache_dir: PathBuf, chain_id: u64) -> Result<Self> {
@@ -977,7 +982,7 @@ impl PersistenceLayer {
     }
 
     /// Force snapshot to disk
-    async fn force_snapshot(&self, pools: &DashMap<[u8; 20], PoolInfo>) -> Result<()> {
+    async fn force_snapshot(&self, _pools: &DashMap<[u8; 20], PoolInfo>) -> Result<()> {
         // Send flush command to writer thread
         self.update_sender
             .try_send(CacheUpdate::Flush)
@@ -1043,7 +1048,7 @@ impl PersistenceLayer {
         receiver: Receiver<CacheUpdate>,
         shutdown: Arc<AtomicBool>,
     ) {
-        let cache_file = cache_dir.join(format!("chain_{}_pool_cache.tlv", chain_id));
+        let _cache_file = cache_dir.join(format!("chain_{}_pool_cache.tlv", chain_id));
         let journal_file = cache_dir.join(format!("chain_{}_pool_cache.journal", chain_id));
 
         let mut journal_writer = None;
@@ -1055,10 +1060,7 @@ impl PersistenceLayer {
 
         loop {
             // Check for updates or timeout
-            let update = match receiver.recv_timeout(std::time::Duration::from_secs(1)) {
-                Ok(update) => Some(update),
-                Err(_) => None,
-            };
+            let update = receiver.recv_timeout(std::time::Duration::from_secs(1)).ok();
 
             // Process update if we got one
             if let Some(update) = update {

@@ -7,7 +7,6 @@ use protocol_v2::{
     parse_tlv_extensions, tlv::TLVMessageBuilder, MessageHeader, RelayDomain, SourceType, TLVType,
 };
 use tracing::{error, info, warn, Level};
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

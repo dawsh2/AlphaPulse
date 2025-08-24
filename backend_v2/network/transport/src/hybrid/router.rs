@@ -3,10 +3,10 @@
 //! Routes messages to appropriate transports based on configuration,
 //! actor requirements, and current network conditions.
 
-use crate::{Priority, TransportError, Result};
+use crate::{Priority, Result};
 use super::config::{TransportConfig, TransportMode, ChannelConfig};
 use std::collections::HashMap;
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// Transport router for hybrid transport
 #[derive(Debug, Clone)]

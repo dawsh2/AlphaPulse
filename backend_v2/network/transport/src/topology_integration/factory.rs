@@ -3,7 +3,7 @@
 //! Creates appropriate transport instances based on topology configuration.
 
 use crate::{Transport, TransportError, Result, Priority, TransportStatistics};
-use super::resolver::{TopologyResolver, NodeAddress};
+use super::resolver::TopologyResolver;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tracing::{debug, info};

@@ -438,7 +438,7 @@ pub fn show_relay_domains() {
     for (domain, range, icon, purpose, relay) in &domains {
         let types = TLVType::types_in_domain(*domain);
 
-        println!("{} {} (Types {}):", icon, format!("{:?}", domain), range);
+        println!("{} {:?} (Types {}):", icon, domain, range);
         println!("   Purpose: {}", purpose);
         println!("   Routes to: {}", relay);
         println!("   {} implemented types", types.len());
@@ -595,7 +595,7 @@ pub fn explore_tlv_type(tlv_type: TLVType) {
 
     println!("🎯 Routing Information:");
     println!("   Domain: {:?}", info.relay_domain);
-    println!("   Routes to: {}Relay", format!("{:?}", info.relay_domain));
+    println!("   Routes to: {:?}Relay", info.relay_domain);
     println!(
         "   Priority: {}",
         match info.relay_domain {

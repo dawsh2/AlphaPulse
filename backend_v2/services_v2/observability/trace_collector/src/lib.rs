@@ -54,7 +54,7 @@ pub use events::{EventBuffer, TraceEventProcessor};
 pub use health::{CollectorHealth, HealthReporter};
 pub use timeline::{MessageFlow, TraceSpan, TraceTimeline};
 
-use protocol_v2::{SourceType, TraceEvent, TraceEventType};
+// use protocol_v2::{SourceType, TraceEvent, TraceEventType};
 use std::collections::HashMap;
 use thiserror::Error;
 

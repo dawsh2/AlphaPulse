@@ -102,6 +102,11 @@ rq docs "service integration"        # Producer/consumer patterns
 rq docs "type discovery"             # Runtime API exploration
 rq docs "validation strategies"      # Comprehensive error handling
 rq docs "recovery protocol"          # Message gap detection and repair
+
+# Architecture Diagrams (NEW - Mermaid Support)
+rq docs "mermaid"                    # Find all Mermaid architecture diagrams
+rq docs "diagram"                    # Find diagram references and documentation
+rq docs "architecture role"          # Traditional ASCII diagram search
 ```
 
 ## Key Enhancement
@@ -119,6 +124,8 @@ The `rq docs` searches now return rich, structured information including:
 rq docs "architecture"           # Component relationships
 rq docs "performance"            # Measured metrics
 rq docs "integration"            # Service connectivity
+rq docs "mermaid"               # Find architecture diagrams
+rq docs "diagram"               # Find all diagram references
 
 # Before implementing
 rq check function_name           # Prevent duplication
@@ -127,6 +134,10 @@ rq docs "relevant domain"        # Understand context
 
 # Cache maintenance  
 rq update                        # Refresh documentation index
+
+# Diagram aliases (after sourcing .bashrc_query_builder)
+rqd                             # Short alias for mermaid search
+rq-show-diagrams                # List all available diagrams
 ```
 
 ## Important Notes
@@ -135,9 +146,53 @@ rq update                        # Refresh documentation index
 - Direct rustdoc JSON parsing with comprehensive documentation indexing
 - No database overhead, just fast semantic discovery with strategic system understanding
 
+## Mermaid Diagram Integration (NEW)
+
+### Overview
+Enhanced documentation now includes interactive Mermaid diagrams using the aquamarine crate:
+- **Rich SVG diagrams** in rustdoc output
+- **Searchable via rq** - find diagrams easily
+- **GitHub integration** - renders in PRs and README files
+- **Easy maintenance** - Mermaid syntax is much better than ASCII art
+
+### Diagram Search Commands
+```bash
+# BEST: Find diagram functions directly
+rq find architecture_diagram   # Clean list of diagram functions
+
+# Clean diagram discovery (organized view)
+source .bashrc_query_builder   # Load once per session  
+diagrams                       # or rqd - organized list with package info
+
+# View diagram source directly
+grep -A 50 '```mermaid' libs/amm/src/lib.rs  # Show raw Mermaid source
+
+# AVOID: rq docs "diagram" - shows messy HTML fragments
+# AVOID: rq docs "mermaid" - shows HTML fragments
+```
+
+### Current Diagrams
+- **AMM Library**: Input → Math → Sizing → Strategy flow
+- **Adapter Service**: Exchanges → Adapters → Relays → Services flow
+
+### Creating New Diagrams
+```rust
+/// Architecture diagram showing component relationships
+#[cfg_attr(doc, aquamarine::aquamarine)]
+/// ```mermaid
+/// graph LR
+///     A[Component A] --> B[Component B]
+///     B --> C[Component C]
+/// ```
+pub fn architecture_diagram() {
+    // Function exists for documentation only
+}
+```
+
 ## Impact
 Transforms `rq` from basic code search to comprehensive system understanding tool, enabling developers to:
 - Understand system architecture without reading implementation files
+- **Visualize component relationships** through interactive diagrams
 - Discover performance requirements and optimization patterns
 - Find integration points and service boundaries  
 - Access error handling strategies and recovery protocols

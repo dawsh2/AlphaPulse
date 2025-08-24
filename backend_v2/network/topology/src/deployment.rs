@@ -3,7 +3,6 @@
 //! Handles the deployment and management of actors across nodes
 
 use crate::error::Result;
-use serde::{Deserialize, Serialize};
 
 /// Deployment engine for managing actor placement
 #[derive(Debug, Clone)]

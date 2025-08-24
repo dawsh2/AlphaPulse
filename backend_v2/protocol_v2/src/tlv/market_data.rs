@@ -68,7 +68,7 @@ impl TradeTLV {
 
         use zerocopy::Ref;
         let tlv_ref = Ref::<_, Self>::new(data).ok_or("Failed to parse TradeTLV from bytes")?;
-        Ok(tlv_ref.into_ref().clone())
+        Ok(*tlv_ref.into_ref())
     }
 }
 
@@ -136,7 +136,7 @@ impl QuoteTLV {
 
         use zerocopy::Ref;
         let tlv_ref = Ref::<_, Self>::new(data).ok_or("Failed to parse QuoteTLV from bytes")?;
-        Ok(tlv_ref.into_ref().clone())
+        Ok(*tlv_ref.into_ref())
     }
 }
 

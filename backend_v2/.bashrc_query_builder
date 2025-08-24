@@ -417,3 +417,86 @@ query_builder_help() {
     echo ""
     echo "💡 Use these tools to explore before writing new code!"
 }
+
+# ============================================================================
+# DIAGRAM SEARCH ALIASES
+# ============================================================================
+
+# Clean diagram discovery
+diagrams() {
+    local filter="$1"
+    
+    echo "🎨 Architecture Diagrams"
+    echo "========================"
+    echo ""
+    
+    # Mermaid diagrams (new, rich format)
+    echo "📊 Mermaid Diagrams (Interactive SVG):"
+    local found_mermaid=false
+    find . -name "lib.rs" -path "*/src/*" 2>/dev/null | while read -r file; do
+        if grep -q "mermaid" "$file" 2>/dev/null; then
+            found_mermaid=true
+            local pkg_name=$(grep -m1 "name = " "$(dirname "$file")/../Cargo.toml" 2>/dev/null | sed 's/.*"\([^"]*\)".*/\1/')
+            local title=$(grep -A1 "//! #" "$file" | head -1 | sed 's|//! # ||')
+            echo "  📦 $pkg_name"
+            echo "     $title"
+            echo "     📁 $file"
+            echo ""
+        fi
+    done
+    
+    if ! $found_mermaid; then
+        echo "  (No Mermaid diagrams found)"
+        echo ""
+    fi
+    
+    # ASCII diagrams (legacy)
+    echo "📋 ASCII Diagrams (Legacy Text):"
+    local found_ascii=false
+    find . -name "lib.rs" -path "*/src/*" 2>/dev/null | while read -r file; do
+        if grep -q "Architecture Role" "$file" 2>/dev/null && ! grep -q "mermaid" "$file" 2>/dev/null; then
+            found_ascii=true
+            local pkg_name=$(grep -m1 "name = " "$(dirname "$file")/../Cargo.toml" 2>/dev/null | sed 's/.*"\([^"]*\)".*/\1/')
+            echo "  📦 $pkg_name → $(basename "$(dirname "$(dirname "$file")")")"
+        fi
+    done
+    
+    if ! $found_ascii; then
+        echo "  (No ASCII diagrams found)"
+    fi
+    
+    echo ""
+    echo "🎯 Quick Actions:"
+    echo "  cargo doc --package <pkg-name> --open  # View rendered diagrams"
+    echo "  show-diagram <pkg-name>               # Show raw Mermaid source"
+    echo "  code <file>                            # Edit diagram source"
+}
+
+# Show raw Mermaid diagram source
+show-diagram() {
+    local pkg="$1"
+    if [[ -z "$pkg" ]]; then
+        echo "Usage: show-diagram <package-name>"
+        echo "Example: show-diagram alphapulse-amm"
+        return 1
+    fi
+    
+    # Find the lib.rs file for this package
+    local libfile=$(find . -name "Cargo.toml" -exec grep -l "name = \"$pkg\"" {} \; | head -1 | sed 's|Cargo.toml|src/lib.rs|')
+    
+    if [[ -f "$libfile" ]]; then
+        echo "🎨 Mermaid Diagram Source for $pkg"
+        echo "=================================="
+        echo ""
+        grep -A 100 "```mermaid" "$libfile" | sed '/```$/q' | head -50
+    else
+        echo "❌ Package $pkg not found"
+        echo "Available packages with diagrams:"
+        diagrams | grep "📦" | sed "s/.*📦 /  /"
+    fi
+}
+
+# Simple aliases
+alias rqd='diagrams'
+alias rq-diagrams='diagrams'  
+alias rq-show-diagrams='diagrams'

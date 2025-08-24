@@ -4,11 +4,10 @@
 //! between direct network connections and message queues.
 
 use crate::{Priority, TransportError, Result};
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
-use tracing::{debug, info, warn, error};
+use tracing::{debug, info, warn};
 
 /// Configuration for transport bridge
 #[derive(Debug, Clone, Default)]

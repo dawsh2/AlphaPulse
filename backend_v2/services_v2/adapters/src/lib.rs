@@ -18,64 +18,10 @@
 //!
 //! ## Architecture Role
 //!
-#[cfg_attr(doc, aquamarine::aquamarine)]
-//! ```mermaid
-//! graph LR
-//!     subgraph Exchanges["🌐 External Exchanges"]
-//!         direction TB
-//!         WS[WebSocket/RPC]
-//!         JB[JSON/Binary]
-//!         RL[Rate Limited]
-//!         CB[Circuit Breaker]
-//!     end
-//!     
-//!     subgraph Adapters["⚡ Adapter Layer"]
-//!         direction TB
-//!         ST[Stateless Transformation]
-//!         VA[Validation Pipeline]
-//!         ER[Error Recovery]
-//!         CO[Connection Management]
-//!     end
-//!     
-//!     subgraph Relays["📡 Domain Relays"]
-//!         direction TB
-//!         TM[TLV Messages]
-//!         P2[Protocol V2]
-//!         BF[Binary Format]
-//!         RR[Relay Routing]
-//!     end
-//!     
-//!     subgraph Services["🎯 Strategy Services"]
-//!         direction TB
-//!         BL[Business Logic]
-//!         TD[Trading Decisions]
-//!         PU[Position Updates]
-//!         AD[Arbitrage Detection]
-//!     end
-//!     
-//!     WS --> ST
-//!     JB --> VA
-//!     RL --> ER
-//!     CB --> CO
-//!     
-//!     ST --> TM
-//!     VA --> P2
-//!     ER --> BF
-//!     CO --> RR
-//!     
-//!     TM --> BL
-//!     P2 --> TD
-//!     BF --> PU
-//!     RR --> AD
-//!     
-//!     style Exchanges fill:#ffebee
-//!     style Adapters fill:#fff3e0
-//!     style Relays fill:#e8f5e9
-//!     style Services fill:#e3f2fd
-//! ```
-//!
 //! Adapters serve as the critical boundary between external exchange protocols and the
 //! unified Protocol V2 message system, ensuring data integrity and performance isolation.
+//! 
+//! See [`architecture_diagram()`] for visual representation of the data flow.
 //!
 //! ## Performance Profile
 //!
@@ -255,3 +201,64 @@ pub use input::collectors::{
 pub use protocol_v2::{
     InstrumentId, QuoteTLV, StateInvalidationTLV, TLVMessageBuilder, TLVType, TradeTLV, VenueId,
 };
+
+/// Architecture diagram showing adapter service data flow and component relationships
+#[cfg_attr(doc, aquamarine::aquamarine)]
+/// ```mermaid
+/// graph LR
+///     subgraph Exchanges["🌐 External Exchanges"]
+///         direction TB
+///         WS[WebSocket/RPC]
+///         JB[JSON/Binary]
+///         RL[Rate Limited]
+///         CB[Circuit Breaker]
+///     end
+///     
+///     subgraph Adapters["⚡ Adapter Layer"]
+///         direction TB
+///         ST[Stateless Transformation]
+///         VA[Validation Pipeline]
+///         ER[Error Recovery]
+///         CO[Connection Management]
+///     end
+///     
+///     subgraph Relays["📡 Domain Relays"]
+///         direction TB
+///         TM[TLV Messages]
+///         P2[Protocol V2]
+///         BF[Binary Format]
+///         RR[Relay Routing]
+///     end
+///     
+///     subgraph Services["🎯 Strategy Services"]
+///         direction TB
+///         BL[Business Logic]
+///         TD[Trading Decisions]
+///         PU[Position Updates]
+///         AD[Arbitrage Detection]
+///     end
+///     
+///     WS --> ST
+///     JB --> VA
+///     RL --> ER
+///     CB --> CO
+///     
+///     ST --> TM
+///     VA --> P2
+///     ER --> BF
+///     CO --> RR
+///     
+///     TM --> BL
+///     P2 --> TD
+///     BF --> PU
+///     RR --> AD
+///     
+///     style Exchanges fill:#ffebee
+///     style Adapters fill:#fff3e0
+///     style Relays fill:#e8f5e9
+///     style Services fill:#e3f2fd
+/// ```
+pub fn architecture_diagram() {
+    // This function exists solely for documentation purposes
+    // The diagram is rendered by aquamarine in rustdoc
+}

@@ -70,7 +70,7 @@
 cd /Users/daws/alphapulse/backend/defi/scripts
 
 # Set your private key
-export PRIVATE_KEY="<your_mumbai_private_key>"
+export PRIVATE_KEY="YOUR_MUMBAI_TESTNET_KEY"
 
 # Run complete integration test
 ./run_mumbai_integration.sh

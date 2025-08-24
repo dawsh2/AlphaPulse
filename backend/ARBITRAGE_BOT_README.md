@@ -5,7 +5,7 @@
 ### 1. Test Mode (Recommended First)
 ```bash
 # Set your private key
-export PRIVATE_KEY="<your_private_key_here>"
+export PRIVATE_KEY="YOUR_WALLET_KEY"
 
 # Run test script (finds and simulates one trade)
 python3 test_arbitrage_execution.py
@@ -16,7 +16,7 @@ python3 test_arbitrage_execution.py
 #### Option A: Python Bot (Simple)
 ```bash
 # Configure
-export PRIVATE_KEY="<your_private_key_here>"
+export PRIVATE_KEY="YOUR_WALLET_KEY"
 export EXECUTE_TRADES=false  # Set to true when ready
 
 # Run
@@ -26,7 +26,7 @@ python3 auto_arbitrage_bot.py
 #### Option B: Rust Bot (Performance)
 ```bash
 # Configure
-export PRIVATE_KEY="<your_private_key_here>"
+export PRIVATE_KEY="YOUR_WALLET_KEY"
 export EXECUTE_TRADES=false  # Set to true when ready
 
 # Build and run
@@ -134,7 +134,7 @@ Access metrics at http://localhost:9090/metrics
 ### Environment Variables
 ```bash
 # Required
-export PRIVATE_KEY="<your_key>"
+export PRIVATE_KEY="YOUR_WALLET_KEY"
 
 # Optional
 export EXECUTE_TRADES=false       # true to execute real trades
@@ -146,7 +146,7 @@ export MAX_POSITION_SIZE_USD=10000  # Maximum trade size
 
 ### Config File (.env)
 ```env
-PRIVATE_KEY="<your_key_here>"
+PRIVATE_KEY="YOUR_WALLET_KEY"
 EXECUTE_TRADES=false
 USE_FLASH_LOANS=true
 MIN_PROFIT_USD=1.0

@@ -40,7 +40,7 @@ fn default_version() -> String {
 impl TopologyConfig {
     /// Load configuration from YAML file
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| TopologyError::Io(e))?;
+        let content = std::fs::read_to_string(path.as_ref()).map_err(TopologyError::Io)?;
 
         Self::from_yaml(&content)
     }
@@ -51,7 +51,7 @@ impl TopologyConfig {
         let expanded_yaml = Self::expand_env_vars(yaml)?;
 
         let config: TopologyConfig =
-            serde_yaml::from_str(&expanded_yaml).map_err(|e| TopologyError::YamlParse(e))?;
+            serde_yaml::from_str(&expanded_yaml).map_err(TopologyError::YamlParse)?;
 
         // Validate configuration
         config.validate()?;
@@ -62,13 +62,13 @@ impl TopologyConfig {
     /// Save configuration to YAML file
     pub fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let yaml = self.to_yaml()?;
-        std::fs::write(path.as_ref(), yaml).map_err(|e| TopologyError::Io(e))?;
+        std::fs::write(path.as_ref(), yaml).map_err(TopologyError::Io)?;
         Ok(())
     }
 
     /// Convert configuration to YAML string
     pub fn to_yaml(&self) -> Result<String> {
-        serde_yaml::to_string(self).map_err(|e| TopologyError::YamlParse(e))
+        serde_yaml::to_string(self).map_err(TopologyError::YamlParse)
     }
 
     /// Validate entire configuration
@@ -213,12 +213,13 @@ impl TopologyConfig {
 
     /// Generate deployment summary
     pub fn deployment_summary(&self) -> DeploymentSummary {
-        let mut summary = DeploymentSummary::default();
+        let mut summary = DeploymentSummary {
+            total_actors: self.actors.len(),
+            total_nodes: self.nodes.len(),
+            ..Default::default()
+        };
 
-        summary.total_actors = self.actors.len();
-        summary.total_nodes = self.nodes.len();
-
-        for (_, actor) in &self.actors {
+        for actor in self.actors.values() {
             match actor.actor_type {
                 crate::actors::ActorType::Producer => summary.producer_count += 1,
                 crate::actors::ActorType::Transformer => summary.transformer_count += 1,
@@ -230,7 +231,7 @@ impl TopologyConfig {
         }
 
         // Count channels
-        for (_, node) in &self.nodes {
+        for node in self.nodes.values() {
             summary.total_channels += node.local_channels.len();
         }
 

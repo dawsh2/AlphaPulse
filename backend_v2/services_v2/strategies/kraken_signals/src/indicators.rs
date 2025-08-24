@@ -60,6 +60,11 @@ impl MovingAverage {
     pub fn len(&self) -> usize {
         self.values.len()
     }
+
+    /// Check if the indicator has no data points
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
 }
 
 /// Momentum indicator (rate of change)

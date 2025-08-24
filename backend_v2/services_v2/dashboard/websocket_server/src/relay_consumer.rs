@@ -1,4 +1,89 @@
-//! Relay consumer that connects to multiple TLV relays
+//! # Dashboard Relay Consumer - TLV to JSON Bridge
+//!
+//! ## Purpose
+//! Connects to MarketDataRelay as a consumer, receives Protocol V2 TLV messages,
+//! converts them to JSON, and broadcasts to WebSocket dashboard clients.
+//!
+//! ## Architecture Role
+//!
+//! ```mermaid
+//! graph LR
+//!     MarketRelay["/tmp/alphapulse/market_data.sock"] -->|TLV Messages| Consumer[RelayConsumer]
+//!     Consumer -->|32-byte Header| HeaderParser[Header Parsing]
+//!     Consumer -->|TLV Payload| TLVParser[TLV Extensions Parser]
+//!     
+//!     HeaderParser --> Validation{Domain Validation}
+//!     TLVParser --> Conversion[TLV to JSON Converter]
+//!     Conversion --> SignalBuffer[Signal Assembly Buffer]
+//!     
+//!     SignalBuffer -->|Complete Signals| Broadcast[WebSocket Broadcast]
+//!     Validation -->|Direct Messages| Broadcast
+//!     
+//!     Broadcast --> Frontend[Dashboard Frontend]
+//!     
+//!     subgraph "Consumer Connection"
+//!         Consumer --> ReadTask[Read Task]
+//!         ReadTask --> MessageBuffer[Message Buffer]
+//!         MessageBuffer --> Processing[TLV Processing]
+//!     end
+//!     
+//!     classDef consumer fill:#E6E6FA
+//!     classDef conversion fill:#F0E68C
+//!     class Consumer,ReadTask consumer
+//!     class HeaderParser,TLVParser,Conversion conversion
+//! ```
+//!
+//! ## TLV Message Processing Flow
+//!
+//! **Message Structure**: 32-byte MessageHeader + variable TLV payload
+//!
+//! 1. **Header Parsing**: Extract domain, source, sequence, payload size
+//! 2. **Domain Validation**: Ensure MarketData domain messages only
+//! 3. **TLV Parsing**: Extract individual TLV extensions from payload
+//! 4. **Type-Specific Processing**: Convert each TLV type to appropriate JSON
+//! 5. **Signal Assembly**: Buffer partial signals until complete
+//! 6. **WebSocket Broadcast**: Send JSON to all connected dashboard clients
+//!
+//! ## Performance Optimizations
+//!
+//! **MarketData Fast Path**: Uses `parse_header_fast()` without checksum validation
+//! for >1M msg/s throughput. Signal and Execution domains use full validation.
+//!
+//! **Message Buffering**: Accumulates partial TCP reads into complete TLV messages
+//! before processing. Handles fragmented Unix socket reads gracefully.
+//!
+//! **Signal Assembly**: Buffers SignalIdentity + Economics TLV pairs before
+//! broadcasting complete arbitrage opportunities to dashboard.
+//!
+//! ## Connection Resilience
+//!
+//! **Automatic Reconnection**: Continuously attempts to reconnect to relay
+//! with 5-second backoff if connection drops. No message loss during relay restarts.
+//!
+//! **Graceful Degradation**: Invalid messages are logged and skipped without
+//! crashing consumer. Maintains service availability during data quality issues.
+//!
+//! ## Integration with Bidirectional Relay
+//!
+//! **Consumer Role**: This service connects to the relay AFTER the relay and
+//! publisher are running. The relay's bidirectional forwarding ensures this
+//! consumer receives all messages broadcast from polygon_publisher.
+//!
+//! **No Publisher/Consumer Classification**: The relay treats this connection
+//! as bidirectional - it could theoretically send messages back to the relay,
+//! but currently only consumes for dashboard display.
+//!
+//! ## Troubleshooting
+//!
+//! **Not receiving TLV messages**:
+//! - Ensure MarketDataRelay is running and polygon_publisher is connected
+//! - Check relay logs for "Connection X forwarded message" entries  
+//! - Verify Unix socket path `/tmp/alphapulse/market_data.sock` accessibility
+//!
+//! **JSON conversion errors**:
+//! - Check TLV payload structure matches expected Protocol V2 format
+//! - Verify message_converter.rs handles all active TLV types
+//! - Monitor for ParseError logs indicating malformed TLV data
 
 use crate::client::ClientManager;
 use crate::error::{DashboardError, Result};
@@ -312,8 +397,7 @@ impl RelayConsumer {
                             // Check if this is a flash arbitrage signal (strategy_id = 21)
                             let is_flash_arbitrage = identity
                                 .get("strategy_id")
-                                .and_then(|v| v.as_u64())
-                                .map_or(false, |id| id == 21);
+                                .and_then(|v| v.as_u64()) == Some(21);
 
                             if is_flash_arbitrage {
                                 // Create arbitrage opportunity message for dashboard

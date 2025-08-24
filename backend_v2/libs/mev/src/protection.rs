@@ -67,7 +67,7 @@ impl MevProtection {
     }
 
     /// Reveal a previously submitted commit
-    pub fn reveal_commit(&mut self, commit_hash: String, reveal_data: &str) -> bool {
+    pub fn reveal_commit(&mut self, commit_hash: String, _reveal_data: &str) -> bool {
         if self.pending_commits.remove(&commit_hash) {
             // Validate reveal matches commit
             // This is a simplified version - real implementation would hash reveal_data

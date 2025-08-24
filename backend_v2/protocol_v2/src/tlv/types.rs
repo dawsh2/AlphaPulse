@@ -734,7 +734,7 @@ impl TLVType {
             "- **System**: {} types (100-119)\n",
             system_types.len()
         ));
-        output.push_str("\n");
+        output.push('\n');
 
         // Generate domain tables
         Self::generate_domain_table(
@@ -827,7 +827,7 @@ impl TLVType {
             ));
         }
 
-        output.push_str("\n");
+        output.push('\n');
     }
 
     // ═══════════════════════════════════════════════════════════════════════

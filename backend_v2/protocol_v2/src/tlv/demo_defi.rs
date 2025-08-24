@@ -54,50 +54,54 @@ pub struct DemoDeFiArbitrageTLV {
     pub timestamp_ns: u64, // Nanoseconds since epoch when detected
 }
 
+/// Configuration for creating DemoDeFiArbitrageTLV
+#[derive(Debug, Clone)]
+pub struct ArbitrageConfig {
+    pub strategy_id: u16,
+    pub signal_id: u64,
+    pub confidence: u8,
+    pub chain_id: u8,
+    pub expected_profit_q: i128,
+    pub required_capital_q: u128,
+    pub estimated_gas_cost_q: u128,
+    pub venue_a: VenueId,
+    pub pool_a: [u8; 20],
+    pub venue_b: VenueId,
+    pub pool_b: [u8; 20],
+    pub token_in: u64,
+    pub token_out: u64,
+    pub optimal_amount_q: u128,
+    pub slippage_tolerance: u16,
+    pub max_gas_price_gwei: u32,
+    pub valid_until: u32,
+    pub priority: u8,
+    pub timestamp_ns: u64,
+}
+
 impl DemoDeFiArbitrageTLV {
-    /// Create new arbitrage opportunity TLV
-    pub fn new(
-        strategy_id: u16,
-        signal_id: u64,
-        confidence: u8,
-        chain_id: u8,
-        expected_profit_q: i128,
-        required_capital_q: u128,
-        estimated_gas_cost_q: u128,
-        venue_a: VenueId,
-        pool_a: [u8; 20],
-        venue_b: VenueId,
-        pool_b: [u8; 20],
-        token_in: u64,
-        token_out: u64,
-        optimal_amount_q: u128,
-        slippage_tolerance: u16,
-        max_gas_price_gwei: u32,
-        valid_until: u32,
-        priority: u8,
-        timestamp_ns: u64,
-    ) -> Self {
+    /// Create new arbitrage opportunity TLV from config
+    pub fn new(config: ArbitrageConfig) -> Self {
         Self {
-            strategy_id,
-            signal_id,
-            confidence,
-            chain_id,
-            expected_profit_q,
-            required_capital_q,
-            estimated_gas_cost_q,
-            venue_a,
-            pool_a,
-            venue_b,
-            pool_b,
-            token_in,
-            token_out,
-            optimal_amount_q,
-            slippage_tolerance,
-            max_gas_price_gwei,
-            valid_until,
-            priority,
+            strategy_id: config.strategy_id,
+            signal_id: config.signal_id,
+            confidence: config.confidence,
+            chain_id: config.chain_id,
+            expected_profit_q: config.expected_profit_q,
+            required_capital_q: config.required_capital_q,
+            estimated_gas_cost_q: config.estimated_gas_cost_q,
+            venue_a: config.venue_a,
+            pool_a: config.pool_a,
+            venue_b: config.venue_b,
+            pool_b: config.pool_b,
+            token_in: config.token_in,
+            token_out: config.token_out,
+            optimal_amount_q: config.optimal_amount_q,
+            slippage_tolerance: config.slippage_tolerance,
+            max_gas_price_gwei: config.max_gas_price_gwei,
+            valid_until: config.valid_until,
+            priority: config.priority,
             reserved: 0,
-            timestamp_ns,
+            timestamp_ns: config.timestamp_ns,
         }
     }
 
@@ -122,7 +126,7 @@ impl DemoDeFiArbitrageTLV {
     /// Convert signed Q64.64 to human-readable decimal string
     pub fn signed_q64_to_decimal_string(q64_value: i128, decimals: u8) -> String {
         let is_negative = q64_value < 0;
-        let abs_value = q64_value.abs() as u128;
+        let abs_value = q64_value.unsigned_abs();
         let decimal_str = Self::q64_to_decimal_string(abs_value, decimals);
         if is_negative {
             format!("-{}", decimal_str)

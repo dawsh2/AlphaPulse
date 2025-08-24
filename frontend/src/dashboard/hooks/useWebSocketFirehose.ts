@@ -12,10 +12,31 @@ import type {
   WebSocketMessage
 } from '../types';
 
+// Add PoolEvent interface  
+interface PoolEvent {
+  id: string;
+  type: 'sync' | 'swap';
+  timestamp: number;
+  venue_name: string;
+  pool_address: string;
+  token0_address?: string;
+  token1_address?: string;
+  token_in?: string;
+  token_out?: string;
+  reserves?: {
+    reserve0: { raw: string; normalized: number; decimals: number };
+    reserve1: { raw: string; normalized: number; decimals: number };
+  };
+  amount_in?: { raw: string; normalized: number; decimals: number };
+  amount_out?: { raw: string; normalized: number; decimals: number };
+  block_number: number;
+}
+
 export function useWebSocketFirehose(endpoint: string) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [orderbooks, setOrderbooks] = useState<Record<string, OrderBook>>({});
   const [symbolMappings, setSymbolMappings] = useState<Map<string, string>>(new Map());
+  const [poolEvents, setPoolEvents] = useState<PoolEvent[]>([]);
   const [metrics, setMetrics] = useState<Metrics>({
     trades_per_second: 0,
     orderbook_updates_per_second: 0,
@@ -304,6 +325,33 @@ export function useWebSocketFirehose(endpoint: string) {
               setStatusUpdate(update);
               console.log('Received StatusUpdate:', update);
             }
+          } else if (message.msg_type === 'pool_sync') {
+            const poolEvent: PoolEvent = {
+              id: `sync-${message.pool_address}-${message.timestamp}`,
+              type: 'sync',
+              timestamp: message.timestamp,
+              venue_name: message.venue_name,
+              pool_address: message.pool_address,
+              token0_address: message.token0_address,
+              token1_address: message.token1_address,
+              reserves: message.reserves,
+              block_number: message.block_number
+            };
+            setPoolEvents(prev => [poolEvent, ...prev].slice(0, 50));
+          } else if (message.msg_type === 'pool_swap') {
+            const poolEvent: PoolEvent = {
+              id: `swap-${message.pool_address}-${message.timestamp}`,
+              type: 'swap',
+              timestamp: message.timestamp,
+              venue_name: message.venue_name,
+              pool_address: message.pool_address,
+              token_in: message.token_in,
+              token_out: message.token_out,
+              amount_in: message.amount_in,
+              amount_out: message.amount_out,
+              block_number: message.block_number
+            };
+            setPoolEvents(prev => [poolEvent, ...prev].slice(0, 50));
           } else if (message.msg_type === 'pong') {
             // Handle pong response (keepalive)
             console.log('🏓 Received pong, connection alive');
@@ -371,6 +419,7 @@ export function useWebSocketFirehose(endpoint: string) {
     trades,
     orderbooks,
     symbolMappings,
+    poolEvents,
     metrics,
     status,
     statusUpdate,

@@ -15,7 +15,6 @@ pub use bridge::{TransportBridge, BridgeConfig};
 
 use crate::{TransportError, Result, Transport, Priority, TransportStatistics};
 use async_trait::async_trait;
-use std::collections::HashMap;
 use tokio::sync::RwLock;
 
 /// Hybrid transport that combines direct and message queue transport

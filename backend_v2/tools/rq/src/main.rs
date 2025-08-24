@@ -80,6 +80,14 @@ enum Commands {
         /// Search term
         term: String,
     },
+    /// Open rustdoc webpage for crate or item
+    Open {
+        /// Crate name or item to open docs for
+        #[arg(short, long)]
+        crate_name: Option<String>,
+        /// Item name to search for in docs
+        item: Option<String>,
+    },
 }
 
 #[derive(Args)]
@@ -339,6 +347,50 @@ fn main() -> Result<()> {
                         }
                     }
                     println!();
+                }
+            }
+        }
+
+        Commands::Open { crate_name, item } => {
+            if let Some(crate_name) = crate_name {
+                // Open docs for specific crate
+                let doc_path = format!("target/doc/{}/index.html", crate_name.replace('-', "_"));
+                
+                // Check if docs exist
+                if std::path::Path::new(&doc_path).exists() {
+                    println!("Opening documentation for crate '{}'...", crate_name);
+                    std::process::Command::new("open").arg(&doc_path).spawn()?;
+                } else {
+                    println!("Documentation not found for '{}'. Try running 'cargo doc' first.", crate_name);
+                }
+            } else if let Some(item) = item {
+                // Search for item and try to open its docs
+                let results = query_engine.find(&item, None, None, false, None, false)?;
+                
+                if results.is_empty() {
+                    println!("Item '{}' not found", item);
+                } else {
+                    // Take first result and try to open its documentation
+                    let result = &results[0];
+                    let crate_name = &result.crate_name;
+                    let doc_path = format!("target/doc/{}/index.html", crate_name.replace('-', "_"));
+                    
+                    if std::path::Path::new(&doc_path).exists() {
+                        println!("Opening documentation for '{}' in crate '{}'...", item, crate_name);
+                        std::process::Command::new("open").arg(&doc_path).spawn()?;
+                    } else {
+                        println!("Documentation not found. Try running 'cargo doc' first.");
+                    }
+                }
+            } else {
+                // Open main workspace docs
+                let doc_path = "target/doc/index.html";
+                
+                if std::path::Path::new(doc_path).exists() {
+                    println!("Opening workspace documentation...");
+                    std::process::Command::new("open").arg(doc_path).spawn()?;
+                } else {
+                    println!("Workspace documentation not found. Try running 'cargo doc' first.");
                 }
             }
         }

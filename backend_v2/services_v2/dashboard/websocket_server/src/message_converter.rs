@@ -3,8 +3,9 @@
 use crate::error::{DashboardError, Result};
 use protocol_v2::InstrumentId;
 use protocol_v2::{
-    tlv::DemoDeFiArbitrageTLV, ParseError, PoolSwapTLV, QuoteTLV, StateInvalidationTLV,
+    tlv::{DemoDeFiArbitrageTLV, PoolSyncTLV}, ParseError, PoolSwapTLV, QuoteTLV,
 };
+use base64::prelude::*;
 use serde_json::{json, Value};
 use std::time::SystemTime;
 
@@ -19,14 +20,15 @@ pub fn convert_tlv_to_json(tlv_type: u8, payload: &[u8], timestamp_ns: u64) -> R
         12 => convert_pool_mint_tlv(payload, timestamp_ns), // PoolMintTLV
         13 => convert_pool_burn_tlv(payload, timestamp_ns), // PoolBurnTLV
         14 => convert_pool_tick_tlv(payload, timestamp_ns), // PoolTickTLV
+        16 => convert_pool_sync_tlv(payload, timestamp_ns), // PoolSyncTLV
         67 => convert_flash_loan_result_tlv(payload, timestamp_ns), // TLVType::FlashLoanResult
         202 => convert_proprietary_data_tlv(payload, timestamp_ns), // VendorTLVType::ProprietaryData
         255 => convert_demo_defi_arbitrage_tlv(payload, timestamp_ns), // DemoDeFiArbitrageTLV
         _ => Ok(json!({
-            "type": "unknown",
+            "msg_type": "unknown",
             "tlv_type": tlv_type,
             "timestamp": timestamp_ns,
-            "raw_data": base64::encode(payload)
+            "raw_data": base64::prelude::BASE64_STANDARD.encode(payload)
         })),
     }
 }
@@ -79,7 +81,7 @@ fn convert_trade_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     let volume = volume_raw as f64 / 100_000_000.0;
 
     Ok(json!({
-        "type": "trade",
+        "msg_type": "trade",
         "instrument": {
             "venue": venue,
             "venue_name": format!("Venue{}", venue),
@@ -115,7 +117,7 @@ fn convert_quote_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     let ask_size = quote.ask_size;
 
     Ok(json!({
-        "type": "quote",
+        "msg_type": "quote",
         "instrument_id": quote.instrument_id().to_u64(),
         "bid_price": bid_price,
         "ask_price": ask_price,
@@ -154,7 +156,7 @@ fn convert_state_invalidation_tlv(payload: &[u8], timestamp_ns: u64) -> Result<V
     });
 
     Ok(json!({
-        "type": "state_invalidation",
+        "msg_type": "state_invalidation",
         "data": invalidation_data,
         "timestamp": timestamp_ns,
         "timestamp_iso": timestamp_to_iso(timestamp_ns)
@@ -189,7 +191,7 @@ pub fn create_combined_signal(
     timestamp_ns: u64,
 ) -> Value {
     let mut combined = json!({
-        "type": "trading_signal",
+        "msg_type": "trading_signal",
         "timestamp": timestamp_ns,
         "timestamp_iso": timestamp_to_iso(timestamp_ns)
     });
@@ -305,10 +307,10 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
         "net_profit_usd": arbitrage_tlv.expected_profit_usd(),
         "max_trade_size": arbitrage_tlv.required_capital_usd(),
         "profit_percent": if arbitrage_tlv.required_capital_q > 0 {
-            ((arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0)
+            (arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0
         } else { 0.0 },
         "net_profit_percent": if arbitrage_tlv.required_capital_q > 0 {
-            ((arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0)
+            (arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0
         } else { 0.0 },
         "optimal_trade_amount": arbitrage_tlv.optimal_amount_token(6), // Assume USDC (6 decimals)
         "gas_cost_estimate": arbitrage_tlv.estimated_gas_cost_native(),
@@ -362,7 +364,7 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
 fn convert_pool_liquidity_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     // Simple placeholder for pool liquidity
     Ok(json!({
-        "type": "pool_liquidity",
+        "msg_type": "pool_liquidity",
         "timestamp": timestamp_ns,
         "timestamp_iso": timestamp_to_iso(timestamp_ns),
         "payload_size": payload.len()
@@ -372,7 +374,7 @@ fn convert_pool_liquidity_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value
 fn convert_pool_mint_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     // Simple placeholder for pool mint
     Ok(json!({
-        "type": "pool_mint",
+        "msg_type": "pool_mint",
         "timestamp": timestamp_ns,
         "timestamp_iso": timestamp_to_iso(timestamp_ns),
         "payload_size": payload.len()
@@ -382,7 +384,7 @@ fn convert_pool_mint_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
 fn convert_pool_burn_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     // Simple placeholder for pool burn
     Ok(json!({
-        "type": "pool_burn",
+        "msg_type": "pool_burn",
         "timestamp": timestamp_ns,
         "timestamp_iso": timestamp_to_iso(timestamp_ns),
         "payload_size": payload.len()
@@ -392,7 +394,7 @@ fn convert_pool_burn_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
 fn convert_pool_tick_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     // Simple placeholder for pool tick
     Ok(json!({
-        "type": "pool_tick",
+        "msg_type": "pool_tick",
         "timestamp": timestamp_ns,
         "timestamp_iso": timestamp_to_iso(timestamp_ns),
         "payload_size": payload.len()
@@ -412,25 +414,26 @@ fn convert_pool_swap_tlv(payload: &[u8], _timestamp_ns: u64) -> Result<Value> {
         swap.amount_out as f64 / 10_f64.powi(swap.amount_out_decimals as i32);
 
     Ok(json!({
-        "type": "pool_swap",
+        "msg_type": "pool_swap",
         "venue": swap.venue as u16,
         "venue_name": format!("{:?}", swap.venue),
         "pool_address": format!("0x{}", hex::encode(swap.pool_address)),
         "token_in": format!("0x{}", hex::encode(swap.token_in_addr)),
         "token_out": format!("0x{}", hex::encode(swap.token_out_addr)),
         "amount_in": {
-            "raw": swap.amount_in,
+            "raw": swap.amount_in.to_string(), // Use string to avoid JSON number limits
             "normalized": amount_in_normalized,
             "decimals": swap.amount_in_decimals
         },
         "amount_out": {
-            "raw": swap.amount_out,
+            "raw": swap.amount_out.to_string(), // Use string to avoid JSON number limits
             "normalized": amount_out_normalized,
             "decimals": swap.amount_out_decimals
         },
-        "sqrt_price_x96_after": swap.sqrt_price_x96_after,
+        "sqrt_price_x96_after": format!("0x{}", hex::encode(swap.sqrt_price_x96_after)), // Hex format for [u8; 20]
+        "sqrt_price_x96_u128": swap.sqrt_price_x96_as_u128().to_string(), // Backward compatibility as string
         "tick_after": swap.tick_after,
-        "liquidity_after": swap.liquidity_after,
+        "liquidity_after": swap.liquidity_after.to_string(), // Use string for large values
         "timestamp": swap.timestamp_ns,
         "timestamp_iso": timestamp_to_iso(swap.timestamp_ns),
         "block_number": swap.block_number
@@ -440,7 +443,7 @@ fn convert_pool_swap_tlv(payload: &[u8], _timestamp_ns: u64) -> Result<Value> {
 /// Convert FlashLoanResult TLV (type 67)
 fn convert_flash_loan_result_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     Ok(json!({
-        "type": "flash_loan_result",
+        "msg_type": "flash_loan_result",
         "tlv_type": 67,
         "timestamp": timestamp_ns,
         "timestamp_iso": timestamp_to_iso(timestamp_ns),
@@ -449,10 +452,49 @@ fn convert_flash_loan_result_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Va
     }))
 }
 
+/// Convert pool sync TLV (type 16) - V2 Sync events with complete reserves
+fn convert_pool_sync_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
+    let sync = PoolSyncTLV::from_bytes(payload).map_err(|e| {
+        DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
+            ParseError::MessageTooSmall { need: 32, got: 0 },
+        ))
+    })?;
+
+    // Convert reserves to normalized amounts (avoiding JSON number range issues)
+    let reserve0_normalized = sync.reserve0 as f64 / 10_f64.powi(sync.token0_decimals as i32);
+    let reserve1_normalized = sync.reserve1 as f64 / 10_f64.powi(sync.token1_decimals as i32);
+
+    Ok(json!({
+        "msg_type": "pool_sync",
+        "venue": sync.venue as u16,
+        "venue_name": format!("{:?}", sync.venue),
+        "pool_address": format!("0x{}", hex::encode(sync.pool_address)),
+        "token0_address": format!("0x{}", hex::encode(sync.token0_addr)),
+        "token1_address": format!("0x{}", hex::encode(sync.token1_addr)),
+        "reserves": {
+            "reserve0": {
+                "raw": sync.reserve0.to_string(), // Use string to avoid JSON number limits
+                "normalized": reserve0_normalized,
+                "decimals": sync.token0_decimals
+            },
+            "reserve1": {
+                "raw": sync.reserve1.to_string(), // Use string to avoid JSON number limits  
+                "normalized": reserve1_normalized,
+                "decimals": sync.token1_decimals
+            }
+        },
+        "block_number": sync.block_number,
+        "timestamp": timestamp_ns,
+        "timestamp_iso": timestamp_to_iso(timestamp_ns),
+        "original_timestamp": sync.timestamp_ns,
+        "original_timestamp_iso": timestamp_to_iso(sync.timestamp_ns)
+    }))
+}
+
 /// Convert vendor proprietary data TLV (type 202)
 fn convert_proprietary_data_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     Ok(json!({
-        "type": "proprietary_data",
+        "msg_type": "proprietary_data",
         "tlv_type": 202,
         "timestamp": timestamp_ns,
         "timestamp_iso": timestamp_to_iso(timestamp_ns),

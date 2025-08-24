@@ -15,14 +15,43 @@
 //! - **Compression**: LZ4, Zstd, and Snappy compression options
 //! - **Monitoring**: Comprehensive metrics and health monitoring
 //!
-//! # Architecture
+//! ## Architecture Role
 //!
-//! ```text
-//! Actor A ─┬─ SharedMemory ──┬─ Actor B (same node)
-//!          │                 │
-//!          └─ TCP/UDP ──────┬─ Actor C (different node)
-//!          │                │
-//!          └─ MessageQueue ─┴─ Actor D (reliable delivery)
+//! ```mermaid
+//! graph TB
+//!     ActorA[Actor A] -->|Same Node| SharedMem[Shared Memory <35μs]
+//!     ActorA -->|Different Node| TCPUDP[TCP/UDP <5ms]
+//!     ActorA -->|Reliable Delivery| MessageQueue[Message Queue <50ms]
+//!     
+//!     SharedMem --> ActorB[Actor B - Same Node]
+//!     TCPUDP --> ActorC[Actor C - Different Node]
+//!     MessageQueue --> ActorD[Actor D - Reliable Delivery]
+//!     
+//!     subgraph "Transport Selection Logic"
+//!         Distance{Distance Check}
+//!         Reliability{Reliability Required?}
+//!         Performance{Latency Priority?}
+//!         
+//!         Distance -->|Same Node| SharedMem
+//!         Distance -->|Different Node| Reliability
+//!         Reliability -->|Yes| MessageQueue
+//!         Reliability -->|No| Performance
+//!         Performance -->|Yes| UDP[UDP Direct]
+//!         Performance -->|No| TCP[TCP Reliable]
+//!     end
+//!     
+//!     subgraph "Hybrid Transport Layer"
+//!         Router[Transport Router]
+//!         Bridge[Protocol Bridge]
+//!         Factory[Connection Factory]
+//!     end
+//!     
+//!     classDef fast fill:#90EE90
+//!     classDef medium fill:#FFE4B5
+//!     classDef reliable fill:#FFA07A
+//!     class SharedMem,UDP fast
+//!     class TCP,TCPUDP medium  
+//!     class MessageQueue reliable
 //! ```
 //!
 //! # Quick Start

@@ -44,35 +44,39 @@ pub struct TradingSignal {
     pub reason: String,
 }
 
+/// Configuration for creating TradingSignal
+#[derive(Debug, Clone)]
+pub struct SignalConfig {
+    pub signal_id: u64,
+    pub instrument_id: InstrumentId,
+    pub signal_type: SignalType,
+    pub confidence: u8,
+    pub current_price: Decimal,
+    pub position_size_usd: Decimal,
+    pub expected_profit_usd: Decimal,
+    pub strategy_id: u16,
+    pub reason: String,
+}
+
 impl TradingSignal {
-    /// Create a new trading signal
-    pub fn new(
-        signal_id: u64,
-        instrument_id: InstrumentId,
-        signal_type: SignalType,
-        confidence: u8,
-        current_price: Decimal,
-        position_size_usd: Decimal,
-        expected_profit_usd: Decimal,
-        strategy_id: u16,
-        reason: String,
-    ) -> Self {
+    /// Create a new trading signal from config
+    pub fn new(config: SignalConfig) -> Self {
         let timestamp_ns = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos() as u64;
 
         Self {
-            signal_id,
-            instrument_id,
-            signal_type,
-            confidence,
-            current_price,
-            position_size_usd,
-            expected_profit_usd,
+            signal_id: config.signal_id,
+            instrument_id: config.instrument_id,
+            signal_type: config.signal_type,
+            confidence: config.confidence,
+            current_price: config.current_price,
+            position_size_usd: config.position_size_usd,
+            expected_profit_usd: config.expected_profit_usd,
             timestamp_ns,
-            strategy_id,
-            reason,
+            strategy_id: config.strategy_id,
+            reason: config.reason,
         }
     }
 

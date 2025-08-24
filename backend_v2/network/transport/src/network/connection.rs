@@ -1,7 +1,6 @@
 //! Connection management
 
-use crate::{Result, error::TransportError};
-use std::net::SocketAddr;
+use crate::Result;
 use std::sync::Arc;
 use dashmap::DashMap;
 use super::ConnectionConfig;

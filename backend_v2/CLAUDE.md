@@ -180,6 +180,13 @@ See `.agents/development.md` for complete development workflow.
 - Factual only: "Processes messages in <35μs" not "Lightning-fast"
 - Include structured `//!` documentation for rq discovery
 
+### Architecture Diagrams
+- **Use Mermaid diagrams** instead of ASCII art for better visualization
+- **Standard pattern**: Create `architecture_diagram()` function with `#[cfg_attr(doc, aquamarine::aquamarine)]`
+- **Reference from docs**: Link to diagram function in "Architecture Role" section
+- **Search commands**: Use `rq docs "mermaid"` or `rqd` to find all diagrams
+- **Benefits**: Rendered SVG in rustdoc, GitHub integration, easy maintenance
+
 ## Quick Reference
 
 ### File Locations
@@ -195,6 +202,8 @@ See `.agents/development.md` for complete development workflow.
 # System understanding
 rq docs "architecture"           # Component relationships
 rq check function_name           # Prevent duplication
+rq docs "mermaid"               # Find architecture diagrams
+rqd                             # Short alias for diagram search
 
 # Testing
 cargo test --package protocol_v2

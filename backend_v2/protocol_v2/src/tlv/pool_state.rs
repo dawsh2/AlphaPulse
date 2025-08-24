@@ -42,35 +42,55 @@ pub enum DEXProtocol {
 /// Type alias for backward compatibility
 pub type PoolType = DEXProtocol;
 
+/// Configuration for V2 pool state
+#[derive(Debug, Clone)]
+pub struct V2PoolConfig {
+    pub venue: VenueId,
+    pub pool_address: [u8; 20],
+    pub token0_addr: [u8; 20],
+    pub token1_addr: [u8; 20],
+    pub token0_decimals: u8,
+    pub token1_decimals: u8,
+    pub reserve0: u128,
+    pub reserve1: u128,
+    pub fee_rate: u32,
+    pub block: u64,
+}
+
+/// Configuration for V3 pool state
+#[derive(Debug, Clone)]
+pub struct V3PoolConfig {
+    pub venue: VenueId,
+    pub pool_address: [u8; 20],
+    pub token0_addr: [u8; 20],
+    pub token1_addr: [u8; 20],
+    pub token0_decimals: u8,
+    pub token1_decimals: u8,
+    pub sqrt_price_x96: u128,
+    pub tick: i32,
+    pub liquidity: u128,
+    pub fee_rate: u32,
+    pub block: u64,
+}
+
 impl PoolStateTLV {
     /// Create from V2 pool reserves with native precision
-    pub fn from_v2_reserves(
-        venue: VenueId,
-        pool_address: [u8; 20],
-        token0_addr: [u8; 20],
-        token1_addr: [u8; 20],
-        token0_decimals: u8,
-        token1_decimals: u8,
-        reserve0: u128,
-        reserve1: u128,
-        fee_rate: u32,
-        block: u64,
-    ) -> Self {
+    pub fn from_v2_reserves(config: V2PoolConfig) -> Self {
         Self {
-            venue,
-            pool_address,
-            token0_addr,
-            token1_addr,
+            venue: config.venue,
+            pool_address: config.pool_address,
+            token0_addr: config.token0_addr,
+            token1_addr: config.token1_addr,
             pool_type: DEXProtocol::UniswapV2,
-            token0_decimals,
-            token1_decimals,
-            reserve0,
-            reserve1,
+            token0_decimals: config.token0_decimals,
+            token1_decimals: config.token1_decimals,
+            reserve0: config.reserve0,
+            reserve1: config.reserve1,
             sqrt_price_x96: 0,
             tick: 0,
             liquidity: 0, // V2 doesn't use this concept
-            fee_rate,
-            block_number: block,
+            fee_rate: config.fee_rate,
+            block_number: config.block,
             timestamp_ns: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -79,38 +99,26 @@ impl PoolStateTLV {
     }
 
     /// Create from V3 pool state with native precision
-    pub fn from_v3_state(
-        venue: VenueId,
-        pool_address: [u8; 20],
-        token0_addr: [u8; 20],
-        token1_addr: [u8; 20],
-        token0_decimals: u8,
-        token1_decimals: u8,
-        sqrt_price_x96: u128,
-        tick: i32,
-        liquidity: u128,
-        fee_rate: u32,
-        block: u64,
-    ) -> Self {
+    pub fn from_v3_state(config: V3PoolConfig) -> Self {
         // Calculate virtual reserves from V3 state
         // This is approximate but useful for quick comparisons
-        let (reserve0, reserve1) = calculate_v3_virtual_reserves(sqrt_price_x96, liquidity);
+        let (reserve0, reserve1) = calculate_v3_virtual_reserves(config.sqrt_price_x96, config.liquidity);
 
         Self {
-            venue,
-            pool_address,
-            token0_addr,
-            token1_addr,
+            venue: config.venue,
+            pool_address: config.pool_address,
+            token0_addr: config.token0_addr,
+            token1_addr: config.token1_addr,
             pool_type: DEXProtocol::UniswapV3,
-            token0_decimals,
-            token1_decimals,
+            token0_decimals: config.token0_decimals,
+            token1_decimals: config.token1_decimals,
             reserve0,
             reserve1,
-            sqrt_price_x96,
-            tick,
-            liquidity,
-            fee_rate,
-            block_number: block,
+            sqrt_price_x96: config.sqrt_price_x96,
+            tick: config.tick,
+            liquidity: config.liquidity,
+            fee_rate: config.fee_rate,
+            block_number: config.block,
             timestamp_ns: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -338,6 +346,12 @@ fn calculate_v3_virtual_reserves(sqrt_price_x96: u128, liquidity: u128) -> (u128
 /// Pool state tracker - maintains current state of all pools
 pub struct PoolStateTracker {
     states: HashMap<[u8; 20], PoolStateTLV>, // Keyed by pool address
+}
+
+impl Default for PoolStateTracker {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PoolStateTracker {

@@ -163,6 +163,7 @@ pub struct PoolStateManager {
     /// Token index: token address -> list of pool addresses
     token_index: DashMap<[u8; 20], Vec<[u8; 20]>>,
     /// Token pair index: (token0, token1) -> list of pool addresses for arbitrage
+    #[allow(clippy::type_complexity)]
     token_pair_index: DashMap<([u8; 20], [u8; 20]), Vec<[u8; 20]>>,
 
     /// Statistics
@@ -183,6 +184,12 @@ pub struct ManagerStats {
     pub initialized_pools: usize,
     pub total_events: u64,
     pub last_update_ns: u64,
+}
+
+impl Default for PoolStateManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PoolStateManager {
@@ -310,7 +317,7 @@ impl PoolStateManager {
             };
             let pool_instrument_id =
                 InstrumentId::polygon_token(&format!("0x{}", hex::encode(pool_address)))
-                    .unwrap_or_else(|_| InstrumentId {
+                    .unwrap_or(InstrumentId {
                         venue: VenueId::Polygon as u16,
                         asset_type: 3, // Pool type
                         reserved: 0,
@@ -392,7 +399,7 @@ impl PoolStateManager {
                 };
                 let pool_instrument_id =
                     InstrumentId::polygon_token(&format!("0x{}", hex::encode(pool_address)))
-                        .unwrap_or_else(|_| InstrumentId {
+                        .unwrap_or(InstrumentId {
                             venue: VenueId::Polygon as u16,
                             asset_type: 3, // Pool type
                             reserved: 0,
@@ -408,7 +415,7 @@ impl PoolStateManager {
             let mut pool = pool_arc.write();
             pool.sqrt_price_x96 = Some(swap.sqrt_price_x96_as_u128());
             pool.tick = Some(swap.tick_after);
-            pool.liquidity = Some(swap.liquidity_after as u128);
+            pool.liquidity = Some(swap.liquidity_after);
             pool.last_update_ns = swap.timestamp_ns;
             pool.last_block = swap.block_number;
 
@@ -437,7 +444,7 @@ impl PoolStateManager {
         if let Some(pool_arc) = self.pools.get(&pool_address) {
             let mut pool = pool_arc.write();
             if let Some(liq) = pool.liquidity {
-                pool.liquidity = Some(liq + mint.liquidity_delta as u128);
+                pool.liquidity = Some(liq + mint.liquidity_delta);
             }
             pool.last_update_ns = mint.timestamp_ns;
             pool.last_block = 0; // TODO: Add block_number to PoolMintTLV
@@ -461,7 +468,7 @@ impl PoolStateManager {
         if let Some(pool_arc) = self.pools.get(&pool_address) {
             let mut pool = pool_arc.write();
             if let Some(liq) = pool.liquidity {
-                pool.liquidity = Some(liq.saturating_sub(burn.liquidity_delta as u128));
+                pool.liquidity = Some(liq.saturating_sub(burn.liquidity_delta));
             }
             pool.last_update_ns = burn.timestamp_ns;
             pool.last_block = 0; // TODO: Add block_number to PoolBurnTLV
@@ -594,14 +601,14 @@ impl PoolStateManager {
         for entry in self.pools.iter() {
             let pool_state = entry.value().read();
             if pool_state.pool_id.to_u64() == pool_id.to_u64() {
-                return Some(Arc::new(StrategyPoolState::from_pool_state(&*pool_state)));
+                return Some(Arc::new(StrategyPoolState::from_pool_state(&pool_state)));
             }
         }
         None
     }
 
     /// Find all pools for a token pair (strategy compatibility)
-    pub fn find_pools_for_pair(&self, token_a: u64, token_b: u64) -> Vec<Arc<StrategyPoolState>> {
+    pub fn find_pools_for_pair(&self, _token_a: u64, _token_b: u64) -> Vec<Arc<StrategyPoolState>> {
         // This is a compatibility shim - we need actual token addresses
         // For now, return empty since we can't map u64 to addresses without more context
         // TODO: Update callers to use find_pools_for_token_pair with actual addresses
@@ -652,7 +659,7 @@ impl PoolStateManager {
     }
 
     /// Find all pools containing a specific token (returns strategy-compatible PoolState)
-    pub fn find_strategy_pools_with_token(&self, token_id: u64) -> Vec<Arc<StrategyPoolState>> {
+    pub fn find_strategy_pools_with_token(&self, _token_id: u64) -> Vec<Arc<StrategyPoolState>> {
         // This is a compatibility shim - we need actual token addresses
         // For now, return empty since we can't map u64 to addresses without more context
         // TODO: Update callers to use find_pools_with_token with actual addresses
@@ -667,7 +674,7 @@ impl PoolStateManager {
             let addr_hash = u64::from_be_bytes(pool_addr[..8].try_into().unwrap());
             if addr_hash == pool_hash {
                 let lib_state = entry.value().read();
-                return Some(Arc::new(StrategyPoolState::from_pool_state(&*lib_state)));
+                return Some(Arc::new(StrategyPoolState::from_pool_state(&lib_state)));
             }
         }
         None
@@ -711,7 +718,7 @@ impl Stateful for PoolStateManager {
         let pools_vec: Vec<SerializablePoolState> = self
             .pools
             .iter()
-            .map(|entry| SerializablePoolState::from_pool_state(&*entry.value().read()))
+            .map(|entry| SerializablePoolState::from_pool_state(&entry.value().read()))
             .collect();
 
         let snapshot_data = SnapshotData {
@@ -866,7 +873,7 @@ impl StrategyPoolState {
     }
 
     /// Check if pool involves specific token
-    pub fn has_token(&self, token_id: u64) -> bool {
+    pub fn has_token(&self, _token_id: u64) -> bool {
         // This is a compatibility shim - we can't check without actual addresses
         // TODO: Update callers to provide token addresses instead of u64
         false
@@ -879,7 +886,7 @@ impl StrategyPoolState {
         {
             // V3 pool
             StrategyPoolState::V3 {
-                pool_id: lib_state.pool_id.clone(),
+                pool_id: lib_state.pool_id,
                 liquidity: lib_state.liquidity.unwrap_or(0),
                 sqrt_price_x96: lib_state.sqrt_price_x96.unwrap_or(0),
                 current_tick: lib_state.tick.unwrap_or(0),
@@ -889,7 +896,7 @@ impl StrategyPoolState {
         } else {
             // V2 pool
             StrategyPoolState::V2 {
-                pool_id: lib_state.pool_id.clone(),
+                pool_id: lib_state.pool_id,
                 reserves: (
                     lib_state.reserve0.unwrap_or(Decimal::ZERO),
                     lib_state.reserve1.unwrap_or(Decimal::ZERO),
@@ -909,7 +916,7 @@ impl StrategyPoolState {
                 fee_tier,
                 ..
             } => Ok(V2PoolState {
-                pool_id: pool_id.clone(),
+                pool_id: *pool_id,
                 reserve0: reserves.0,
                 reserve1: reserves.1,
                 fee_tier: *fee_tier,
@@ -929,7 +936,7 @@ impl StrategyPoolState {
                 fee_tier,
                 ..
             } => Ok(V3PoolState {
-                pool_id: pool_id.clone(),
+                pool_id: *pool_id,
                 liquidity: *liquidity,
                 sqrt_price_x96: *sqrt_price_x96,
                 current_tick: *current_tick,
@@ -1018,7 +1025,6 @@ impl SerializablePoolState {
     }
 
     fn to_pool_state(&self) -> PoolState {
-        use protocol_v2::InstrumentId as PoolInstrumentId;
 
         // Reconstruct the full PoolInstrumentId from saved data
         // Convert u16 back to VenueId enum

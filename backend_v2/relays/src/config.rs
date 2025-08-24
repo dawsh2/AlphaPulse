@@ -1,4 +1,193 @@
-//! Relay configuration management
+//! # Relay Configuration Management - Domain-Specific Policy Engine
+//!
+//! ## Purpose
+//! Comprehensive configuration framework for relay domains with performance-tuned
+//! policies, transport settings, and validation rules. Enables dynamic relay
+//! behavior based on domain requirements (MarketData, Signal, Execution).
+//!
+//! ## Architecture Role
+//!
+//! ```mermaid
+//! graph LR
+//!     ConfigFiles[Configuration Files] -->|TOML Parse| ConfigLoader[Config Loader]
+//!     ConfigLoader -->|Domain 1| MarketConfig[Market Data Config]
+//!     ConfigLoader -->|Domain 2| SignalConfig[Signal Config]
+//!     ConfigLoader -->|Domain 3| ExecConfig[Execution Config]
+//!     
+//!     MarketConfig -->|Performance Policy| MarketRelay[market_data_relay]
+//!     SignalConfig -->|Standard Policy| SignalRelay[signal_relay]
+//!     ExecConfig -->|Audit Policy| ExecRelay[execution_relay]
+//!     
+//!     subgraph "Configuration Structure"
+//!         RelaySettings[relay: RelaySettings]
+//!         TransportConfig[transport: TransportConfig]
+//!         ValidationPolicy[validation: ValidationPolicy]
+//!         TopicConfig[topics: TopicConfig]
+//!         PerformanceConfig[performance: PerformanceConfig]
+//!     end
+//!     
+//!     subgraph "Domain Policies"
+//!         Performance["Market: No checksum<br/>Buffer: 64KB<br/>Target: >1M msg/s"]
+//!         Standard["Signal: CRC32<br/>Buffer: 32KB<br/>Target: >100K msg/s"]
+//!         Audit["Execution: Full audit<br/>Buffer: 16KB<br/>Target: >50K msg/s"]
+//!     end
+//!     
+//!     classDef config fill:#F0E68C
+//!     classDef policies fill:#DDA0DD
+//!     class ConfigLoader,MarketConfig,SignalConfig,ExecConfig config
+//!     class Performance,Standard,Audit policies
+//! ```
+//!
+//! ## Configuration Structure
+//!
+//! **Hierarchical Configuration**: Five key sections per relay domain:
+//!
+//! ### 1. RelaySettings - Core Behavior
+//! ```toml
+//! [relay]
+//! domain = 1                    # 1=MarketData, 2=Signal, 3=Execution
+//! socket_path = "/tmp/alphapulse/market_data.sock"
+//! max_connections = 1000        # Concurrent consumer limit
+//! connection_timeout_ms = 5000  # Connection establishment timeout
+//! ```
+//!
+//! ### 2. TransportConfig - Network Layer
+//! ```toml
+//! [transport]  
+//! transport_type = "unix_socket"         # unix_socket, tcp, shared_memory
+//! bind_address = "0.0.0.0:0"            # For TCP transport
+//! buffer_size = 65536                   # Per-connection buffer
+//! compression = "none"                  # none, lz4, zstd
+//! ```
+//!
+//! ### 3. ValidationPolicy - Message Integrity
+//! ```toml
+//! [validation]
+//! checksum = false              # CRC32 validation (performance impact)
+//! audit = false                # Full audit trail (storage impact)
+//! max_message_size = 1048576   # 1MB limit prevents DoS
+//! sequence_validation = true   # Check for gaps/duplicates
+//! ```
+//!
+//! ### 4. TopicConfig - Pub-Sub Routing
+//! ```toml
+//! [topics]
+//! extraction_strategy = "header_based"  # header_based, tlv_based, custom
+//! default_topic = "signals.unknown"    # Fallback topic
+//! max_topics_per_consumer = 100        # Prevent subscription abuse
+//! cleanup_interval_ms = 5000           # Dead consumer cleanup
+//! ```
+//!
+//! ### 5. PerformanceConfig - Optimization
+//! ```toml
+//! [performance]
+//! worker_threads = 4            # Number of processing threads
+//! channel_buffer_size = 10000   # Internal message buffer
+//! gc_interval_ms = 30000       # Garbage collection frequency
+//! metrics_interval_ms = 1000   # Performance metrics reporting
+//! ```
+//!
+//! ## Domain-Specific Examples
+//!
+//! ### Market Data Relay (Ultra High Performance)
+//! ```toml
+//! # config/market_data.toml
+//! [relay]
+//! domain = 1
+//! socket_path = "/tmp/alphapulse/market_data.sock"
+//! max_connections = 100
+//!
+//! [validation]
+//! checksum = false      # Disable for >1M msg/s
+//! audit = false
+//! max_message_size = 4096
+//!
+//! [performance]  
+//! worker_threads = 8    # Maximize throughput
+//! channel_buffer_size = 100000
+//! ```
+//!
+//! ### Signal Relay (Balanced Performance/Accuracy)
+//! ```toml
+//! # config/signal.toml
+//! [relay]
+//! domain = 2
+//! socket_path = "/tmp/alphapulse/signal.sock"
+//! max_connections = 1000
+//!
+//! [validation]
+//! checksum = true       # Enable for signal accuracy
+//! audit = false
+//! max_message_size = 16384
+//!
+//! [topics]
+//! extraction_strategy = "tlv_based"   # Extract from SignalIdentity TLV
+//! max_topics_per_consumer = 50
+//! ```
+//!
+//! ### Execution Relay (Maximum Safety)
+//! ```toml
+//! # config/execution.toml
+//! [relay]
+//! domain = 3  
+//! socket_path = "/tmp/alphapulse/execution.sock"
+//! max_connections = 100
+//!
+//! [validation]
+//! checksum = true       # Full integrity checking
+//! audit = true         # Complete audit trail
+//! max_message_size = 32768
+//! sequence_validation = true
+//!
+//! [performance]
+//! worker_threads = 2    # Conservative for safety
+//! channel_buffer_size = 1000
+//! ```
+//!
+//! ## Configuration Loading and Validation
+//!
+//! **Runtime Loading**: Configurations loaded at startup with comprehensive validation:
+//! - TOML syntax checking and required field validation
+//! - Domain consistency (TLV types match domain numbers)
+//! - Resource constraint validation (buffer sizes, thread counts)
+//! - Transport compatibility verification
+//!
+//! **Hot Reloading**: Configuration can be updated without restart for:
+//! - Performance tuning parameters (buffer sizes, thread counts)
+//! - Topic routing rules and cleanup intervals
+//! - Connection limits and timeout adjustments
+//! - Validation policy changes (with care for data integrity)
+//!
+//! ## Integration with System Components
+//!
+//! **Service Bootstrap**: Configuration determines:
+//! - Which validation policy to instantiate (`create_validator()`)
+//! - Transport layer configuration for optimal performance
+//! - Topic registry setup for pub-sub routing
+//! - Resource allocation for processing threads
+//!
+//! **Critical for Connectivity**: Socket paths and connection parameters
+//! must match between producers and consumers to establish proper data flow.
+//!
+//! ## Troubleshooting Configuration Issues
+//!
+//! **Service startup failures**:
+//! - Check socket paths don't conflict between relay domains
+//! - Verify file permissions for Unix socket creation
+//! - Ensure port numbers are available for TCP transport
+//! - Validate configuration syntax with `cargo check`
+//!
+//! **Performance problems**:
+//! - Increase buffer sizes if seeing queue full warnings
+//! - Adjust worker thread count based on CPU core availability
+//! - Disable validation features if throughput requirements exceed capacity
+//! - Monitor memory usage against configured limits
+//!
+//! **Connection issues**:
+//! - Verify transport type matches client expectations
+//! - Check maximum connection limits allow all expected consumers
+//! - Ensure timeout values accommodate network latency
+//! - Validate compression settings are compatible across endpoints
 
 use crate::RelayError;
 use serde::{Deserialize, Serialize};

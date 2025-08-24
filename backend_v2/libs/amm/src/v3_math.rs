@@ -223,7 +223,7 @@ impl V3Math {
         if sqrt_price_x96 < MIN_SQRT_RATIO {
             return Ok(MIN_TICK);
         }
-        if sqrt_price_x96 >= MAX_SQRT_RATIO {
+        if sqrt_price_x96 == MAX_SQRT_RATIO {
             return Ok(MAX_TICK);
         }
 

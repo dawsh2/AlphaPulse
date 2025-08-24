@@ -14,17 +14,20 @@ services_v2 (producers) → relays (routing) → services_v2 (consumers)
 
 ## Design Principles
 
-### Configuration Over Code
-A single generic `Relay` implementation is configured per domain:
-- `market_data.toml`: Domain 1, no checksum validation for >1M msg/s
-- `signal.toml`: Domain 2, checksum validation for >100K msg/s  
-- `execution.toml`: Domain 3, full validation + audit for >50K msg/s
+### Bidirectional Connection Architecture
+**Current Implementation**: Direct socket-to-socket forwarding for maximum performance:
+- All connections are bidirectional by default (read + write tasks)
+- No service classification or timing heuristics
+- Messages broadcast to all connected clients immediately
+- Eliminates race conditions from timing-based connection detection
 
-### Topic-Based Pub-Sub
-Relays perform coarse-grained filtering by topic:
-- Producers publish to topics (e.g., "market_data_polygon")
-- Relays route to topic subscribers only
-- Consumers perform fine-grained filtering
+### Domain-Specific Performance Policies
+Each relay binary optimized per domain requirements:
+- `market_data_relay`: Direct broadcast, no checksum validation for >1M msg/s
+- `signal_relay`: Topic-based pub-sub with checksum validation for >100K msg/s  
+- `execution_relay`: Full validation + audit for >50K msg/s
+
+**Note**: `market_data_relay.rs` uses direct broadcast (not topic-based routing) for maximum performance.
 
 ### Transport Agnostic
 Relays use the `infra/transport` layer, supporting:
@@ -43,14 +46,26 @@ Relays use the `infra/transport` layer, supporting:
 
 ## Usage
 
-### Running a Relay
+### Running Market Data Relay (Fixed Architecture)
 
 ```bash
-# Production relay with specific config
-cargo run --release --bin relay -- --config config/market_data.toml
+# Production market data relay with direct broadcast
+cargo run --release -p alphapulse-relays --bin market_data_relay
 
-# Development mode with debug output
-cargo run --bin relay_dev -- --type market_data --log-level debug
+# Critical: Start services in this exact order
+# 1. Market data relay (creates Unix socket)
+# 2. polygon_publisher (connects and sends TLV messages)  
+# 3. Dashboard (connects and consumes TLV messages)
+```
+
+### Running Other Relays (Topic-Based)
+
+```bash
+# Signal relay with topic-based pub-sub
+cargo run --release --bin signal_relay
+
+# Execution relay with full validation
+cargo run --release --bin execution_relay
 ```
 
 ### Configuration Example

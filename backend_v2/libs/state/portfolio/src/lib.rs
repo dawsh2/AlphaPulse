@@ -72,7 +72,7 @@
 //! }
 //! ```
 
-use alphapulse_state_core::{SequencedStateful, Stateful};
+use alphapulse_state_core::Stateful;
 use rust_decimal::Decimal;
 
 /// Placeholder for portfolio events
@@ -101,6 +101,12 @@ pub struct Position {
 /// Placeholder portfolio state manager
 pub struct PortfolioStateManager {
     // TODO: Add actual state fields
+}
+
+impl Default for PortfolioStateManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PortfolioStateManager {

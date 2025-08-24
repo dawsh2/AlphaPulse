@@ -298,7 +298,7 @@ impl KrakenSignalStrategy {
         // Store price history
         self.price_history
             .entry(instrument_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push((price, timestamp));
 
         // Generate signal if indicator is ready
@@ -384,7 +384,7 @@ impl KrakenSignalStrategy {
             momentum.unwrap_or(MomentumStrength::Neutral)
         );
 
-        let trading_signal = TradingSignal::new(
+        let trading_signal = TradingSignal::new(crate::signals::SignalConfig {
             signal_id,
             instrument_id,
             signal_type,
@@ -392,9 +392,9 @@ impl KrakenSignalStrategy {
             current_price,
             position_size_usd,
             expected_profit_usd,
-            self.strategy_id,
+            strategy_id: self.strategy_id,
             reason,
-        );
+        });
 
         Ok(Some(trading_signal))
     }

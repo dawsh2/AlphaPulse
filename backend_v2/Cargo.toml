@@ -98,5 +98,8 @@ fuzzy-matcher = "0.3"
 colored = "2.1"
 regex = "1.10"
 
+# Configuration
+toml = "0.8"
+
 # Zero-copy serialization  
 num_enum = "0.7"

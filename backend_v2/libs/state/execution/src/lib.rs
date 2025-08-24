@@ -85,7 +85,7 @@
 //! }
 //! ```
 
-use alphapulse_state_core::{SequencedStateful, Stateful};
+use alphapulse_state_core::Stateful;
 
 /// Placeholder for execution events
 #[derive(Debug)]
@@ -104,6 +104,12 @@ pub enum ExecutionError {
 /// Placeholder execution state manager
 pub struct ExecutionStateManager {
     // TODO: Add actual state fields
+}
+
+impl Default for ExecutionStateManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ExecutionStateManager {

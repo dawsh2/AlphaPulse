@@ -123,7 +123,7 @@ impl TraceContextTLV {
 
         use zerocopy::Ref;
         let tlv_ref = Ref::<_, Self>::new(data).ok_or(ParseError::InvalidExtendedTLV)?;
-        Ok(tlv_ref.into_ref().clone())
+        Ok(*tlv_ref.into_ref())
     }
 }
 
@@ -223,7 +223,7 @@ impl SystemHealthTLV {
 
         use zerocopy::Ref;
         let tlv_ref = Ref::<_, Self>::new(data).ok_or(ParseError::InvalidExtendedTLV)?;
-        Ok(tlv_ref.into_ref().clone())
+        Ok(*tlv_ref.into_ref())
     }
 }
 

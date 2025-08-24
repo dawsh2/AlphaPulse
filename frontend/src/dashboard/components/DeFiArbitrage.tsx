@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useWebSocketFirehose } from '../hooks/useWebSocketFirehose';
 import './DeFiArbitrage.css';
 
 interface ArbitrageOpportunity {
@@ -37,7 +38,27 @@ interface ScannerStatus {
   scannerHealth: 'healthy' | 'degraded' | 'offline';
 }
 
+interface PoolEvent {
+  id: string;
+  type: 'sync' | 'swap';
+  timestamp: number;
+  venue_name: string;
+  pool_address: string;
+  token0_address?: string;
+  token1_address?: string;
+  token_in?: string;
+  token_out?: string;
+  reserves?: {
+    reserve0: { raw: string; normalized: number; decimals: number };
+    reserve1: { raw: string; normalized: number; decimals: number };
+  };
+  amount_in?: { raw: string; normalized: number; decimals: number };
+  amount_out?: { raw: string; normalized: number; decimals: number };
+  block_number: number;
+}
+
 export const DeFiArbitrage: React.FC = () => {
+  const { poolEvents, isConnected } = useWebSocketFirehose('ws://localhost:8080/ws');
   const [opportunities, setOpportunities] = useState<ArbitrageOpportunity[]>([]);
   const [scannerStatus, setScannerStatus] = useState<ScannerStatus>({
     isConnected: false,
@@ -48,75 +69,25 @@ export const DeFiArbitrage: React.FC = () => {
   });
   const [sortBy, setSortBy] = useState<'netProfit' | 'profitPercent' | 'totalFees' | 'timestamp'>('netProfit');
   const [minProfitFilter, setMinProfitFilter] = useState(0);
-  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [showPoolEvents, setShowPoolEvents] = useState(true);
 
-  // Connect to scanner's arbitrage opportunity feed
+  // Update scanner status based on hook connection
   useEffect(() => {
-    const connectToScanner = () => {
-      try {
-        // Connect to Protocol V2 dashboard websocket server for arbitrage opportunities
-        // The new server runs on port 8081 and handles TLV protocol messages
-        const ws = new WebSocket('ws://localhost:8080/ws');
-        
-        ws.onopen = () => {
-          console.log('✅ Connected to arbitrage scanner feed');
-          setScannerStatus(prev => ({
-            ...prev,
-            isConnected: true,
-            scannerHealth: 'healthy'
-          }));
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            handleArbitrageMessage(message);
-          } catch (error) {
-            console.error('Failed to parse arbitrage message:', error);
-          }
-        };
-
-        ws.onclose = () => {
-          console.log('❌ Scanner feed disconnected');
-          setScannerStatus(prev => ({
-            ...prev,
-            isConnected: false,
-            scannerHealth: 'offline'
-          }));
-          
-          // Reconnect after 5 seconds
-          setTimeout(connectToScanner, 5000);
-        };
-
-        ws.onerror = (error) => {
-          console.error('Scanner feed error:', error);
-          setScannerStatus(prev => ({
-            ...prev,
-            scannerHealth: 'degraded'
-          }));
-        };
-
-        setSocket(ws);
-      } catch (error) {
-        console.error('Failed to connect to scanner:', error);
-        setTimeout(connectToScanner, 5000);
-      }
-    };
-
-    connectToScanner();
-
-    return () => {
-      if (socket) {
-        socket.close();
-      }
-    };
-  }, []);
+    setScannerStatus(prev => ({
+      ...prev,
+      isConnected: isConnected,
+      scannerHealth: isConnected ? 'healthy' : 'offline'
+    }));
+  }, [isConnected]);
 
   const handleArbitrageMessage = (message: any) => {
-    // Handle different message types from ws_bridge
-    if (message.msg_type !== 'arbitrage_opportunity') {
-      return; // Only process arbitrage opportunity messages
+    // Handle arbitrage opportunity messages only - pool events handled by hook
+    if (message.msg_type === 'arbitrage_opportunity') {
+      handleArbitrageOpportunity(message);
     }
+  };
+
+  const handleArbitrageOpportunity = (message: any) => {
     
     // Process enhanced ArbitrageOpportunity message from ws_bridge binary protocol
     // Message now contains comprehensive fee breakdown from enhanced protocol
@@ -166,6 +137,7 @@ export const DeFiArbitrage: React.FC = () => {
       return updated;
     });
   };
+
 
   const getRecommendation = (netProfitPercent: number): string => {
     if (netProfitPercent > 2) return '🚀 HIGH PROFIT - Execute immediately';
@@ -241,6 +213,17 @@ export const DeFiArbitrage: React.FC = () => {
           </select>
         </div>
 
+        <div className="control-group">
+          <label>
+            <input 
+              type="checkbox" 
+              checked={showPoolEvents} 
+              onChange={(e) => setShowPoolEvents(e.target.checked)}
+            />
+            Show Pool Events
+          </label>
+        </div>
+
         <div className="stats">
           <span>{displayedOpportunities.length} opportunities</span>
           <span>•</span>
@@ -249,6 +232,41 @@ export const DeFiArbitrage: React.FC = () => {
           <span>Scanner: {scannerStatus.scannerHealth}</span>
         </div>
       </div>
+
+      {showPoolEvents && (
+        <div className="pool-events-section">
+          <h3>📊 Live DEX Pool Events ({poolEvents.length})</h3>
+          <div className="pool-events-list">
+            {poolEvents.slice(0, 10).map((event) => (
+              <div key={event.id} className={`pool-event ${event.type}`}>
+                <div className="event-header">
+                  <span className="event-type">
+                    {event.type === 'sync' ? '🔄 Sync' : '💱 Swap'}
+                  </span>
+                  <span className="venue">{event.venue_name}</span>
+                  <span className="block">Block {event.block_number}</span>
+                  <span className="time">{Math.round((Date.now() - event.timestamp) / 1000)}s ago</span>
+                </div>
+                <div className="pool-address">
+                  Pool: {event.pool_address.slice(0, 8)}...{event.pool_address.slice(-6)}
+                </div>
+                {event.type === 'sync' && event.reserves && (
+                  <div className="reserves">
+                    Reserve0: {event.reserves.reserve0.normalized.toFixed(4)}
+                    • Reserve1: {event.reserves.reserve1.normalized.toFixed(4)}
+                  </div>
+                )}
+                {event.type === 'swap' && event.amount_in && event.amount_out && (
+                  <div className="swap-amounts">
+                    In: {event.amount_in.normalized.toFixed(6)}
+                    • Out: {event.amount_out.normalized.toFixed(6)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="trades-list">
         {displayedOpportunities.length === 0 ? (
@@ -262,6 +280,11 @@ export const DeFiArbitrage: React.FC = () => {
                     <span> • Last update: {Math.round((Date.now() - scannerStatus.lastMessageTime) / 1000)}s ago</span>
                   )}
                 </div>
+                {poolEvents.length > 0 && (
+                  <div className="pool-activity">
+                    ✅ DEX events flowing: {poolEvents.length} pool events received
+                  </div>
+                )}
               </div>
             ) : (
               <div>

@@ -15,6 +15,7 @@ pub struct FlashbotsBundle {
 }
 
 /// Client for Flashbots relay interaction
+#[allow(dead_code)]
 pub struct FlashbotsClient {
     relay_url: String,
     signing_key: String,

@@ -3,7 +3,7 @@
 //! Provides HTTP endpoints for the trace visualization web interface.
 
 use crate::{
-    hex_to_trace_id, trace_id_to_hex, CollectorHealth, HealthReporter, Result, TraceCollectorStats,
+    hex_to_trace_id, CollectorHealth, HealthReporter, Result, TraceCollectorStats,
     TraceError, TraceId, TraceTimeline,
 };
 
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 /// HTTP API server for trace data
 #[derive(Clone)]
@@ -486,8 +486,7 @@ fn current_timestamp_ns() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol_v2::{SourceType, TraceEvent, TraceEventType};
-    use std::collections::HashMap;
+    // use std::collections::HashMap;
 
     #[tokio::test]
     async fn test_api_server_creation() {

@@ -55,36 +55,40 @@ pub struct PoolInfoTLV {
     pub last_seen: u64,           // Last time this pool had activity
 }
 
+/// Configuration for creating PoolInfoTLV
+#[derive(Debug, Clone)]
+pub struct PoolInfoConfig {
+    pub pool_address: [u8; 20],
+    pub token0_address: [u8; 20],
+    pub token1_address: [u8; 20],
+    pub token0_decimals: u8,
+    pub token1_decimals: u8,
+    pub pool_type: CachePoolType,
+    pub fee_tier: u32,
+    pub venue: VenueId,
+    pub discovered_at: u64,
+    pub last_seen: u64,
+}
+
 impl PoolInfoTLV {
     pub const TYPE: u8 = 200;
     pub const SIZE: usize = std::mem::size_of::<Self>(); // Actual size with padding
 
-    /// Create a new pool info record
-    pub fn new(
-        pool_address: [u8; 20],
-        token0_address: [u8; 20],
-        token1_address: [u8; 20],
-        token0_decimals: u8,
-        token1_decimals: u8,
-        pool_type: CachePoolType,
-        fee_tier: u32,
-        venue: VenueId,
-        discovered_at: u64,
-        last_seen: u64,
-    ) -> Self {
+    /// Create a new pool info record from config
+    pub fn new(config: PoolInfoConfig) -> Self {
         Self {
             tlv_type: Self::TYPE,
             tlv_length: (Self::SIZE - 2) as u8, // Exclude type and length fields
-            pool_address,
-            token0_address,
-            token1_address,
-            token0_decimals,
-            token1_decimals,
-            pool_type: pool_type as u8,
-            fee_tier,
-            venue: venue as u16,
-            discovered_at,
-            last_seen,
+            pool_address: config.pool_address,
+            token0_address: config.token0_address,
+            token1_address: config.token1_address,
+            token0_decimals: config.token0_decimals,
+            token1_decimals: config.token1_decimals,
+            pool_type: config.pool_type as u8,
+            fee_tier: config.fee_tier,
+            venue: config.venue as u16,
+            discovered_at: config.discovered_at,
+            last_seen: config.last_seen,
         }
     }
 
