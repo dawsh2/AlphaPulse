@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
     let shutdown = setup_signal_handlers();
 
     // Start relay in background
-    let relay_handle = tokio::spawn(async move {
+    let _relay_handle = tokio::spawn(async move {
         if let Err(e) = relay.start().await {
             error!("Relay failed: {}", e);
             std::process::exit(1);
@@ -92,10 +92,8 @@ fn init_logging(args: &Args) -> Result<()> {
     };
 
     if args.json_logs {
-        tracing_subscriber::fmt()
-            .json()
-            .with_max_level(log_level)
-            .init();
+        // JSON logging not available in current version
+        tracing_subscriber::fmt().with_max_level(log_level).init();
     } else {
         tracing_subscriber::fmt().with_max_level(log_level).init();
     }

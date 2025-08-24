@@ -221,7 +221,7 @@ pub fn parse_header(data: &[u8]) -> ParseResult<&MessageHeader> {
 /// for tlv in tlvs {
 ///     match tlv {
 ///         TLVExtensionEnum::Standard(std_tlv) if std_tlv.header.tlv_type == TLVType::Trade as u8 => {
-///             // Process trade with known fixed size (37 bytes)
+///             // Process trade with known fixed size (40 bytes)
 ///         },
 ///         TLVExtensionEnum::Extended(ext_tlv) if ext_tlv.header.tlv_type == TLVType::OrderBook as u8 => {
 ///             // Process large order book data

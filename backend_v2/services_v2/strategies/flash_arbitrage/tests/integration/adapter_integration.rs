@@ -1,6 +1,5 @@
 //! Integration tests with adapters service
 
-use alphapulse_adapters::input::{collectors::PolygonDexCollector, InputAdapter};
 use alphapulse_flash_arbitrage::pool_state::{PoolState, PoolStateManager};
 use alphapulse_protocol_v2::{
     instrument_id::{PoolInstrumentId, VenueId},
@@ -17,7 +16,6 @@ async fn test_polygon_dex_collector_integration() {
     let (tx, mut rx) = mpsc::channel(100);
 
     // Create Polygon DEX collector
-    let mut collector = PolygonDexCollector::new(tx);
 
     // Start collector (currently a placeholder)
     collector.start().await.unwrap();

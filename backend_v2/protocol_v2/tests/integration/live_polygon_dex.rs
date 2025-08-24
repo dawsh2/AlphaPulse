@@ -7,7 +7,7 @@
 //! 
 //! Validates complete TLV serialization/deserialization with real DEX data.
 
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     VenueId, PoolSwapTLV, PoolInstrumentId, PoolLiquidityTLV
 };
 use web3::types::{FilterBuilder, H160, H256, Log, U256};

@@ -2,9 +2,9 @@
 //!
 //! Monitors and reports the health of the TraceCollector service.
 
-use crate::{Result, TraceCollectorStats, TraceError};
+use crate::{Result, TraceCollectorStats};
 use parking_lot::RwLock;
-use protocol_v2::{SourceType, SystemHealthTLV, TLVType};
+use protocol_v2::{SourceType, SystemHealthTLV};
 use std::sync::Arc;
 use sysinfo::{Pid, System};
 use tracing::{error, info, warn};
@@ -125,7 +125,7 @@ impl HealthReporter {
         let health = self.check_health().await?;
 
         // Create SystemHealthTLV message
-        let health_tlv = SystemHealthTLV::new(
+        let _health_tlv = SystemHealthTLV::new(
             SourceType::MetricsCollector, // TraceCollector reports as MetricsCollector
             health.status.into(),
             health.cpu_usage as u8,
@@ -257,10 +257,10 @@ impl HealthReporter {
             "used_memory": system.used_memory(),
             "total_swap": system.total_swap(),
             "used_swap": system.used_swap(),
-            "system_name": system.name(),
-            "kernel_version": system.kernel_version(),
-            "os_version": system.os_version(),
-            "host_name": system.host_name(),
+            "system_name": System::name().unwrap_or_default(),
+            "kernel_version": System::kernel_version().unwrap_or_default(),
+            "os_version": System::os_version().unwrap_or_default(),
+            "host_name": System::host_name().unwrap_or_default(),
         })
     }
 

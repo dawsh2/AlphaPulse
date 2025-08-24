@@ -10,14 +10,13 @@
 //! All schemas stored inline for validation and documentation
 
 use async_trait::async_trait;
-use futures_util::StreamExt;
 use protocol_v2::{
     tlv::market_data::{QuoteTLV, TradeTLV},
-    InstrumentId, RelayDomain, SourceType, TLVMessageBuilder, TLVType, VenueId,
+    tlv::build_message_direct,
+    InstrumentId, RelayDomain, SourceType, TLVType, VenueId,
 };
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -29,81 +28,6 @@ use crate::input::connection::ConnectionConfig;
 use crate::input::{ConnectionManager, ConnectionState, HealthLevel, HealthStatus, InputAdapter};
 use crate::{AdapterError, Result};
 use crate::{AdapterMetrics, AuthManager, ErrorType, RateLimiter};
-
-/// Binance Trade Stream JSON Schema
-///
-/// Example: wss://stream.binance.com:9443/ws/btcusdt@trade
-const BINANCE_TRADE_SCHEMA: &str = r#"
-{
-  "e": "trade",          // Event type
-  "E": 123456789,        // Event time (ms)
-  "s": "BNBBTC",         // Symbol
-  "t": 12345,            // Trade ID
-  "p": "0.001",          // Price (string)
-  "q": "100",            // Quantity (string)
-  "b": 88,               // Buyer order ID
-  "a": 50,               // Seller order ID
-  "T": 123456785,        // Trade time (ms)
-  "m": true,             // Is buyer the market maker?
-  "M": true              // Ignore field
-}
-"#;
-
-/// Binance Depth Update JSON Schema
-///
-/// Example: wss://stream.binance.com:9443/ws/btcusdt@depth
-const BINANCE_DEPTH_SCHEMA: &str = r#"
-{
-  "e": "depthUpdate",    // Event type
-  "E": 123456789,        // Event time (ms)
-  "s": "BNBBTC",         // Symbol
-  "U": 157,              // First update ID in event
-  "u": 160,              // Final update ID in event
-  "b": [                 // Bids to be updated
-    [
-      "0.0024",          // Price level
-      "10"               // Quantity
-    ]
-  ],
-  "a": [                 // Asks to be updated
-    [
-      "0.0026",          // Price level
-      "100"              // Quantity
-    ]
-  ]
-}
-"#;
-
-/// Binance 24hr Ticker JSON Schema
-///
-/// Example: wss://stream.binance.com:9443/ws/btcusdt@ticker
-const BINANCE_TICKER_SCHEMA: &str = r#"
-{
-  "e": "24hrTicker",     // Event type
-  "E": 123456789,        // Event time (ms)
-  "s": "BNBBTC",         // Symbol
-  "p": "0.0015",         // Price change
-  "P": "250.00",         // Price change percent
-  "w": "0.0018",         // Weighted average price
-  "x": "0.0009",         // Previous day's close price
-  "c": "0.0025",         // Current day's close price
-  "Q": "10",             // Close quantity
-  "b": "0.0024",         // Best bid price
-  "B": "10",             // Best bid quantity
-  "a": "0.0026",         // Best ask price
-  "A": "100",            // Best ask quantity
-  "o": "0.0010",         // Open price
-  "h": "0.0025",         // High price
-  "l": "0.0010",         // Low price
-  "v": "10000",          // Total traded base asset volume
-  "q": "18",             // Total traded quote asset volume
-  "O": 0,                // Statistics open time
-  "C": 86400000,         // Statistics close time
-  "F": 0,                // First trade ID
-  "L": 18150,            // Last trade ID
-  "n": 18151             // Total count of trades
-}
-"#;
 
 /// Binance WebSocket collector
 pub struct BinanceCollector {
@@ -291,7 +215,7 @@ impl BinanceCollector {
         let is_buyer_maker = value.get("m").and_then(|v| v.as_bool()).unwrap_or(false);
 
         // Create TradeTLV using the new() constructor
-        let trade_tlv = TradeTLV::new(
+        let trade_tlv = TradeTLV::from_instrument(
             VenueId::Binance,
             instrument_id,
             price,
@@ -300,11 +224,15 @@ impl BinanceCollector {
             timestamp * 1_000_000,              // Convert ms to ns
         );
 
-        // Convert to TLV message and send
-        let tlv_message =
-            TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
-                .add_tlv(TLVType::Trade, &trade_tlv)
-                .build();
+        // Convert to TLV message and send (true zero-copy)
+        let tlv_message = build_message_direct(
+            RelayDomain::MarketData,
+            SourceType::BinanceCollector,
+            TLVType::Trade,
+            &trade_tlv,
+        )
+        .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
+        
         self.output_tx
             .send(tlv_message)
             .await
@@ -342,10 +270,10 @@ impl BinanceCollector {
                         let timestamp = value
                             .get("E")
                             .and_then(|v| v.as_u64())
-                            .unwrap_or_else(|| current_millis());
+                            .unwrap_or_else(current_millis);
 
                         // Create QuoteTLV
-                        let quote_tlv = QuoteTLV::new(
+                        let quote_tlv = QuoteTLV::from_instrument(
                             VenueId::Binance,
                             instrument_id,
                             bid_price,
@@ -355,12 +283,14 @@ impl BinanceCollector {
                             timestamp * 1_000_000,
                         );
 
-                        let tlv_message = TLVMessageBuilder::new(
+                        let tlv_message = build_message_direct(
                             RelayDomain::MarketData,
                             SourceType::BinanceCollector,
+                            TLVType::Quote,
+                            &quote_tlv,
                         )
-                        .add_tlv(TLVType::Quote, &quote_tlv)
-                        .build();
+                        .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
+                        
                         self.output_tx.send(tlv_message).await.map_err(|_| {
                             AdapterError::Internal("Output channel closed".to_string())
                         })?;
@@ -415,9 +345,9 @@ impl BinanceCollector {
         let timestamp = value
             .get("E")
             .and_then(|v| v.as_u64())
-            .unwrap_or_else(|| current_millis());
+            .unwrap_or_else(current_millis);
 
-        let quote_tlv = QuoteTLV::new(
+        let quote_tlv = QuoteTLV::from_instrument(
             VenueId::Binance,
             instrument_id,
             bid_price,
@@ -427,10 +357,14 @@ impl BinanceCollector {
             timestamp * 1_000_000,
         );
 
-        let tlv_message =
-            TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
-                .add_tlv(TLVType::Quote, &quote_tlv)
-                .build();
+        let tlv_message = build_message_direct(
+            RelayDomain::MarketData,
+            SourceType::BinanceCollector,
+            TLVType::Quote,
+            &quote_tlv,
+        )
+        .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
+        
         self.output_tx
             .send(tlv_message)
             .await
@@ -606,14 +540,14 @@ impl InputAdapter for BinanceCollector {
     async fn subscribe(&mut self, instruments: Vec<InstrumentId>) -> Result<()> {
         // Convert InstrumentIds back to symbols (would need reverse mapping)
         // For now, just track them
-        for instrument in instruments {
+        for _instrument in instruments {
             // Instrument tracking removed (no StateManager)
         }
         Ok(())
     }
 
     async fn unsubscribe(&mut self, instruments: Vec<InstrumentId>) -> Result<()> {
-        for instrument in instruments {
+        for _instrument in instruments {
             // Instrument untracking removed (no StateManager)
         }
         Ok(())

@@ -7,7 +7,7 @@
 //! - Tick (price movement)
 //! - Liquidity state updates
 
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     VenueId, PoolMintTLV, PoolBurnTLV, PoolTickTLV, 
     PoolInstrumentId, TLVMessage
 };

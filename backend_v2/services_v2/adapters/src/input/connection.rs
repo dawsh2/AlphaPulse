@@ -6,12 +6,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tokio::time::{interval, timeout};
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{Error as WsError, Message},
-    MaybeTlsStream, WebSocketStream,
-};
+use tokio::time::timeout;
+use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
 use crate::{AdapterError, Result};
 use crate::{AdapterMetrics, CircuitBreaker, CircuitBreakerConfig, ErrorType};
@@ -262,9 +258,7 @@ impl ConnectionManager {
         let mut ws_guard = self.websocket.write().await;
 
         if let Some(ws) = ws_guard.as_mut() {
-            ws.send(message)
-                .await
-                .map_err(|e| AdapterError::WebSocket(e))?;
+            ws.send(message).await.map_err(AdapterError::WebSocket)?;
             Ok(())
         } else {
             Err(AdapterError::ConnectionFailed {

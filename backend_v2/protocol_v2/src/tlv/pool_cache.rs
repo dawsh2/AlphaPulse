@@ -3,7 +3,8 @@
 //! Binary TLV format for persisting discovered pool → token mappings.
 //! Uses full 20-byte addresses for execution compatibility.
 
-use crate::VenueId;
+use crate::{VenueId, define_tlv};
+use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 /// Pool type for cache records (renamed to avoid conflict with pool_state)
@@ -36,34 +37,31 @@ impl TryFrom<u8> for CachePoolType {
     }
 }
 
-/// Individual pool information record (Type 200, 88 bytes)
-/// Stores full 20-byte addresses for pool and both tokens
-/// Fields ordered to eliminate padding: u64 → [u8;20] → u32 → u16 → u8
-#[repr(C)]
-#[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
-pub struct PoolInfoTLV {
-    // Group 64-bit fields first
-    pub discovered_at: u64,       // Unix timestamp when discovered
-    pub last_seen: u64,           // Last time this pool had activity
-    
-    // Then address arrays (20 bytes each, naturally aligned)
-    pub pool_address: [u8; 20],   // Full pool contract address
-    pub token0_address: [u8; 20], // Full token0 address
-    pub token1_address: [u8; 20], // Full token1 address
-    
-    // Then 32-bit fields
-    pub fee_tier: u32,            // Fee in basis points (30 = 0.3%)
-    
-    // Then 16-bit fields  
-    pub venue: u16,               // VenueId enum
-    
-    // Finally 8-bit fields (need 6 bytes to reach 88 total)
-    pub tlv_type: u8,             // 200
-    pub tlv_length: u8,           // 88 bytes
-    pub token0_decimals: u8,      // Token0 decimal places (e.g., 18 for WETH, 6 for USDC)
-    pub token1_decimals: u8,      // Token1 decimal places
-    pub pool_type: u8,            // CachePoolType enum discriminant
-    pub _padding: u8,             // Explicit padding
+// Individual pool information record using macro for consistency
+define_tlv! {
+    /// Individual pool information record (Type 200, 88 bytes)
+    /// Stores full 20-byte addresses for pool and both tokens
+    PoolInfoTLV {
+        u64: {
+            discovered_at: u64, // Unix timestamp when discovered
+            last_seen: u64      // Last time this pool had activity
+        }
+        u32: { fee_tier: u32 } // Fee in basis points (30 = 0.3%)
+        u16: { venue: u16 }    // VenueId enum
+        u8: {
+            tlv_type: u8,        // 200
+            tlv_length: u8,      // 88 bytes
+            token0_decimals: u8, // Token0 decimal places (e.g., 18 for WETH, 6 for USDC)
+            token1_decimals: u8, // Token1 decimal places
+            pool_type: u8,       // CachePoolType enum discriminant
+            _padding: u8         // Explicit padding
+        }
+        special: {
+            pool_address: [u8; 20],   // Full pool contract address
+            token0_address: [u8; 20], // Full token0 address
+            token1_address: [u8; 20]  // Full token1 address
+        }
+    }
 }
 
 /// Configuration for creating PoolInfoTLV
@@ -85,23 +83,29 @@ impl PoolInfoTLV {
     pub const TYPE: u8 = 200;
     pub const SIZE: usize = std::mem::size_of::<Self>(); // Actual size with padding
 
-    /// Create a new pool info record from config
+    /// Create a new pool info record from config (semantic constructor)
     pub fn new(config: PoolInfoConfig) -> Self {
-        Self {
-            tlv_type: Self::TYPE,
-            tlv_length: (Self::SIZE - 2) as u8, // Exclude type and length fields
-            pool_address: config.pool_address,
-            token0_address: config.token0_address,
-            token1_address: config.token1_address,
-            token0_decimals: config.token0_decimals,
-            token1_decimals: config.token1_decimals,
-            pool_type: config.pool_type as u8,
-            fee_tier: config.fee_tier,
-            venue: config.venue as u16,
-            discovered_at: config.discovered_at,
-            last_seen: config.last_seen,
-            _padding: 0,
-        }
+        Self::from_config(config)
+    }
+
+    /// Create a new pool info record from config
+    pub fn from_config(config: PoolInfoConfig) -> Self {
+        // Use macro-generated new_raw() with proper field order
+        Self::new_raw(
+            config.discovered_at,
+            config.last_seen,
+            config.fee_tier,
+            config.venue as u16,
+            Self::TYPE,
+            (Self::SIZE - 2) as u8, // Exclude type and length fields
+            config.token0_decimals,
+            config.token1_decimals,
+            config.pool_type as u8,
+            0, // _padding
+            config.pool_address,
+            config.token0_address,
+            config.token1_address,
+        )
     }
 
     /// Validate the TLV structure
@@ -146,19 +150,19 @@ impl PoolInfoTLV {
 #[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
 pub struct PoolCacheFileHeader {
     // Group 64-bit fields first
-    pub chain_id: u64,      // Blockchain chain ID (137 for Polygon)
-    pub last_updated: u64,  // Unix timestamp of last update
-    
+    pub chain_id: u64,     // Blockchain chain ID (137 for Polygon)
+    pub last_updated: u64, // Unix timestamp of last update
+
     // Then large arrays (naturally aligned)
     pub reserved: [u8; 32], // Reserved for future use
-    
+
     // Then 32-bit fields
-    pub version: u32,       // Cache format version (currently 1)
-    pub pool_count: u32,    // Number of pools in cache
-    pub checksum: u32,      // CRC32 checksum of all pool data
-    
+    pub version: u32,    // Cache format version (currently 1)
+    pub pool_count: u32, // Number of pools in cache
+    pub checksum: u32,   // CRC32 checksum of all pool data
+
     // Finally small arrays
-    pub magic: [u8; 4],     // "POOL" magic bytes
+    pub magic: [u8; 4], // "POOL" magic bytes
 }
 
 impl PoolCacheFileHeader {
@@ -173,10 +177,7 @@ impl PoolCacheFileHeader {
             version: Self::VERSION,
             chain_id,
             pool_count,
-            last_updated: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            last_updated: (fast_timestamp_ns() / 1_000_000_000),  // Convert ns to seconds
             checksum,
             reserved: [0; 32],
         }
@@ -207,14 +208,14 @@ impl PoolCacheFileHeader {
 #[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
 pub struct PoolCacheJournalEntry {
     // Group 64-bit fields first
-    pub timestamp: u64,         // When this operation occurred
-    
+    pub timestamp: u64, // When this operation occurred
+
     // Then embedded struct (already aligned)
     pub pool_info: PoolInfoTLV, // The pool data
-    
+
     // Finally 8-bit fields (need 7 bytes to align to 8-byte boundary)
-    pub operation: u8,          // 1=add, 2=update, 3=delete
-    pub _padding: [u8; 7],      // Explicit padding
+    pub operation: u8,     // 1=add, 2=update, 3=delete
+    pub _padding: [u8; 7], // Explicit padding
 }
 
 impl PoolCacheJournalEntry {
@@ -226,10 +227,7 @@ impl PoolCacheJournalEntry {
     pub fn new_add(pool_info: PoolInfoTLV) -> Self {
         Self {
             operation: Self::OP_ADD,
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            timestamp: (fast_timestamp_ns() / 1_000_000_000),  // Convert ns to seconds
             pool_info,
             _padding: [0; 7],
         }
@@ -238,10 +236,7 @@ impl PoolCacheJournalEntry {
     pub fn new_update(pool_info: PoolInfoTLV) -> Self {
         Self {
             operation: Self::OP_UPDATE,
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            timestamp: (fast_timestamp_ns() / 1_000_000_000),  // Convert ns to seconds
             pool_info,
             _padding: [0; 7],
         }
@@ -278,11 +273,11 @@ mod tests {
     #[test]
     fn test_pool_info_validation() {
         let config = PoolInfoConfig {
-            pool_address: [0x45; 20], // pool address
+            pool_address: [0x45; 20],   // pool address
             token0_address: [0x11; 20], // token0
             token1_address: [0x22; 20], // token1
-            token0_decimals: 18,         // WETH decimals
-            token1_decimals: 6,          // USDC decimals
+            token0_decimals: 18,        // WETH decimals
+            token1_decimals: 6,         // USDC decimals
             pool_type: CachePoolType::UniswapV3,
             fee_tier: 30, // 0.3% fee
             venue: VenueId::Polygon,
@@ -308,11 +303,11 @@ mod tests {
     #[test]
     fn test_journal_entry_creation() {
         let config = PoolInfoConfig {
-            pool_address: [0x45; 20], // pool address
+            pool_address: [0x45; 20],   // pool address
             token0_address: [0x11; 20], // token0
             token1_address: [0x22; 20], // token1
-            token0_decimals: 18,         // WETH decimals
-            token1_decimals: 6,          // USDC decimals
+            token0_decimals: 18,        // WETH decimals
+            token1_decimals: 6,         // USDC decimals
             pool_type: CachePoolType::UniswapV3,
             fee_tier: 30, // 0.3% fee
             venue: VenueId::Polygon,
@@ -345,11 +340,11 @@ mod tests {
     #[test]
     fn test_pool_info_bijection() {
         let config = PoolInfoConfig {
-            pool_address: [0x45; 20], // pool address
+            pool_address: [0x45; 20],   // pool address
             token0_address: [0x11; 20], // token0
             token1_address: [0x22; 20], // token1
-            token0_decimals: 18,         // WETH decimals
-            token1_decimals: 6,          // USDC decimals
+            token0_decimals: 18,        // WETH decimals
+            token1_decimals: 6,         // USDC decimals
             pool_type: CachePoolType::UniswapV3,
             fee_tier: 30, // 0.3% fee
             venue: VenueId::Polygon,

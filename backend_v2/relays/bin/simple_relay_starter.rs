@@ -16,7 +16,7 @@ async fn main() -> Result<()> {
         signal_config.transport.path.as_ref().unwrap()
     );
 
-    let signal_relay = Relay::new(signal_config).await?;
+    let mut signal_relay = Relay::new(signal_config).await?;
 
     // Start signal relay in background
     tokio::spawn(async move {

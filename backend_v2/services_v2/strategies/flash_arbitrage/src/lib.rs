@@ -18,13 +18,49 @@
 //!
 //! ## Architecture Role
 //!
-//! ```text
-//! Pool Events → [Opportunity Detection] → [Profit Validation] → [Flash Execution]
-//!      ↓               ↓                        ↓                      ↓
-//! MarketDataRelay   Real-time Analysis    Gas Cost Modeling    Atomic Settlement
-//! TLV Messages      Multi-hop Paths       MEV Protection       Capital Recovery
-//! Pool States       Spread Calculation    Bundle Construction   Zero Risk
-//! Price Updates     Liquidity Checks      Private Execution    Guaranteed Profit
+//! ```mermaid
+//! graph LR
+//!     Events[Pool Events] --> Detection[Opportunity Detection]
+//!     Detection --> Validation[Profit Validation]
+//!     Validation --> Execution[Flash Execution]
+//!     
+//!     subgraph "Input Processing"
+//!         Events
+//!         Relay[MarketDataRelay<br/>TLV Messages]
+//!         States[Pool States<br/>Price Updates]
+//!     end
+//!     
+//!     subgraph "Analysis Engine"
+//!         Detection
+//!         Analysis[Real-time Analysis<br/>Multi-hop Paths<br/>Spread Calculation<br/>Liquidity Checks]
+//!     end
+//!     
+//!     subgraph "Risk Management"
+//!         Validation
+//!         GasCost[Gas Cost Modeling<br/>MEV Protection]
+//!     end
+//!     
+//!     subgraph "Execution Layer"
+//!         Execution
+//!         Settlement[Atomic Settlement<br/>Capital Recovery<br/>Zero Risk<br/>Guaranteed Profit]
+//!         Bundle[Bundle Construction<br/>Private Execution]
+//!     end
+//!     
+//!     Relay --> Detection
+//!     States --> Detection
+//!     Analysis --> Validation
+//!     GasCost --> Execution
+//!     Bundle --> Settlement
+//!     
+//!     classDef input fill:#E3F2FD
+//!     classDef analysis fill:#F3E5F5  
+//!     classDef risk fill:#FFF3E0
+//!     classDef execution fill:#E8F5E8
+//!     
+//!     class Events,Relay,States input
+//!     class Detection,Analysis analysis
+//!     class Validation,GasCost risk
+//!     class Execution,Settlement,Bundle execution
 //! ```
 //!
 //! Strategy operates as autonomous profit extraction engine, consuming market data

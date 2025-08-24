@@ -1,0 +1,36 @@
+# Binance Unified Collector Configuration
+
+[websocket]
+url = "wss://stream.binance.com:9443"
+stream_url = "/stream"
+connection_timeout_ms = 30000
+message_timeout_ms = 120000
+max_reconnect_attempts = 10
+base_backoff_ms = 1000
+max_backoff_ms = 60000
+
+[relay]
+domain = "market_data"
+socket_path = "/tmp/alphapulse/market_data.sock"
+
+# Symbols to subscribe to (lowercase)
+symbols = [
+    "btcusdt",
+    "ethusdt",
+    "bnbusdt",
+    "solusdt",
+    "adausdt",
+    "maticusdt",
+    "dotusdt",
+    "avaxusdt",
+    "linkusdt",
+    "uniusdt"
+]
+
+[validation]
+runtime_validation_seconds = 60
+verbose_validation = false
+
+[monitoring]
+stats_interval_seconds = 30
+max_processing_latency_ms = 100

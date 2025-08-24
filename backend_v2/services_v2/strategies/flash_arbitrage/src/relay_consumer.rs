@@ -44,14 +44,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
-use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
 use protocol_v2::{
     MessageHeader,
     PoolSwapTLV,
     SourceType,
-    TLVMessage,
     // Add trace event imports for observability
     TraceEvent,
     TraceEventType,
@@ -60,14 +58,15 @@ use protocol_v2::{
 };
 
 use crate::detector::OpportunityDetector;
+use crate::signal_output::SignalOutput;
 use alphapulse_state_market::{PoolEvent, PoolStateManager, Stateful};
 
-/// Relay consumer that connects to MarketDataRelay
+/// Relay consumer that connects to MarketDataRelay - Direct integration, no MPSC
 pub struct RelayConsumer {
     relay_socket_path: String,
     pool_manager: Arc<PoolStateManager>,
     detector: Arc<OpportunityDetector>,
-    opportunity_tx: mpsc::UnboundedSender<ArbitrageOpportunity>,
+    signal_output: Arc<SignalOutput>, // Direct signal output instead of MPSC channel
 
     // Observability: trace event emission
     trace_socket: Option<UnixStream>,
@@ -91,13 +90,13 @@ impl RelayConsumer {
         relay_socket_path: String,
         pool_manager: Arc<PoolStateManager>,
         detector: Arc<OpportunityDetector>,
-        opportunity_tx: mpsc::UnboundedSender<ArbitrageOpportunity>,
+        signal_output: Arc<SignalOutput>,
     ) -> Self {
         Self {
             relay_socket_path,
             pool_manager,
             detector,
-            opportunity_tx,
+            signal_output,
             trace_socket: None,
         }
     }
@@ -149,10 +148,10 @@ impl RelayConsumer {
     fn extract_trace_id_from_message(&self, data: &[u8]) -> Option<TraceId> {
         // In a full implementation, this would parse the message header for TraceContext TLV
         // For now, generate pseudo trace ID from message data
-        if data.len() >= 32 {
-            let mut trace_id = [0u8; 16];
-            // Use parts of the message header as trace ID
-            trace_id[0..16].copy_from_slice(&data[16..32]); // Use timestamp + sequence as trace ID
+        if data.len() >= 24 {
+            let mut trace_id = [0u8; 8];
+            // Use parts of the message header as trace ID  (8 bytes instead of 16)
+            trace_id[0..8].copy_from_slice(&data[16..24]); // Use timestamp portion as trace ID
             Some(trace_id)
         } else {
             None
@@ -168,10 +167,8 @@ impl RelayConsumer {
             .unwrap_or_default()
             .as_nanos() as u64;
 
-        let mut trace_id = [0u8; 16];
-        trace_id[0..8].copy_from_slice(&now.to_be_bytes());
-        trace_id[8..12].copy_from_slice(b"ARBI"); // Strategy marker
-        trace_id
+        // TraceId is now [u8; 8] - use timestamp directly
+        now.to_be_bytes()
     }
 
     /// Emit trace event when message is received from relay
@@ -405,9 +402,12 @@ impl RelayConsumer {
                         self.emit_execution_triggered_event(trace_id, &opportunity)
                             .await;
 
-                        // Send opportunity to execution engine
-                        if let Err(_) = self.opportunity_tx.send(opportunity) {
-                            warn!("Failed to send arbitrage opportunity (channel closed)");
+                        // Send opportunity directly to signal output (no MPSC channel)
+                        if let Err(e) = self.signal_output.send_opportunity(&opportunity).await {
+                            error!(
+                                "Failed to send arbitrage opportunity to signal relay: {}",
+                                e
+                            );
                         }
                     }
                 }

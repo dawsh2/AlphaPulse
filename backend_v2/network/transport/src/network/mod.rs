@@ -3,28 +3,29 @@
 //! Direct peer-to-peer network transport implementation supporting TCP, UDP,
 //! and QUIC protocols for low-latency actor communication.
 
+pub mod compression;
+pub mod connection;
 pub mod envelope;
+pub mod security;
 pub mod tcp;
 pub mod udp;
-pub mod connection;
-pub mod compression;
-pub mod security;
 
-#[cfg(feature = "quic")]
-pub mod quic;
+// TODO: Implement QUIC module when needed
+// #[cfg(feature = "quic")]
+// pub mod quic;
 
 // Re-export main types
-pub use envelope::{NetworkEnvelope, WireFormat};
-pub use tcp::{TcpTransport, TcpConfig, TcpConnection};
-pub use udp::{UdpTransport, UdpConfig};
-pub use connection::{ConnectionPool, Connection, ConnectionStats, ConnectionManager};
 pub use compression::{CompressionEngine, CompressionType};
-pub use security::{SecurityLayer, EncryptionType};
+pub use connection::{Connection, ConnectionManager, ConnectionPool, ConnectionStats};
+pub use envelope::{NetworkEnvelope, WireFormat};
+pub use security::{EncryptionType, SecurityLayer};
+pub use tcp::{TcpConfig, TcpConnection, TcpTransport};
+pub use udp::{UdpConfig, UdpTransport};
 
-#[cfg(feature = "quic")]
-pub use quic::{QuicTransport, QuicConfig};
+// #[cfg(feature = "quic")]
+// pub use quic::{QuicTransport, QuicConfig};
 
-use crate::{TransportError, Result};
+use crate::{Result, TransportError};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -163,7 +164,7 @@ pub enum BackoffStrategy {
     /// Fixed delay between retries
     Fixed { delay: Duration },
     /// Linear backoff (delay increases linearly)
-    Linear { 
+    Linear {
         initial_delay: Duration,
         increment: Duration,
         max_delay: Duration,
@@ -269,31 +270,31 @@ impl NetworkConfig {
             encryption: EncryptionType::None,
             ..Default::default()
         };
-        
+
         // Optimize for latency
         config.performance.batching = None;
         config.performance.send_queue_size = 100; // Smaller queues
         config.performance.recv_queue_size = 100;
         config.connection.connect_timeout = Duration::from_secs(1);
         config.connection.heartbeat_interval = Duration::from_millis(100);
-        
+
         config
     }
 
     /// Create configuration optimized for high throughput
     pub fn high_throughput() -> Self {
         let mut config = Self::default();
-        
+
         // Enable compression for bandwidth efficiency
         config.compression = CompressionType::Lz4;
-        
+
         // Enable batching for throughput
         config.performance.batching = Some(BatchingConfig {
             max_batch_size: 100,
             max_batch_delay: Duration::from_millis(1),
             adaptive: true,
         });
-        
+
         // Larger buffers and queues
         if let Some(ref mut tcp_opts) = config.protocol.options.tcp {
             tcp_opts.recv_buffer_size = Some(256 * 1024); // 256KB
@@ -301,10 +302,10 @@ impl NetworkConfig {
         }
         config.performance.send_queue_size = 10000;
         config.performance.recv_queue_size = 10000;
-        
+
         config
     }
-    
+
     /// Create secure configuration with encryption
     pub fn secure() -> Self {
         let mut config = Self::default();
@@ -420,7 +421,8 @@ impl NetworkTransport {
         message: &[u8],
     ) -> Result<()> {
         // Get or create connection to target node
-        let connection = self.connection_manager
+        let connection = self
+            .connection_manager
             .get_or_create_connection(target_node)
             .await?;
 
@@ -502,11 +504,11 @@ mod tests {
     #[test]
     fn test_config_validation() {
         let mut config = NetworkConfig::default();
-        
+
         // Test invalid timeout
         config.connection.connect_timeout = Duration::from_secs(0);
         assert!(config.validate().is_err());
-        
+
         // Test invalid queue size
         config.connection.connect_timeout = Duration::from_secs(10);
         config.performance.send_queue_size = 0;

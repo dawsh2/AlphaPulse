@@ -31,9 +31,11 @@ use futures_util::{SinkExt, StreamExt};
 use once_cell::sync::Lazy;
 use protocol_v2::{
     parse_header, parse_tlv_extensions,
+    tlv::build_message_direct,
     tlv::market_data::{PoolBurnTLV, PoolMintTLV, PoolSwapTLV, PoolSyncTLV, PoolTickTLV},
     tlv::pool_state::{PoolStateTLV, V2PoolConfig, V3PoolConfig},
-    InstrumentId, SourceType, TLVMessageBuilder, TLVType, VenueId,
+    InstrumentId, SourceType, TLVType, VenueId,
+    tlv::fast_timestamp::init_timestamp_system,
 };
 use serde_json::Value;
 use std::sync::Arc;
@@ -868,12 +870,13 @@ impl UnifiedPolygonCollector {
             amount_in, amount_in_decimals, amount_out, amount_out_decimals
         );
 
-        let message = TLVMessageBuilder::new(
+        let message = build_message_direct(
             self.config.relay.parse_domain().ok()?,
             SourceType::PolygonCollector,
+            TLVType::PoolSwap,
+            &swap_tlv,
         )
-        .add_tlv_slice(TLVType::PoolSwap, swap_tlv.as_bytes())
-        .build();
+        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
 
         Some(message)
     }
@@ -990,12 +993,13 @@ impl UnifiedPolygonCollector {
             liquidity, tick_lower, tick_upper
         );
 
-        let message = TLVMessageBuilder::new(
+        let message = build_message_direct(
             self.config.relay.parse_domain().ok()?,
             SourceType::PolygonCollector,
+            TLVType::PoolMint,
+            &mint_tlv,
         )
-        .add_tlv_slice(TLVType::PoolMint, mint_tlv.as_bytes())
-        .build();
+        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
 
         Some(message)
     }
@@ -1107,12 +1111,13 @@ impl UnifiedPolygonCollector {
             liquidity, tick_lower, tick_upper
         );
 
-        let message = TLVMessageBuilder::new(
+        let message = build_message_direct(
             self.config.relay.parse_domain().ok()?,
             SourceType::PolygonCollector,
+            TLVType::PoolBurn,
+            &burn_tlv,
         )
-        .add_tlv_slice(TLVType::PoolBurn, burn_tlv.as_bytes())
-        .build();
+        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
 
         Some(message)
     }
@@ -1143,12 +1148,13 @@ impl UnifiedPolygonCollector {
 
         debug!("📊 Tick crossing processed: tick={}", tick);
 
-        let message = TLVMessageBuilder::new(
+        let message = build_message_direct(
             self.config.relay.parse_domain().ok()?,
             SourceType::PolygonCollector,
+            TLVType::PoolTick,
+            &tick_tlv,
         )
-        .add_tlv_slice(TLVType::PoolTick, tick_tlv.as_bytes())
-        .build();
+        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
 
         Some(message)
     }
@@ -1225,12 +1231,13 @@ impl UnifiedPolygonCollector {
             reserve0, reserve1
         );
 
-        let message = TLVMessageBuilder::new(
+        let message = build_message_direct(
             self.config.relay.parse_domain().ok()?,
             SourceType::PolygonCollector,
+            TLVType::PoolSync,
+            &sync_tlv,
         )
-        .add_tlv_slice(TLVType::PoolSync, sync_tlv.as_bytes())
-        .build();
+        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
 
         Some(message)
     }
@@ -1299,12 +1306,13 @@ impl UnifiedPolygonCollector {
 
         info!("🏭 V3 Pool Created: fee={}bps", fee_tier);
 
-        let message = TLVMessageBuilder::new(
+        let message = build_message_direct(
             self.config.relay.parse_domain().ok()?,
             SourceType::PolygonCollector,
+            TLVType::PoolState,
+            &pool_state,
         )
-        .add_tlv_slice(TLVType::PoolState, pool_state.as_bytes())
-        .build();
+        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
 
         Some(message)
     }
@@ -1364,12 +1372,13 @@ impl UnifiedPolygonCollector {
 
         info!("🔄 V2 Pair Created: fee={}bps", fee_tier);
 
-        let message = TLVMessageBuilder::new(
+        let message = build_message_direct(
             self.config.relay.parse_domain().ok()?,
             SourceType::PolygonCollector,
+            TLVType::PoolState,
+            &pool_state,
         )
-        .add_tlv_slice(TLVType::PoolState, pool_state.as_bytes())
-        .build();
+        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
 
         Some(message)
     }
@@ -1410,6 +1419,10 @@ impl UnifiedPolygonCollector {
 async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt::init();
+    
+    // ✅ CRITICAL: Initialize ultra-fast timestamp system
+    init_timestamp_system();
+    info!("✅ Ultra-fast timestamp system initialized (~5ns per timestamp)");
 
     info!("🚀 Starting Unified Polygon Collector");
     info!("   Architecture: WebSocket → TLV Builder → RelayOutput");

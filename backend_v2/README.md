@@ -2,7 +2,7 @@
 
 ## System Overview
 
-AlphaPulse is a distributed, microservice-based trading system built for ultra-low latency and parallel processing. The system processes real-time events and exchange data through a TLV (Type-Length-Value) binary message format, achieving <35μs latency for critical operations while maintaining full 20-byte Ethereum addresses for direct smart contract execution capability.
+AlphaPulse is a distributed, microservice-based trading system built for ultra-low latency and parallel processing. The system processes real-time events and exchange data through a TLV (Type-Length-Value) binary message format, achieving low latency for critical operations while maintaining full data integrity and precision. 
 
 ## Prerequisites
 
@@ -23,17 +23,19 @@ AlphaPulse is a distributed, microservice-based trading system built for ultra-l
 ### Core Design Principles
 1. **Microservice Architecture**: Independent, single-responsibility services
 2. **Protocol V2 TLV**: Variable-size TLV messages with 32-byte headers for predictable parsing
-3. **Full Address Architecture**: Complete 20-byte Ethereum addresses for direct execution
-4. **Pool Cache Persistence**: Background disk persistence never blocks hot path
+4. **RPC Contract Cache Persistence**: Call contracts once and persist data to disk
 5. **Zero-Copy Operations**: Memory-mapped I/O and direct buffer passing
 6. **Transport Abstraction**: Unix sockets locally, TCP for distributed
 7. **No Shared State**: Services communicate only via message passing
+8. **Flexible Configuration**: Services are sufficiently decoupled to arrange as needed
+
+\\ TODO - CONVERT TO MERMAID 
 
 ### Service Layers
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     External Data Sources                    │
+│                     External Data Sources                   │
 │         (Blockchain Nodes, DEX Contracts, CEX APIs)         │
 └─────────────────┬───────────────────────────────────────────┘
                   │
@@ -45,21 +47,21 @@ AlphaPulse is a distributed, microservice-based trading system built for ultra-l
 └─────────────────┬───────────────────────────────────────────┘
                   │ Protocol V2 TLV (32-byte header + variable payload)
 ┌─────────────────▼───────────────────────────────────────────┐
-│                     Relay Layer (Rust)                      │
+│                     Relay Actors (Rust)                     │
 │  • Market Data Relay      • Signal Relay                    │
 │  • Execution Relay        • Risk Relay                      │
 │  Transport: Unix Sockets  Routing: Topic-based Pub/Sub      │
 └─────────────────┬───────────────────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────────────────┐
-│                   Strategy Layer (Rust)                     │
+│                   Strategy Actors (Rust)                    │
 │  • Flash Arbitrage Bot    • Market Making Strategy          │
 │  • Statistical Arbitrage  • Liquidity Provider              │
 │  Input: Market Data       Output: Trading Signals           │
 └─────────────────┬───────────────────────────────────────────┘
-                  │
+                  │ // TODO ADD PORTFOLIO ACTORS
 ┌─────────────────▼───────────────────────────────────────────┐
-│                   Execution Layer (Rust)                    │
+│                   Execution Actors (Rust)                  │
 │  • Order Router           • Position Manager                │
 │  • Risk Manager           • Settlement Engine               │
 │  Input: Signals           Output: Transactions              │
@@ -1039,7 +1041,7 @@ cargo test --doc --workspace || exit 1
 **Self-Documenting Code**: Every public API should be understandable without external documentation.
 
 **Examples Over Prose**: Show usage patterns rather than describing them.
-
+g
 **Auto-Updating**: Documentation that lives in code stays current automatically.
 
 **Machine-Readable**: JSON export enables AI assistants and tooling integration.

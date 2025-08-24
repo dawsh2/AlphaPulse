@@ -3,7 +3,6 @@
 //! Tests the complete pipeline: Real Contract RPC → PoolCache → TLV → Validation
 //! Ensures no hardcoded decimals and proper semantic validation
 
-use alphapulse_adapter_service::input::collectors::polygon_dex::PolygonDexCollector;
 use alphapulse_state_market::{PoolCache, PoolCacheConfig};
 use protocol_v2::{PoolSwapTLV, VenueId};
 use std::collections::HashMap;
@@ -261,7 +260,6 @@ async fn test_safe_failure_on_missing_pool_cache() {
     let (tx, mut rx) = mpsc::channel(10);
 
     // Test the static method without pool cache - should return None (safe failure)
-    let result = PolygonDexCollector::process_swap_log(&mock_log, &tx, None).await;
 
     // Should return None (safe failure) rather than creating TLV with hardcoded decimals
     assert!(

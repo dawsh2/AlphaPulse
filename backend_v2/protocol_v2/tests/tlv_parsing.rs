@@ -8,12 +8,12 @@
 
 mod common;
 
-use alphapulse_protocol_v2::{
+use common::*;
+use protocol_v2::{
     parse_header, parse_tlv_extensions,
     tlv::{parse_tlv_extensions_for_relay, ParseError, TLVMessageBuilder},
-    MessageHeader, RelayDomain, SourceType, TLVType,
+    InstrumentId, MessageHeader, RelayDomain, SourceType, TLVType, VenueId,
 };
-use common::*;
 
 #[test]
 fn test_fragmented_network_packet() {
@@ -273,9 +273,8 @@ fn test_rapid_message_sequence() {
         msg[12..20].copy_from_slice(&seq_bytes);
 
         // Recalculate checksum
-        let checksum =
-            alphapulse_protocol_v2::validation::calculate_crc32_excluding_checksum(&msg, 28);
-        msg[28..32].copy_from_slice(&checksum.to_be_bytes());
+        let checksum = protocol_v2::validation::calculate_crc32_excluding_checksum(&msg, 28);
+        msg[28..32].copy_from_slice(&checksum.to_le_bytes());
 
         messages.push(msg);
     }
@@ -362,13 +361,13 @@ fn test_cross_domain_tlv_contamination() {
 #[test]
 fn test_real_arbitrage_opportunity_message() {
     // Test a real arbitrage signal with all required TLVs
-    use alphapulse_protocol_v2::InstrumentId;
+    use protocol_v2::InstrumentId;
 
     // Real arb opportunity: WETH/USDC price difference
     let opportunity_id: u64 = 0x1234567890ABCDEF;
-    let weth = InstrumentId::coin(alphapulse_protocol_v2::VenueId::Ethereum, "WETH");
-    let usdc = InstrumentId::coin(alphapulse_protocol_v2::VenueId::Ethereum, "USDC");
-    let weth_usdc = InstrumentId::pool(alphapulse_protocol_v2::VenueId::UniswapV2, weth, usdc);
+    let weth = InstrumentId::coin(VenueId::Ethereum, "WETH");
+    let usdc = InstrumentId::coin(VenueId::Ethereum, "USDC");
+    let weth_usdc = InstrumentId::pool(VenueId::UniswapV2, weth, usdc);
 
     // Build complete arbitrage signal message
     let mut msg = TLVMessageBuilder::new(RelayDomain::Signal, SourceType::ArbitrageStrategy);

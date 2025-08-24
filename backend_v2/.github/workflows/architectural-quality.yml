@@ -1,0 +1,276 @@
+name: Architectural Quality Gates
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # ==============================================================================
+  # ARCHITECTURAL INTEGRITY CHECKS
+  # ==============================================================================
+  architectural-integrity:
+    name: Architectural Boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Validate Service Boundaries
+        run: ./scripts/check_service_boundaries.sh
+      
+      - name: Check Documentation Consistency
+        run: ./scripts/check_readme_consistency.sh
+      
+      - name: Validate Project Structure
+        run: |
+          # Ensure critical directories exist
+          test -d protocol_v2 || (echo "❌ Missing protocol_v2 directory" && exit 1)
+          test -d libs || (echo "❌ Missing libs directory" && exit 1)  
+          test -d services_v2 || (echo "❌ Missing services_v2 directory" && exit 1)
+          test -d network || (echo "❌ Missing network directory" && exit 1)
+          echo "✅ Project structure validated"
+
+  # ==============================================================================
+  # CODE QUALITY CHECKS
+  # ==============================================================================
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Format Check
+        run: cargo fmt --all -- --check
+      
+      - name: Clippy Check
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      
+      - name: Documentation Build
+        run: cargo doc --workspace --document-private-items --no-deps
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+  # ==============================================================================
+  # DEPENDENCY VALIDATION
+  # ==============================================================================
+  dependency-validation:
+    name: Dependency Validation  
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install cargo-audit
+        run: cargo install --force cargo-audit
+      
+      - name: Security Audit
+        run: cargo audit
+        
+      - name: Check for Duplicate Dependencies
+        run: |
+          # Look for version conflicts
+          cargo tree --duplicates
+          
+      - name: Validate Cargo.toml Structure
+        run: |
+          # Ensure workspace is properly configured
+          if ! grep -q "members.*=" Cargo.toml; then
+            echo "❌ Workspace members not properly configured"
+            exit 1
+          fi
+          echo "✅ Cargo workspace structure validated"
+
+  # ==============================================================================
+  # PROTOCOL INTEGRITY VALIDATION  
+  # ==============================================================================
+  protocol-integrity:
+    name: Protocol V2 Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-protocol-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Protocol V2 Tests
+        run: cargo test --package alphapulse_protocol_v2 --all-targets
+      
+      - name: TLV Registry Validation
+        run: |
+          # Check for TLV type conflicts
+          if grep -n "= [0-9]" protocol_v2/src/tlv/types.rs | \
+             awk -F'= ' '{print $2}' | sort | uniq -d | grep -q .; then
+            echo "❌ TLV type number conflicts detected"
+            exit 1
+          fi
+          echo "✅ TLV registry integrity validated"
+      
+      - name: Zero-Copy Validation
+        run: |
+          # Ensure critical structs have zerocopy traits
+          if grep -l "#\[repr(C" protocol_v2/src/tlv/*.rs | \
+             xargs grep -L "AsBytes\|FromBytes" | grep -q .; then
+            echo "❌ TLV structs missing zerocopy traits"
+            exit 1
+          fi
+          echo "✅ Zero-copy traits validated"
+
+  # ==============================================================================
+  # DOCUMENTATION QUALITY
+  # ==============================================================================  
+  documentation-quality:
+    name: Documentation Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check Critical Documentation
+        run: |
+          # Ensure critical docs exist
+          test -f CLAUDE.md || (echo "❌ Missing root CLAUDE.md" && exit 1)
+          test -f README.md || (echo "❌ Missing root README.md" && exit 1)
+          echo "✅ Critical documentation present"
+      
+      - name: Sync and Validate Claude Agent Symlinks
+        run: |
+          # First, run sync to create any missing symlinks
+          ./.claude/sync-agents.sh
+          
+          # Then validate all symlinks are correct
+          cd .claude
+          missing_symlinks=0
+          
+          for agent_file in agents/*.md; do
+            if [ -f "$agent_file" ]; then
+              agent_name=$(basename "$agent_file")
+              command_path="commands/$agent_name"
+              
+              if [ ! -L "$command_path" ]; then
+                echo "❌ Missing command symlink for $agent_name"
+                missing_symlinks=$((missing_symlinks + 1))
+              elif [ ! -e "$command_path" ]; then
+                echo "❌ Broken symlink: $command_path"
+                missing_symlinks=$((missing_symlinks + 1))
+              fi
+            fi
+          done
+          
+          if [ $missing_symlinks -gt 0 ]; then
+            echo "❌ Found $missing_symlinks broken agent-command symlinks"
+            exit 1
+          fi
+          
+          echo "✅ All agent files have valid command symlinks"
+          
+          # Check if any new symlinks were created
+          if [ -n "$(git status --porcelain .claude/commands/)" ]; then
+            echo "🔧 New symlinks were created during CI run"
+            git status --porcelain .claude/commands/
+            echo "💡 Consider running .claude/sync-agents.sh locally and committing changes"
+          fi
+      
+      - name: Validate Mermaid Diagrams
+        run: |
+          # Check for architecture diagrams
+          if ! find . -name "*.md" -exec grep -l "```mermaid" {} \; | grep -q .; then
+            echo "⚠️ No mermaid diagrams found - consider adding architecture diagrams"
+          else
+            echo "✅ Architecture diagrams found"
+          fi
+      
+      - name: Check Documentation Links
+        run: |
+          # Look for broken internal links (basic check)
+          find . -name "*.md" -exec grep -Hn "\[.*\](.*\.md)" {} \; | \
+          while IFS=: read -r file line link; do
+            target=$(echo "$link" | sed 's/.*(\(.*\.md\)).*/\1/')
+            if [[ ! -f "$target" && ! -f "$(dirname "$file")/$target" ]]; then
+              echo "⚠️ Potentially broken link in $file:$line -> $target"
+            fi
+          done
+
+  # ==============================================================================
+  # FINAL QUALITY GATE
+  # ==============================================================================
+  quality-gate:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [architectural-integrity, code-quality, dependency-validation, protocol-integrity, documentation-quality]
+    if: always()
+    steps:
+      - name: Check All Jobs Status
+        run: |
+          if [[ "${{ needs.architectural-integrity.result }}" == "failure" ]]; then
+            echo "❌ Architectural integrity checks failed"
+            exit 1
+          fi
+          
+          if [[ "${{ needs.code-quality.result }}" == "failure" ]]; then
+            echo "❌ Code quality checks failed"  
+            exit 1
+          fi
+          
+          if [[ "${{ needs.dependency-validation.result }}" == "failure" ]]; then
+            echo "❌ Dependency validation failed"
+            exit 1
+          fi
+          
+          if [[ "${{ needs.protocol-integrity.result }}" == "failure" ]]; then
+            echo "❌ Protocol integrity checks failed"
+            exit 1
+          fi
+          
+          if [[ "${{ needs.documentation-quality.result }}" == "failure" ]]; then
+            echo "❌ Documentation quality checks failed"
+            exit 1
+          fi
+          
+          echo "✅ All architectural quality gates passed!"
+          echo "🚀 Code ready for production deployment"

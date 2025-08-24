@@ -64,33 +64,26 @@
 //! let tlvs = alphapulse_protocol_v2::parse_tlv_extensions(&bytes[32..])?;
 //! ```
 //!
-//! ### ⚠️ Critical: Packed Struct Safety
+//! ### Zero-Copy Safety with Natural Alignment
 //!
-//! TLV structs use `#[repr(C, packed)]` for memory efficiency. **Never access fields directly**:
+//! TLV structs use `#[repr(C)]` for deterministic layout with natural alignment.
+//! This provides zero-copy operations while maintaining safety across all platforms:
 //!
 //! ```rust
 //! let trade = TradeTLV::from_bytes(data)?;
 //!
-//! // ❌ WRONG - Creates unaligned reference (crashes on ARM/M1/M2!)
+//! // ✅ SAFE - Natural alignment allows direct field access
 //! println!("Price: {}", trade.price);
 //! assert_eq!(trade.price, expected);
-//! process_trade(&trade.price);  // Passing reference = crash!
+//! process_trade(trade.price);
 //!
-//! // ✅ CORRECT - Always copy packed fields first
-//! let price = trade.price;      // Copy to stack
-//! let volume = trade.volume;    // Copy to stack  
-//! let side = trade.side;        // Copy to stack
-//!
-//! println!("Price: {}", price);              // ✅ Safe
-//! assert_eq!(price, expected);               // ✅ Safe
-//! process_trade(price);                      // ✅ Safe (by value)
-//!
-//! // ✅ Also correct - method calls (they copy internally)
-//! let venue = trade.venue()?;    // Methods are safe
+//! // Zero-copy deserialization still works perfectly
+//! let bytes = trade.as_bytes();  // No allocation
+//! let recovered = TradeTLV::ref_from(bytes)?;  // No copy
 //! ```
 //!
-//! **Why this matters**: Intel/AMD CPUs tolerate unaligned access (with performance penalty),
-//! but ARM (M1/M2 Macs, mobile) will **segfault immediately**.
+//! **Platform Benefits**: Natural alignment ensures optimal performance on all CPUs
+//! (Intel/AMD/ARM/M1/M2) without sacrificing zero-copy efficiency.
 //!
 //! ### TLV Type Discovery (Developer API)
 //! ```rust
@@ -212,9 +205,14 @@ pub use tlv::{
     pool_state::PoolType,
     // System TLVs
     system::{SystemHealthTLV, TraceContextTLV, TraceEvent, TraceEventType, TraceId},
+    // Dynamic payload infrastructure for zero-copy TLVs
+    DynamicPayload,
+    FixedStr,
+    FixedVec,
     InvalidationReason,
     ParseError,
     ParseResult,
+    PayloadError,
     PoolStateTLV,
     PoolSwapTLV,
     QuoteTLV,
@@ -225,6 +223,8 @@ pub use tlv::{
     // Market data TLVs
     TradeTLV,
     VendorTLVType,
+    MAX_INSTRUMENTS,
+    MAX_POOL_TOKENS,
 };
 
 // Re-export specific identifier types to avoid PoolType conflicts
@@ -239,9 +239,28 @@ pub use recovery::*;
 pub use validation::*;
 
 /// Protocol magic number for message identification
+///
+/// This value (0xDEADBEEF) is intentionally chosen as a debugging aid:
+/// - Easily recognizable in hex dumps for protocol boundary identification
+/// - Impossible to appear randomly in normal data
+/// - Industry standard (used in Linux kernel, embedded systems)
+/// - Not client-facing, purely for internal protocol validation
 pub const MESSAGE_MAGIC: u32 = 0xDEADBEEF;
 
 /// Protocol version
+///
+/// Versioning Strategy:
+/// - Single version supported at compile time (no runtime negotiation)
+/// - Version changes are breaking changes requiring full system recompilation
+/// - Clean break philosophy: When v2 arrives, increment and rebuild everything
+/// - No backward compatibility overhead or multi-version complexity
+/// - At 15.8M msg/s, even one pointer dereference for version checking matters
+///
+/// Example future migration:
+/// ```rust
+/// // When Protocol V3 is needed (years away):
+/// pub const PROTOCOL_VERSION: u8 = 3;  // Breaking change, recompile all services
+/// ```
 pub const PROTOCOL_VERSION: u8 = 1;
 
 /// Standard Unix socket paths for relays
@@ -263,6 +282,15 @@ pub enum ProtocolError {
 
     #[error("Checksum validation failed")]
     ChecksumFailed,
+
+    #[error(
+        "Bounds check failed: offset {offset} + length {length} exceeds buffer size {buffer_size}"
+    )]
+    BoundsCheckFailed {
+        offset: usize,
+        length: usize,
+        buffer_size: usize,
+    },
 
     #[error("Message too large: {size} bytes")]
     MessageTooLarge { size: usize },

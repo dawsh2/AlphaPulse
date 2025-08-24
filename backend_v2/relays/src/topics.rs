@@ -25,7 +25,7 @@
 //!     
 //!     subgraph "Routing Patterns"
 //!         Exact["arbitrage.flash"]
-//!         Wildcard["arbitrage.*"] 
+//!         Wildcard["arbitrage.*"]
 //!         Global["*"]
 //!     end
 //!     

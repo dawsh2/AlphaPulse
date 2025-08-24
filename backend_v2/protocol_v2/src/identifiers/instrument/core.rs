@@ -147,13 +147,17 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 ///
 /// Self-describing instrument identifier that contains all necessary routing information.
 /// The structure is designed for zero-copy operations and cache efficiency.
+///
+/// Packed representation to eliminate padding
+/// SAFETY: Manual alignment verification required in zero-copy operations
 #[repr(C, packed)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, AsBytes, FromBytes, FromZeroes)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes, FromZeroes)]
 pub struct InstrumentId {
-    pub venue: u16,     // VenueId enum (1=Binance, 2=Uniswap, etc.)
-    pub asset_type: u8, // AssetType enum (1=Stock, 2=Token, 3=Pool)
-    pub reserved: u8,   // Future use/flags
-    pub asset_id: u64,  // Venue-specific identifier
+    pub asset_id: u64,  // Venue-specific identifier (8 bytes)
+    pub venue: u16,     // VenueId enum (2 bytes)
+    pub asset_type: u8, // AssetType enum (1 byte)
+    pub reserved: u8,   // Future use/flags (1 byte)
+                        // Total: exactly 12 bytes with no padding
 }
 
 impl InstrumentId {
@@ -418,17 +422,10 @@ impl InstrumentId {
         }
     }
 
-    /// Check if this instrument is from a DeFi venue
-    pub fn is_defi(&self) -> bool {
-        self.venue().map(|v| v.is_defi()).unwrap_or(false)
-    }
-
-    /// Check if this instrument is from a centralized exchange
-    pub fn is_centralized(&self) -> bool {
-        self.venue().map(|v| v.is_centralized()).unwrap_or(false)
-    }
-
     /// Get the blockchain chain ID if this is a blockchain asset
+    ///
+    /// Returns the chain ID for venues that operate on specific blockchains.
+    /// This is useful for determining which network to connect to.
     pub fn chain_id(&self) -> Option<u64> {
         self.venue().ok().and_then(|v| v.chain_id())
     }
@@ -586,15 +583,15 @@ mod tests {
         let nasdaq_stock = InstrumentId::stock(VenueId::NASDAQ, "AAPL");
         let uniswap_pool = InstrumentId::pool(VenueId::UniswapV3, eth_token, nasdaq_stock);
 
-        assert!(eth_token.is_defi());
-        assert!(!nasdaq_stock.is_defi());
-        assert!(uniswap_pool.is_defi());
+        // Test venue extraction works correctly - the VenueId itself IS the classification
+        assert_eq!(eth_token.venue().unwrap(), VenueId::Ethereum);
+        assert_eq!(nasdaq_stock.venue().unwrap(), VenueId::NASDAQ);
+        assert_eq!(uniswap_pool.venue().unwrap(), VenueId::UniswapV3);
 
-        assert!(!eth_token.is_centralized());
-        assert!(nasdaq_stock.is_centralized());
-
+        // Test chain ID extraction for blockchain venues
         assert_eq!(eth_token.chain_id(), Some(1)); // Ethereum mainnet
         assert_eq!(nasdaq_stock.chain_id(), None); // Traditional exchange
+        assert_eq!(uniswap_pool.chain_id(), Some(1)); // UniswapV3 is on Ethereum
     }
 
     #[test]

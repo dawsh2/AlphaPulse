@@ -136,11 +136,14 @@
 //! }
 //! ```
 
-use crate::error::AdapterError;
+use protocol_v2::tlv::address::AddressExtraction;
 use protocol_v2::tlv::market_data::*;
+use protocol_v2::tlv::dynamic_payload::DynamicPayload;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use zerocopy::{AsBytes, FromBytes};
 
+/// Type alias for validation operation results
 pub type ValidationResult<T> = Result<T, ValidationError>;
 
 /// Compile-time validation enforcement trait
@@ -222,26 +225,34 @@ impl Default for ValidationConfig {
     }
 }
 
+/// Validation error types for the multi-stage validation pipeline
 #[derive(Debug, thiserror::Error)]
 pub enum ValidationError {
+    /// Raw message parsing failure
     #[error("Raw parsing validation failed: {0}")]
     RawParsing(String),
 
+    /// TLV serialization failure
     #[error("TLV serialization validation failed: {0}")]
     TlvSerialization(String),
 
+    /// TLV deserialization failure
     #[error("TLV deserialization validation failed: {0}")]
     TlvDeserialization(String),
 
+    /// Semantic validation failure
     #[error("Semantic validation failed: {0}")]
     Semantic(String),
 
+    /// Deep equality validation failure
     #[error("Deep equality validation failed: {0}")]
     DeepEquality(String),
 
+    /// Precision loss detected
     #[error("Precision loss detected: {0}")]
     PrecisionLoss(String),
 
+    /// Cross-source validation failure
     #[error("Cross-source validation failed: {0}")]
     CrossSource(String),
 }
@@ -454,11 +465,15 @@ fn hash_tlv<T: Hash>(tlv: &T) -> u64 {
 }
 
 // Trait abstractions for the validation framework
+/// Trait for types that can be serialized to TLV format
 pub trait TlvSerializable {
+    /// Convert to TLV byte representation
     fn to_bytes(&self) -> Vec<u8>;
 }
 
+/// Trait for types that can be deserialized from TLV format
 pub trait TlvDeserializable: Sized {
+    /// Parse from TLV byte representation
     fn from_bytes(bytes: &[u8]) -> Result<Self, String>;
 }
 
@@ -480,7 +495,7 @@ impl SemanticValidator for PoolSwapTLV {
         }
 
         // Validate pool address is not zero
-        if self.pool_address == [0u8; 20] {
+        if self.pool_address.to_eth_address() == [0u8; 20] {
             return Err(ValidationError::Semantic(
                 "Pool address cannot be zero".to_string(),
             ));
@@ -517,7 +532,7 @@ impl SemanticValidator for PoolSwapTLV {
 impl SemanticValidator for PoolMintTLV {
     fn validate_semantics(&self) -> ValidationResult<()> {
         // Validate pool address
-        if self.pool_address == [0u8; 20] {
+        if self.pool_address.to_eth_address() == [0u8; 20] {
             return Err(ValidationError::Semantic(
                 "Pool address cannot be zero".to_string(),
             ));
@@ -553,7 +568,7 @@ impl SemanticValidator for PoolMintTLV {
 impl SemanticValidator for PoolBurnTLV {
     fn validate_semantics(&self) -> ValidationResult<()> {
         // Same validations as mint
-        if self.pool_address == [0u8; 20] {
+        if self.pool_address.to_eth_address() == [0u8; 20] {
             return Err(ValidationError::Semantic(
                 "Pool address cannot be zero".to_string(),
             ));
@@ -607,7 +622,7 @@ impl SemanticValidator for PoolTickTLV {
 impl SemanticValidator for PoolLiquidityTLV {
     fn validate_semantics(&self) -> ValidationResult<()> {
         // Validate pool address
-        if self.pool_address == [0u8; 20] {
+        if self.pool_address.to_eth_address() == [0u8; 20] {
             return Err(ValidationError::Semantic(
                 "Pool address cannot be zero".to_string(),
             ));
@@ -642,8 +657,8 @@ macro_rules! impl_tlv_traits {
         impl TlvSerializable for $tlv_type {
             fn to_bytes(&self) -> Vec<u8> {
                 // Create proper TLV format: [type][length][payload]
-                // Call the struct's own to_bytes() method to get the payload
-                let payload = <$tlv_type>::to_bytes(self);
+                // Use zero-copy serialization to get the payload
+                let payload = self.as_bytes();
                 let mut tlv_bytes = Vec::new();
                 tlv_bytes.push($tlv_type_value); // TLV type byte
                 tlv_bytes.push(payload.len() as u8); // Length byte
@@ -678,7 +693,9 @@ macro_rules! impl_tlv_traits {
                 }
 
                 let payload = &bytes[2..2 + payload_len];
-                <$tlv_type>::from_bytes(payload).map_err(|e| e.to_string())
+                <$tlv_type>::ref_from(payload)
+                    .map(|tlv_ref| *tlv_ref)
+                    .ok_or("Zero-copy deserialization failed".to_string())
             }
         }
     };
@@ -688,7 +705,7 @@ impl_tlv_traits!(PoolSwapTLV, 11); // TLVType::PoolSwap = 11
 impl_tlv_traits!(PoolMintTLV, 12); // TLVType::PoolMint = 12
 impl_tlv_traits!(PoolBurnTLV, 13); // TLVType::PoolBurn = 13
 impl_tlv_traits!(PoolTickTLV, 14); // TLVType::PoolTick = 14
-impl_tlv_traits!(PoolLiquidityTLV, 10); // TLVType::PoolLiquidity = 10
+                                   // PoolLiquidityTLV uses Vec<u128> and cannot be zero-copy - excluded from validation framework
 
 #[cfg(test)]
 mod tests {

@@ -1,0 +1,28 @@
+[package]
+name = "alphapulse-dex"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Core dependencies
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+once_cell = "1.18"
+
+# Ethereum/Web3
+ethabi = "18.0"
+web3 = "0.19"
+ethereum-types = "0.14"
+
+# Protocol
+protocol_v2 = { path = "../../protocol_v2" }
+
+[dev-dependencies]
+tokio = { version = "1.39", features = ["full"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+hex = "0.4"
+
+[[bench]]
+name = "performance"
+harness = false

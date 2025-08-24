@@ -1,0 +1,54 @@
+# AlphaPulse Staging Environment Configuration
+
+# Staging paths isolated from production
+socket_dir = "/tmp/alphapulse-staging"
+log_dir = "/tmp/alphapulse_logs_staging"
+pid_file = "/tmp/alphapulse_staging.pids"
+
+# Service-specific configurations
+[services]
+
+[services.market_data_relay]
+enabled = true
+health_port = 9001  # Different ports to avoid conflicts
+priority = 10
+
+[services.signal_relay]  
+enabled = true
+health_port = 9002
+priority = 20
+
+[services.execution_relay]
+enabled = true
+health_port = 9003
+priority = 30
+
+[services.polygon_publisher]
+enabled = true
+health_port = 9004
+priority = 40
+
+[services.flash_arbitrage]
+enabled = true
+health_port = 9005
+priority = 50
+
+[services.dashboard_websocket]
+enabled = true
+health_port = 9006
+priority = 60
+
+[services.kraken_collector]
+enabled = true  # Enable for staging validation
+health_port = 9007
+priority = 70
+
+[services.binance_collector]
+enabled = true
+health_port = 9008
+priority = 80
+
+[services.coinbase_collector]
+enabled = true
+health_port = 9009
+priority = 90

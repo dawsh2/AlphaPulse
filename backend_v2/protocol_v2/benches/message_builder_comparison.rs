@@ -1,10 +1,11 @@
-//! Benchmark comparing legacy TLVMessageBuilder vs ZeroCopyTLVMessageBuilder
+//! Benchmark comparing legacy TLVMessageBuilder vs TrueZeroCopyBuilder
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use protocol_v2::{
     tlv::{
         builder::TLVMessageBuilder, market_data::TradeTLV,
-        zero_copy_builder::ZeroCopyTLVMessageBuilder,
+        zero_copy_builder_v2::{TrueZeroCopyBuilder, build_message_direct},
+        with_hot_path_buffer,
     },
     InstrumentId, RelayDomain, SourceType, TLVType, VenueId,
 };
@@ -39,40 +40,44 @@ fn bench_legacy_builder(c: &mut Criterion) {
     });
 }
 
-fn bench_zero_copy_builder(c: &mut Criterion) {
+fn bench_true_zero_copy_builder(c: &mut Criterion) {
     let trade = create_trade_tlv();
 
-    c.bench_function("zero_copy_builder_single_tlv", |b| {
+    c.bench_function("true_zero_copy_builder_single_tlv", |b| {
         b.iter(|| {
-            let message = ZeroCopyTLVMessageBuilder::new(
+            let message = build_message_direct(
                 RelayDomain::MarketData,
                 SourceType::PolygonCollector,
-            )
-            .add_tlv_ref(TLVType::Trade, &trade)
-            .build();
+                TLVType::Trade,
+                &trade,
+            ).unwrap();
             criterion::black_box(message);
         })
     });
 }
 
-fn bench_zero_copy_builder_with_buffer(c: &mut Criterion) {
+fn bench_true_zero_copy_with_thread_local_buffer(c: &mut Criterion) {
     let trade = create_trade_tlv();
 
-    // Pre-allocate buffer
-    let builder =
-        ZeroCopyTLVMessageBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector)
-            .add_tlv_ref(TLVType::Trade, &trade);
-    let size = builder.calculate_size();
-    let mut buffer = vec![0u8; size];
+    // Warmup the thread-local buffer
+    for _ in 0..100 {
+        let _ = with_hot_path_buffer(|buffer| {
+            let builder = TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
+            builder.build_into_buffer(buffer, TLVType::Trade, &trade)
+                .map(|size| (size, size))
+        });
+    }
 
-    c.bench_function("zero_copy_builder_with_buffer", |b| {
+    c.bench_function("true_zero_copy_with_thread_local_buffer", |b| {
         b.iter(|| {
-            let builder = ZeroCopyTLVMessageBuilder::new(
-                RelayDomain::MarketData,
-                SourceType::PolygonCollector,
-            )
-            .add_tlv_ref(TLVType::Trade, &trade);
-            let size = builder.build_into_buffer(&mut buffer).unwrap();
+            let size = with_hot_path_buffer(|buffer| {
+                let builder = TrueZeroCopyBuilder::new(
+                    RelayDomain::MarketData,
+                    SourceType::PolygonCollector,
+                );
+                let size = builder.build_into_buffer(buffer, TLVType::Trade, &trade).unwrap();
+                Ok((size, size))
+            }).unwrap();
             criterion::black_box(size);
         })
     });
@@ -119,16 +124,17 @@ fn bench_multiple_tlvs(c: &mut Criterion) {
         );
 
         group.bench_with_input(
-            BenchmarkId::new("zero_copy_builder", tlv_count),
+            BenchmarkId::new("true_zero_copy_builder", tlv_count),
             &tlv_count,
             |b, &count| {
                 b.iter(|| {
-                    let mut builder = ZeroCopyTLVMessageBuilder::new(
+                    // For multiple TLVs, use standard builder since TrueZeroCopyBuilder handles single TLV
+                    let mut builder = TLVMessageBuilder::new(
                         RelayDomain::MarketData,
                         SourceType::PolygonCollector,
                     );
                     for i in 0..count {
-                        builder = builder.add_tlv_ref(TLVType::Trade, &trades[i]);
+                        builder = builder.add_tlv(TLVType::Trade, &trades[i]);
                     }
                     let message = builder.build();
                     criterion::black_box(message);
@@ -143,8 +149,8 @@ fn bench_multiple_tlvs(c: &mut Criterion) {
 criterion_group!(
     benches,
     bench_legacy_builder,
-    bench_zero_copy_builder,
-    bench_zero_copy_builder_with_buffer,
+    bench_true_zero_copy_builder,
+    bench_true_zero_copy_with_thread_local_buffer,
     bench_multiple_tlvs
 );
 criterion_main!(benches);

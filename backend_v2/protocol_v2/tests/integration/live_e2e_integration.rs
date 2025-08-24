@@ -9,7 +9,7 @@
 /*
 // Legacy integration test disabled during TLV cleanup - needs Protocol V2 migration
 
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     VenueId, InstrumentId, TradeTLV, QuoteTLV, PoolSwapTLV, PoolInstrumentId,
     // Legacy TLVMessage removed - use Protocol V2 MessageHeader + TLV extensions
     relay::market_data_relay::MarketDataRelay
@@ -294,9 +294,9 @@ async fn relay_consumer(
                     if stream.read_exact(&mut payload_buf).await.is_ok() {
                         // Successfully received a message
                         messages.push(TLVMessage {
-                            header: alphapulse_protocol_v2::tlv::market_data::TLVHeader {
+                            header: protocol_v2::tlv::market_data::TLVHeader {
                                 magic: u32::from_le_bytes([header_buf[0], header_buf[1], header_buf[2], header_buf[3]]),
-                                tlv_type: alphapulse_protocol_v2::TLVType::Trade,
+                                tlv_type: protocol_v2::TLVType::Trade,
                                 payload_len: payload_size as u8,
                                 checksum: 0,
                             },

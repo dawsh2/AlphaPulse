@@ -51,7 +51,7 @@ fn test_basic_tlv_roundtrip() -> protocol_v2::Result<()> {
     use std::time::SystemTime;
 
     let instrument_id = InstrumentId::ethereum_token("0x1234567890abcdef1234567890abcdef12345678")?;
-    let trade = TradeTLV::new(
+    let trade = TradeTLV::from_instrument(
         VenueId::Binance,
         instrument_id,
         123456780000, // $1234.5678 with 8 decimal places
@@ -188,9 +188,17 @@ fn test_bijective_id_properties() -> protocol_v2::Result<()> {
 
     // Test venue properties - VenueId itself IS the classification
     // We can check the venue directly instead of using abstract classification methods
-    assert_eq!(usdc_id.venue().unwrap(), VenueId::Ethereum, "USDC is on Ethereum");
-    assert_eq!(weth_id.venue().unwrap(), VenueId::Ethereum, "WETH is on Ethereum");
-    
+    assert_eq!(
+        usdc_id.venue().unwrap(),
+        VenueId::Ethereum,
+        "USDC is on Ethereum"
+    );
+    assert_eq!(
+        weth_id.venue().unwrap(),
+        VenueId::Ethereum,
+        "WETH is on Ethereum"
+    );
+
     // Chain ID tells us which blockchain network to connect to
     assert_eq!(
         usdc_id.chain_id(),
@@ -200,8 +208,16 @@ fn test_bijective_id_properties() -> protocol_v2::Result<()> {
 
     // Test DEX protocol venues - explicit venue checking is clearer than abstract is_defi()
     let uniswap_pool = InstrumentId::pool(VenueId::UniswapV3, usdc_id, weth_id);
-    assert_eq!(uniswap_pool.venue().unwrap(), VenueId::UniswapV3, "Pool is on UniswapV3");
-    assert_eq!(uniswap_pool.chain_id(), Some(1), "UniswapV3 operates on Ethereum mainnet");
+    assert_eq!(
+        uniswap_pool.venue().unwrap(),
+        VenueId::UniswapV3,
+        "Pool is on UniswapV3"
+    );
+    assert_eq!(
+        uniswap_pool.chain_id(),
+        Some(1),
+        "UniswapV3 operates on Ethereum mainnet"
+    );
 
     // Test pairing compatibility
     assert!(
@@ -227,16 +243,16 @@ fn test_bijective_id_properties() -> protocol_v2::Result<()> {
 fn test_recovery_protocol() -> protocol_v2::Result<()> {
     // Create a simple recovery data structure that matches the expected size (18 bytes)
     #[repr(C)]
-    #[derive(Clone, Copy)]  // Remove zerocopy derives for test struct
+    #[derive(Clone, Copy)] // Remove zerocopy derives for test struct
     struct SimpleRecoveryData {
         // Group u64 first for natural alignment
         last_sequence: u64, // 8 bytes (aligned at 0)
         // Then u32s
-        consumer_id: u32,   // 4 bytes (aligned at 8)
-        gap_size: u32,      // 4 bytes (aligned at 12)
+        consumer_id: u32, // 4 bytes (aligned at 8)
+        gap_size: u32,    // 4 bytes (aligned at 12)
         // Finally u16s
-        request_type: u16,  // 2 bytes (aligned at 16)
-        _padding: u16,      // 2 bytes explicit padding to reach 20 bytes
+        request_type: u16, // 2 bytes (aligned at 16)
+        _padding: u16,     // 2 bytes explicit padding to reach 20 bytes
     } // Total: 20 bytes (was 24 with implicit padding, now 20 with explicit)
 
     let recovery_data = SimpleRecoveryData {
@@ -254,7 +270,7 @@ fn test_recovery_protocol() -> protocol_v2::Result<()> {
             std::mem::size_of::<SimpleRecoveryData>(),
         )
     };
-    
+
     let message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::Dashboard)
         .add_tlv_slice(TLVType::RecoveryRequest, recovery_bytes)
         .build();

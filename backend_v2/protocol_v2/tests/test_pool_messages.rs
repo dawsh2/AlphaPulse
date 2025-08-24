@@ -2,7 +2,7 @@
 //!
 //! Ensures all modified TLV structures work correctly
 
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     tlv::market_data::{PoolBurnTLV, PoolMintTLV, PoolSwapTLV, PoolSyncTLV, TLVMessage, TLVType},
     PoolInstrumentId, PoolProtocol, VenueId,
 };

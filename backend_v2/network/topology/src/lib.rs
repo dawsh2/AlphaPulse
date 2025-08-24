@@ -35,7 +35,7 @@
 //!     
 //!     subgraph "Transport Selection"
 //!         SameNode[Same Node: Unix Sockets <35μs]
-//!         SameNUMA[Same NUMA: Shared Memory <100μs] 
+//!         SameNUMA[Same NUMA: Shared Memory <100μs]
 //!         CrossNUMA[Cross NUMA: TCP <5ms]
 //!         Remote[Remote: TCP/QUIC <50ms]
 //!     end
@@ -94,7 +94,7 @@
 //! numa_node = 0
 //! actors = ["market_data_relay", "polygon_publisher", "flash_arbitrage"]
 //!
-//! [nodes.analytics_node] 
+//! [nodes.analytics_node]
 //! numa_node = 1
 //! actors = ["signal_relay", "dashboard_websocket", "trace_collector"]
 //! ```

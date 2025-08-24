@@ -4,8 +4,9 @@
 //! on disconnection to prevent phantom arbitrage opportunities.
 
 use protocol_v2::{
-    tlv::StateInvalidationTLV, InstrumentId, InvalidationReason, RelayDomain, SourceType,
-    TLVMessageBuilder, TLVType, VenueId,
+    tlv::{self, StateInvalidationTLV},
+    InstrumentId, InvalidationReason, RelayDomain, SourceType,
+    TLVType, VenueId,
 };
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
@@ -191,9 +192,12 @@ impl StateManager {
         .expect("Failed to create StateInvalidationTLV");
 
         // Convert to TLV message
-        let tlv_message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::StateManager)
-            .add_tlv_bytes(TLVType::StateInvalidation, invalidation.as_bytes().to_vec())
-            .build();
+        let tlv_message = tlv::build_message_direct(
+            RelayDomain::MarketData, 
+            SourceType::StateManager,
+            TLVType::StateInvalidation, 
+            &invalidation
+        ).map_err(|e| AdapterError::Internal(format!("TLV message build failed: {}", e)))?;
 
         tracing::warn!(
             "Generated state invalidation for {} instruments on venue {:?} (seq: {})",
@@ -234,9 +238,12 @@ impl StateManager {
         )
         .expect("Failed to create recovery StateInvalidationTLV");
 
-        let tlv_message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::StateManager)
-            .add_tlv_bytes(TLVType::StateInvalidation, recovery.as_bytes().to_vec())
-            .build();
+        let tlv_message = tlv::build_message_direct(
+            RelayDomain::MarketData,
+            SourceType::StateManager,
+            TLVType::StateInvalidation,
+            &recovery
+        ).map_err(|e| AdapterError::Internal(format!("TLV message build failed: {}", e)))?;
 
         tracing::info!("Generated recovery message for venue {:?}", self.venue);
 

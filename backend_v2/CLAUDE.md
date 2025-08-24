@@ -9,7 +9,7 @@ AlphaPulse is a high-performance cryptocurrency trading system built on Protocol
 
 **Production-Ready Code**: ALWAYS write production-quality code from the start. Never use fake/mock/dummy variables, services, or data.
 
-**See Also**: `.agents/` directory for detailed documentation on development, testing, and tools.
+**See Also**: `.claude/docs/` directory for detailed documentation on development, testing, and tools.
 
 ## Architecture Summary
 ```
@@ -57,7 +57,8 @@ backend_v2/
 ├── relays/             # Domain-specific relays
 ├── tests/e2e/          # End-to-end tests
 ├── docs/               # Protocol documentation
-└── .agents/            # AI assistant documentation
+└── .claude/            # AI assistant documentation
+    └── docs/           # Core documentation files
     ├── development.md  # Development workflows
     ├── testing.md      # Testing & debugging
     ├── rq_tool.md      # rq tool usage
@@ -111,7 +112,7 @@ rq find parse --type function    # All parsing functions
 rq examples TradeTLV             # Show real usage
 ```
 
-See `.agents/rq_tool.md` for complete documentation.
+See `.claude/docs/rq_tool.md` for complete documentation.
 
 ### Running the System
 ```bash
@@ -139,7 +140,7 @@ cargo run --bin test_protocol --release
 # Must maintain: >1M msg/s construction, >1.6M msg/s parsing
 ```
 
-See `.agents/testing.md` for complete testing guide.
+See `.claude/docs/testing.md` for complete testing guide.
 
 ## Current Migration Status
 
@@ -171,7 +172,7 @@ See `.agents/testing.md` for complete testing guide.
 - Delete unused code - don't keep "just in case" code
 - Update ALL references when changing interfaces
 
-See `.agents/development.md` for complete development workflow.
+See `.claude/docs/development.md` for complete development workflow.
 
 ## Documentation Standards
 **Write clear technical documentation for humans and AI agents:**
@@ -226,13 +227,15 @@ cargo clippy --workspace -- -D warnings
 2. **Ask Clarifying Questions**: Present questions before starting work
 3. **Use rq for Discovery**: Leverage `rq docs` and `rq check`
 4. **No Shortcuts**: Take time to validate and ensure safety
-5. **Check .agents/ directory**: Reference detailed guides for specific tasks
+5. **Check .claude/docs/ directory**: Reference detailed guides for specific tasks
 
 For detailed information on:
-- Development workflows → `.agents/development.md`
-- Testing & debugging → `.agents/testing.md`
-- Code style guide → `.agents/style.md`
-- Development tools → `.agents/tools.md`
-- CI/CD & deployment → `.agents/cicd.md`
-- rq tool usage → `.agents/rq_tool.md`
-- Common mistakes → `.agents/common_pitfalls.md`
+- **AlphaPulse practices** → `.claude/docs/practices.md` (CRITICAL: zero-copy, precision, TLV)
+- Engineering principles → `.claude/docs/principles.md`
+- Development workflows → `.claude/docs/development.md`
+- Testing & debugging → `.claude/docs/testing.md`
+- Code style guide → `.claude/docs/style.md`
+- Development tools → `.claude/docs/tools.md`
+- CI/CD & deployment → `.claude/docs/cicd.md`
+- rq tool usage → `.claude/docs/rq_tool.md`
+- Common mistakes → `.claude/docs/common_pitfalls.md`

@@ -1,0 +1,41 @@
+# HTTP-based Polygon Configuration (no WebSocket subscription required)
+[websocket]
+url = "https://polygon-rpc.com"  # Use HTTP endpoint instead
+connection_timeout_ms = 10000
+message_timeout_ms = 30000
+base_backoff_ms = 1000
+max_backoff_ms = 10000
+max_reconnect_attempts = 3
+
+[relay]
+socket_path = "/tmp/alphapulse/market_data.sock"
+domain = "MarketData"
+source_id = 3
+
+[validation]
+runtime_validation_seconds = 0  # Skip validation for now
+verbose_validation = false
+
+[monitoring]
+health_check_interval_seconds = 10
+stats_report_interval_seconds = 60
+max_processing_latency_ms = 100
+max_memory_usage_mb = 100
+
+[dex_events]
+# Known high-volume pool for testing - USDC/WETH 0.05%
+swap_signature = "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
+sync_signature = "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1"
+transfer_signature = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+
+[contracts]
+uniswap_v3_factory = "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+
+# HTTP polling configuration (new section)
+[http_polling]
+enabled = true
+poll_interval_ms = 2000  # Poll every 2 seconds
+blocks_per_request = 5   # Check last 5 blocks each time
+target_pools = [
+    "0x45dda9cb7c25131df268515131f647d726f50608"  # USDC/WETH 0.05% - high volume pool
+]

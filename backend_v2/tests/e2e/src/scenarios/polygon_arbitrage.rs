@@ -7,7 +7,6 @@ use crate::framework::{TestFramework, TestResult, TestScenario, TestMetrics, Val
 use crate::validation::{DataFlowValidator, PrecisionValidator};
 
 use anyhow::{Context, Result};
-use alphapulse_adapters::input::collectors::polygon_dex::PolygonDexCollector;
 use alphapulse_flash_arbitrage::strategy_engine::FlashArbitrageEngine;
 use alphapulse_protocol::relay::{MarketDataRelay, SignalRelay, ExecutionRelay};
 use serde_json::Value;
@@ -90,7 +89,6 @@ impl TestScenario for PolygonArbitrageTest {
             move || {
                 let pairs = target_pairs;
                 async move {
-                    let mut collector = PolygonDexCollector::new_with_pairs(pairs).await?;
                     collector.run().await
                 }
             }

@@ -18,6 +18,7 @@ pub enum AdapterError {
         reason: String,
     },
 
+    /// Connection timeout during establish or receive operations
     #[error("Connection timeout for venue {venue} after {timeout_ms}ms")]
     ConnectionTimeout {
         /// The venue that timed out
@@ -26,12 +27,14 @@ pub enum AdapterError {
         timeout_ms: u64,
     },
 
+    /// Authentication failure with exchange credentials
     #[error("Authentication failed for venue {venue}")]
     AuthenticationFailed {
         /// The venue where auth failed
         venue: VenueId,
     },
 
+    /// Rate limit exceeded on exchange API
     #[error("Rate limit exceeded for venue {venue}")]
     RateLimitExceeded {
         /// The venue that rate limited us
@@ -42,6 +45,7 @@ pub enum AdapterError {
     #[error("Invalid message format: {0}")]
     InvalidMessage(String),
 
+    /// JSON parsing error from exchange response
     #[error("Failed to parse JSON: {0}")]
     JsonParse(#[from] serde_json::Error),
 
@@ -56,12 +60,14 @@ pub enum AdapterError {
         error: String,
     },
 
+    /// Required field missing from exchange message
     #[error("Missing required field: {field}")]
     MissingField {
         /// The field that was missing
         field: String,
     },
 
+    /// Invalid numeric value in exchange data
     #[error("Invalid numeric value: {value}")]
     InvalidNumeric {
         /// The value that couldn't be parsed
@@ -72,6 +78,7 @@ pub enum AdapterError {
     #[error("Failed to send TLV message: {0}")]
     TLVSendFailed(String),
 
+    /// Invalid instrument identifier or symbol
     #[error("Invalid instrument: {0}")]
     InvalidInstrument(String),
 
@@ -79,12 +86,15 @@ pub enum AdapterError {
     #[error("WebSocket error: {0}")]
     WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
 
+    /// I/O error during network operations
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// Configuration error in adapter settings
     #[error("Configuration error: {0}")]
     Configuration(String),
 
+    /// Circuit breaker triggered due to repeated failures
     #[error("Circuit breaker open for venue {venue}")]
     CircuitBreakerOpen {
         /// The venue whose circuit breaker is open
@@ -100,6 +110,7 @@ pub enum AdapterError {
         max_attempts: u32,
     },
 
+    /// Venue permanently failed, requires manual intervention
     #[error("Venue {venue} is in failed state, manual intervention required")]
     VenueFailed {
         /// The venue in failed state

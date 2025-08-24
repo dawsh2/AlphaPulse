@@ -1,11 +1,12 @@
 //! TLV to JSON message conversion for dashboard
 
 use crate::error::{DashboardError, Result};
+use base64::prelude::*;
 use protocol_v2::InstrumentId;
 use protocol_v2::{
-    tlv::{DemoDeFiArbitrageTLV, PoolSyncTLV}, ParseError, PoolSwapTLV, QuoteTLV,
+    tlv::{DemoDeFiArbitrageTLV, PoolSyncTLV},
+    ParseError, PoolSwapTLV, QuoteTLV,
 };
-use base64::prelude::*;
 use serde_json::{json, Value};
 use std::time::SystemTime;
 
@@ -478,7 +479,7 @@ fn convert_pool_sync_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
                 "decimals": sync.token0_decimals
             },
             "reserve1": {
-                "raw": sync.reserve1.to_string(), // Use string to avoid JSON number limits  
+                "raw": sync.reserve1.to_string(), // Use string to avoid JSON number limits
                 "normalized": reserve1_normalized,
                 "decimals": sync.token1_decimals
             }

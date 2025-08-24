@@ -38,40 +38,47 @@
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use protocol_v2::{
-    current_timestamp_ns, InstrumentId, QuoteTLV, RelayDomain, SourceType, TLVMessageBuilder,
-    TLVType, TradeTLV, VenueId,
+    tlv::build_message_direct,
+    InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
 use rust_decimal::prelude::{FromStr, ToPrimitive};
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::{mpsc, RwLock};
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::input::connection::ConnectionConfig;
-use crate::input::{ConnectionManager, ConnectionState, HealthLevel, HealthStatus, InputAdapter};
+use crate::input::{ConnectionState, HealthStatus, InputAdapter};
+use crate::AdapterMetrics;
 use crate::{AdapterError, Result};
-use crate::{AdapterMetrics, AuthManager, ErrorType, RateLimiter};
 
 // Removed verbose schema constants - see Coinbase API docs for format details
 
 /// Parsed Coinbase match event
 #[derive(Debug, Clone, Deserialize)]
 pub struct CoinbaseMatchEvent {
+    /// Event type ("match" or "last_match")
     #[serde(rename = "type")]
     pub event_type: String,
+    /// Unique trade identifier
     pub trade_id: u64,
+    /// Maker order identifier
     pub maker_order_id: String,
+    /// Taker order identifier
     pub taker_order_id: String,
-    pub side: String,       // "buy" or "sell" (taker side)
-    pub size: String,       // String for precision preservation
-    pub price: String,      // String for precision preservation
-    pub product_id: String, // "BTC-USD" format
+    /// Trade side from taker perspective ("buy" or "sell")
+    pub side: String,
+    /// Trade size as string for precision preservation
+    pub size: String,
+    /// Trade price as string for precision preservation
+    pub price: String,
+    /// Product identifier in "BTC-USD" format
+    pub product_id: String,
+    /// Sequence number for message ordering
     pub sequence: u64,
-    pub time: String, // ISO 8601 format
+    /// Trade timestamp in ISO 8601 format
+    pub time: String,
 }
 
 impl CoinbaseMatchEvent {
@@ -259,7 +266,7 @@ impl TryFrom<CoinbaseMatchEvent> for TradeTLV {
 
         // PATTERN: Use TradeTLV::new() constructor
         // All fields are required - no Optional values
-        Ok(TradeTLV::new(
+        Ok(TradeTLV::from_instrument(
             VenueId::Coinbase,
             instrument_id,
             price_fp,
@@ -275,20 +282,8 @@ impl TryFrom<CoinbaseMatchEvent> for TradeTLV {
 /// REFERENCE IMPLEMENTATION: This is the canonical example for CEX adapters.
 /// Note the ABSENCE of StateManager - adapters are stateless transformers only.
 pub struct CoinbaseCollector {
-    /// Connection manager handles WebSocket lifecycle and reconnection
-    connection: Arc<ConnectionManager>,
-
-    /// Authentication manager (optional for public data)
-    auth: Option<AuthManager>,
-
-    /// Rate limiter prevents overwhelming the exchange
-    rate_limiter: RateLimiter,
-
     /// Metrics for monitoring adapter health
     metrics: Arc<AdapterMetrics>,
-
-    /// Symbol to InstrumentId mapping cache (minimal state for performance)
-    symbol_map: Arc<RwLock<HashMap<String, InstrumentId>>>,
 
     /// Output channel for TLV messages - this is where we send converted data
     output_tx: mpsc::Sender<Vec<u8>>,
@@ -305,26 +300,8 @@ impl CoinbaseCollector {
     pub fn new(products: Vec<String>, output_tx: mpsc::Sender<Vec<u8>>) -> Self {
         let metrics = Arc::new(AdapterMetrics::new());
 
-        let config = ConnectionConfig {
-            url: "wss://ws-feed.exchange.coinbase.com".to_string(),
-            connect_timeout: Duration::from_secs(10),
-            message_timeout: Duration::from_secs(30),
-            base_backoff_ms: 5000, // 5 seconds
-            max_backoff_ms: 60000, // 60 seconds max
-            max_reconnect_attempts: 10,
-            health_check_interval: Duration::from_secs(30),
-        };
-
         Self {
-            connection: Arc::new(ConnectionManager::new(
-                VenueId::Coinbase,
-                config,
-                metrics.clone(),
-            )),
-            auth: None,                       // Public data doesn't require auth
-            rate_limiter: RateLimiter::new(), // Conservative limit
             metrics,
-            symbol_map: Arc::new(RwLock::new(HashMap::new())),
             output_tx,
             running: Arc::new(RwLock::new(false)),
             products,
@@ -387,11 +364,14 @@ impl CoinbaseCollector {
                 // PATTERN: Convert to TLV using TryFrom trait
                 let trade_tlv = TradeTLV::try_from(match_event)?;
 
-                // PATTERN: Convert TLV to binary message
-                let tlv_message =
-                    TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::CoinbaseCollector)
-                        .add_tlv(TLVType::Trade, &trade_tlv)
-                        .build();
+                // PATTERN: Convert TLV to binary message (1 allocation for channel send is OPTIMAL!)
+                let tlv_message = build_message_direct(
+                    RelayDomain::MarketData,
+                    SourceType::CoinbaseCollector,
+                    TLVType::Trade,
+                    &trade_tlv,
+                )
+                .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
 
                 // PATTERN: Always update metrics for monitoring
                 self.metrics
@@ -410,10 +390,13 @@ impl CoinbaseCollector {
                     })?;
 
                 let trade_tlv = TradeTLV::try_from(match_event)?;
-                let tlv_message =
-                    TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::CoinbaseCollector)
-                        .add_tlv(TLVType::Trade, &trade_tlv)
-                        .build();
+                let tlv_message = build_message_direct(
+                    RelayDomain::MarketData,
+                    SourceType::CoinbaseCollector,
+                    TLVType::Trade,
+                    &trade_tlv,
+                )
+                .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
 
                 self.metrics
                     .messages_processed

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, UnixListener, UnixStream};
 use tracing::{debug, error, info, warn};
 
@@ -72,7 +72,7 @@ impl SimpleTraceCollector {
         info!("📊 TraceCollector listening on {}", socket_path);
 
         // Start API server
-        let api_task = {
+        let _api_task = {
             let traces = self.traces.clone();
             let stats = self.stats.clone();
             tokio::spawn(async move {
@@ -83,7 +83,7 @@ impl SimpleTraceCollector {
         };
 
         // Start statistics update task
-        let stats_task = {
+        let _stats_task = {
             let traces = self.traces.clone();
             let stats = self.stats.clone();
             let start_time = self.start_time;

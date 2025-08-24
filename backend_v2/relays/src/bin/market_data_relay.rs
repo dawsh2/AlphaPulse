@@ -5,7 +5,7 @@
 //! Eliminates timing-based service classification that caused race conditions.
 //!
 //! ## Architecture Role
-//! 
+//!
 //! ```mermaid
 //! graph LR
 //!     PP[polygon_publisher] -->|TLV Messages| Socket["/tmp/alphapulse/market_data.sock"]
@@ -32,7 +32,7 @@
 //!     _ = tokio::time::sleep(Duration::from_millis(100)) => { /* Consumer */ }
 //! };
 //! ```
-//! 
+//!
 //! **Problems**:
 //! - `polygon_publisher` takes >100ms to send first message → misclassified as consumer
 //! - Dashboard connects as consumer but receives nothing
@@ -157,22 +157,25 @@ async fn handle_connection(
     connection_id: u64,
     message_tx: Arc<broadcast::Sender<Vec<u8>>>,
 ) {
-    info!("🔗 Handling connection {} with direct forwarding", connection_id);
-    
+    info!(
+        "🔗 Handling connection {} with direct forwarding",
+        connection_id
+    );
+
     let mut buffer = vec![0u8; 65536]; // 64KB buffer for TLV messages
     let mut message_count = 0u64;
     let mut consumer_rx = message_tx.subscribe();
 
     // Start both reading and writing tasks simultaneously
     let (mut read_stream, mut write_stream) = stream.into_split();
-    
+
     // Reading task: forward any incoming data to broadcast channel
     let read_task = {
         let message_tx = message_tx.clone();
         tokio::spawn(async move {
             let mut read_buffer = vec![0u8; 65536];
             let mut read_count = 0u64;
-            
+
             loop {
                 match read_stream.read(&mut read_buffer).await {
                     Ok(0) => {
@@ -181,7 +184,7 @@ async fn handle_connection(
                     }
                     Ok(n) => {
                         read_count += 1;
-                        
+
                         // Forward to broadcast channel immediately
                         let message_data = read_buffer[..n].to_vec();
                         if let Err(e) = message_tx.send(message_data) {
@@ -190,10 +193,15 @@ async fn handle_connection(
 
                         if read_count <= 5 {
                             let preview = &read_buffer[..std::cmp::min(32, n)];
-                            info!("📨 Connection {} forwarded message {}: {} bytes, preview: {:?}",
-                                  connection_id, read_count, n, preview);
+                            info!(
+                                "📨 Connection {} forwarded message {}: {} bytes, preview: {:?}",
+                                connection_id, read_count, n, preview
+                            );
                         } else if read_count % 1000 == 0 {
-                            info!("📊 Connection {}: {} messages forwarded", connection_id, read_count);
+                            info!(
+                                "📊 Connection {}: {} messages forwarded",
+                                connection_id, read_count
+                            );
                         }
                     }
                     Err(e) => {
@@ -202,8 +210,11 @@ async fn handle_connection(
                     }
                 }
             }
-            
-            info!("📤 Connection {} read task ended after {} messages", connection_id, read_count);
+
+            info!(
+                "📤 Connection {} read task ended after {} messages",
+                connection_id, read_count
+            );
         })
     };
 
@@ -211,7 +222,7 @@ async fn handle_connection(
     let write_task = {
         tokio::spawn(async move {
             let mut write_count = 0u64;
-            
+
             loop {
                 match consumer_rx.recv().await {
                     Ok(message_data) => {
@@ -223,24 +234,40 @@ async fn handle_connection(
                         write_count += 1;
 
                         if write_count <= 5 {
-                            debug!("📤 Sent message {} to connection {}: {} bytes",
-                                   write_count, connection_id, message_data.len());
+                            debug!(
+                                "📤 Sent message {} to connection {}: {} bytes",
+                                write_count,
+                                connection_id,
+                                message_data.len()
+                            );
                         } else if write_count % 1000 == 0 {
-                            info!("📊 Connection {}: {} messages sent", connection_id, write_count);
+                            info!(
+                                "📊 Connection {}: {} messages sent",
+                                connection_id, write_count
+                            );
                         }
                     }
                     Err(broadcast::error::RecvError::Lagged(dropped)) => {
-                        warn!("Connection {} lagged, dropped {} messages", connection_id, dropped);
+                        warn!(
+                            "Connection {} lagged, dropped {} messages",
+                            connection_id, dropped
+                        );
                         continue;
                     }
                     Err(broadcast::error::RecvError::Closed) => {
-                        info!("📥 Broadcast channel closed for connection {}", connection_id);
+                        info!(
+                            "📥 Broadcast channel closed for connection {}",
+                            connection_id
+                        );
                         break;
                     }
                 }
             }
-            
-            info!("📥 Connection {} write task ended after {} messages", connection_id, write_count);
+
+            info!(
+                "📥 Connection {} write task ended after {} messages",
+                connection_id, write_count
+            );
         })
     };
 

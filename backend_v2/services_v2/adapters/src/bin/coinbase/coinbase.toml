@@ -1,0 +1,41 @@
+# Coinbase Unified Collector Configuration
+
+[websocket]
+url = "wss://ws-feed.exchange.coinbase.com"
+connection_timeout_ms = 30000
+message_timeout_ms = 120000
+max_reconnect_attempts = 10
+base_backoff_ms = 1000
+max_backoff_ms = 60000
+
+[relay]
+domain = "market_data"
+socket_path = "/tmp/alphapulse/market_data.sock"
+
+# Products to subscribe to (Coinbase format)
+products = [
+    "BTC-USD",    # Bitcoin
+    "ETH-USD",    # Ethereum  
+    "SOL-USD",    # Solana
+    "ADA-USD",    # Cardano
+    "DOT-USD",    # Polkadot
+    "LINK-USD",   # Chainlink
+    "MATIC-USD",  # Polygon
+    "AVAX-USD",   # Avalanche
+    "ATOM-USD",   # Cosmos
+    "ALGO-USD"    # Algorand
+]
+
+# Channels to subscribe to
+channels = [
+    "matches",    # Trade executions
+    "level2"      # Order book updates
+]
+
+[validation]
+runtime_validation_seconds = 60
+verbose_validation = false
+
+[monitoring]
+stats_interval_seconds = 30
+max_processing_latency_ms = 100

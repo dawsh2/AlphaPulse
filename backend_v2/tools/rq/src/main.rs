@@ -4,9 +4,11 @@ use colored::Colorize;
 
 mod cache;
 mod query;
+mod patterns;
 
 use cache::SimpleCache;
 use query::QueryEngine;
+use patterns::{PatternDetector, quick_check};
 
 #[derive(Parser)]
 #[command(name = "rq")]
@@ -87,6 +89,14 @@ enum Commands {
         crate_name: Option<String>,
         /// Item name to search for in docs
         item: Option<String>,
+    },
+    /// Check architectural patterns
+    Patterns {
+        /// Pattern to check (canonical_abi, unified_collector, mpsc, health)
+        pattern: Option<String>,
+        /// Show fix suggestions
+        #[arg(short, long)]
+        fix: bool,
     },
 }
 
@@ -383,15 +393,48 @@ fn main() -> Result<()> {
                     }
                 }
             } else {
-                // Open main workspace docs
-                let doc_path = "target/doc/index.html";
+                // Open main workspace docs - try common rustdoc entry points
+                let doc_paths = [
+                    "target/doc/index.html",
+                    "target/doc/protocol_v2/index.html",  // Protocol is the main crate
+                    "target/doc/alphapulse_relays/index.html",  // Relays are core infrastructure
+                ];
                 
-                if std::path::Path::new(doc_path).exists() {
-                    println!("Opening workspace documentation...");
-                    std::process::Command::new("open").arg(doc_path).spawn()?;
-                } else {
-                    println!("Workspace documentation not found. Try running 'cargo doc' first.");
+                for doc_path in &doc_paths {
+                    if std::path::Path::new(doc_path).exists() {
+                        println!("Opening documentation: {}", doc_path);
+                        std::process::Command::new("open").arg(doc_path).spawn()?;
+                        return Ok(());
+                    }
                 }
+                
+                println!("Workspace documentation not found. Try running 'cargo doc' first.");
+            }
+        }
+        
+        Commands::Patterns { pattern, fix } => {
+            if fix {
+                println!("{}", "📝 Fix Suggestions:".bold().blue());
+                println!("\n{}", "For MPSC issues:".bold());
+                println!("  1. Remove MPSC channel creation");
+                println!("  2. Use RelayOutput directly");
+                println!("  3. See bin/polygon/polygon.rs for reference");
+                
+                println!("\n{}", "For duplicate ABI:".bold());
+                println!("  1. Delete duplicate event definitions");
+                println!("  2. Import from alphapulse_dex");
+                println!("  3. Use alphapulse_dex::get_all_event_signatures()");
+                
+                println!("\n{}", "For legacy collectors:".bold());
+                println!("  1. Combine collector and publisher logic");
+                println!("  2. Move to services_v2/adapters/src/bin/");
+                println!("  3. Follow unified pattern from polygon.rs");
+            } else if let Some(pattern) = pattern {
+                quick_check(&query_engine, &pattern)?;
+            } else {
+                // Default to health check
+                let detector = PatternDetector::new(&query_engine);
+                detector.health_check()?;
             }
         }
     }

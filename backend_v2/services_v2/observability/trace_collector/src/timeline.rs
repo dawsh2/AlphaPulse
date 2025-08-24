@@ -307,17 +307,17 @@ impl TraceTimeline {
 
     /// Get timeline as JSON for web interface
     pub fn to_json(&self) -> Result<String> {
-        serde_json::to_string_pretty(self).map_err(TraceError::Json)
+        serde_json::to_string_pretty(self).map_err(|e| TraceError::Json(e.to_string()))
     }
 }
 
 // Custom serde module for Instant serialization
 mod instant_serde {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use std::time::{SystemTime, UNIX_EPOCH};
     use tokio::time::Instant;
 
-    pub fn serialize<S>(instant: &Instant, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(_instant: &Instant, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -332,7 +332,7 @@ mod instant_serde {
     where
         D: Deserializer<'de>,
     {
-        let nanos = u128::deserialize(deserializer)?;
+        let _nanos = u128::deserialize(deserializer)?;
         // For deserialization, just use current time
         // (this is mainly for JSON export, not storage)
         Ok(Instant::now())

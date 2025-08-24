@@ -2,34 +2,50 @@
 //!
 //! Handles both V2 (constant product) and V3 (concentrated liquidity) pools
 
-use crate::VenueId; // TLVType removed with legacy TLV system
-                    // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
+// TLVType removed with legacy TLV system
+// Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
 use super::market_data::PoolSwapTLV;
+use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use std::collections::HashMap;
+use zerocopy::AsBytes;
+use crate::define_tlv;
 
-/// Pool state snapshot - sent on initialization and periodically
-/// Contains static pool configuration and current state with full addresses
-#[derive(Debug, Clone, PartialEq)]
-pub struct PoolStateTLV {
-    pub venue: VenueId,
-    pub pool_address: [u8; 20], // Full pool contract address
-    pub token0_addr: [u8; 20],  // Full token0 address
-    pub token1_addr: [u8; 20],  // Full token1 address
-    pub pool_type: DEXProtocol,
-    pub token0_decimals: u8,  // Native decimals for token0 (e.g., WMATIC=18)
-    pub token1_decimals: u8,  // Native decimals for token1 (e.g., USDC=6)
-    pub reserve0: u128,       // Native precision reserve0 (no scaling)
-    pub reserve1: u128,       // Native precision reserve1 (no scaling)
-    pub sqrt_price_x96: u128, // For V3 pools (0 for V2) - u128 to hold uint160
-    pub tick: i32,            // Current tick for V3 (0 for V2)
-    pub liquidity: u128,      // Active liquidity (native precision)
-    pub fee_rate: u32,        // Fee in basis points (30 = 0.3%)
-    pub block_number: u64,    // Block when this state was valid
-    pub timestamp_ns: u64,
+// Pool state snapshot using macro for consistency
+define_tlv! {
+    /// Pool state snapshot - sent on initialization and periodically
+    /// Contains static pool configuration and current state with full addresses
+    PoolStateTLV {
+        u128: {
+            reserve0: u128,       // Native precision reserve0 (no scaling)
+            reserve1: u128,       // Native precision reserve1 (no scaling)
+            sqrt_price_x96: u128, // For V3 pools (0 for V2) - u128 to hold uint160
+            liquidity: u128       // Active liquidity (native precision)
+        }
+        u64: {
+            block_number: u64, // Block when this state was valid
+            timestamp_ns: u64
+        }
+        u32: {
+            tick: i32,     // Current tick for V3 (0 for V2)
+            fee_rate: u32  // Fee in basis points (30 = 0.3%)
+        }
+        u16: { venue: u16 } // VenueId as u16 for zero-copy compatibility
+        u8: {
+            pool_type: u8,       // DEXProtocol as u8 for zero-copy compatibility
+            token0_decimals: u8, // Native decimals for token0 (e.g., WMATIC=18)
+            token1_decimals: u8, // Native decimals for token1 (e.g., USDC=6)
+            _padding: [u8; 3]    // 3 bytes padding to make struct size 192 bytes
+        }
+        special: {
+            pool_address: [u8; 32], // Full pool contract address
+            token0_addr: [u8; 32],  // Full token0 address
+            token1_addr: [u8; 32]   // Full token1 address
+        }
+    }
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, AsBytes)]
 pub enum DEXProtocol {
     UniswapV2 = 0,
     UniswapV3 = 1,
@@ -45,10 +61,10 @@ pub type PoolType = DEXProtocol;
 /// Configuration for V2 pool state
 #[derive(Debug, Clone)]
 pub struct V2PoolConfig {
-    pub venue: VenueId,
-    pub pool_address: [u8; 20],
-    pub token0_addr: [u8; 20],
-    pub token1_addr: [u8; 20],
+    pub venue: u16,
+    pub pool_address: [u8; 32],
+    pub token0_addr: [u8; 32],
+    pub token1_addr: [u8; 32],
     pub token0_decimals: u8,
     pub token1_decimals: u8,
     pub reserve0: u128,
@@ -60,10 +76,10 @@ pub struct V2PoolConfig {
 /// Configuration for V3 pool state
 #[derive(Debug, Clone)]
 pub struct V3PoolConfig {
-    pub venue: VenueId,
-    pub pool_address: [u8; 20],
-    pub token0_addr: [u8; 20],
-    pub token1_addr: [u8; 20],
+    pub venue: u16,
+    pub pool_address: [u8; 32],
+    pub token0_addr: [u8; 32],
+    pub token1_addr: [u8; 32],
     pub token0_decimals: u8,
     pub token1_decimals: u8,
     pub sqrt_price_x96: u128,
@@ -76,54 +92,55 @@ pub struct V3PoolConfig {
 impl PoolStateTLV {
     /// Create from V2 pool reserves with native precision
     pub fn from_v2_reserves(config: V2PoolConfig) -> Self {
-        Self {
-            venue: config.venue,
-            pool_address: config.pool_address,
-            token0_addr: config.token0_addr,
-            token1_addr: config.token1_addr,
-            pool_type: DEXProtocol::UniswapV2,
-            token0_decimals: config.token0_decimals,
-            token1_decimals: config.token1_decimals,
-            reserve0: config.reserve0,
-            reserve1: config.reserve1,
-            sqrt_price_x96: 0,
-            tick: 0,
-            liquidity: 0, // V2 doesn't use this concept
-            fee_rate: config.fee_rate,
-            block_number: config.block,
-            timestamp_ns: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
-        }
+        let timestamp_ns = fast_timestamp_ns();  // Ultra-fast ~5ns vs ~200ns
+
+        Self::new_raw(
+            config.reserve0,
+            config.reserve1,
+            0,                      // sqrt_price_x96 (0 for V2)
+            0,                      // liquidity (V2 doesn't use this concept)
+            config.block,           // block_number
+            timestamp_ns,
+            0,                      // tick (0 for V2)
+            config.fee_rate,
+            config.venue,
+            DEXProtocol::UniswapV2 as u8,
+            config.token0_decimals,
+            config.token1_decimals,
+            [0u8; 3],               // _padding
+            config.pool_address,
+            config.token0_addr,
+            config.token1_addr,
+        )
     }
 
     /// Create from V3 pool state with native precision
     pub fn from_v3_state(config: V3PoolConfig) -> Self {
         // Calculate virtual reserves from V3 state
         // This is approximate but useful for quick comparisons
-        let (reserve0, reserve1) = calculate_v3_virtual_reserves(config.sqrt_price_x96, config.liquidity);
+        let (reserve0, reserve1) =
+            calculate_v3_virtual_reserves(config.sqrt_price_x96, config.liquidity);
 
-        Self {
-            venue: config.venue,
-            pool_address: config.pool_address,
-            token0_addr: config.token0_addr,
-            token1_addr: config.token1_addr,
-            pool_type: DEXProtocol::UniswapV3,
-            token0_decimals: config.token0_decimals,
-            token1_decimals: config.token1_decimals,
+        let timestamp_ns = fast_timestamp_ns();  // Ultra-fast ~5ns vs ~200ns
+
+        Self::new_raw(
             reserve0,
             reserve1,
-            sqrt_price_x96: config.sqrt_price_x96,
-            tick: config.tick,
-            liquidity: config.liquidity,
-            fee_rate: config.fee_rate,
-            block_number: config.block,
-            timestamp_ns: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
-        }
+            config.sqrt_price_x96,
+            config.liquidity,
+            config.block,           // block_number
+            timestamp_ns,
+            config.tick,
+            config.fee_rate,
+            config.venue,
+            DEXProtocol::UniswapV3 as u8,
+            config.token0_decimals,
+            config.token1_decimals,
+            [0u8; 3],               // _padding
+            config.pool_address,
+            config.token0_addr,
+            config.token1_addr,
+        )
     }
 
     /// Apply a swap to update state
@@ -137,7 +154,7 @@ impl PoolStateTLV {
         new_tick: i32,
     ) {
         match self.pool_type {
-            DEXProtocol::UniswapV2 | DEXProtocol::SushiswapV2 => {
+            p if p == DEXProtocol::UniswapV2 as u8 || p == DEXProtocol::SushiswapV2 as u8 => {
                 // Simple reserve update for V2
                 // Apply deltas to u128 reserves with proper bounds checking
                 if amount0_delta >= 0 {
@@ -152,7 +169,7 @@ impl PoolStateTLV {
                     self.reserve1 = self.reserve1.saturating_sub((-amount1_delta) as u128);
                 }
             }
-            DEXProtocol::UniswapV3 | DEXProtocol::QuickswapV3 => {
+            p if p == DEXProtocol::UniswapV3 as u8 || p == DEXProtocol::QuickswapV3 as u8 => {
                 // V3 updates price and tick, recalculate virtual reserves
                 self.sqrt_price_x96 = new_sqrt_price;
                 self.tick = new_tick;
@@ -181,7 +198,7 @@ impl PoolStateTLV {
     /// Get spot price (token1 per token0)
     pub fn spot_price(&self) -> f64 {
         match self.pool_type {
-            DEXProtocol::UniswapV3 | DEXProtocol::QuickswapV3 => {
+            p if p == DEXProtocol::UniswapV3 as u8 || p == DEXProtocol::QuickswapV3 as u8 => {
                 // Use sqrt price for V3
                 let sqrt_price = self.sqrt_price_x96 as f64 / (2_f64.powi(96));
                 sqrt_price * sqrt_price
@@ -197,134 +214,7 @@ impl PoolStateTLV {
         }
     }
 
-    /// Serialize to bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-
-        // Venue (2 bytes)
-        bytes.extend_from_slice(&(self.venue as u16).to_le_bytes());
-
-        // Pool and token addresses (20 bytes each)
-        bytes.extend_from_slice(&self.pool_address);
-        bytes.extend_from_slice(&self.token0_addr);
-        bytes.extend_from_slice(&self.token1_addr);
-
-        // Pool type (1 byte)
-        bytes.push(self.pool_type as u8);
-
-        // Token decimals (2 bytes)
-        bytes.push(self.token0_decimals);
-        bytes.push(self.token1_decimals);
-
-        // State fields (u128 takes 16 bytes each)
-        bytes.extend_from_slice(&self.reserve0.to_le_bytes());
-        bytes.extend_from_slice(&self.reserve1.to_le_bytes());
-        bytes.extend_from_slice(&self.sqrt_price_x96.to_le_bytes());
-        bytes.extend_from_slice(&self.tick.to_le_bytes());
-        bytes.extend_from_slice(&self.liquidity.to_le_bytes());
-        bytes.extend_from_slice(&self.fee_rate.to_le_bytes());
-        bytes.extend_from_slice(&self.block_number.to_le_bytes());
-        bytes.extend_from_slice(&self.timestamp_ns.to_le_bytes());
-
-        bytes
-    }
-
-    /// Deserialize from bytes
-    pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        if data.len() < 153 {
-            // 2 + 20*3 + 1 + 2 + 16*3 + 16 + 4 + 16 + 4 + 8 + 8 = 153
-            return Err(format!(
-                "Invalid PoolStateTLV size: need at least 153 bytes, got {}",
-                data.len()
-            ));
-        }
-
-        let mut offset = 0;
-
-        // Venue (2 bytes)
-        let venue = VenueId::try_from(u16::from_le_bytes([data[0], data[1]]))
-            .map_err(|_| "Invalid venue ID")?;
-        offset += 2;
-
-        // Pool and token addresses (20 bytes each)
-        let mut pool_address = [0u8; 20];
-        pool_address.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        let mut token0_addr = [0u8; 20];
-        token0_addr.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        let mut token1_addr = [0u8; 20];
-        token1_addr.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        // Pool type (1 byte)
-        if offset >= data.len() {
-            return Err("Missing pool type".to_string());
-        }
-        let pool_type = match data[offset] {
-            0 => DEXProtocol::UniswapV2,
-            1 => DEXProtocol::UniswapV3,
-            2 => DEXProtocol::SushiswapV2,
-            3 => DEXProtocol::QuickswapV3,
-            4 => DEXProtocol::Curve,
-            5 => DEXProtocol::Balancer,
-            _ => return Err(format!("Invalid pool type: {}", data[offset])),
-        };
-        offset += 1;
-
-        // Token decimals (2 bytes)
-        if offset + 2 > data.len() {
-            return Err("Missing token decimals".to_string());
-        }
-        let token0_decimals = data[offset];
-        let token1_decimals = data[offset + 1];
-        offset += 2;
-
-        // Fixed fields (16*3 + 16 + 4 + 16 + 4 + 8 + 8 = 88 bytes)
-        if offset + 88 != data.len() {
-            return Err(format!(
-                "Invalid remaining data size: expected 88 bytes, got {}",
-                data.len() - offset
-            ));
-        }
-
-        let reserve0 = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-        let reserve1 = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-        let sqrt_price_x96 = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-        let tick = i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
-        offset += 4;
-        let liquidity = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-        let fee_rate = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
-        offset += 4;
-        let block_number = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-        offset += 8;
-        let timestamp_ns = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-
-        Ok(Self {
-            venue,
-            pool_address,
-            token0_addr,
-            token1_addr,
-            pool_type,
-            token0_decimals,
-            token1_decimals,
-            reserve0,
-            reserve1,
-            sqrt_price_x96,
-            tick,
-            liquidity,
-            fee_rate,
-            block_number,
-            timestamp_ns,
-        })
-    }
-
+    // from_bytes() method now provided by the macro
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
 }
 
@@ -345,7 +235,7 @@ fn calculate_v3_virtual_reserves(sqrt_price_x96: u128, liquidity: u128) -> (u128
 
 /// Pool state tracker - maintains current state of all pools
 pub struct PoolStateTracker {
-    states: HashMap<[u8; 20], PoolStateTLV>, // Keyed by pool address
+    states: HashMap<[u8; 32], PoolStateTLV>, // Keyed by pool address (32-byte padded)
 }
 
 impl Default for PoolStateTracker {
@@ -364,7 +254,7 @@ impl PoolStateTracker {
     /// Initialize pool state (called on startup)
     pub async fn initialize_pool(
         &mut self,
-        _pool_address: [u8; 20],
+        _pool_address: [u8; 32],
     ) -> Result<(), Box<dyn std::error::Error>> {
         // In production, we'd use eth_call to get current state:
         // - For V2: call getReserves()
@@ -379,7 +269,7 @@ impl PoolStateTracker {
     }
 
     /// Update state from swap event
-    pub fn update_from_swap(&mut self, pool_address: &[u8; 20], swap: &PoolSwapTLV) {
+    pub fn update_from_swap(&mut self, pool_address: &[u8; 32], swap: &PoolSwapTLV) {
         if let Some(state) = self.states.get_mut(pool_address) {
             // Calculate deltas (swap amounts affect reserves oppositely)
             // Compare full addresses to determine which token was swapped in
@@ -406,7 +296,7 @@ impl PoolStateTracker {
     }
 
     /// Get current price for a pool
-    pub fn get_price(&self, pool_address: &[u8; 20]) -> Option<f64> {
+    pub fn get_price(&self, pool_address: &[u8; 32]) -> Option<f64> {
         self.states.get(pool_address).map(|s| s.spot_price())
     }
 
@@ -447,8 +337,8 @@ impl PoolStateTracker {
 
 #[derive(Debug)]
 pub struct ArbitrageOpportunity {
-    pub pool1: [u8; 20], // Pool 1 address
-    pub pool2: [u8; 20], // Pool 2 address
+    pub pool1: [u8; 32], // Pool 1 address (32-byte padded)
+    pub pool2: [u8; 32], // Pool 2 address (32-byte padded)
     pub spread_pct: f64,
     pub estimated_profit: u128,
 }

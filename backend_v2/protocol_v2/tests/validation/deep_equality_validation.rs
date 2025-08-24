@@ -3,7 +3,7 @@
 //! Comprehensive tests to ensure perfect roundtrip serialization/deserialization
 //! with no loss of precision or data corruption for all TLV types.
 
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     VenueId, InstrumentId, TLVType,
     tlv::market_data::{
         TradeTLV, QuoteTLV, PoolSwapTLV, PoolMintTLV, 

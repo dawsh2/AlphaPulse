@@ -3,7 +3,7 @@
 //! Tests the complete serialization/deserialization cycle for pool liquidity data
 //! with realistic DEX pool configurations and token reserves.
 
-use alphapulse_protocol_v2::{PoolInstrumentId, PoolLiquidityTLV, TLVType, VenueId};
+use protocol_v2::{PoolInstrumentId, PoolLiquidityTLV, TLVType, VenueId};
 
 /// Test PoolLiquidityTLV roundtrip validation with realistic DEX data
 #[tokio::test]

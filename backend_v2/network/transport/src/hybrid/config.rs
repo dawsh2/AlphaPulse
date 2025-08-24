@@ -3,8 +3,8 @@
 //! Configuration structures for hybrid transport that supports both
 //! direct network transport and message queue routing.
 
-use crate::{Criticality, Reliability, Priority};
-use crate::{TransportError, Result};
+use crate::{Criticality, Priority, Reliability};
+use crate::{Result, TransportError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -303,7 +303,7 @@ impl TransportConfig {
             route.validate().map_err(|e| {
                 TransportError::configuration(
                     format!("Route {} validation failed: {}", i, e),
-                    Some("routes")
+                    Some("routes"),
                 )
             })?;
         }
@@ -318,19 +318,23 @@ impl TransportConfig {
 
     /// Get channel configuration
     pub fn get_channel_config(&self, channel_name: &str) -> ChannelConfig {
-        self.channels.get(channel_name)
-            .cloned()
-            .unwrap_or_else(|| {
-                let mut config = ChannelConfig::default();
-                config.name = channel_name.to_string();
-                config.mode = self.default_mode;
-                config
-            })
+        self.channels.get(channel_name).cloned().unwrap_or_else(|| {
+            let mut config = ChannelConfig::default();
+            config.name = channel_name.to_string();
+            config.mode = self.default_mode;
+            config
+        })
     }
 
     /// Find matching route for source and target nodes
-    pub fn find_route(&self, source_node: &str, target_node: &str, channel: &str) -> Option<&RouteConfig> {
-        self.routes.iter()
+    pub fn find_route(
+        &self,
+        source_node: &str,
+        target_node: &str,
+        channel: &str,
+    ) -> Option<&RouteConfig> {
+        self.routes
+            .iter()
             .filter(|route| route.matches(source_node, target_node, channel))
             .max_by_key(|route| route.priority)
     }
@@ -349,20 +353,22 @@ impl TransportConfig {
 
     /// Load configuration from YAML
     pub fn from_yaml(yaml: &str) -> Result<Self> {
-        serde_yaml::from_str(yaml)
-            .map_err(|e| TransportError::configuration(
+        serde_yaml::from_str(yaml).map_err(|e| {
+            TransportError::configuration(
                 format!("Failed to parse YAML configuration: {}", e),
-                None
-            ))
+                None,
+            )
+        })
     }
 
     /// Save configuration to YAML
     pub fn to_yaml(&self) -> Result<String> {
-        serde_yaml::to_string(self)
-            .map_err(|e| TransportError::configuration(
+        serde_yaml::to_string(self).map_err(|e| {
+            TransportError::configuration(
                 format!("Failed to serialize configuration to YAML: {}", e),
-                None
-            ))
+                None,
+            )
+        })
     }
 }
 
@@ -372,21 +378,21 @@ impl ChannelConfig {
         if self.name.is_empty() {
             return Err(TransportError::configuration(
                 "Channel name cannot be empty",
-                Some("name")
+                Some("name"),
             ));
         }
 
         if self.max_message_size == 0 {
             return Err(TransportError::configuration(
                 "Max message size must be greater than 0",
-                Some("max_message_size")
+                Some("max_message_size"),
             ));
         }
 
         if self.timeout.as_secs() == 0 {
             return Err(TransportError::configuration(
                 "Timeout must be greater than 0",
-                Some("timeout")
+                Some("timeout"),
             ));
         }
 
@@ -495,14 +501,14 @@ impl RouteConfig {
         if self.source_pattern.is_empty() {
             return Err(TransportError::configuration(
                 "Source pattern cannot be empty",
-                Some("source_pattern")
+                Some("source_pattern"),
             ));
         }
 
         if self.target_pattern.is_empty() {
             return Err(TransportError::configuration(
                 "Target pattern cannot be empty",
-                Some("target_pattern")
+                Some("target_pattern"),
             ));
         }
 
@@ -516,14 +522,14 @@ impl RetryConfig {
         if self.backoff_multiplier <= 0.0 {
             return Err(TransportError::configuration(
                 "Backoff multiplier must be positive",
-                Some("backoff_multiplier")
+                Some("backoff_multiplier"),
             ));
         }
 
         if self.initial_delay >= self.max_delay {
             return Err(TransportError::configuration(
                 "Initial delay must be less than max delay",
-                Some("initial_delay")
+                Some("initial_delay"),
             ));
         }
 
@@ -537,21 +543,21 @@ impl CircuitBreakerConfig {
         if self.failure_threshold == 0 {
             return Err(TransportError::configuration(
                 "Failure threshold must be greater than 0",
-                Some("failure_threshold")
+                Some("failure_threshold"),
             ));
         }
 
         if self.success_threshold == 0 {
             return Err(TransportError::configuration(
                 "Success threshold must be greater than 0",
-                Some("success_threshold")
+                Some("success_threshold"),
             ));
         }
 
         if self.half_open_max_calls == 0 {
             return Err(TransportError::configuration(
                 "Half open max calls must be greater than 0",
-                Some("half_open_max_calls")
+                Some("half_open_max_calls"),
             ));
         }
 
@@ -566,7 +572,7 @@ impl MessageQueueChannelConfig {
         if self.queue_name_template.is_empty() {
             return Err(TransportError::configuration(
                 "Queue name template cannot be empty",
-                Some("queue_name_template")
+                Some("queue_name_template"),
             ));
         }
 
@@ -599,14 +605,14 @@ impl ConsumerConfig {
         if self.concurrency == 0 {
             return Err(TransportError::configuration(
                 "Consumer concurrency must be greater than 0",
-                Some("concurrency")
+                Some("concurrency"),
             ));
         }
 
         if self.prefetch_count == 0 {
             return Err(TransportError::configuration(
                 "Prefetch count must be greater than 0",
-                Some("prefetch_count")
+                Some("prefetch_count"),
             ));
         }
 
@@ -620,14 +626,14 @@ impl BridgeConfig {
         if self.buffer_size == 0 {
             return Err(TransportError::configuration(
                 "Bridge buffer size must be greater than 0",
-                Some("buffer_size")
+                Some("buffer_size"),
             ));
         }
 
         if self.worker_threads == 0 {
             return Err(TransportError::configuration(
                 "Bridge worker threads must be greater than 0",
-                Some("worker_threads")
+                Some("worker_threads"),
             ));
         }
 
@@ -635,7 +641,7 @@ impl BridgeConfig {
             transformation.validate().map_err(|e| {
                 TransportError::configuration(
                     format!("Transformation {} validation failed: {}", i, e),
-                    Some("transformations")
+                    Some("transformations"),
                 )
             })?;
         }
@@ -650,7 +656,7 @@ impl TransformationRule {
         if self.pattern.is_empty() {
             return Err(TransportError::configuration(
                 "Transformation pattern cannot be empty",
-                Some("pattern")
+                Some("pattern"),
             ));
         }
 
@@ -666,7 +672,7 @@ impl TransformationTarget {
         if self.target.is_empty() {
             return Err(TransportError::configuration(
                 "Transformation target cannot be empty",
-                Some("target")
+                Some("target"),
             ));
         }
 
@@ -776,8 +782,11 @@ mod tests {
     #[test]
     fn test_mq_config_template_expansion() {
         let config = MessageQueueChannelConfig::default();
-        assert_eq!(config.expand_queue_name("market_data", "node1"), "market_data");
-        
+        assert_eq!(
+            config.expand_queue_name("market_data", "node1"),
+            "market_data"
+        );
+
         let mut config = MessageQueueChannelConfig::default();
         config.routing_key_template = Some("{channel}.{node}".to_string());
         assert_eq!(
@@ -791,7 +800,7 @@ mod tests {
         let config = TransportConfig::default();
         let yaml = config.to_yaml().unwrap();
         let parsed = TransportConfig::from_yaml(&yaml).unwrap();
-        
+
         assert_eq!(config.default_mode, parsed.default_mode);
         assert_eq!(config.enable_bridge, parsed.enable_bridge);
     }

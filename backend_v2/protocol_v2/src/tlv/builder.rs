@@ -143,6 +143,22 @@ impl TLVMessageBuilder {
         self
     }
 
+    /// Add a TLV with raw bytes slice (zero-copy friendly)
+    pub fn add_tlv_slice(mut self, tlv_type: TLVType, payload: &[u8]) -> Self {
+        if payload.len() <= 255 {
+            self.tlvs.push(TLVData::Standard {
+                tlv_type: tlv_type as u8,
+                payload: payload.to_vec(),
+            });
+        } else {
+            self.tlvs.push(TLVData::Extended {
+                tlv_type: tlv_type as u8,
+                payload: payload.to_vec(),
+            });
+        }
+        self
+    }
+
     /// Add a TLV with raw bytes payload
     pub fn add_tlv_bytes(mut self, tlv_type: TLVType, payload: Vec<u8>) -> Self {
         if payload.len() <= 255 {
@@ -263,6 +279,37 @@ impl TLVMessageBuilder {
     pub fn would_exceed_size(&self, max_size: usize) -> bool {
         MessageHeader::SIZE + self.payload_size() > max_size
     }
+
+    /// Build message directly into provided buffer for zero-copy operations
+    /// 
+    /// This method supports the hot path buffer pattern where messages are built
+    /// directly into thread-local buffers to eliminate allocations.
+    pub fn build_into_buffer(self, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
+        let message = self.build();
+        let size = message.len();
+        
+        if buffer.len() < size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("Buffer too small: need {}, got {}", size, buffer.len()),
+            ));
+        }
+        
+        buffer[..size].copy_from_slice(&message);
+        Ok(size)
+    }
+
+    /// Build and send message using the provided send function
+    /// 
+    /// Convenience method that builds the message and immediately sends it,
+    /// allowing for patterns like socket sends or channel operations.
+    pub fn build_and_send<T, F>(self, send_fn: F) -> Result<T, std::io::Error>
+    where
+        F: FnOnce(&[u8]) -> Result<T, std::io::Error>,
+    {
+        let message = self.build();
+        send_fn(&message)
+    }
 }
 
 /// Builder for vendor/experimental TLVs
@@ -318,7 +365,7 @@ mod tests {
     use super::*;
     use crate::tlv::parser::{parse_header, parse_tlv_extensions};
 
-    #[repr(C, packed)]
+    #[repr(C)]
     #[derive(AsBytes, zerocopy::FromBytes, zerocopy::FromZeroes)]
     struct TestTradeTLV {
         instrument_id: u64,
@@ -328,7 +375,7 @@ mod tests {
 
     #[test]
     fn test_basic_message_building() {
-        // Use the real TradeTLV structure with proper size (37 bytes)
+        // Use the real TradeTLV structure with proper size (40 bytes)
         let instrument = crate::identifiers::InstrumentId::from_u64(0x123456789ABCDEF0);
         let test_data = crate::tlv::market_data::TradeTLV::new(
             crate::VenueId::Polygon,
@@ -344,8 +391,8 @@ mod tests {
             .with_sequence(42)
             .build();
 
-        // Message should be header (32) + TLV header (2) + payload (37) = 71 bytes
-        assert_eq!(message.len(), 71);
+        // Message should be header (32) + TLV header (2) + payload (40) = 74 bytes
+        assert_eq!(message.len(), 74);
 
         // Parse and verify
         let header = parse_header(&message).unwrap();
@@ -356,7 +403,7 @@ mod tests {
         assert_eq!(relay_domain, RelayDomain::MarketData as u8);
         assert_eq!(source, SourceType::BinanceCollector as u8);
         assert_eq!(sequence, 42);
-        assert_eq!(payload_size, 39); // 2 + 37
+        assert_eq!(payload_size, 42); // 2 + 40
 
         // Extract payload and parse TLVs
         let tlv_payload = &message[32..];

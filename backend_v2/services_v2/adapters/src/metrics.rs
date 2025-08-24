@@ -10,28 +10,43 @@ use std::time::{Duration, Instant};
 #[derive(Debug, Clone)]
 pub struct AdapterMetrics {
     // Connection metrics
+    /// Total number of successful connections established
     pub connections_established: Arc<AtomicU64>,
+    /// Total number of failed connection attempts
     pub connections_failed: Arc<AtomicU64>,
+    /// Total number of reconnection attempts made
     pub reconnection_attempts: Arc<AtomicU64>,
+    /// Current number of active connections
     pub active_connections: Arc<AtomicU64>,
 
     // Message metrics
+    /// Total messages received from exchanges
     pub messages_received: Arc<AtomicU64>,
+    /// Total messages successfully processed
     pub messages_processed: Arc<AtomicU64>,
+    /// Total messages that failed processing
     pub messages_failed: Arc<AtomicU64>,
+    /// Total bytes received from exchanges
     pub bytes_received: Arc<AtomicU64>,
 
     // Performance metrics
+    /// Processing time samples per venue for latency monitoring
     pub processing_times: Arc<DashMap<VenueId, Vec<Duration>>>,
+    /// Last message timestamp per venue for staleness detection
     pub last_message_times: Arc<DashMap<VenueId, Instant>>,
 
     // Error metrics
+    /// Total parse errors encountered
     pub parse_errors: Arc<AtomicU64>,
+    /// Total timeout errors encountered
     pub timeout_errors: Arc<AtomicU64>,
+    /// Total protocol-level errors encountered
     pub protocol_errors: Arc<AtomicU64>,
 
     // State management
+    /// Total state invalidation events
     pub state_invalidations: Arc<AtomicU64>,
+    /// Number of instruments currently tracked per venue
     pub instruments_tracked: Arc<DashMap<VenueId, usize>>,
 }
 
@@ -147,7 +162,7 @@ impl AdapterMetrics {
         let failed_connections = self.connections_failed.load(Ordering::Relaxed);
         let messages = self.messages_received.load(Ordering::Relaxed);
         let processed = self.messages_processed.load(Ordering::Relaxed);
-        let failed = self.messages_failed.load(Ordering::Relaxed);
+        let _failed = self.messages_failed.load(Ordering::Relaxed);
 
         MetricsSummary {
             connection_success_rate: if total_connections > 0 {

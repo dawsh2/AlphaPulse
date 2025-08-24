@@ -4,7 +4,6 @@
 //! Validates TLV message structure, relay compatibility, and semantic preservation
 
 use alphapulse_adapter_service::input::collectors::polygon_dex::{
-    PolygonDexCollector, 
     validated_decoder::ValidatedPolygonDecoder,
     abi_events::DEXProtocol,
 };
@@ -29,7 +28,6 @@ async fn test_polygon_to_relay_tlv_generation() {
     let (tx, mut rx) = mpsc::channel::<TLVMessage>(10);
     
     // Create Polygon collector with our channel
-    let mut collector = PolygonDexCollector::new(tx);
     
     // Use real Uniswap V3 swap data
     let real_swap_log = polygon::uniswap_v3_swap_real();

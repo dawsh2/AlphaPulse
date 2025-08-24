@@ -5,7 +5,7 @@
 
 mod common;
 
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     InstrumentId, VenueId, AssetType,
 };
 use std::collections::HashSet;

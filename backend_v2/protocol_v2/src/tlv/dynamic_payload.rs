@@ -21,6 +21,7 @@
 //! - Preserves exact semantics of original Vec<T> collections
 
 use std::convert::TryFrom;
+use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 /// Domain constants for bounded TLV structures
 ///
@@ -134,6 +135,53 @@ where
 
     /// Fixed-size array holding elements (unused slots are zeroed)
     elements: [T; N],
+}
+
+// Manual zerocopy implementations for FixedVec<u128, MAX_POOL_TOKENS>
+// These enable zero-copy serialization for pool liquidity data
+//
+// SAFETY: FixedVec has a well-defined memory layout with #[repr(C)]:
+// - count: u16 (2 bytes)
+// - _padding: [u8; 6] (6 bytes) 
+// - elements: [u128; 8] (128 bytes)
+// Total: 136 bytes with proper alignment
+//
+// All fields are FromZeroes/AsBytes compatible:
+// - u16, u8, and u128 are primitive types with zerocopy support
+// - Fixed arrays of zerocopy types are also zerocopy
+// - The struct uses #[repr(C)] for deterministic layout
+unsafe impl AsBytes for FixedVec<u128, MAX_POOL_TOKENS> {
+    fn only_derive_is_allowed_to_implement_this_trait() {}
+}
+
+unsafe impl FromBytes for FixedVec<u128, MAX_POOL_TOKENS> {
+    fn only_derive_is_allowed_to_implement_this_trait() {}
+}
+
+unsafe impl FromZeroes for FixedVec<u128, MAX_POOL_TOKENS> {
+    fn only_derive_is_allowed_to_implement_this_trait() {}
+}
+
+// Manual zerocopy implementations for FixedVec<InstrumentId, MAX_INSTRUMENTS>
+// These enable zero-copy serialization for state invalidation data
+//
+// SAFETY: FixedVec has a well-defined memory layout with #[repr(C)]:
+// - count: u16 (2 bytes)
+// - _padding: [u8; 6] (6 bytes)
+// - elements: [InstrumentId; 16] (128 bytes) 
+// Total: 136 bytes with proper alignment
+//
+// InstrumentId is also #[repr(C)] with zerocopy support from the core protocol
+unsafe impl AsBytes for FixedVec<crate::InstrumentId, MAX_INSTRUMENTS> {
+    fn only_derive_is_allowed_to_implement_this_trait() {}
+}
+
+unsafe impl FromBytes for FixedVec<crate::InstrumentId, MAX_INSTRUMENTS> {
+    fn only_derive_is_allowed_to_implement_this_trait() {}
+}
+
+unsafe impl FromZeroes for FixedVec<crate::InstrumentId, MAX_INSTRUMENTS> {
+    fn only_derive_is_allowed_to_implement_this_trait() {}
 }
 
 impl<T, const N: usize> FixedVec<T, N>

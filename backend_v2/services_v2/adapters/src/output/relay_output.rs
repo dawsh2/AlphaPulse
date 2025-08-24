@@ -42,7 +42,7 @@ impl RelayOutput {
         match UnixStream::connect(&self.socket_path).await {
             Ok(mut stream) => {
                 info!("✅ Connected to {:?} relay", self.relay_domain);
-                
+
                 // Send a small identification message immediately to be classified as publisher
                 // This is a minimal Protocol V2 header (32 bytes) with zero payload
                 let identification_header = [
@@ -54,12 +54,12 @@ impl RelayOutput {
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // timestamp: 0
                     0x00, 0x00, 0x00, 0x00, // checksum: 0 (simplified)
                 ];
-                
+
                 match stream.write_all(&identification_header).await {
                     Ok(()) => debug!("📡 Sent identification message to establish publisher role"),
                     Err(e) => warn!("Failed to send identification message: {}", e),
                 }
-                
+
                 *self.stream.lock().await = Some(stream);
                 Ok(())
             }
@@ -136,8 +136,12 @@ impl RelayOutput {
 /// Statistics for relay output
 #[derive(Debug, Clone)]
 pub struct RelayOutputStats {
+    /// Whether the relay is currently connected
     pub connected: bool,
+    /// Total messages sent to this relay
     pub messages_sent: u64,
+    /// Domain this relay serves (MarketData, Signal, or Execution)
     pub relay_domain: RelayDomain,
+    /// Unix socket path for relay connection
     pub socket_path: String,
 }

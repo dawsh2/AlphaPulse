@@ -3,12 +3,17 @@
 //! The header is identical for all messages and contains routing and validation information.
 
 use crate::{ProtocolError, RelayDomain, SourceType, MESSAGE_MAGIC};
+use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use std::time::{SystemTime, UNIX_EPOCH};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 /// Message Header (32 bytes)
 ///
-/// The header is identical for all messages and contains routing and validation information:
+/// The header is identical for all messages and contains routing and validation information.
+///
+/// **CRITICAL**: Field ordering is carefully designed to achieve exactly 32 bytes
+/// without padding. Fields are grouped by size (u64 → u32 → u8) to maintain
+/// natural alignment. DO NOT REORDER without understanding padding implications.
 ///
 /// ```text
 /// ┌─────────────────┬─────────────────────────────────────┐
@@ -16,36 +21,48 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 /// │ (32 bytes)      │ (variable length)                   │
 /// └─────────────────┴─────────────────────────────────────┘
 /// ```
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
 pub struct MessageHeader {
+    // Group u64s first for natural alignment (bytes 0-15)
+    pub sequence: u64,  // Monotonic sequence per source
+    pub timestamp: u64, // Nanoseconds since epoch
+
+    // Then u32s (bytes 16-27)
     pub magic: u32,        // 0xDEADBEEF
-    pub relay_domain: u8,  // Which relay handles this (1=market, 2=signal, 3=execution)
-    pub version: u8,       // Protocol version
-    pub source: u8,        // Source service type
-    pub flags: u8,         // Compression, priority, etc.
     pub payload_size: u32, // TLV payload bytes
-    pub sequence: u64,     // Monotonic sequence per source
-    pub timestamp: u64,    // Nanoseconds since epoch
     pub checksum: u32,     // CRC32 of entire message
+
+    // Finally u8s packed together (bytes 28-31)
+    pub relay_domain: u8, // Which relay handles this (1=market, 2=signal, 3=execution)
+    pub version: u8,      // Protocol version
+    pub source: u8,       // Source service type
+    pub flags: u8,        // Compression, priority, etc.
 }
+// Total: EXACTLY 32 bytes with zero padding!
 
 impl MessageHeader {
     /// Header size in bytes
     pub const SIZE: usize = 32;
 
-    /// Create a new message header
+    /// Create a new message header with ultra-fast timestamp
+    /// 
+    /// Uses the global coarse clock + fine counter for ~5ns timestamp generation
+    /// instead of SystemTime::now() which costs ~200ns per call.
     pub fn new(domain: RelayDomain, source: SourceType) -> Self {
         Self {
+            // u64 fields first
+            sequence: 0,
+            timestamp: fast_timestamp_ns(), // ✅ ULTRA-FAST: ~5ns vs ~200ns
+            // u32 fields
             magic: MESSAGE_MAGIC,
+            payload_size: 0,
+            checksum: 0, // Will be calculated when message is finalized
+            // u8 fields
             relay_domain: domain as u8,
             version: crate::PROTOCOL_VERSION,
             source: source as u8,
             flags: 0,
-            payload_size: 0,
-            sequence: 0,
-            timestamp: current_timestamp_ns(),
-            checksum: 0, // Will be calculated when message is finalized
         }
     }
 
@@ -93,26 +110,30 @@ impl MessageHeader {
     /// Calculate and set the checksum for the entire message
     pub fn calculate_checksum(&mut self, full_message: &[u8]) {
         self.checksum = 0;
-        // CRC32 over entire message except checksum field (last 4 bytes)
-        let checksum_offset = Self::SIZE - 4;
+        // CRC32 over entire message except checksum field (bytes 24-27)
+        let checksum_offset = 24; // checksum field starts at byte 24
         let before_checksum = &full_message[..checksum_offset];
-        let after_checksum = &full_message[Self::SIZE..];
+        let after_checksum = &full_message[checksum_offset + 4..Self::SIZE]; // skip 4 checksum bytes
+        let payload = &full_message[Self::SIZE..];
 
         let mut hasher = crc32fast::Hasher::new();
         hasher.update(before_checksum);
         hasher.update(after_checksum);
+        hasher.update(payload);
         self.checksum = hasher.finalize();
     }
 
     /// Verify the checksum against the full message
     pub fn verify_checksum(&self, full_message: &[u8]) -> bool {
-        let checksum_offset = Self::SIZE - 4;
+        let checksum_offset = 24; // checksum field starts at byte 24
         let before_checksum = &full_message[..checksum_offset];
-        let after_checksum = &full_message[Self::SIZE..];
+        let after_checksum = &full_message[checksum_offset + 4..Self::SIZE]; // skip 4 checksum bytes
+        let payload = &full_message[Self::SIZE..];
 
         let mut hasher = crc32fast::Hasher::new();
         hasher.update(before_checksum);
         hasher.update(after_checksum);
+        hasher.update(payload);
         let calculated = hasher.finalize();
 
         calculated == self.checksum
@@ -129,8 +150,19 @@ impl MessageHeader {
     }
 }
 
-/// Get current timestamp in nanoseconds since Unix epoch
+/// Get current timestamp in nanoseconds since Unix epoch (ultra-fast)
+/// 
+/// Uses the global coarse clock system for ~5ns performance instead of
+/// SystemTime::now() which costs ~200ns. Maintains ±10μs accuracy.
 pub fn current_timestamp_ns() -> u64 {
+    fast_timestamp_ns()
+}
+
+/// Get precise system timestamp (fallback for critical operations)
+/// 
+/// Uses SystemTime::now() for perfect accuracy at the cost of ~200ns latency.
+/// Use this sparingly for critical operations requiring perfect timestamp accuracy.
+pub fn precise_timestamp_ns() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -200,7 +232,7 @@ mod tests {
         let mut header = MessageHeader::new(RelayDomain::MarketData, SourceType::KrakenCollector);
 
         // Set timestamp to 1 second ago
-        header.timestamp = current_timestamp_ns() - 1_000_000_000;
+        header.timestamp = precise_timestamp_ns() - 1_000_000_000;
 
         let age = header.age_ns();
         assert!(age >= 1_000_000_000); // At least 1 second

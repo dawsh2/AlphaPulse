@@ -1,0 +1,86 @@
+# Polygon Collector Configuration
+# Unified collector configuration for WebSocket connectivity and relay output
+
+[websocket]
+# Primary WebSocket endpoint for real-time Polygon events - TESTED AND WORKING
+url = "wss://rpc-mainnet.matic.quiknode.pro"
+
+# Fallback endpoints (will try in order if primary fails)  
+fallback_urls = [
+    "wss://polygon-bor-rpc.publicnode.com",  # Inactive but stable connection
+    "wss://rpc.ankr.com/polygon/ws/8b3c8b4b8c4b8c4b8c4b8c4b8c4b8c4b",
+    "wss://polygon-mainnet.g.alchemy.com/v2/demo"
+]
+
+# Connection timeout for WebSocket establishment (milliseconds)
+connection_timeout_ms = 30000
+
+# Message timeout for WebSocket heartbeat/keep-alive (milliseconds)
+message_timeout_ms = 60000
+
+# Reconnection parameters
+base_backoff_ms = 1000
+max_backoff_ms = 30000
+max_reconnect_attempts = 10
+
+[relay]
+# Unix socket path for RelayOutput connection
+socket_path = "/tmp/alphapulse/market_data.sock"
+
+# Relay domain for TLV message routing
+domain = "MarketData"
+
+# Source identifier for this collector in Protocol V2 messages
+source_id = 3
+
+[validation]
+# Runtime TLV validation duration (seconds) 
+# Validates outgoing TLV messages for first N seconds after startup
+runtime_validation_seconds = 0  # Disabled for testing
+
+# Enable comprehensive logging during validation period
+verbose_validation = true
+
+[monitoring]
+# Health check interval (seconds)
+health_check_interval_seconds = 10
+
+# Message statistics reporting interval
+stats_report_interval_seconds = 60
+
+# Performance warning thresholds
+max_processing_latency_ms = 35
+max_memory_usage_mb = 50
+
+[dex_events]
+# Event signatures to monitor (Protocol V2 TLV type mapping)
+# Note: These are Ethereum event signatures in hex format
+
+# Core pool events (Market Data domain: TLV 1-19)  
+# Using correct V2 signature based on ethabi analysis
+swap_signature = "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"  # TLV 11 (V2 Swap - high activity)
+# V3 signature for reference (handled automatically by collector)
+v3_swap_signature = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67"  # V3 Swap
+mint_signature = "0x7a53080ba414158be7ec69b987b5fb7d07dee101fe85488f0853ae16239d0bde"  # TLV 12  
+burn_signature = "0x0c396cd989a39f4459b5fa1aed6a9a8dcdbc45908acfd67e028cd568da98982c"  # TLV 13
+tick_signature = "0x3067048beee31b25b2f1681f88dac838c8bba36af25bfb2b7cf7473a5847e35f"  # TLV 14
+
+# V2 pool state events
+sync_signature = "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1"      # TLV 16
+transfer_signature = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"   # TLV 10
+approval_signature = "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"   # Supplementary
+
+# Factory events (pool creation)
+v3_pool_created_signature = "0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118"  # TLV 15
+v2_pair_created_signature = "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9"  # TLV 15
+
+[contracts]
+# Factory addresses for pool discovery
+uniswap_v3_factory = "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+quickswap_v2_factory = "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
+sushiswap_factory = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"
+
+# Router addresses for context
+uniswap_v3_router = "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+quickswap_router = "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff"
+sushiswap_router = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506"

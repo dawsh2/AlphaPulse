@@ -395,9 +395,8 @@ impl RelayConsumer {
                         // Check if we have both parts of the signal
                         if let (Some(identity), Some(economics)) = &entry {
                             // Check if this is a flash arbitrage signal (strategy_id = 21)
-                            let is_flash_arbitrage = identity
-                                .get("strategy_id")
-                                .and_then(|v| v.as_u64()) == Some(21);
+                            let is_flash_arbitrage =
+                                identity.get("strategy_id").and_then(|v| v.as_u64()) == Some(21);
 
                             if is_flash_arbitrage {
                                 // Create arbitrage opportunity message for dashboard

@@ -1,0 +1,63 @@
+# AlphaPulse Production Environment Configuration
+
+# Production paths with proper security
+socket_dir = "/var/run/alphapulse"
+log_dir = "/var/log/alphapulse"
+pid_file = "/var/run/alphapulse/system.pids"
+
+# Service-specific configurations
+[services]
+
+[services.market_data_relay]
+enabled = true
+health_port = 8001
+priority = 10
+# High-performance production settings
+
+[services.signal_relay]  
+enabled = true
+health_port = 8002
+priority = 20
+# Reliable signal distribution
+
+[services.execution_relay]
+enabled = true
+health_port = 8003
+priority = 30
+# Critical execution path
+
+[services.polygon_publisher]
+enabled = true
+health_port = 8004
+priority = 40
+# Real-time DEX data feed
+
+[services.flash_arbitrage]
+enabled = true
+health_port = 8005
+priority = 50
+# Core arbitrage strategy
+
+[services.dashboard_websocket]
+enabled = true
+health_port = 8006
+priority = 60
+# Monitoring and visualization
+
+[services.kraken_collector]
+enabled = true
+health_port = 8007
+priority = 70
+# Traditional exchange data
+
+[services.binance_collector]
+enabled = true
+health_port = 8008
+priority = 80
+# High-volume exchange data
+
+[services.coinbase_collector]
+enabled = true
+health_port = 8009
+priority = 90
+# Institutional exchange data

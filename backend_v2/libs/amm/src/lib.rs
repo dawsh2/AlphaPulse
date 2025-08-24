@@ -20,7 +20,7 @@
 //!
 //! AMM library serves as the mathematical foundation for all DEX-related calculations,
 //! ensuring accurate pricing, optimal trade sizing, and reliable profit predictions.
-//! 
+//!
 //! See [`architecture_diagram()`] for visual representation of the data flow.
 //!
 //! ## Performance Profile

@@ -1,7 +1,7 @@
 //! AlphaPulse Transport System
 //!
 //! High-performance network transport system for actor communication across
-//! nodes in the AlphaPulse trading infrastructure. Provides both direct 
+//! nodes in the AlphaPulse trading infrastructure. Provides both direct
 //! peer-to-peer transport for ultra-low latency and optional message queue
 //! integration for reliability-critical channels.
 //!
@@ -99,41 +99,40 @@
 pub mod error;
 pub mod network;
 
-#[cfg(feature = "message-queues")]
-pub mod mq;
+// TODO: Implement message queue module when needed
+// #[cfg(feature = "message-queues")]
+// pub mod mq;
 
 pub mod hybrid;
 pub mod topology_integration;
 
-#[cfg(feature = "monitoring")]
-pub mod monitoring;
+// TODO: Implement monitoring module when needed
+// #[cfg(feature = "monitoring")]
+// pub mod monitoring;
 
 // Re-export main types
-pub use error::{TransportError, Result};
+pub use error::{Result, TransportError};
 
 // Re-export network transport types
 pub use network::{
-    NetworkTransport, NetworkConfig, NetworkProtocol, ProtocolType,
-    CompressionType, EncryptionType, ConnectionPool, Connection,
-    NetworkEnvelope, CompressionEngine, SecurityLayer, ConnectionConfig,
-    PerformanceConfig, TcpOptions, UdpOptions, ProtocolOptions,
+    CompressionEngine, CompressionType, Connection, ConnectionConfig, ConnectionPool,
+    EncryptionType, NetworkConfig, NetworkEnvelope, NetworkProtocol, NetworkTransport,
+    PerformanceConfig, ProtocolOptions, ProtocolType, SecurityLayer, TcpOptions, UdpOptions,
 };
 
 // Re-export hybrid transport types
 pub use hybrid::{
-    HybridTransport, TransportConfig, TransportMode, ChannelConfig,
-    TransportRouter, TransportBridge,
+    ChannelConfig, HybridTransport, TransportBridge, TransportConfig, TransportMode,
+    TransportRouter,
 };
 
 // Re-export topology integration
-pub use topology_integration::{
-    TopologyTransportResolver, TransportFactory, TopologyIntegration,
-};
+pub use topology_integration::{TopologyIntegration, TopologyTransportResolver, TransportFactory};
 
-#[cfg(feature = "monitoring")]
-pub use monitoring::{
-    TransportMetrics, HealthMonitor, CircuitBreaker, TransportTracing,
-};
+// #[cfg(feature = "monitoring")]
+// pub use monitoring::{
+//     TransportMetrics, HealthMonitor, CircuitBreaker, TransportTracing,
+// };
 
 /// Transport system version
 pub const TRANSPORT_VERSION: &str = "0.1.0";
@@ -185,12 +184,17 @@ pub enum Reliability {
 impl Reliability {
     /// Check if this reliability level requires guaranteed delivery
     pub fn requires_guaranteed_delivery(&self) -> bool {
-        matches!(self, Reliability::ExactlyOnce | Reliability::GuaranteedDelivery)
+        matches!(
+            self,
+            Reliability::ExactlyOnce | Reliability::GuaranteedDelivery
+        )
     }
 }
 
 /// Message priority levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub enum Priority {
     /// Background priority - process when resources available
     Background = 0,

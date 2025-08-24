@@ -52,7 +52,7 @@
 //! - **Extended (255)**: Large payload marker → Any domain
 //!
 //! ### Size Constraint Strategy
-//! - **Fixed**: Critical hot path types (Trade=37B, Economics=32B) - zero validation overhead
+//! - **Fixed**: Critical hot path types (Trade=40B, Economics=32B) - zero validation overhead
 //! - **Bounded**: Pool events with variable addresses (60-200B) - single bounds check
 //! - **Variable**: Order books, snapshots - dynamic allocation with careful usage
 //!
@@ -296,7 +296,7 @@ pub enum TLVSizeConstraint {
 /// # Performance Characteristics by Type
 ///
 /// - **Fixed-Size Types**: Zero parsing overhead, optimal for hot paths
-///   - Examples: Trade (37B), Economics (32B), Heartbeat (16B)
+///   - Examples: Trade (40B), Economics (32B), Heartbeat (16B)
 ///   - Target: >1M msg/s processing for real-time feeds
 ///
 /// - **Bounded Types**: Single bounds check, good for variable identifiers
@@ -340,7 +340,7 @@ pub enum TLVType {
     // ═══════════════════════════════════════════════════════════════════════
     /// **Trade execution event** - Individual trade with price, volume, side, timestamp
     ///
-    /// Fixed 37 bytes: venue_id(1) + instrument_id(16) + price(8) + volume(8) + side(1) + timestamp(8) + padding(3)
+    /// Fixed 40 bytes: venue_id(2) + instrument_id(16) + price(8) + volume(8) + side(1) + timestamp(8) + padding(3)
     ///
     /// Used for: Real-time price feeds, volume analysis, trade history
     Trade = 1,
@@ -879,7 +879,7 @@ impl TLVType {
     pub fn size_constraint(&self) -> TLVSizeConstraint {
         match self {
             // Fixed-size TLVs (using zerocopy structs)
-            TLVType::Trade => TLVSizeConstraint::Fixed(37),
+            TLVType::Trade => TLVSizeConstraint::Fixed(40),
             TLVType::Quote => TLVSizeConstraint::Fixed(52),
             TLVType::SignalIdentity => TLVSizeConstraint::Fixed(16),
             TLVType::AssetCorrelation => TLVSizeConstraint::Fixed(24),
@@ -1081,7 +1081,7 @@ mod tests {
 
     #[test]
     fn test_expected_sizes() {
-        assert_eq!(TLVType::Trade.expected_payload_size(), Some(37));
+        assert_eq!(TLVType::Trade.expected_payload_size(), Some(40));
         assert_eq!(TLVType::Economics.expected_payload_size(), Some(32));
         assert_eq!(TLVType::OrderBook.expected_payload_size(), None); // Variable size
     }
@@ -1091,7 +1091,7 @@ mod tests {
         // Fixed-size TLVs
         assert_eq!(
             TLVType::Trade.size_constraint(),
-            TLVSizeConstraint::Fixed(37)
+            TLVSizeConstraint::Fixed(40)
         );
         assert_eq!(
             TLVType::Quote.size_constraint(),

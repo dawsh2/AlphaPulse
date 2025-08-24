@@ -8,7 +8,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::net::UnixStream;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     VenueId, TLVType,
     tlv::market_data::{
         PoolSwapTLV, PoolMintTLV, PoolBurnTLV, PoolTickTLV, PoolLiquidityTLV,

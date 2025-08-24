@@ -12,9 +12,8 @@ pub mod relay_output;
 
 pub use relay_output::{RelayOutput, RelayOutputStats};
 
-use crate::{AdapterError, Result};
+use crate::Result;
 use async_trait::async_trait;
-use protocol_v2::{InstrumentId, VenueId};
 
 /// Output adapter trait for sending TLV messages
 #[async_trait]

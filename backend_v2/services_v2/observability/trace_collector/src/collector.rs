@@ -9,13 +9,12 @@ use crate::{
 
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use protocol_v2::{SourceType, TraceEvent, TraceEventType};
+use protocol_v2::TraceEvent;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 use std::path::Path;
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, BufReader};
+use tokio::io::AsyncReadExt;
 use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::mpsc;
 use tokio::time::{interval, Duration, Instant};
 use tracing::{debug, error, info, warn};
 
@@ -69,7 +68,7 @@ impl TraceCollector {
         }));
 
         let active_traces = Arc::new(DashMap::with_capacity(config.max_active_traces));
-        let completed_traces = Arc::new(RwLock::new(AllocRingBuffer::with_capacity(
+        let completed_traces = Arc::new(RwLock::new(AllocRingBuffer::new(
             config.max_completed_traces,
         )));
 
@@ -122,16 +121,17 @@ impl TraceCollector {
 
         // Remove existing socket file if it exists
         if Path::new(&self.config.socket_path).exists() {
-            std::fs::remove_file(&self.config.socket_path).map_err(|e| TraceError::Io(e))?;
+            std::fs::remove_file(&self.config.socket_path)
+                .map_err(|e| TraceError::Io(e.to_string()))?;
         }
 
         // Create parent directory if it doesn't exist
         if let Some(parent) = Path::new(&self.config.socket_path).parent() {
-            std::fs::create_dir_all(parent).map_err(|e| TraceError::Io(e))?;
+            std::fs::create_dir_all(parent).map_err(|e| TraceError::Io(e.to_string()))?;
         }
 
-        let listener =
-            UnixListener::bind(&self.config.socket_path).map_err(|e| TraceError::Io(e))?;
+        let listener = UnixListener::bind(&self.config.socket_path)
+            .map_err(|e| TraceError::Io(e.to_string()))?;
 
         info!("TraceCollector listening on {}", self.config.socket_path);
 
@@ -257,7 +257,8 @@ impl TraceCollector {
         let json_str = std::str::from_utf8(json_bytes)
             .map_err(|_| TraceError::InvalidTraceId("Invalid UTF-8 in trace event".to_string()))?;
 
-        let event: TraceEvent = serde_json::from_str(json_str)?;
+        let event: TraceEvent =
+            serde_json::from_str(json_str).map_err(|e| TraceError::Json(e.to_string()))?;
         Ok(event)
     }
 

@@ -4,16 +4,16 @@
 //! either direct network transport or message queues based on configuration
 //! and channel requirements.
 
+pub mod bridge;
 pub mod config;
 pub mod router;
-pub mod bridge;
 
 // Re-export main types
-pub use config::{TransportConfig, TransportMode, ChannelConfig, RouteConfig};
-pub use router::{TransportRouter, RouteDecision};
-pub use bridge::{TransportBridge, BridgeConfig};
+pub use bridge::{BridgeConfig, TransportBridge};
+pub use config::{ChannelConfig, RouteConfig, TransportConfig, TransportMode};
+pub use router::{RouteDecision, TransportRouter};
 
-use crate::{TransportError, Result, Transport, Priority, TransportStatistics};
+use crate::{Priority, Result, Transport, TransportError, TransportStatistics};
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
@@ -67,7 +67,10 @@ impl HybridTransport {
 
     /// Initialize message queue transport
     #[cfg(feature = "message-queues")]
-    pub async fn init_mq_transport(&mut self, transport: Box<dyn crate::mq::MessageQueueTransport>) -> Result<()> {
+    pub async fn init_mq_transport(
+        &mut self,
+        transport: Box<dyn crate::mq::MessageQueueTransport>,
+    ) -> Result<()> {
         self.mq_transport = Some(transport);
         Ok(())
     }
@@ -81,20 +84,24 @@ impl HybridTransport {
         priority: Priority,
     ) -> Result<()> {
         // Get routing decision
-        let decision = self.router.route_decision(target_node, target_actor, priority)?;
+        let decision = self
+            .router
+            .route_decision(target_node, target_actor, priority)?;
 
         match decision {
             RouteDecision::Direct => {
                 if let Some(ref transport) = self.direct_transport {
-                    transport.send_with_priority(target_node, target_actor, message, priority).await?;
+                    transport
+                        .send_with_priority(target_node, target_actor, message, priority)
+                        .await?;
                 } else {
                     return Err(TransportError::configuration(
                         "Direct transport not initialized",
-                        Some("direct_transport")
+                        Some("direct_transport"),
                     ));
                 }
             }
-            
+
             #[cfg(feature = "message-queues")]
             RouteDecision::MessageQueue { queue_name } => {
                 if let Some(ref transport) = self.mq_transport {
@@ -102,18 +109,20 @@ impl HybridTransport {
                 } else {
                     return Err(TransportError::configuration(
                         "Message queue transport not initialized",
-                        Some("mq_transport")
+                        Some("mq_transport"),
                     ));
                 }
             }
-            
+
             RouteDecision::Bridge { .. } => {
                 if let Some(ref bridge) = self.bridge {
-                    bridge.forward_message(target_node, target_actor, message, priority).await?;
+                    bridge
+                        .forward_message(target_node, target_actor, message, priority)
+                        .await?;
                 } else {
                     return Err(TransportError::configuration(
                         "Transport bridge not initialized",
-                        Some("bridge")
+                        Some("bridge"),
                     ));
                 }
             }
@@ -150,22 +159,24 @@ impl HybridTransport {
     /// Get transport health status
     pub fn health_status(&self) -> HybridTransportHealth {
         HybridTransportHealth {
-            direct_healthy: self.direct_transport.as_ref()
+            direct_healthy: self
+                .direct_transport
+                .as_ref()
                 .map(|t| t.is_healthy())
                 .unwrap_or(false),
-            
+
             #[cfg(feature = "message-queues")]
-            mq_healthy: self.mq_transport.as_ref()
+            mq_healthy: self
+                .mq_transport
+                .as_ref()
                 .map(|t| t.is_healthy())
                 .unwrap_or(false),
-            
+
             #[cfg(not(feature = "message-queues"))]
             mq_healthy: false,
-            
-            bridge_healthy: self.bridge.as_ref()
-                .map(|b| b.is_healthy())
-                .unwrap_or(true), // If no bridge, consider healthy
-            
+
+            bridge_healthy: self.bridge.as_ref().map(|b| b.is_healthy()).unwrap_or(true), // If no bridge, consider healthy
+
             router_healthy: self.router.is_healthy(),
         }
     }
@@ -225,7 +236,8 @@ impl Transport for HybridTransport {
         target_actor: &str,
         message: &[u8],
     ) -> Result<()> {
-        self.route_message(target_node, target_actor, message, Priority::Normal).await
+        self.route_message(target_node, target_actor, message, Priority::Normal)
+            .await
     }
 
     async fn send_with_priority(
@@ -235,14 +247,15 @@ impl Transport for HybridTransport {
         message: &[u8],
         priority: Priority,
     ) -> Result<()> {
-        self.route_message(target_node, target_actor, message, priority).await
+        self.route_message(target_node, target_actor, message, priority)
+            .await
     }
 
     fn is_healthy(&self) -> bool {
         let health = self.health_status();
-        health.router_healthy && 
-        (health.direct_healthy || health.mq_healthy) &&
-        health.bridge_healthy
+        health.router_healthy
+            && (health.direct_healthy || health.mq_healthy)
+            && health.bridge_healthy
     }
 
     fn statistics(&self) -> TransportStatistics {
@@ -251,17 +264,17 @@ impl Transport for HybridTransport {
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 let stats = self.statistics.read().await;
-                
+
                 // Combine with underlying transport statistics
                 let mut combined = stats.clone();
-                
+
                 if let Some(ref transport) = self.direct_transport {
                     let direct_stats = transport.statistics();
                     combined.messages_sent += direct_stats.messages_sent;
                     combined.bytes_sent += direct_stats.bytes_sent;
                     combined.active_connections += direct_stats.active_connections;
                 }
-                
+
                 combined
             })
         })
@@ -297,19 +310,31 @@ impl HybridTransportHealth {
         let mut score = 0.0;
         let mut total = 0.0;
 
-        if self.direct_healthy { score += 0.4; }
+        if self.direct_healthy {
+            score += 0.4;
+        }
         total += 0.4;
 
-        if self.mq_healthy { score += 0.3; }
+        if self.mq_healthy {
+            score += 0.3;
+        }
         total += 0.3;
 
-        if self.bridge_healthy { score += 0.2; }
+        if self.bridge_healthy {
+            score += 0.2;
+        }
         total += 0.2;
 
-        if self.router_healthy { score += 0.1; }
+        if self.router_healthy {
+            score += 0.1;
+        }
         total += 0.1;
 
-        if total > 0.0 { score / total } else { 0.0 }
+        if total > 0.0 {
+            score / total
+        } else {
+            0.0
+        }
     }
 }
 

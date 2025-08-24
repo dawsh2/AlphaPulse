@@ -9,8 +9,8 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use protocol_v2::{
     tlv::{
-        DEXProtocol as PoolProtocol, PoolBurnTLV, PoolMintTLV, PoolStateTLV, PoolSwapTLV,
-        PoolSyncTLV,
+        AddressExtraction, DEXProtocol as PoolProtocol, PoolBurnTLV, PoolMintTLV, PoolStateTLV,
+        PoolSwapTLV, PoolSyncTLV,
     },
     InstrumentId, InstrumentId as PoolInstrumentId, VenueId,
 };
@@ -274,18 +274,16 @@ impl PoolStateManager {
 
     /// Process V2 Sync event - complete state update
     pub fn process_sync(&self, sync: &PoolSyncTLV) -> Result<()> {
-        // Use FULL 20-byte address as key (NO TRUNCATION!)
-        let pool_address = sync.pool_address;
+        // Extract 20-byte addresses from 32-byte padded format
+        let pool_address = sync.pool_address.to_eth_address();
+        let token0_addr = sync.token0_addr.to_eth_address();
+        let token1_addr = sync.token1_addr.to_eth_address();
 
         // Get or create pool
         let pool_arc = self.pools.entry(pool_address).or_insert_with(|| {
             let mut stats = self.stats.write();
             stats.total_pools += 1;
             stats.v2_pools += 1;
-
-            // Index by FULL token addresses
-            let token0_addr = sync.token0_addr;
-            let token1_addr = sync.token1_addr;
 
             // Add to token index
             self.token_index
@@ -316,13 +314,14 @@ impl PoolStateManager {
                 u64::from_be_bytes(bytes)
             };
             let pool_instrument_id =
-                InstrumentId::polygon_token(&format!("0x{}", hex::encode(pool_address)))
-                    .unwrap_or(InstrumentId {
+                InstrumentId::polygon_token(&format!("0x{}", hex::encode(pool_address))).unwrap_or(
+                    InstrumentId {
                         venue: VenueId::Polygon as u16,
                         asset_type: 3, // Pool type
                         reserved: 0,
                         asset_id: pool_hash,
-                    });
+                    },
+                );
             let mut pool_state = PoolState::new(pool_instrument_id, pool_address);
             pool_state.token0_address = token0_addr;
             pool_state.token1_address = token1_addr;
@@ -354,8 +353,10 @@ impl PoolStateManager {
 
     /// Process V3 Swap event - contains state updates
     pub fn process_swap(&self, swap: &PoolSwapTLV) -> Result<()> {
-        // Use FULL 20-byte address as key (NO TRUNCATION!)
-        let pool_address = swap.pool_address;
+        // Extract 20-byte addresses from 32-byte padded format
+        let pool_address = swap.pool_address.to_eth_address();
+        let token_in_addr = swap.token_in_addr.to_eth_address();
+        let token_out_addr = swap.token_out_addr.to_eth_address();
 
         // For V3 swaps, create/update pool with state
         // Check if this is a V3 swap based on available fields
@@ -364,10 +365,6 @@ impl PoolStateManager {
                 let mut stats = self.stats.write();
                 stats.total_pools += 1;
                 stats.v3_pools += 1;
-
-                // Index by FULL token addresses
-                let token_in_addr = swap.token_in_addr;
-                let token_out_addr = swap.token_out_addr;
 
                 // Add to token index
                 self.token_index
@@ -438,8 +435,8 @@ impl PoolStateManager {
 
     /// Process Mint event - liquidity addition
     pub fn process_mint(&self, mint: &PoolMintTLV) -> Result<()> {
-        // Use FULL 20-byte address as key (NO TRUNCATION!)
-        let pool_address = mint.pool_address;
+        // Extract 20-byte address from 32-byte padded format
+        let pool_address = mint.pool_address.to_eth_address();
 
         if let Some(pool_arc) = self.pools.get(&pool_address) {
             let mut pool = pool_arc.write();
@@ -462,8 +459,8 @@ impl PoolStateManager {
 
     /// Process Burn event - liquidity removal
     pub fn process_burn(&self, burn: &PoolBurnTLV) -> Result<()> {
-        // Use FULL 20-byte address as key (NO TRUNCATION!)
-        let pool_address = burn.pool_address;
+        // Extract 20-byte address from 32-byte padded format
+        let pool_address = burn.pool_address.to_eth_address();
 
         if let Some(pool_arc) = self.pools.get(&pool_address) {
             let mut pool = pool_arc.write();
@@ -1025,7 +1022,6 @@ impl SerializablePoolState {
     }
 
     fn to_pool_state(&self) -> PoolState {
-
         // Reconstruct the full PoolInstrumentId from saved data
         // Convert u16 back to VenueId enum
         let venue = match self.venue {

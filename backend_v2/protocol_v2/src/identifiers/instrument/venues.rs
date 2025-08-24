@@ -160,10 +160,11 @@
 //! ```
 
 use num_enum::TryFromPrimitive;
+use zerocopy::AsBytes;
 
 /// Venue identifiers for different exchanges and protocols
 #[repr(u16)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive, AsBytes)]
 pub enum VenueId {
     // Generic venue for testing and legacy compatibility (0)
     Generic = 0,
@@ -304,17 +305,58 @@ impl VenueId {
         )
     }
 
-    /// Check if this venue is a centralized exchange  
-    pub fn is_centralized(&self) -> bool {
-        matches!(*self as u16, 1..=99 | 100..=199 | 700..=799 | 800..=899)
+    /// Check if this is a DeFi (decentralized) venue
+    pub fn is_defi(&self) -> bool {
+        matches!(
+            self,
+            VenueId::UniswapV2
+                | VenueId::UniswapV3
+                | VenueId::SushiSwap
+                | VenueId::Curve
+                | VenueId::Balancer
+                | VenueId::Aave
+                | VenueId::Compound
+                | VenueId::MakerDAO
+                | VenueId::Yearn
+                | VenueId::Synthetix
+                | VenueId::DYdX
+                | VenueId::QuickSwap
+                | VenueId::SushiSwapPolygon
+                | VenueId::CurvePolygon
+                | VenueId::AavePolygon
+                | VenueId::BalancerPolygon
+                | VenueId::PancakeSwap
+                | VenueId::VenusProtocol
+                | VenueId::UniswapV3Arbitrum
+                | VenueId::SushiSwapArbitrum
+                | VenueId::CurveArbitrum
+                | VenueId::OpynProtocol
+                | VenueId::Hegic
+        )
     }
 
-    /// Check if this venue is a DeFi protocol or blockchain
-    pub fn is_defi(&self) -> bool {
-        matches!(*self as u16, 200..=699)
+    /// Check if this is a centralized exchange
+    pub fn is_centralized(&self) -> bool {
+        matches!(
+            self,
+            VenueId::Coinbase
+                | VenueId::Binance
+                | VenueId::Kraken
+                | VenueId::Gemini
+                | VenueId::FTX
+                | VenueId::Huobi
+                | VenueId::KuCoin
+                | VenueId::Bybit
+                | VenueId::Deribit
+                | VenueId::BybitDerivatives
+        )
     }
 
     /// Get the chain ID for blockchain venues (for EVM chains)
+    ///
+    /// Returns the chain ID for venues that operate on specific blockchains.
+    /// This is useful for determining which network to connect to for DEX protocols
+    /// and blockchain-native operations.
     pub fn chain_id(&self) -> Option<u64> {
         match self {
             VenueId::Ethereum

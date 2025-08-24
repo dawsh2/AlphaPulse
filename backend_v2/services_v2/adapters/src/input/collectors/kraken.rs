@@ -12,14 +12,13 @@
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use protocol_v2::{
-    current_timestamp_ns, InstrumentId, QuoteTLV, RelayDomain, SourceType, TLVMessageBuilder,
-    TLVType, TradeTLV, VenueId,
+    current_timestamp_ns, tlv::build_message_direct, InstrumentId, QuoteTLV, RelayDomain, 
+    SourceType, TLVType, TradeTLV, VenueId,
 };
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde_json::Value;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, RwLock};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use url::Url;
@@ -28,42 +27,7 @@ use crate::input::{HealthStatus, InputAdapter};
 use crate::AdapterMetrics;
 use crate::{AdapterError, Result};
 
-/// Kraken System Status JSON Schema
-///
-/// Connection initialization message
-const KRAKEN_SYSTEM_STATUS_SCHEMA: &str = r#"
-{
-  "event": "systemStatus",
-  "version": "1.9.6",
-  "status": "online",
-  "connectionID": 12345678901234567890
-}
-"#;
-
-/// Kraken Subscription Status JSON Schema
-///
-/// Confirmation of subscription requests
-const KRAKEN_SUBSCRIPTION_STATUS_SCHEMA: &str = r#"
-{
-  "channelID": 119930881,
-  "channelName": "trade",
-  "event": "subscriptionStatus",
-  "pair": "XBT/USD",
-  "status": "subscribed",
-  "subscription": {
-    "name": "trade"
-  }
-}
-"#;
-
-/// Kraken Heartbeat JSON Schema
-///
-/// Periodic keepalive message
-const KRAKEN_HEARTBEAT_SCHEMA: &str = r#"
-{
-  "event": "heartbeat"
-}
-"#;
+// Removed verbose schema constants - see Kraken API docs for format details
 
 /// Kraken Trade Data Array Schema
 ///
@@ -128,28 +92,20 @@ const KRAKEN_SUBSCRIPTION_REQUEST_SCHEMA: &str = r#"
 }
 "#;
 
-/// Kraken Order Book Subscription Request
-///
-/// Subscribe to L2 order book with depth
-const KRAKEN_BOOK_SUBSCRIPTION_SCHEMA: &str = r#"
-{
-  "event": "subscribe", 
-  "pair": ["XBT/USD"],
-  "subscription": {
-    "name": "book",
-    "depth": 10                        // Order book depth (1, 5, 10, 25, 100, 500, 1000)
-  }
-}
-"#;
-
 /// Configuration for Kraken WebSocket collector
 #[derive(Debug, Clone)]
 pub struct KrakenConfig {
+    /// WebSocket endpoint URL
     pub websocket_url: String,
+    /// List of trading pairs to subscribe to
     pub trading_pairs: Vec<String>,
+    /// Venue identifier for this exchange
     pub venue_id: VenueId,
+    /// Milliseconds between reconnection attempts
     pub reconnect_interval_ms: u64,
+    /// Maximum number of reconnection attempts
     pub max_reconnect_attempts: usize,
+    /// Milliseconds before heartbeat timeout
     pub heartbeat_timeout_ms: u64,
 }
 
@@ -169,24 +125,42 @@ impl Default for KrakenConfig {
 /// Enhanced error types for Kraken collector operations
 #[derive(Debug, thiserror::Error)]
 pub enum KrakenError {
+    /// WebSocket connection failure
     #[error("WebSocket connection failed: {0}")]
     WebSocketConnectionFailed(String),
 
+    /// Subscription to trading pair failed
     #[error("Subscription failed for pair {pair}: {reason}")]
-    SubscriptionFailed { pair: String, reason: String },
+    SubscriptionFailed {
+        /// Trading pair that failed to subscribe
+        pair: String,
+        /// Reason for subscription failure
+        reason: String,
+    },
 
+    /// Invalid message format from exchange
     #[error("Invalid message format: {0}")]
     InvalidMessageFormat(String),
 
+    /// Message serialization failure
     #[error("Serialization error: {0}")]
     SerializationError(String),
 
+    /// Connection timeout exceeded
     #[error("Connection timeout after {timeout_ms}ms")]
-    ConnectionTimeout { timeout_ms: u64 },
+    ConnectionTimeout {
+        /// Timeout duration in milliseconds
+        timeout_ms: u64,
+    },
 
+    /// Heartbeat timeout exceeded
     #[error("Heartbeat timeout - no response for {timeout_ms}ms")]
-    HeartbeatTimeout { timeout_ms: u64 },
+    HeartbeatTimeout {
+        /// Timeout duration in milliseconds
+        timeout_ms: u64,
+    },
 
+    /// Wrapped adapter error
     #[error("Adapter error: {0}")]
     AdapterError(#[from] AdapterError),
 }
@@ -222,7 +196,6 @@ pub struct KrakenCollector {
     metrics: Arc<AdapterMetrics>,
     output_tx: mpsc::Sender<Vec<u8>>, // Protocol V2 binary messages
     running: Arc<RwLock<bool>>,
-    subscribed_pairs: Arc<RwLock<Vec<String>>>,
     reconnect_attempts: Arc<RwLock<usize>>,
 }
 
@@ -236,7 +209,6 @@ impl KrakenCollector {
             metrics,
             output_tx,
             running: Arc::new(RwLock::new(false)),
-            subscribed_pairs: Arc::new(RwLock::new(Vec::new())),
             reconnect_attempts: Arc::new(RwLock::new(0)),
         }
     }
@@ -262,6 +234,7 @@ impl KrakenCollector {
     }
 
     /// Parse Kraken trade array and convert to Protocol V2 TLV message
+    #[allow(dead_code)]
     fn parse_trade_message(&self, trade_data: &Value) -> Result<Vec<u8>> {
         // Expected format: [channelID, [[trade_data]], "trade", "PAIR"]
         let array = trade_data.as_array().ok_or_else(|| {
@@ -364,7 +337,7 @@ impl KrakenCollector {
             };
 
             // Create TradeTLV
-            let trade_tlv = TradeTLV::new(
+            let trade_tlv = TradeTLV::from_instrument(
                 self.config.venue_id,
                 instrument_id,
                 price_fixed,
@@ -373,11 +346,14 @@ impl KrakenCollector {
                 timestamp_ns,
             );
 
-            // Build Protocol V2 binary message
-            let message =
-                TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::KrakenCollector)
-                    .add_tlv(TLVType::Trade, &trade_tlv)
-                    .build();
+            // Build Protocol V2 binary message (1 allocation for channel send is optimal)
+            let message = build_message_direct(
+                RelayDomain::MarketData,
+                SourceType::KrakenCollector,
+                TLVType::Trade,
+                &trade_tlv,
+            )
+            .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
 
             Ok(message)
         } else {
@@ -386,6 +362,7 @@ impl KrakenCollector {
     }
 
     /// Parse Kraken order book message and convert to Protocol V2 TLV
+    #[allow(dead_code)]
     fn parse_book_message(&self, book_data: &Value) -> Result<Vec<u8>> {
         // Expected format: [channelID, book_data, "book", "PAIR"]
         let array = book_data.as_array().ok_or_else(|| {
@@ -489,7 +466,7 @@ impl KrakenCollector {
                     * 100_000_000.0) as i64;
 
                 // Create QuoteTLV for order book update
-                let quote_tlv = QuoteTLV::new(
+                let quote_tlv = QuoteTLV::from_instrument(
                     self.config.venue_id,
                     instrument_id,
                     bid_price,
@@ -500,10 +477,13 @@ impl KrakenCollector {
                 );
 
                 // Build Protocol V2 binary message
-                let message =
-                    TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::KrakenCollector)
-                        .add_tlv(TLVType::Quote, &quote_tlv)
-                        .build();
+                let message = build_message_direct(
+                    RelayDomain::MarketData,
+                    SourceType::KrakenCollector,
+                    TLVType::Quote,
+                    &quote_tlv,
+                )
+                .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
 
                 Ok(message)
             } else {
@@ -515,6 +495,7 @@ impl KrakenCollector {
     }
 
     /// Create subscription message for trading pairs
+    #[allow(dead_code)]
     fn create_subscription_message(&self, pairs: &[String], channel: &str) -> String {
         serde_json::json!({
             "event": "subscribe",
@@ -719,7 +700,7 @@ impl KrakenCollector {
                             }
                         }
                         Some(Err(e)) => {
-                            return Err(KrakenError::WebSocketConnectionFailed(format!("WebSocket error: {}", e)).into());
+                            return Err(KrakenError::WebSocketConnectionFailed(format!("WebSocket error: {}", e)));
                         }
                         None => {
                             tracing::warn!("WebSocket stream ended");
@@ -731,7 +712,7 @@ impl KrakenCollector {
                     if last_heartbeat.elapsed().as_millis() > config.heartbeat_timeout_ms as u128 {
                         return Err(KrakenError::HeartbeatTimeout {
                             timeout_ms: config.heartbeat_timeout_ms
-                        }.into());
+                        });
                     }
                 }
             }
@@ -808,7 +789,7 @@ impl KrakenCollector {
             Message::Binary(_data) => {
                 tracing::debug!("Received binary message (not supported by Kraken)");
             }
-            Message::Ping(data) => {
+            Message::Ping(_data) => {
                 tracing::debug!("Received ping, sending pong");
                 // WebSocket library handles pong automatically
             }
@@ -926,7 +907,7 @@ impl KrakenCollector {
             };
 
             // Create TradeTLV and build message
-            let trade_tlv = TradeTLV::new(
+            let trade_tlv = TradeTLV::from_instrument(
                 venue_id,
                 instrument_id,
                 price_fixed,
@@ -935,10 +916,13 @@ impl KrakenCollector {
                 timestamp_ns,
             );
 
-            let message =
-                TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::KrakenCollector)
-                    .add_tlv(TLVType::Trade, &trade_tlv)
-                    .build();
+            let message = build_message_direct(
+                RelayDomain::MarketData,
+                SourceType::KrakenCollector,
+                TLVType::Trade,
+                &trade_tlv,
+            )
+            .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
 
             Ok(message)
         } else {
@@ -1050,7 +1034,7 @@ impl KrakenCollector {
                     * 100_000_000.0) as i64;
 
                 // Create QuoteTLV for order book update
-                let quote_tlv = QuoteTLV::new(
+                let quote_tlv = QuoteTLV::from_instrument(
                     venue_id,
                     instrument_id,
                     bid_price,
@@ -1061,10 +1045,13 @@ impl KrakenCollector {
                 );
 
                 // Build Protocol V2 binary message
-                let message =
-                    TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::KrakenCollector)
-                        .add_tlv(TLVType::Quote, &quote_tlv)
-                        .build();
+                let message = build_message_direct(
+                    RelayDomain::MarketData,
+                    SourceType::KrakenCollector,
+                    TLVType::Quote,
+                    &quote_tlv,
+                )
+                .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
 
                 Ok(message)
             } else {

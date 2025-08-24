@@ -59,7 +59,7 @@
 //! ### Fixed-Size TLVs (Highest Performance)
 //! - **Size**: Exact byte count known at compile time
 //! - **Performance**: Zero validation overhead, optimal for hot paths
-//! - **Examples**: TradeTLV (37 bytes), Economics (32 bytes)
+//! - **Examples**: TradeTLV (40 bytes), Economics (32 bytes)
 //! - **Use Case**: High-frequency market data, critical trading signals
 //!
 //! ### Bounded-Size TLVs (Good Performance)  
@@ -291,6 +291,10 @@ pub mod builder;
 pub mod demo_defi;
 pub mod dynamic_payload;
 pub mod extended;
+pub mod fast_timestamp;
+pub mod hot_path_buffers;
+#[macro_use]
+pub mod macros;
 pub mod market_data;
 pub mod parser;
 pub mod pool_cache;
@@ -299,7 +303,8 @@ pub mod relay_parser;
 pub mod system;
 pub mod type_safe;
 pub mod types;
-pub mod zero_copy_builder;
+// pub mod zero_copy_builder; // DELETED - flawed implementation with Vec<TLVRef> allocation
+pub mod zero_copy_builder_v2;
 pub mod zero_copy_tests;
 
 pub use address::{AddressConversion, AddressExtraction, PaddedAddress};
@@ -308,11 +313,17 @@ pub use dynamic_payload::{
     DynamicPayload, FixedStr, FixedVec, PayloadError, MAX_INSTRUMENTS, MAX_POOL_TOKENS,
 };
 pub use extended::*;
+pub use fast_timestamp::{fast_timestamp_ns, init_timestamp_system, precise_timestamp_ns};
+pub use hot_path_buffers::{
+    build_and_send_message, build_with_size_hint, with_hot_path_buffer, with_signal_buffer,
+    with_validation_buffer, BufferError,
+};
 pub use market_data::*;
 pub use parser::*;
 pub use relay_parser::*;
 pub use types::*;
-pub use zero_copy_builder::{TLVRef, ZeroCopyTLVMessageBuilder};
+// zero_copy_builder exports DELETED - use build_message_direct instead
+pub use zero_copy_builder_v2::{TrueZeroCopyBuilder, build_message_direct};
 // Export pool_state PoolType explicitly (it's a type alias for DEXProtocol)
 pub use demo_defi::*;
 pub use pool_state::{DEXProtocol, PoolStateTLV, PoolStateTracker, PoolType};

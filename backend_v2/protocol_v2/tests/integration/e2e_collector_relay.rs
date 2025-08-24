@@ -10,7 +10,7 @@
 //! - Data integrity is preserved end-to-end
 //! - Performance under concurrent collector load
 
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     VenueId, InstrumentId, TradeTLV, QuoteTLV, PoolSwapTLV, PoolInstrumentId, 
     TLVMessage, relay::market_data_relay::MarketDataRelay
 };

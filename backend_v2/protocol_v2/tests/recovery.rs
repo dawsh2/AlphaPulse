@@ -8,12 +8,12 @@
 
 mod common;
 
-use alphapulse_protocol_v2::{
+use common::*;
+use protocol_v2::{
     recovery::{RecoveryRequestBuilder, RecoveryRequestTLV, RecoveryRequestType},
     tlv::TLVMessageBuilder,
     MessageHeader, RelayDomain, SourceType, TLVType,
 };
-use common::*;
 use std::collections::HashMap;
 
 #[test]
@@ -27,9 +27,8 @@ fn test_sequence_gap_detection() {
         // Set sequence number
         msg[12..20].copy_from_slice(&(seq as u64).to_le_bytes());
         // Recalculate checksum
-        let checksum =
-            alphapulse_protocol_v2::validation::calculate_crc32_excluding_checksum(&msg, 28);
-        msg[28..32].copy_from_slice(&checksum.to_be_bytes());
+        let checksum = protocol_v2::validation::calculate_crc32_excluding_checksum(&msg, 28);
+        msg[28..32].copy_from_slice(&checksum.to_le_bytes());
         messages.push((seq, msg));
     }
 
@@ -38,7 +37,7 @@ fn test_sequence_gap_detection() {
     let mut gaps = Vec::new();
 
     for (seq, msg) in &messages {
-        let header = alphapulse_protocol_v2::parse_header(msg).unwrap();
+        let header = protocol_v2::parse_header(msg).unwrap();
         let msg_seq = header.sequence;
 
         if last_seq > 0 && msg_seq > last_seq + 1 {
@@ -69,12 +68,12 @@ fn test_recovery_request_creation() {
     );
 
     // Verify it parses correctly
-    let header = alphapulse_protocol_v2::parse_header(&msg).unwrap();
+    let header = protocol_v2::parse_header(&msg).unwrap();
     assert_eq!(header.get_relay_domain().unwrap(), RelayDomain::MarketData);
 
     // Check TLV type
     let tlv_data = &msg[MessageHeader::SIZE..];
-    let tlvs = alphapulse_protocol_v2::parse_tlv_extensions(tlv_data).unwrap();
+    let tlvs = protocol_v2::parse_tlv_extensions(tlv_data).unwrap();
 
     // Should have RecoveryRequest TLV (type 110)
     // We check the raw TLV type in the message
@@ -112,9 +111,9 @@ fn test_snapshot_generation() {
         .build();
 
     // Verify snapshot message
-    let header = alphapulse_protocol_v2::parse_header(&snapshot_msg).unwrap();
+    let header = protocol_v2::parse_header(&snapshot_msg).unwrap();
     let tlv_data = &snapshot_msg[MessageHeader::SIZE..];
-    let tlvs = alphapulse_protocol_v2::parse_tlv_extensions(tlv_data).unwrap();
+    let tlvs = protocol_v2::parse_tlv_extensions(tlv_data).unwrap();
 
     // Should have Snapshot TLV (type 101)
     // We check the raw TLV type in the message
@@ -240,7 +239,7 @@ fn test_recovery_during_arbitrage_opportunity() {
 
     // Arbitrage opportunity detected at sequence 2000
     let arb_sequence = 2000u64;
-    let arb_timestamp = alphapulse_protocol_v2::header::current_timestamp_ns();
+    let arb_timestamp = protocol_v2::header::current_timestamp_ns();
 
     // Consumer disconnected at 1990, misses the opportunity
     let consumer_last_seq = 1990u64;
@@ -248,7 +247,7 @@ fn test_recovery_during_arbitrage_opportunity() {
     // By the time consumer recovers (100ms later), opportunity is gone
     std::thread::sleep(std::time::Duration::from_millis(100));
 
-    let recovery_timestamp = alphapulse_protocol_v2::header::current_timestamp_ns();
+    let recovery_timestamp = protocol_v2::header::current_timestamp_ns();
     let delay_ns = recovery_timestamp - arb_timestamp;
     let delay_ms = delay_ns / 1_000_000;
 
@@ -276,7 +275,7 @@ fn test_recovery_during_arbitrage_opportunity() {
 #[test]
 fn test_orderbook_snapshot_recovery() {
     // Orderbook state recovery after disconnection
-    use alphapulse_protocol_v2::InstrumentId;
+    use protocol_v2::InstrumentId;
 
     // Current orderbook state
     struct OrderbookLevel {
@@ -284,9 +283,9 @@ fn test_orderbook_snapshot_recovery() {
         volume: i64,
     }
 
-    let btc = InstrumentId::coin(alphapulse_protocol_v2::VenueId::Binance, "BTC");
-    let usdt = InstrumentId::coin(alphapulse_protocol_v2::VenueId::Binance, "USDT");
-    let btc_usdt = InstrumentId::pool(alphapulse_protocol_v2::VenueId::UniswapV2, btc, usdt);
+    let btc = InstrumentId::coin(protocol_v2::VenueId::Binance, "BTC");
+    let usdt = InstrumentId::coin(protocol_v2::VenueId::Binance, "USDT");
+    let btc_usdt = InstrumentId::pool(protocol_v2::VenueId::UniswapV2, btc, usdt);
     let orderbook = vec![
         OrderbookLevel {
             price: 4499000000000,
@@ -323,7 +322,7 @@ fn test_orderbook_snapshot_recovery() {
 
     // Verify snapshot contains full orderbook
     let tlv_data = &snapshot_msg[MessageHeader::SIZE..];
-    let tlvs = alphapulse_protocol_v2::parse_tlv_extensions(tlv_data).unwrap();
+    let tlvs = protocol_v2::parse_tlv_extensions(tlv_data).unwrap();
     assert_eq!(tlvs.len(), 1);
 }
 
@@ -349,9 +348,8 @@ fn test_execution_domain_recovery_ordering() {
         // Set sequence
         msg[12..20].copy_from_slice(&(seq as u64).to_le_bytes());
         // Fix checksum
-        let checksum =
-            alphapulse_protocol_v2::validation::calculate_crc32_excluding_checksum(&msg, 28);
-        msg[28..32].copy_from_slice(&checksum.to_be_bytes());
+        let checksum = protocol_v2::validation::calculate_crc32_excluding_checksum(&msg, 28);
+        msg[28..32].copy_from_slice(&checksum.to_le_bytes());
 
         messages.push(msg);
     }
@@ -359,7 +357,7 @@ fn test_execution_domain_recovery_ordering() {
     // Verify order preservation
     let mut last_seq = 0u64;
     for msg in &messages {
-        let header = alphapulse_protocol_v2::parse_header(msg).unwrap();
+        let header = protocol_v2::parse_header(msg).unwrap();
         assert!(
             header.sequence > last_seq,
             "Execution messages must maintain order"
@@ -444,18 +442,17 @@ fn test_recovery_checksum_validation() {
             // Set sequence
             msg[12..20].copy_from_slice(&(i as u64).to_le_bytes());
             // Recalculate checksum
-            let checksum =
-                alphapulse_protocol_v2::validation::calculate_crc32_excluding_checksum(&msg, 28);
-            msg[28..32].copy_from_slice(&checksum.to_be_bytes());
+            let checksum = protocol_v2::validation::calculate_crc32_excluding_checksum(&msg, 28);
+            msg[28..32].copy_from_slice(&checksum.to_le_bytes());
             msg
         })
         .collect::<Vec<_>>();
 
     // Verify all recovered messages
     for msg in &recovery_messages {
-        let header = alphapulse_protocol_v2::parse_header(msg).unwrap();
+        let header = protocol_v2::parse_header(msg).unwrap();
         assert!(
-            alphapulse_protocol_v2::validation::verify_message_checksum(msg, header.checksum, 28),
+            protocol_v2::validation::verify_message_checksum(msg, header.checksum, 28),
             "Recovered message has invalid checksum"
         );
     }

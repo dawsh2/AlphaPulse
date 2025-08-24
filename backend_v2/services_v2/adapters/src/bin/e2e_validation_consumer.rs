@@ -6,12 +6,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::net::UnixStream;
-use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-use alphapulse_protocol_v2::{
-    tlv::market_data::{PoolBurnTLV, PoolLiquidityTLV, PoolMintTLV, PoolSwapTLV, PoolTickTLV},
-    InstrumentId,
+use protocol_v2::tlv::market_data::{
+    PoolBurnTLV, PoolLiquidityTLV, PoolMintTLV, PoolSwapTLV, PoolTickTLV,
 };
 
 #[derive(Debug, Default)]
@@ -447,7 +445,7 @@ async fn main() {
         std::process::exit(1);
     }
 
-    let preserved = stats.precision_preserved.load(Ordering::Relaxed);
+    let _preserved = stats.precision_preserved.load(Ordering::Relaxed);
     let lost = stats.precision_lost.load(Ordering::Relaxed);
 
     if lost > 0 {

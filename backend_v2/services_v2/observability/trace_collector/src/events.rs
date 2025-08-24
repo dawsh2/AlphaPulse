@@ -5,7 +5,7 @@
 use crate::{trace_id_to_hex, Result, TraceCollectorStats, TraceError, TraceId, TraceTimeline};
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use protocol_v2::{TraceEvent, TraceEventType};
+use protocol_v2::TraceEvent;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 use std::sync::Arc;
 use tokio::time::Instant;
@@ -283,7 +283,7 @@ mod tests {
     #[tokio::test]
     async fn test_event_processor_new_trace() {
         let active_traces = Arc::new(DashMap::new());
-        let completed_traces = Arc::new(RwLock::new(AllocRingBuffer::with_capacity(100)));
+        let completed_traces = Arc::new(RwLock::new(AllocRingBuffer::new(100)));
         let stats = Arc::new(RwLock::new(TraceCollectorStats {
             events_processed: 0,
             active_traces: 0,
@@ -315,7 +315,7 @@ mod tests {
     #[tokio::test]
     async fn test_event_processor_trace_completion() {
         let active_traces = Arc::new(DashMap::new());
-        let completed_traces = Arc::new(RwLock::new(AllocRingBuffer::with_capacity(100)));
+        let completed_traces = Arc::new(RwLock::new(AllocRingBuffer::new(100)));
         let stats = Arc::new(RwLock::new(TraceCollectorStats {
             events_processed: 0,
             active_traces: 0,

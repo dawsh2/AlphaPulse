@@ -45,7 +45,7 @@
 
 use anyhow::Result;
 use std::sync::Arc;
-use tokio::sync::mpsc;
+// Removed: use tokio::sync::mpsc; - no longer using MPSC channels
 use tracing::{error, info, warn};
 
 use crate::config::DetectorConfig;
@@ -72,7 +72,7 @@ pub struct StrategyEngine {
     pool_manager: Arc<PoolStateManager>,
     detector: Arc<OpportunityDetector>,
     executor: Arc<Executor>,
-    signal_output: SignalOutput,
+    signal_output: Arc<SignalOutput>,
     config: StrategyConfig,
 }
 
@@ -84,7 +84,7 @@ impl StrategyEngine {
             config.detector.clone(),
         ));
         let executor = Arc::new(Executor::new(config.executor.clone()));
-        let signal_output = SignalOutput::new(config.signal_relay_path.clone());
+        let signal_output = Arc::new(SignalOutput::new(config.signal_relay_path.clone()));
 
         Self {
             pool_manager,
@@ -100,22 +100,18 @@ impl StrategyEngine {
         info!("🚀 Starting Flash Arbitrage Strategy Engine");
 
         // Start signal output component
-        let signal_tx = self.signal_output.start().await?;
+        self.signal_output.start().await?;
         info!("📡 Signal output component started");
 
-        // Create channel for arbitrage opportunities
-        let (opportunity_tx, mut opportunity_rx) =
-            mpsc::unbounded_channel::<ArbitrageOpportunity>();
-
-        // Start relay consumer (proper architecture)
+        // Start relay consumer with direct signal output integration (no MPSC)
         let mut relay_consumer = RelayConsumer::new(
             self.config.market_data_relay_path.clone(),
             self.pool_manager.clone(),
             self.detector.clone(),
-            opportunity_tx,
+            self.signal_output.clone(),
         );
 
-        let data_handle = tokio::spawn(async move {
+        let consumer_handle = tokio::spawn(async move {
             if let Err(e) = relay_consumer.start().await {
                 error!("Relay consumer failed: {}", e);
             }
@@ -123,52 +119,16 @@ impl StrategyEngine {
 
         info!("✅ Data consumer started");
 
-        // Main strategy loop - process opportunities
-        let strategy_handle = tokio::spawn(async move {
-            let mut opportunity_count = 0;
+        info!("✅ Data consumer started");
+        info!("📊 Flash Arbitrage Strategy Engine running with direct relay integration (no MPSC channels)");
 
-            while let Some(opportunity) = opportunity_rx.recv().await {
-                opportunity_count += 1;
+        // Main strategy runs via RelayConsumer direct integration
+        // Opportunities are automatically processed and sent via SignalOutput
 
-                info!(
-                    "⚡ Processing arbitrage opportunity #{}: profit=${:.2}, spread={:.3}%",
-                    opportunity_count,
-                    opportunity.expected_profit_usd,
-                    opportunity.spread_percentage * 100.0
-                );
-
-                // Send opportunity to dashboard via signal relay
-                if let Err(_) = signal_tx.send(opportunity.clone()) {
-                    warn!("Failed to send opportunity to signal output (channel closed)");
-                }
-
-                // TODO: Add execution logic here
-                // For now, just log the opportunity
-                if opportunity.expected_profit_usd > 10.0 {
-                    info!(
-                        "🎯 HIGH VALUE OPPORTUNITY: ${:.2} profit detected!",
-                        opportunity.expected_profit_usd
-                    );
-                }
-            }
-        });
-
-        info!("✅ Flash Arbitrage Strategy Engine fully operational");
-
-        // Wait for tasks to complete
-        tokio::select! {
-            result = data_handle => {
-                if let Err(e) = result {
-                    error!("Data consumer task failed: {}", e);
-                }
-            }
-            result = strategy_handle => {
-                if let Err(e) = result {
-                    error!("Strategy processing task failed: {}", e);
-                }
-            }
+        // Wait for the consumer task to complete (runs indefinitely)
+        match consumer_handle.await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(anyhow::anyhow!("Consumer task failed: {}", e)),
         }
-
-        Ok(())
     }
 }

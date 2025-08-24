@@ -3,7 +3,7 @@
 //! Provides compression and decompression capabilities for network transport
 //! using LZ4, Zstd, and Snappy algorithms optimized for different use cases.
 
-use crate::{TransportError, Result};
+use crate::{Result, TransportError};
 use serde::{Deserialize, Serialize};
 
 /// Compression type enumeration
@@ -56,30 +56,29 @@ impl CompressionEngine {
 
         match self.compression_type {
             CompressionType::None => Ok(data.to_vec()),
-            
+
             #[cfg(feature = "compression")]
-            CompressionType::Lz4 => {
-                lz4::block::compress(data, None, true)
-                    .map_err(|e| TransportError::compression("lz4", format!("Compression failed: {}", e)))
-            }
-            
+            CompressionType::Lz4 => lz4::block::compress(data, None, true).map_err(|e| {
+                TransportError::compression("lz4", format!("Compression failed: {}", e))
+            }),
+
             #[cfg(feature = "compression")]
-            CompressionType::Zstd => {
-                zstd::bulk::compress(data, self.zstd_level)
-                    .map_err(|e| TransportError::compression("zstd", format!("Compression failed: {}", e)))
-            }
-            
+            CompressionType::Zstd => zstd::bulk::compress(data, self.zstd_level).map_err(|e| {
+                TransportError::compression("zstd", format!("Compression failed: {}", e))
+            }),
+
             #[cfg(feature = "compression")]
             CompressionType::Snappy => {
                 let mut encoder = snap::raw::Encoder::new();
-                encoder.compress_vec(data)
-                    .map_err(|e| TransportError::compression("snappy", format!("Compression failed: {}", e)))
+                encoder.compress_vec(data).map_err(|e| {
+                    TransportError::compression("snappy", format!("Compression failed: {}", e))
+                })
             }
 
             #[cfg(not(feature = "compression"))]
             _ => Err(TransportError::configuration(
                 "Compression feature not enabled",
-                Some("compression")
+                Some("compression"),
             )),
         }
     }
@@ -92,32 +91,33 @@ impl CompressionEngine {
 
         match self.compression_type {
             CompressionType::None => Ok(data.to_vec()),
-            
+
             #[cfg(feature = "compression")]
-            CompressionType::Lz4 => {
-                lz4::block::decompress(data, None)
-                    .map_err(|e| TransportError::compression("lz4", format!("Decompression failed: {}", e)))
-            }
-            
+            CompressionType::Lz4 => lz4::block::decompress(data, None).map_err(|e| {
+                TransportError::compression("lz4", format!("Decompression failed: {}", e))
+            }),
+
             #[cfg(feature = "compression")]
             CompressionType::Zstd => {
                 // Use reasonable max size to prevent memory exhaustion
                 const MAX_DECOMPRESSED_SIZE: usize = 64 * 1024 * 1024; // 64MB
-                zstd::bulk::decompress(data, MAX_DECOMPRESSED_SIZE)
-                    .map_err(|e| TransportError::compression("zstd", format!("Decompression failed: {}", e)))
+                zstd::bulk::decompress(data, MAX_DECOMPRESSED_SIZE).map_err(|e| {
+                    TransportError::compression("zstd", format!("Decompression failed: {}", e))
+                })
             }
-            
+
             #[cfg(feature = "compression")]
             CompressionType::Snappy => {
                 let mut decoder = snap::raw::Decoder::new();
-                decoder.decompress_vec(data)
-                    .map_err(|e| TransportError::compression("snappy", format!("Decompression failed: {}", e)))
+                decoder.decompress_vec(data).map_err(|e| {
+                    TransportError::compression("snappy", format!("Decompression failed: {}", e))
+                })
             }
 
             #[cfg(not(feature = "compression"))]
             _ => Err(TransportError::configuration(
-                "Compression feature not enabled", 
-                Some("compression")
+                "Compression feature not enabled",
+                Some("compression"),
             )),
         }
     }
@@ -217,22 +217,22 @@ pub struct CompressionInfo {
 /// Compression speed characteristics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CompressionSpeed {
-    Fastest,   // No compression
-    VeryFast,  // LZ4, Snappy
-    Fast,      // Zstd level 1-3
-    Medium,    // Zstd level 4-6
-    Slow,      // Zstd level 7-12
-    Slowest,   // Zstd level 13-22
+    Fastest,  // No compression
+    VeryFast, // LZ4, Snappy
+    Fast,     // Zstd level 1-3
+    Medium,   // Zstd level 4-6
+    Slow,     // Zstd level 7-12
+    Slowest,  // Zstd level 13-22
 }
 
 /// Compression ratio characteristics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CompressionRatio {
-    Lowest,   // No compression
-    Low,      // LZ4
-    Medium,   // Snappy
-    High,     // Zstd
-    Highest,  // Zstd max level
+    Lowest,  // No compression
+    Low,     // LZ4
+    Medium,  // Snappy
+    High,    // Zstd
+    Highest, // Zstd max level
 }
 
 /// Adaptive compression that selects algorithm based on data characteristics
@@ -246,7 +246,7 @@ impl AdaptiveCompression {
     /// Create adaptive compression engine
     pub fn new() -> Self {
         let mut engines = vec![CompressionEngine::new(CompressionType::None)];
-        
+
         #[cfg(feature = "compression")]
         {
             engines.push(CompressionEngine::new(CompressionType::Lz4));
@@ -256,7 +256,7 @@ impl AdaptiveCompression {
 
         Self {
             engines,
-            sample_size: 1024, // Sample first 1KB to choose algorithm
+            sample_size: 1024,          // Sample first 1KB to choose algorithm
             compression_threshold: 0.9, // Only compress if ratio < 90%
         }
     }
@@ -289,10 +289,12 @@ impl AdaptiveCompression {
     /// Compress with automatic algorithm selection
     pub fn auto_compress(&self, data: &[u8]) -> Result<(Vec<u8>, CompressionType)> {
         let algorithm = self.select_algorithm(data);
-        let engine = self.engines.iter()
+        let engine = self
+            .engines
+            .iter()
             .find(|e| e.compression_type() == algorithm)
             .unwrap();
-        
+
         let compressed = engine.compress(data)?;
         Ok((compressed, algorithm))
     }
@@ -312,10 +314,10 @@ mod tests {
     fn test_no_compression() {
         let engine = CompressionEngine::new(CompressionType::None);
         let data = b"hello world";
-        
+
         let compressed = engine.compress(data).unwrap();
         let decompressed = engine.decompress(&compressed).unwrap();
-        
+
         assert_eq!(data, decompressed.as_slice());
         assert_eq!(compressed, data);
     }
@@ -325,10 +327,10 @@ mod tests {
     fn test_lz4_compression() {
         let engine = CompressionEngine::new(CompressionType::Lz4);
         let data = b"hello world ".repeat(100); // Repetitive data compresses well
-        
+
         let compressed = engine.compress(&data).unwrap();
         let decompressed = engine.decompress(&compressed).unwrap();
-        
+
         assert_eq!(data, decompressed);
         assert!(compressed.len() < data.len()); // Should be compressed
     }
@@ -338,10 +340,10 @@ mod tests {
     fn test_zstd_compression() {
         let engine = CompressionEngine::new(CompressionType::Zstd);
         let data = b"The quick brown fox jumps over the lazy dog ".repeat(50);
-        
+
         let compressed = engine.compress(&data).unwrap();
         let decompressed = engine.decompress(&compressed).unwrap();
-        
+
         assert_eq!(data, decompressed);
         assert!(compressed.len() < data.len());
     }
@@ -351,10 +353,10 @@ mod tests {
     fn test_snappy_compression() {
         let engine = CompressionEngine::new(CompressionType::Snappy);
         let data = b"Lorem ipsum dolor sit amet ".repeat(20);
-        
+
         let compressed = engine.compress(&data).unwrap();
         let decompressed = engine.decompress(&compressed).unwrap();
-        
+
         assert_eq!(data, decompressed);
         assert!(compressed.len() < data.len());
     }
@@ -363,10 +365,10 @@ mod tests {
     fn test_empty_data() {
         let engine = CompressionEngine::new(CompressionType::None);
         let empty: &[u8] = &[];
-        
+
         let compressed = engine.compress(empty).unwrap();
         let decompressed = engine.decompress(&compressed).unwrap();
-        
+
         assert!(compressed.is_empty());
         assert!(decompressed.is_empty());
     }
@@ -374,7 +376,7 @@ mod tests {
     #[test]
     fn test_compression_ratio() {
         let engine = CompressionEngine::new(CompressionType::None);
-        
+
         assert_eq!(engine.compression_ratio(100, 50), 0.5);
         assert_eq!(engine.compression_ratio(0, 0), 1.0);
         assert_eq!(engine.compression_ratio(100, 150), 1.5);
@@ -384,7 +386,7 @@ mod tests {
     fn test_algorithm_info() {
         let engine = CompressionEngine::new(CompressionType::None);
         let info = engine.algorithm_info();
-        
+
         assert_eq!(info.name, "none");
         assert_eq!(info.speed, CompressionSpeed::Fastest);
         assert_eq!(info.ratio, CompressionRatio::Lowest);
@@ -393,18 +395,18 @@ mod tests {
     #[test]
     fn test_adaptive_compression() {
         let adaptive = AdaptiveCompression::new();
-        
+
         // Small data should not be compressed
         let small_data = b"hello";
         assert_eq!(adaptive.select_algorithm(small_data), CompressionType::None);
-        
+
         // Large repetitive data should be compressed (if compression enabled)
         let large_data = b"repeat ".repeat(200);
         let algorithm = adaptive.select_algorithm(&large_data);
-        
+
         #[cfg(feature = "compression")]
         assert_ne!(algorithm, CompressionType::None);
-        
+
         #[cfg(not(feature = "compression"))]
         assert_eq!(algorithm, CompressionType::None);
     }
@@ -413,7 +415,7 @@ mod tests {
     fn test_size_estimation() {
         let engine = CompressionEngine::new(CompressionType::None);
         assert_eq!(engine.estimate_compressed_size(1000), 1000);
-        
+
         #[cfg(feature = "compression")]
         {
             let lz4_engine = CompressionEngine::new(CompressionType::Lz4);

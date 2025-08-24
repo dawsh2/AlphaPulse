@@ -1,15 +1,15 @@
 //! Connection management
 
-use crate::Result;
-use std::sync::Arc;
-use dashmap::DashMap;
 use super::ConnectionConfig;
+use crate::Result;
+use dashmap::DashMap;
+use std::sync::Arc;
 
 pub struct ConnectionPool;
 pub struct Connection;
 
 impl Connection {
-    pub async fn send(&self, data: &[u8]) -> Result<()> {
+    pub async fn send(&self, _data: &[u8]) -> Result<()> {
         // Placeholder implementation
         Ok(())
     }
@@ -35,16 +35,17 @@ impl ConnectionManager {
             connections: Arc::new(DashMap::new()),
         }
     }
-    
+
     pub async fn get_or_create_connection(&self, target_node: &str) -> Result<Arc<Connection>> {
         // Check if connection exists
         if let Some(conn) = self.connections.get(target_node) {
             return Ok(conn.clone());
         }
-        
+
         // Create new connection
         let connection = Arc::new(Connection);
-        self.connections.insert(target_node.to_string(), connection.clone());
+        self.connections
+            .insert(target_node.to_string(), connection.clone());
         Ok(connection)
     }
 }

@@ -1,11 +1,9 @@
 [package]
 name = "alphapulse-adapter-service"
-version = "0.1.0"
-edition = "2021"
-authors = ["AlphaPulse Team"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Exchange data collection and distribution adapters for AlphaPulse trading system"
-
-# Remove workspace declaration to prevent conflicts
 
 [features]
 default = []
@@ -13,20 +11,24 @@ strict-validation = []
 metrics = ["prometheus"]
 
 [[bin]]
-name = "unified_polygon"
+name = "polygon"
 path = "src/bin/polygon/polygon.rs"
 
 [[bin]]
-name = "unified_binance"
+name = "binance"
 path = "src/bin/binance/binance.rs"
 
 [[bin]]
-name = "unified_kraken"
+name = "kraken"
 path = "src/bin/kraken/kraken.rs"
 
 [[bin]]
-name = "unified_coinbase"
+name = "coinbase"
 path = "src/bin/coinbase/coinbase.rs"
+
+[[bin]]
+name = "event_validator"
+path = "src/bin/event_validator.rs"
 
 [[bin]]
 name = "test_semantic_equality" 
@@ -35,6 +37,50 @@ path = "../../test_semantic_equality.rs"
 [[bin]]
 name = "test_real_polygon_pipeline"
 path = "../../test_real_polygon_pipeline.rs"
+
+[[bin]]
+name = "test_polygon_streaming"
+path = "../../test_polygon_streaming.rs"
+
+[[bin]]
+name = "test_polygon_websocket"
+path = "../../test_polygon_websocket.rs"
+
+[[bin]]
+name = "test_alternative_polygon_endpoints"
+path = "../../test_alternative_polygon_endpoints.rs"
+
+[[bin]]
+name = "test_exact_subscription"
+path = "../../test_exact_subscription.rs"
+
+[[bin]]
+name = "test_ethabi_events"
+path = "../../test_ethabi_events.rs"
+
+[[bin]]
+name = "debug_subscription"
+path = "../../debug_subscription.rs"
+
+[[bin]]
+name = "test_config_signatures"
+path = "../../test_config_signatures.rs"
+
+[[bin]]
+name = "test_ethabi_subscription"
+path = "../../test_ethabi_subscription.rs"
+
+[[bin]]
+name = "test_broader_subscription"
+path = "../../test_broader_subscription.rs"
+
+[[bin]]
+name = "test_quicknode_polygon"
+path = "../../test_quicknode_polygon.rs"
+
+[[bin]]
+name = "test_market_data_consumer"
+path = "../../test_market_data_consumer.rs"
 
 [dependencies]
 # Core protocol
@@ -63,6 +109,7 @@ chrono = { workspace = true }
 # Utilities
 hex = { workspace = true }
 dashmap = { workspace = true }
+clap = { version = "4.5", features = ["derive"] }
 once_cell = { workspace = true }
 rust_decimal = { workspace = true }
 bytemuck = { workspace = true }

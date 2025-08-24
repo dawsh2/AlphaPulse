@@ -12,6 +12,9 @@ members = [
     "relays",
     # Shared libraries
     "libs/amm",
+    "libs/dex",
+    "libs/health_check",
+    "libs/service_discovery",
     "libs/mev", 
     "libs/state/core",
     "libs/state/market",
@@ -37,6 +40,9 @@ alphapulse-state-market = { path = "libs/state/market" }
 alphapulse-state-execution = { path = "libs/state/execution" }
 alphapulse-state-portfolio = { path = "libs/state/portfolio" }
 alphapulse-amm = { path = "libs/amm" }
+alphapulse-dex = { path = "libs/dex" }
+alphapulse-health-check = { path = "libs/health_check" }
+alphapulse-service-discovery = { path = "libs/service_discovery" }
 alphapulse-mev = { path = "libs/mev" }
 
 # Async runtime

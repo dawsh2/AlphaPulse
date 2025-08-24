@@ -8,13 +8,13 @@
 
 mod common;
 
-use alphapulse_protocol_v2::{
+use common::*;
+use protocol_v2::{
     parse_header,
     tlv::{ParseError, TLVMessageBuilder},
     validation::calculate_crc32_excluding_checksum,
     MessageHeader, RelayDomain, SourceType, MESSAGE_MAGIC as MAGIC_NUMBER, PROTOCOL_VERSION,
 };
-use common::*;
 
 #[test]
 fn test_message_size_constraint() {
@@ -66,9 +66,8 @@ fn test_version_field() {
     let mut msg_v2 = msg.clone();
     msg_v2[4] = 2; // Change version to 2
                    // Recalculate checksum for modified message
-    let checksum =
-        alphapulse_protocol_v2::validation::calculate_crc32_excluding_checksum(&msg_v2, 28);
-    msg_v2[28..32].copy_from_slice(&checksum.to_be_bytes());
+    let checksum = protocol_v2::validation::calculate_crc32_excluding_checksum(&msg_v2, 28);
+    msg_v2[28..32].copy_from_slice(&checksum.to_le_bytes());
 
     let header_v2 = parse_header(&msg_v2).unwrap();
     let version = header_v2.version; // Copy from packed struct
@@ -145,9 +144,8 @@ fn test_sequence_number_field() {
     msg_with_seq[12..20].copy_from_slice(&seq_num.to_le_bytes());
 
     // Recalculate checksum
-    let checksum =
-        alphapulse_protocol_v2::validation::calculate_crc32_excluding_checksum(&msg_with_seq, 28);
-    msg_with_seq[28..32].copy_from_slice(&checksum.to_be_bytes());
+    let checksum = protocol_v2::validation::calculate_crc32_excluding_checksum(&msg_with_seq, 28);
+    msg_with_seq[28..32].copy_from_slice(&checksum.to_le_bytes());
 
     let header_with_seq = parse_header(&msg_with_seq).unwrap();
     let sequence = header_with_seq.sequence; // Copy from packed struct
@@ -172,7 +170,7 @@ fn test_network_byte_order() {
 
     // Checksum is big-endian
     let checksum_bytes = &msg[28..32];
-    let _checksum = u32::from_be_bytes(checksum_bytes.try_into().unwrap());
+    let _checksum = u32::from_le_bytes(checksum_bytes.try_into().unwrap());
 
     // Timestamp is little-endian (for performance on x86)
     let timestamp_bytes = &msg[20..28];
@@ -190,7 +188,7 @@ fn test_minimum_viable_message() {
 
     // Add minimal TLV (empty payload is valid for some types)
     let msg = builder
-        .add_tlv_bytes(alphapulse_protocol_v2::TLVType::Heartbeat, vec![0; 16])
+        .add_tlv_bytes(protocol_v2::TLVType::Heartbeat, vec![0; 16])
         .build();
 
     // Should be exactly 48 bytes (32 header + 2 TLV header + 16 payload)
@@ -207,7 +205,7 @@ fn test_maximum_standard_message() {
     let large_payload = vec![0xFF; 255];
 
     let msg = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::Dashboard)
-        .add_tlv_bytes(alphapulse_protocol_v2::TLVType::OrderBook, large_payload)
+        .add_tlv_bytes(protocol_v2::TLVType::OrderBook, large_payload)
         .build();
 
     // Should be 32 header + 2 TLV header + 255 payload = 289 bytes
@@ -228,9 +226,8 @@ fn test_flags_field_reserved() {
     msg_with_flags[5] = 0b10101010; // Set some flags
 
     // Recalculate checksum
-    let checksum =
-        alphapulse_protocol_v2::validation::calculate_crc32_excluding_checksum(&msg_with_flags, 28);
-    msg_with_flags[28..32].copy_from_slice(&checksum.to_be_bytes());
+    let checksum = protocol_v2::validation::calculate_crc32_excluding_checksum(&msg_with_flags, 28);
+    msg_with_flags[28..32].copy_from_slice(&checksum.to_le_bytes());
 
     let header = parse_header(&msg_with_flags).unwrap();
     let flags = header.flags; // Copy from packed struct
@@ -293,7 +290,7 @@ fn test_message_padding_alignment() {
 #[test]
 fn test_domain_routing_consistency() {
     // Ensure domain in header matches TLV types
-    use alphapulse_protocol_v2::TLVType;
+    use protocol_v2::TLVType;
 
     // Market data domain should only contain market data TLVs
     let market_msg = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::Dashboard)

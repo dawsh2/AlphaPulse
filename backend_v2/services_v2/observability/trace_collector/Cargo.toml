@@ -36,6 +36,9 @@ chrono = { version = "0.4", features = ["serde"] }
 # System info
 sysinfo = "0.30"
 
+# Hex encoding
+hex = "0.4"
+
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3.0"

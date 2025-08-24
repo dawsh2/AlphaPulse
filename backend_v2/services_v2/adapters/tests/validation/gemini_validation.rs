@@ -165,7 +165,7 @@ pub fn validate_gemini_tlv_serialization(tlv: &TradeTLV) -> Result<Vec<u8>, Stri
     }
 
     // 2. Serialize to bytes
-    let bytes = tlv.as_bytes().to_vec();
+    let bytes = tlv.as_bytes();
 
     // 3. Validate serialized format
     if bytes.is_empty() {
@@ -275,8 +275,8 @@ pub fn validate_gemini_deep_equality(
     }
 
     // 3. Re-serialization produces identical bytes
-    let original_bytes = original.as_bytes().to_vec();
-    let recovered_bytes = recovered.as_bytes().to_vec();
+    let original_bytes = original.as_bytes();
+    let recovered_bytes = recovered.as_bytes();
 
     if original_bytes != recovered_bytes {
         return Err("Re-serialization produces different bytes".to_string());

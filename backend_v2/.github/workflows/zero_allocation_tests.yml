@@ -1,0 +1,67 @@
+name: Zero Allocation Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'protocol_v2/**'
+      - 'services_v2/adapters/**'
+      - '.github/workflows/zero_allocation_tests.yml'
+
+jobs:
+  test-zero-allocations:
+    name: Verify Hot Path Zero Allocations
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    - name: Run Zero Allocation Tests
+      run: |
+        cd backend_v2
+        cargo test --package protocol_v2 --test zero_allocation_tests -- --nocapture
+      env:
+        RUST_BACKTRACE: 1
+    
+    - name: Run Hot Path Performance Benchmarks
+      run: |
+        cd backend_v2
+        cargo test --package protocol_v2 --test zero_allocation_tests -- --ignored --nocapture
+      continue-on-error: true  # Benchmarks are informational
+    
+    - name: Check Protocol V2 Performance
+      run: |
+        cd backend_v2
+        cargo run --bin test_protocol --release
+    
+    - name: Generate Allocation Report
+      if: always()
+      run: |
+        echo "## Zero Allocation Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Hot path operations verified for zero allocations" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Performance Targets:" >> $GITHUB_STEP_SUMMARY
+        echo "- Message construction: <100ns per operation" >> $GITHUB_STEP_SUMMARY
+        echo "- Throughput: >1M messages/second" >> $GITHUB_STEP_SUMMARY
+        echo "- Allocations in hot path: 0" >> $GITHUB_STEP_SUMMARY

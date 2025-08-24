@@ -10,35 +10,40 @@
 use super::ParseError;
 // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
 use crate::SourceType; // TLVType removed with legacy TLV system
+use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use std::collections::HashMap;
-use zerocopy::{AsBytes, FromBytes, FromZeroes};
+use zerocopy::AsBytes;
+use crate::define_tlv;
 
 /// Type alias for trace identifiers
-pub type TraceId = [u8; 16];
+pub type TraceId = [u8; 8];
 
-/// TraceContext TLV - Distributed tracing for message flow observability
-///
-/// Routes through SystemRelay for centralized trace aggregation.
-/// Enables end-to-end tracing from Polygon Collector → Dashboard.
-///
-/// Size: 32 bytes (fits in bounded constraint 32-256 bytes)
-/// Fields ordered to eliminate padding: u64 → [u8;16] → u8
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
-pub struct TraceContextTLV {
-    // Group 64-bit fields first
-    pub start_timestamp_ns: u64,   // Timestamp when trace was started (nanoseconds since epoch)
-    pub current_timestamp_ns: u64, // Current processing timestamp (nanoseconds since epoch)
-    
-    // Then array (16 bytes, naturally aligned)
-    pub trace_id: [u8; 16],        // Unique trace ID for this message flow (16 bytes for UUID-like uniqueness)
-    
-    // Finally 8-bit fields (need 8 bytes to reach 40 total)
-    pub source_service: u8,        // SourceType as u8 - Source service that initiated this trace
-    pub span_depth: u8,           // Current span depth (how many hops from origin)
-    pub stage_flags: u8,          // Processing stage flags (0x01=Collected, 0x02=Relayed, etc.)
-    pub reserved: u8,             // Reserved for future use
-    pub _padding: [u8; 4],        // Explicit padding to reach 40 bytes
+// TraceContext TLV using macro for consistency
+define_tlv! {
+    /// TraceContext TLV - Distributed tracing for message flow observability
+    ///
+    /// Routes through SystemRelay for centralized trace aggregation.
+    /// Enables end-to-end tracing from Polygon Collector → Dashboard.
+    ///
+    /// Size: 32 bytes (fits in bounded constraint 32-256 bytes)
+    TraceContextTLV {
+        u64: {
+            start_timestamp_ns: u64,   // Timestamp when trace was started
+            current_timestamp_ns: u64  // Current processing timestamp
+        }
+        u32: {}
+        u16: {}
+        u8: {
+            source_service: u8, // SourceType as u8
+            span_depth: u8,     // Current span depth
+            stage_flags: u8,    // Processing stage flags
+            reserved: u8,       // Reserved for future use
+            _padding: [u8; 4]   // Explicit padding to reach exactly 32 bytes
+        }
+        special: {
+            trace_id: [u8; 8]  // Unique trace ID for this message flow
+        }
+    }
 }
 
 impl TraceContextTLV {
@@ -50,38 +55,38 @@ impl TraceContextTLV {
 
     /// Create new trace context with unique trace ID
     pub fn new(source: SourceType) -> Self {
-        let current_time = current_timestamp_ns();
+        let current_time = fast_timestamp_ns();
 
-        Self {
-            trace_id: generate_trace_id(),
-            source_service: source as u8,
-            span_depth: 0,
-            stage_flags: 0,
-            reserved: 0,
-            start_timestamp_ns: current_time,
-            current_timestamp_ns: current_time,
-            _padding: [0; 4],
-        }
+        Self::new_raw(
+            current_time,                // start_timestamp_ns
+            current_time,                // current_timestamp_ns
+            source as u8,                // source_service
+            0,                           // span_depth
+            0,                           // stage_flags
+            0,                           // reserved
+            [0; 4],                      // _padding
+            generate_trace_id(),         // trace_id
+        )
     }
 
     /// Continue existing trace with incremented span depth
     pub fn continue_trace(&self, current_service: SourceType) -> Self {
-        Self {
-            trace_id: self.trace_id,
-            source_service: current_service as u8,
-            span_depth: self.span_depth.saturating_add(1),
-            stage_flags: self.stage_flags,
-            reserved: 0,
-            start_timestamp_ns: self.start_timestamp_ns,
-            current_timestamp_ns: current_timestamp_ns(),
-            _padding: [0; 4],
-        }
+        Self::new_raw(
+            self.start_timestamp_ns,
+            fast_timestamp_ns(),
+            current_service as u8,
+            self.span_depth.saturating_add(1),
+            self.stage_flags,
+            0,  // reserved
+            [0; 4],  // _padding
+            self.trace_id,
+        )
     }
 
     /// Mark processing stage as completed
     pub fn mark_stage(&mut self, stage: u8) {
         self.stage_flags |= stage;
-        self.current_timestamp_ns = current_timestamp_ns();
+        self.current_timestamp_ns = fast_timestamp_ns();
     }
 
     /// Check if stage is completed
@@ -108,50 +113,35 @@ impl TraceContextTLV {
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
 
-    /// Parse from bytes with validation
-    pub fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
-        if data.len() < std::mem::size_of::<Self>() {
-            return Err(ParseError::MessageTooSmall {
-                need: std::mem::size_of::<Self>(),
-                got: data.len(),
-            });
-        }
-
-        use zerocopy::Ref;
-        let tlv_ref = Ref::<_, Self>::new(data).ok_or(ParseError::InvalidExtendedTLV)?;
-        Ok(*tlv_ref.into_ref())
-    }
+    // from_bytes() method now provided by the macro
 }
 
-/// SystemHealth TLV - Component health monitoring
-///
-/// Reports health status of individual services for real-time monitoring.
-/// Size: 48 bytes (fixed size for predictable processing)
-/// Fields ordered to eliminate padding: u64 → u32 → u16 → u8
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
-pub struct SystemHealthTLV {
-    // Group 64-bit fields first
-    pub timestamp_ns: u64,           // Timestamp of health check (8 bytes)
-
-    // Then 32-bit fields
-    pub connection_count: u32,       // Active connections count (4 bytes)
-    pub message_rate_per_sec: u32,   // Messages processed per second (4 bytes)
-    pub last_error_code: u32,        // Last error code (0 = no error) (4 bytes)
-
-    // Then 16-bit fields
-    pub error_rate_per_thousand: u16, // Error rate per thousand messages (2 bytes)
-    pub latency_p95_us: u16,         // Latency percentile 95th in microseconds (2 bytes)
-
-    // Finally 8-bit fields
-    pub service_type: u8,            // SourceType as u8 (1 byte)
-    pub health_status: u8,           // Health status: 0=Healthy, 1=Degraded, 2=Unhealthy, 3=Unknown (1 byte)
-    pub cpu_usage_pct: u8,           // CPU usage percentage (0-100) (1 byte)
-    pub memory_usage_pct: u8,        // Memory usage percentage (0-100) (1 byte)
-
-    // Reserved for future metrics - pad to reach 48 bytes
-    // Currently: 8 + 12 + 4 + 4 = 28 bytes, need 20 more bytes
-    pub reserved: [u8; 20],          // (20 bytes to reach exactly 48 bytes)
+// SystemHealth TLV using macro for consistency
+define_tlv! {
+    /// SystemHealth TLV - Component health monitoring
+    ///
+    /// Reports health status of individual services for real-time monitoring.
+    /// Size: 48 bytes (fixed size for predictable processing)
+    SystemHealthTLV {
+        u64: { timestamp_ns: u64 } // Timestamp of health check
+        u32: {
+            connection_count: u32,     // Active connections count
+            message_rate_per_sec: u32, // Messages processed per second
+            last_error_code: u32       // Last error code (0 = no error)
+        }
+        u16: {
+            error_rate_per_thousand: u16, // Error rate per thousand messages
+            latency_p95_us: u16           // Latency percentile 95th in microseconds
+        }
+        u8: {
+            service_type: u8,     // SourceType as u8
+            health_status: u8,    // Health status: 0=Healthy, 1=Degraded, 2=Unhealthy, 3=Unknown
+            cpu_usage_pct: u8,    // CPU usage percentage (0-100)
+            memory_usage_pct: u8, // Memory usage percentage (0-100)
+            reserved: [u8; 20]    // Reserved for future metrics
+        }
+        special: {}
+    }
 }
 
 impl SystemHealthTLV {
@@ -170,19 +160,20 @@ impl SystemHealthTLV {
         connections: u32,
         msg_rate: u32,
     ) -> Self {
-        Self {
-            timestamp_ns: current_timestamp_ns(),
-            connection_count: connections,
-            message_rate_per_sec: msg_rate,
-            last_error_code: 0,
-            error_rate_per_thousand: 0,
-            latency_p95_us: 0,
-            service_type: service as u8,
-            health_status: status,
-            cpu_usage_pct: cpu_pct,
-            memory_usage_pct: memory_pct,
-            reserved: [0; 20],
-        }
+        // Use macro-generated new_raw() with proper field order
+        Self::new_raw(
+            fast_timestamp_ns(),
+            connections,
+            msg_rate,
+            0, // last_error_code
+            0, // error_rate_per_thousand
+            0, // latency_p95_us
+            service as u8,
+            status,
+            cpu_pct,
+            memory_pct,
+            [0; 20], // reserved
+        )
     }
 
     /// Check if service is healthy
@@ -198,46 +189,20 @@ impl SystemHealthTLV {
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
 
-    /// Parse from bytes with validation
-    pub fn from_bytes(data: &[u8]) -> Result<Self, ParseError> {
-        if data.len() < std::mem::size_of::<Self>() {
-            return Err(ParseError::MessageTooSmall {
-                need: std::mem::size_of::<Self>(),
-                got: data.len(),
-            });
-        }
-
-        use zerocopy::Ref;
-        let tlv_ref = Ref::<_, Self>::new(data).ok_or(ParseError::InvalidExtendedTLV)?;
-        Ok(*tlv_ref.into_ref())
-    }
+    // from_bytes() method now provided by the macro
 }
 
-/// Generate unique trace ID (16 bytes)
+/// Generate unique trace ID (8 bytes)
 ///
-/// Uses timestamp + random bytes for uniqueness across distributed services
-fn generate_trace_id() -> [u8; 16] {
-    let mut trace_id = [0u8; 16];
-
-    // First 8 bytes: current timestamp in nanoseconds
-    let timestamp = current_timestamp_ns();
-    trace_id[0..8].copy_from_slice(&timestamp.to_le_bytes());
-
-    // Last 8 bytes: random data for uniqueness
-    // In a real implementation, use proper random number generator
-    // For now, use a simple pseudo-random based on timestamp
-    let random_seed = timestamp.wrapping_mul(0x5DEECE66D).wrapping_add(0xB);
-    trace_id[8..16].copy_from_slice(&random_seed.to_le_bytes());
-
-    trace_id
+/// Uses timestamp for uniqueness across distributed services
+fn generate_trace_id() -> [u8; 8] {
+    let timestamp = fast_timestamp_ns();
+    timestamp.to_le_bytes()
 }
 
-/// Get current timestamp in nanoseconds since Unix epoch  
+/// Get current timestamp in nanoseconds since Unix epoch (ultra-fast)
 fn current_timestamp_ns() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64
+    fast_timestamp_ns()  // ~5ns vs ~200ns SystemTime::now()
 }
 
 /// Trace Event - individual step in message flow
@@ -245,7 +210,7 @@ fn current_timestamp_ns() -> u64 {
 /// Used by TraceCollector to track message progression through the system
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TraceEvent {
-    pub trace_id: [u8; 16],
+    pub trace_id: [u8; 8],
     pub service: SourceType,
     pub event_type: TraceEventType,
     pub timestamp_ns: u64,
@@ -277,7 +242,7 @@ pub enum TraceEventType {
 
 impl TraceEvent {
     /// Create new trace event
-    pub fn new(trace_id: [u8; 16], service: SourceType, event_type: TraceEventType) -> Self {
+    pub fn new(trace_id: [u8; 8], service: SourceType, event_type: TraceEventType) -> Self {
         Self {
             trace_id,
             service,

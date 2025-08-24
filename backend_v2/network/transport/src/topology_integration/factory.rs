@@ -2,8 +2,8 @@
 //!
 //! Creates appropriate transport instances based on topology configuration.
 
-use crate::{Transport, TransportError, Result, Priority, TransportStatistics};
 use super::resolver::TopologyResolver;
+use crate::{Priority, Result, Transport, TransportError, TransportStatistics};
 use async_trait::async_trait;
 use std::sync::Arc;
 use tracing::{debug, info};
@@ -18,18 +18,18 @@ impl TransportFactory {
     pub fn new(resolver: Arc<TopologyResolver>) -> Self {
         Self { resolver }
     }
-    
+
     /// Update configuration
     pub async fn update_config(&self, config: crate::hybrid::TransportConfig) -> Result<()> {
         // Placeholder implementation
         Ok(())
     }
-    
+
     /// Create transport for a specific node
     pub async fn create_transport(&self, node_id: &str) -> Result<Box<dyn Transport>> {
         // Resolve node address
         let node_address = self.resolver.resolve_node(node_id).await?;
-        
+
         // Decide which transport to create based on address
         if let Some(unix_socket) = node_address.unix_socket {
             debug!("Creating Unix socket transport for node {}", node_id);
@@ -63,13 +63,13 @@ impl Transport for UnixSocketTransport {
         self.is_connected = true;
         Ok(())
     }
-    
+
     async fn stop(&mut self) -> Result<()> {
         info!("Stopping Unix socket transport");
         self.is_connected = false;
         Ok(())
     }
-    
+
     async fn send_to_actor(
         &self,
         _target_node: &str,
@@ -79,13 +79,13 @@ impl Transport for UnixSocketTransport {
         if !self.is_connected {
             return Err(TransportError::transport(
                 "Unix socket not connected",
-                Some("send_to_actor")
+                Some("send_to_actor"),
             ));
         }
         // Placeholder implementation
         Ok(())
     }
-    
+
     async fn send_with_priority(
         &self,
         target_node: &str,
@@ -95,11 +95,11 @@ impl Transport for UnixSocketTransport {
     ) -> Result<()> {
         self.send_to_actor(target_node, target_actor, message).await
     }
-    
+
     fn is_healthy(&self) -> bool {
         self.is_connected
     }
-    
+
     fn statistics(&self) -> TransportStatistics {
         TransportStatistics::default()
     }
@@ -127,13 +127,13 @@ impl Transport for TcpTransport {
         self.is_connected = true;
         Ok(())
     }
-    
+
     async fn stop(&mut self) -> Result<()> {
         info!("Stopping TCP transport");
         self.is_connected = false;
         Ok(())
     }
-    
+
     async fn send_to_actor(
         &self,
         _target_node: &str,
@@ -143,13 +143,13 @@ impl Transport for TcpTransport {
         if !self.is_connected {
             return Err(TransportError::transport(
                 "TCP transport not connected",
-                Some("send_to_actor")
+                Some("send_to_actor"),
             ));
         }
         // Placeholder implementation
         Ok(())
     }
-    
+
     async fn send_with_priority(
         &self,
         target_node: &str,
@@ -159,18 +159,18 @@ impl Transport for TcpTransport {
     ) -> Result<()> {
         self.send_to_actor(target_node, target_actor, message).await
     }
-    
+
     fn is_healthy(&self) -> bool {
         self.is_connected
     }
-    
+
     fn statistics(&self) -> TransportStatistics {
         TransportStatistics::default()
     }
 }
 
 /// Export additional types needed by topology integration
-pub use super::resolver::{TopologyResolver as TopologyTransportResolver};
+pub use super::resolver::TopologyResolver as TopologyTransportResolver;
 
 /// Transport resolution result
 #[derive(Debug, Clone)]

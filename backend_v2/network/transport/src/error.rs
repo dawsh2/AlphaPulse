@@ -55,24 +55,15 @@ pub enum TransportError {
 
     /// Compression/decompression errors
     #[error("Compression error: {codec}: {message}")]
-    Compression {
-        codec: String,
-        message: String,
-    },
+    Compression { codec: String, message: String },
 
     /// Transport timeout errors
     #[error("Timeout error: {operation} exceeded {timeout_ms}ms")]
-    Timeout {
-        operation: String,
-        timeout_ms: u64,
-    },
+    Timeout { operation: String, timeout_ms: u64 },
 
     /// Resource exhaustion errors
     #[error("Resource exhausted: {resource}: {message}")]
-    ResourceExhausted {
-        resource: String,
-        message: String,
-    },
+    ResourceExhausted { resource: String, message: String },
 
     /// Topology integration errors
     #[error("Topology error: {message}")]
@@ -90,10 +81,7 @@ pub enum TransportError {
 
     /// Circuit breaker and health check errors
     #[error("Health check failed: {check_type}: {message}")]
-    HealthCheck {
-        check_type: String,
-        message: String,
-    },
+    HealthCheck { check_type: String, message: String },
 
     /// Generic I/O errors
     #[error("I/O error: {message}")]
@@ -255,7 +243,7 @@ impl TransportError {
             message: message.into(),
         }
     }
-    
+
     /// Create a generic transport error (alias for network)
     pub fn transport(message: impl Into<String>, context: Option<&str>) -> Self {
         let msg = if let Some(ctx) = context {
@@ -265,7 +253,7 @@ impl TransportError {
         };
         Self::network(msg)
     }
-    
+
     /// Create a resolution error (alias for topology)
     pub fn resolution(message: impl Into<String>, actor: Option<&str>) -> Self {
         let msg = if let Some(a) = actor {
@@ -346,10 +334,7 @@ impl From<alphapulse_topology::error::TopologyError> for TransportError {
 /// Convert serde YAML errors to transport errors
 impl From<serde_yaml::Error> for TransportError {
     fn from(error: serde_yaml::Error) -> Self {
-        TransportError::configuration(
-            format!("YAML configuration error: {}", error),
-            None,
-        )
+        TransportError::configuration(format!("YAML configuration error: {}", error), None)
     }
 }
 
@@ -377,7 +362,7 @@ mod tests {
     fn test_connection_error() {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)), 8080);
         let err = TransportError::connection("Handshake failed", Some(addr));
-        
+
         match err {
             TransportError::Connection { remote_addr, .. } => {
                 assert_eq!(remote_addr, Some(addr));
@@ -389,8 +374,14 @@ mod tests {
     #[test]
     fn test_error_categorization() {
         assert_eq!(TransportError::protocol("test").category(), "protocol");
-        assert_eq!(TransportError::timeout("connect", 5000).category(), "timeout");
-        assert_eq!(TransportError::compression("lz4", "test").category(), "compression");
+        assert_eq!(
+            TransportError::timeout("connect", 5000).category(),
+            "timeout"
+        );
+        assert_eq!(
+            TransportError::compression("lz4", "test").category(),
+            "compression"
+        );
     }
 
     #[test]
@@ -413,7 +404,7 @@ mod tests {
     fn test_io_error_conversion() {
         let io_err = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "test");
         let transport_err = TransportError::from(io_err);
-        
+
         match transport_err {
             TransportError::Io { message, .. } => {
                 assert!(message.contains("test"));

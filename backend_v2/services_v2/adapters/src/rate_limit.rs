@@ -1,10 +1,9 @@
 //! Rate limiting for API requests
 
-use governor::{DefaultDirectRateLimiter, Quota, RateLimiter as Governor};
+use governor::{DefaultDirectRateLimiter, Quota};
 use protocol_v2::VenueId;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 
 /// Rate limiter for venue API requests
 #[derive(Clone)]
@@ -79,8 +78,8 @@ impl RateLimiter {
     /// Get rate limit configuration for monitoring
     pub fn get_limits(&self) -> HashMap<VenueId, RateLimitInfo> {
         self.limiters
-            .iter()
-            .map(|(venue, _limiter)| {
+            .keys()
+            .map(|venue| {
                 (
                     *venue,
                     RateLimitInfo {

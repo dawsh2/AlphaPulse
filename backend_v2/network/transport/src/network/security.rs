@@ -3,7 +3,7 @@
 //! Provides encryption and decryption capabilities for network transport
 //! using TLS and ChaCha20Poly1305 for different security requirements.
 
-use crate::{TransportError, Result};
+use crate::{Result, TransportError};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -15,7 +15,7 @@ pub enum EncryptionType {
     /// TLS 1.3 encryption - standard transport security
     Tls,
     /// ChaCha20Poly1305 - fast authenticated encryption
-    ChaCha20Poly1305 { 
+    ChaCha20Poly1305 {
         /// 32-byte encryption key
         key: [u8; 32],
     },
@@ -26,7 +26,9 @@ impl PartialEq for EncryptionType {
         match (self, other) {
             (EncryptionType::None, EncryptionType::None) => true,
             (EncryptionType::Tls, EncryptionType::Tls) => true,
-            (EncryptionType::ChaCha20Poly1305 { .. }, EncryptionType::ChaCha20Poly1305 { .. }) => true,
+            (EncryptionType::ChaCha20Poly1305 { .. }, EncryptionType::ChaCha20Poly1305 { .. }) => {
+                true
+            }
             _ => false,
         }
     }
@@ -62,12 +64,12 @@ impl SecurityLayer {
             EncryptionType::None => {
                 // No initialization needed
             }
-            
+
             #[cfg(feature = "encryption")]
             EncryptionType::Tls => {
                 self.initialize_tls().await?;
             }
-            
+
             #[cfg(feature = "encryption")]
             EncryptionType::ChaCha20Poly1305 { key } => {
                 let key = *key;
@@ -78,7 +80,7 @@ impl SecurityLayer {
             _ => {
                 return Err(TransportError::configuration(
                     "Encryption feature not enabled",
-                    Some("encryption")
+                    Some("encryption"),
                 ));
             }
         }
@@ -90,12 +92,13 @@ impl SecurityLayer {
     #[cfg(feature = "encryption")]
     async fn initialize_tls(&mut self) -> Result<()> {
         let mut root_store = rustls::RootCertStore::empty();
-        
+
         // Add system root certificates
         for cert in rustls_native_certs::load_native_certs()
-            .map_err(|e| TransportError::security(format!("Failed to load system certs: {}", e)))? 
+            .map_err(|e| TransportError::security(format!("Failed to load system certs: {}", e)))?
         {
-            root_store.add(&rustls::Certificate(cert.0))
+            root_store
+                .add(&rustls::Certificate(cert.0))
                 .map_err(|e| TransportError::security(format!("Failed to add cert: {}", e)))?;
         }
 
@@ -112,10 +115,11 @@ impl SecurityLayer {
     #[cfg(feature = "encryption")]
     fn initialize_chacha(&mut self, key: &[u8; 32]) -> Result<()> {
         use chacha20poly1305::{ChaCha20Poly1305, KeyInit};
-        
-        let cipher = ChaCha20Poly1305::new_from_slice(key)
-            .map_err(|e| TransportError::security(format!("Invalid ChaCha20Poly1305 key: {}", e)))?;
-        
+
+        let cipher = ChaCha20Poly1305::new_from_slice(key).map_err(|e| {
+            TransportError::security(format!("Invalid ChaCha20Poly1305 key: {}", e))
+        })?;
+
         self.chacha_cipher = Some(cipher);
         Ok(())
     }
@@ -128,23 +132,21 @@ impl SecurityLayer {
 
         match &self.encryption_type {
             EncryptionType::None => Ok(data.to_vec()),
-            
+
             #[cfg(feature = "encryption")]
             EncryptionType::Tls => {
                 // TLS encryption is handled at the transport layer
                 // This method is for application-layer encryption
                 Ok(data.to_vec())
             }
-            
+
             #[cfg(feature = "encryption")]
-            EncryptionType::ChaCha20Poly1305 { .. } => {
-                self.encrypt_chacha(data).await
-            }
+            EncryptionType::ChaCha20Poly1305 { .. } => self.encrypt_chacha(data).await,
 
             #[cfg(not(feature = "encryption"))]
             _ => Err(TransportError::configuration(
                 "Encryption feature not enabled",
-                Some("encryption")
+                Some("encryption"),
             )),
         }
     }
@@ -157,22 +159,20 @@ impl SecurityLayer {
 
         match &self.encryption_type {
             EncryptionType::None => Ok(data.to_vec()),
-            
+
             #[cfg(feature = "encryption")]
             EncryptionType::Tls => {
                 // TLS decryption is handled at the transport layer
                 Ok(data.to_vec())
             }
-            
+
             #[cfg(feature = "encryption")]
-            EncryptionType::ChaCha20Poly1305 { .. } => {
-                self.decrypt_chacha(data).await
-            }
+            EncryptionType::ChaCha20Poly1305 { .. } => self.decrypt_chacha(data).await,
 
             #[cfg(not(feature = "encryption"))]
             _ => Err(TransportError::configuration(
                 "Encryption feature not enabled",
-                Some("encryption")
+                Some("encryption"),
             )),
         }
     }
@@ -182,8 +182,10 @@ impl SecurityLayer {
     async fn encrypt_chacha(&self, data: &[u8]) -> Result<Vec<u8>> {
         use chacha20poly1305::{aead::Aead, Nonce};
         use rand::RngCore;
-        
-        let cipher = self.chacha_cipher.as_ref()
+
+        let cipher = self
+            .chacha_cipher
+            .as_ref()
             .ok_or_else(|| TransportError::security("ChaCha20Poly1305 not initialized"))?;
 
         // Generate random nonce
@@ -192,8 +194,9 @@ impl SecurityLayer {
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         // Encrypt the data
-        let ciphertext = cipher.encrypt(nonce, data)
-            .map_err(|e| TransportError::security(format!("ChaCha20Poly1305 encryption failed: {}", e)))?;
+        let ciphertext = cipher.encrypt(nonce, data).map_err(|e| {
+            TransportError::security(format!("ChaCha20Poly1305 encryption failed: {}", e))
+        })?;
 
         // Prepend nonce to ciphertext
         let mut result = Vec::with_capacity(12 + ciphertext.len());
@@ -207,12 +210,14 @@ impl SecurityLayer {
     #[cfg(feature = "encryption")]
     async fn decrypt_chacha(&self, data: &[u8]) -> Result<Vec<u8>> {
         use chacha20poly1305::{aead::Aead, Nonce};
-        
+
         if data.len() < 12 {
             return Err(TransportError::security("ChaCha20Poly1305 data too short"));
         }
 
-        let cipher = self.chacha_cipher.as_ref()
+        let cipher = self
+            .chacha_cipher
+            .as_ref()
             .ok_or_else(|| TransportError::security("ChaCha20Poly1305 not initialized"))?;
 
         // Extract nonce and ciphertext
@@ -220,8 +225,9 @@ impl SecurityLayer {
         let ciphertext = &data[12..];
 
         // Decrypt the data
-        let plaintext = cipher.decrypt(nonce, ciphertext)
-            .map_err(|e| TransportError::security(format!("ChaCha20Poly1305 decryption failed: {}", e)))?;
+        let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| {
+            TransportError::security(format!("ChaCha20Poly1305 decryption failed: {}", e))
+        })?;
 
         Ok(plaintext)
     }
@@ -366,7 +372,7 @@ impl KeyManager {
 
     /// Load keys from secure storage
     #[cfg(feature = "encryption")]
-    pub async fn load_from_file(&mut self, path: &std::path::Path) -> Result<()> {
+    pub async fn load_from_file(&mut self, _path: &std::path::Path) -> Result<()> {
         // This would load keys from encrypted storage in production
         // For now, just a placeholder
         tracing::warn!("Key loading from file not implemented - using temporary keys");
@@ -375,7 +381,7 @@ impl KeyManager {
 
     /// Save keys to secure storage
     #[cfg(feature = "encryption")]
-    pub async fn save_to_file(&self, path: &std::path::Path) -> Result<()> {
+    pub async fn save_to_file(&self, _path: &std::path::Path) -> Result<()> {
         // This would save keys to encrypted storage in production
         // For now, just a placeholder
         tracing::warn!("Key saving to file not implemented");
@@ -397,10 +403,10 @@ mod tests {
     async fn test_no_encryption() {
         let layer = SecurityLayer::new(EncryptionType::None).await.unwrap();
         let data = b"hello world";
-        
+
         let encrypted = layer.encrypt(data).await.unwrap();
         let decrypted = layer.decrypt(&encrypted).await.unwrap();
-        
+
         assert_eq!(data, decrypted.as_slice());
         assert_eq!(encrypted, data);
         assert!(!layer.is_enabled());
@@ -412,12 +418,12 @@ mod tests {
         let key = SecurityLayer::generate_chacha_key();
         let encryption_type = EncryptionType::ChaCha20Poly1305 { key };
         let layer = SecurityLayer::new(encryption_type).await.unwrap();
-        
+
         let data = b"sensitive data that needs encryption";
-        
+
         let encrypted = layer.encrypt(data).await.unwrap();
         let decrypted = layer.decrypt(&encrypted).await.unwrap();
-        
+
         assert_eq!(data, decrypted.as_slice());
         assert_ne!(encrypted, data); // Should be different when encrypted
         assert!(layer.is_enabled());
@@ -428,10 +434,10 @@ mod tests {
     async fn test_empty_data() {
         let layer = SecurityLayer::new(EncryptionType::None).await.unwrap();
         let empty: &[u8] = &[];
-        
+
         let encrypted = layer.encrypt(empty).await.unwrap();
         let decrypted = layer.decrypt(&encrypted).await.unwrap();
-        
+
         assert!(encrypted.is_empty());
         assert!(decrypted.is_empty());
     }
@@ -440,7 +446,7 @@ mod tests {
     fn test_key_generation() {
         let key1 = SecurityLayer::generate_chacha_key();
         let key2 = SecurityLayer::generate_chacha_key();
-        
+
         assert_ne!(key1, key2); // Should generate different keys
         assert_eq!(key1.len(), 32);
         assert_eq!(key2.len(), 32);
@@ -451,13 +457,13 @@ mod tests {
     fn test_key_derivation() {
         let password = "test_password";
         let salt = b"random_salt_value";
-        
+
         let key1 = SecurityLayer::derive_key_from_password(password, salt).unwrap();
         let key2 = SecurityLayer::derive_key_from_password(password, salt).unwrap();
-        
+
         assert_eq!(key1, key2); // Same password + salt = same key
         assert_eq!(key1.len(), 32);
-        
+
         // Different salt should produce different key
         let key3 = SecurityLayer::derive_key_from_password(password, b"different_salt").unwrap();
         assert_ne!(key1, key3);
@@ -467,11 +473,11 @@ mod tests {
     fn test_key_manager() {
         let mut manager = KeyManager::new();
         let key = SecurityLayer::generate_chacha_key();
-        
+
         manager.add_key("node1", key);
         assert_eq!(manager.get_key("node1"), Some(key));
         assert_eq!(manager.get_key("node2"), None);
-        
+
         let removed = manager.remove_key("node1");
         assert_eq!(removed, Some(key));
         assert_eq!(manager.get_key("node1"), None);
@@ -481,7 +487,7 @@ mod tests {
     fn test_security_info() {
         let layer_none = SecurityLayer::new(EncryptionType::None);
         let layer_tls = SecurityLayer::new(EncryptionType::Tls);
-        
+
         // We can't easily test these without proper async setup, so just test the sync parts
         let info_none = SecurityInfo {
             name: "none",
@@ -489,7 +495,7 @@ mod tests {
             overhead_bytes: 0,
             description: "No encryption",
         };
-        
+
         assert_eq!(info_none.name, "none");
         assert_eq!(info_none.level, SecurityLevel::None);
         assert!(SecurityLevel::None < SecurityLevel::High);
@@ -499,12 +505,12 @@ mod tests {
     fn test_encryption_type_equality() {
         assert_eq!(EncryptionType::None, EncryptionType::None);
         assert_eq!(EncryptionType::Tls, EncryptionType::Tls);
-        
+
         let key = [0u8; 32];
         let chacha1 = EncryptionType::ChaCha20Poly1305 { key };
         let chacha2 = EncryptionType::ChaCha20Poly1305 { key };
         assert_eq!(chacha1, chacha2);
-        
+
         assert_ne!(EncryptionType::None, EncryptionType::Tls);
     }
 }

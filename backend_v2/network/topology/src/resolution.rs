@@ -3,10 +3,7 @@
 //! Resolves optimal transport for actor communication and supports
 //! hot-reload capabilities for actor placement without system restart.
 
-use crate::{
-    nodes::ActorPlacement, Actor, Node, Result, TopologyConfig,
-    TopologyError, Transport,
-};
+use crate::{nodes::ActorPlacement, Actor, Node, Result, TopologyConfig, TopologyError, Transport};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
@@ -121,33 +118,33 @@ pub struct CircuitBreaker {
 // =============================================================================
 
 /// Future service discovery architecture for autonomous system activation
-/// 
+///
 /// **Current State**: Manual service startup with hardcoded connections
 /// **Future Vision**: Services announce capabilities and auto-discover dependencies
-/// 
+///
 /// ## Event-Driven Activation Pattern
-/// 
+///
 /// ```rust
 /// // Services announce their capabilities to topology resolver
 /// polygon.announce("produces: market_data.polygon.dex_events");
 /// relay.announce("consumes: market_data.*, produces: signals.arbitrage");
 /// strategy.announce("consumes: signals.arbitrage, produces: execution.orders");
-/// 
+///
 /// // System self-assembles through topology resolver
 /// let relay_endpoint = resolver.discover_consumers("market_data.polygon.*")?;
 /// let strategy_endpoints = resolver.discover_consumers("signals.arbitrage")?;
-/// 
+///
 /// // Automatic transport selection based on actor placement
 /// let transport = resolver.optimal_transport("polygon", "market_data_relay")?;
 /// match transport {
 ///     Transport::UnixSocket(path) => connect_local(path),
-///     Transport::SharedMemory(channel) => connect_shm(channel), 
+///     Transport::SharedMemory(channel) => connect_shm(channel),
 ///     Transport::Network(endpoint) => connect_tcp(endpoint),
 /// }
 /// ```
-/// 
+///
 /// ## Organic System Growth
-/// 
+///
 /// **Startup Sequence** (no hardcoded ordering):
 /// 1. `polygon` starts → announces "produces: market_data.polygon.*"
 /// 2. `topology_resolver` sees unrouted data → spawns `market_data_relay`  
@@ -155,15 +152,15 @@ pub struct CircuitBreaker {
 /// 4. `polygon` discovers relay → establishes connection → data flows
 /// 5. `arbitrage_strategy` starts → discovers relay → subscribes to signals
 /// 6. System reaches steady state through organic connection formation
-/// 
+///
 /// **Benefits**:
 /// - **Zero configuration**: No hardcoded connection paths
 /// - **Fault tolerance**: Dead services auto-discovered and replaced
 /// - **Load balancing**: Multiple instances of same service auto-discovered
 /// - **A/B testing**: Run parallel service versions, compare performance
-/// 
+///
 /// ## Implementation Requirements
-/// 
+///
 /// **Service Registration API**:
 /// ```rust
 /// trait ServiceDiscovery {
@@ -172,20 +169,20 @@ pub struct CircuitBreaker {
 ///     async fn watch(&self, pattern: &str) -> Result<ServiceStream>;
 /// }
 /// ```
-/// 
+///
 /// **Topology Integration**:
 /// - Extend `TopologyResolver` with dynamic service registry
 /// - Add capability-based routing to `TransportGraph`
 /// - Implement auto-spawning via `DeploymentEngine`
-/// 
+///
 /// **Message Bus Evolution**:
 /// Current: Hardcoded Unix sockets between known services
 /// Future: Capability-driven routing with automatic endpoint resolution
-/// 
+///
 /// ```rust
-/// // Current: Hardcoded 
+/// // Current: Hardcoded
 /// RelayOutput::new("/tmp/alphapulse/market_data.sock", RelayDomain::MarketData)
-/// 
+///
 /// // Future: Discovery-driven
 /// let endpoints = resolver.discover("consumes:market_data.*")?;
 /// RelayOutput::new_discoverable(endpoints, RelayDomain::MarketData)

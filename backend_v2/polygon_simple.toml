@@ -1,0 +1,33 @@
+# Quick Fix: Simple Polygon configuration for HTTP polling
+[websocket]
+url = "wss://polygon-mainnet.g.alchemy.com/v2/rCtQ6r3gF4yx0zFJO7BYUZt2Ws72hXH4"
+connection_timeout_ms = 10000
+message_timeout_ms = 30000
+base_backoff_ms = 1000
+max_backoff_ms = 10000
+max_reconnect_attempts = 5
+
+[relay]
+socket_path = "/tmp/alphapulse/market_data.sock"
+domain = "MarketData"
+source_id = 3
+
+[validation]
+runtime_validation_seconds = 0  # Skip validation for testing
+verbose_validation = false
+
+[monitoring]
+health_check_interval_seconds = 30
+stats_report_interval_seconds = 120
+max_processing_latency_ms = 100
+max_memory_usage_mb = 100
+
+[dex_events]
+# Use known active pool for testing - USDC/WETH 0.05%
+swap_signature = "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
+sync_signature = "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1"
+transfer_signature = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+
+[contracts]
+# Focus on high-volume Uniswap V3 factory
+uniswap_v3_factory = "0x1F98431c8aD98523631AE4a59f267346ea31F984"

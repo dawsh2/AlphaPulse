@@ -6,7 +6,7 @@
 //! - Edge cases that might cause floating point errors
 //! - Real-world extreme market conditions
 
-use alphapulse_protocol_v2::{VenueId, TradeTLV, PoolSwapTLV, PoolInstrumentId, InstrumentId};
+use protocol_v2::{VenueId, TradeTLV, PoolSwapTLV, PoolInstrumentId, InstrumentId};
 
 /// Test extreme precision and boundary conditions
 #[tokio::test] 

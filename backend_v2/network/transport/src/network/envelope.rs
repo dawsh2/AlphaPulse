@@ -5,10 +5,10 @@
 //! variable-length payload support.
 
 use crate::network::{CompressionType, EncryptionType};
-use crate::{TransportError, Result, generate_message_id, current_nanos};
+use crate::{current_nanos, generate_message_id, Result, TransportError};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Write};
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 /// Network message envelope for wire protocol
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,14 +62,30 @@ impl MessageFlags {
     /// Convert flags to byte representation
     pub fn to_byte(&self) -> u8 {
         let mut byte = 0u8;
-        if self.ack_requested { byte |= 0b0000_0001; }
-        if self.heartbeat { byte |= 0b0000_0010; }
-        if self.fragmented { byte |= 0b0000_0100; }
-        if self.last_fragment { byte |= 0b0000_1000; }
-        if self.ordered { byte |= 0b0001_0000; }
-        if self.compressed { byte |= 0b0010_0000; }
-        if self.encrypted { byte |= 0b0100_0000; }
-        if self.reserved { byte |= 0b1000_0000; }
+        if self.ack_requested {
+            byte |= 0b0000_0001;
+        }
+        if self.heartbeat {
+            byte |= 0b0000_0010;
+        }
+        if self.fragmented {
+            byte |= 0b0000_0100;
+        }
+        if self.last_fragment {
+            byte |= 0b0000_1000;
+        }
+        if self.ordered {
+            byte |= 0b0001_0000;
+        }
+        if self.compressed {
+            byte |= 0b0010_0000;
+        }
+        if self.encrypted {
+            byte |= 0b0100_0000;
+        }
+        if self.reserved {
+            byte |= 0b1000_0000;
+        }
         byte
     }
 
@@ -178,15 +194,15 @@ impl NetworkEnvelope {
         let mut buffer = Vec::new();
 
         // Write fixed header (32 bytes)
-        buffer.write_all(WireFormat::MAGIC)?;                    // 4 bytes: magic
-        buffer.write_u8(WireFormat::VERSION)?;                   // 1 byte: version
-        buffer.write_u8(self.priority)?;                         // 1 byte: priority
-        buffer.write_u8(self.flags.to_byte())?;                  // 1 byte: flags
-        buffer.write_u8(self.compression.to_byte())?;            // 1 byte: compression
-        buffer.write_u64::<LittleEndian>(self.message_id)?;      // 8 bytes: message_id
-        buffer.write_u64::<LittleEndian>(self.sent_timestamp)?;  // 8 bytes: timestamp
-        buffer.write_u32::<LittleEndian>(self.payload_size)?;    // 4 bytes: payload_size
-        buffer.write_u32::<LittleEndian>(0)?;                    // 4 bytes: reserved
+        buffer.write_all(WireFormat::MAGIC)?; // 4 bytes: magic
+        buffer.write_u8(WireFormat::VERSION)?; // 1 byte: version
+        buffer.write_u8(self.priority)?; // 1 byte: priority
+        buffer.write_u8(self.flags.to_byte())?; // 1 byte: flags
+        buffer.write_u8(self.compression.to_byte())?; // 1 byte: compression
+        buffer.write_u64::<LittleEndian>(self.message_id)?; // 8 bytes: message_id
+        buffer.write_u64::<LittleEndian>(self.sent_timestamp)?; // 8 bytes: timestamp
+        buffer.write_u32::<LittleEndian>(self.payload_size)?; // 4 bytes: payload_size
+        buffer.write_u32::<LittleEndian>(0)?; // 4 bytes: reserved
 
         // Write variable-length strings
         Self::write_string(&mut buffer, &self.source_node)?;
@@ -206,7 +222,8 @@ impl NetworkEnvelope {
 
     /// Deserialize envelope from wire format
     pub fn from_bytes(data: &[u8]) -> Result<Self> {
-        if data.len() < WireFormat::HEADER_SIZE + 4 { // +4 for checksum
+        if data.len() < WireFormat::HEADER_SIZE + 4 {
+            // +4 for checksum
             return Err(TransportError::protocol("Message too short"));
         }
 
@@ -221,7 +238,7 @@ impl NetworkEnvelope {
             data[checksum_pos + 3],
         ]);
         let actual_checksum = Self::calculate_checksum(&data[..checksum_pos]);
-        
+
         if expected_checksum != actual_checksum {
             return Err(TransportError::protocol("Checksum mismatch"));
         }
@@ -317,7 +334,7 @@ impl NetworkEnvelope {
                 WireFormat::MAX_STRING_LENGTH
             )));
         }
-        
+
         buffer.write_u8(bytes.len() as u8)?;
         buffer.write_all(bytes)?;
         Ok(())
@@ -335,16 +352,16 @@ impl NetworkEnvelope {
     /// Write encryption information to buffer
     fn write_encryption_info(buffer: &mut Vec<u8>, encryption: &EncryptionType) -> Result<()> {
         buffer.write_u8(encryption.to_byte())?;
-        
+
         // Write encryption-specific data if needed
         match encryption {
-            EncryptionType::None => {},
-            EncryptionType::Tls => {},
+            EncryptionType::None => {}
+            EncryptionType::Tls => {}
             EncryptionType::ChaCha20Poly1305 { .. } => {
                 // Could write nonce or other encryption metadata here
             }
         }
-        
+
         Ok(())
     }
 
@@ -396,10 +413,12 @@ impl NetworkEnvelope {
         // Check timestamp is reasonable (not too far in future/past)
         let now = current_nanos();
         let age = now.saturating_sub(self.sent_timestamp);
-        if age > 300_000_000_000 { // 5 minutes in nanoseconds
+        if age > 300_000_000_000 {
+            // 5 minutes in nanoseconds
             return Err(TransportError::protocol("Message too old"));
         }
-        if self.sent_timestamp > now + 60_000_000_000 { // 1 minute in future
+        if self.sent_timestamp > now + 60_000_000_000 {
+            // 1 minute in future
             return Err(TransportError::protocol("Message timestamp in future"));
         }
 
@@ -508,10 +527,7 @@ mod tests {
 
     #[test]
     fn test_heartbeat_message() {
-        let heartbeat = NetworkEnvelope::heartbeat(
-            "node1".to_string(),
-            "node2".to_string(),
-        );
+        let heartbeat = NetworkEnvelope::heartbeat("node1".to_string(), "node2".to_string());
 
         assert!(heartbeat.is_heartbeat());
         assert_eq!(heartbeat.priority, 0);
@@ -530,14 +546,17 @@ mod tests {
         );
 
         let mut bytes = envelope.to_bytes().unwrap();
-        
+
         // Corrupt the checksum
         let len = bytes.len();
         bytes[len - 1] ^= 0xFF;
 
         let result = NetworkEnvelope::from_bytes(&bytes);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Checksum mismatch"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Checksum mismatch"));
     }
 
     #[test]
@@ -586,8 +605,14 @@ mod tests {
         assert_eq!(CompressionType::Zstd.to_byte(), 2);
         assert_eq!(CompressionType::Snappy.to_byte(), 3);
 
-        assert!(matches!(CompressionType::from_byte(0).unwrap(), CompressionType::None));
-        assert!(matches!(CompressionType::from_byte(1).unwrap(), CompressionType::Lz4));
+        assert!(matches!(
+            CompressionType::from_byte(0).unwrap(),
+            CompressionType::None
+        ));
+        assert!(matches!(
+            CompressionType::from_byte(1).unwrap(),
+            CompressionType::Lz4
+        ));
         assert!(CompressionType::from_byte(255).is_err());
     }
 }

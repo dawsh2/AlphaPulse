@@ -27,3 +27,12 @@ build-debug = "build --workspace"
 
 # Documentation with search
 docs-search = "doc --document-private-items --open --no-deps"
+# Quality gate aliases
+quality-check = "run --bin quality_check"
+arch-check = "run --bin architectural_check"
+boundaries = "run --bin check_boundaries"
+doc-check = "run --bin documentation_check"
+
+# Combined quality gates
+quality-full = "run --bin run_all_quality_checks"
+pre-commit-check = "run --bin pre_commit_validation"

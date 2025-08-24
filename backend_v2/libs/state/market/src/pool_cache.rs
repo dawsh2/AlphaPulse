@@ -60,7 +60,7 @@ pub struct PoolInfo {
 impl PoolInfo {
     /// Convert to TLV format for persistence
     pub fn to_tlv(&self) -> PoolInfoTLV {
-        PoolInfoTLV::new(protocol_v2::tlv::pool_cache::PoolInfoConfig {
+        PoolInfoTLV::from_config(protocol_v2::tlv::pool_cache::PoolInfoConfig {
             pool_address: self.pool_address,
             token0_address: self.token0,
             token1_address: self.token1,
@@ -1060,7 +1060,9 @@ impl PersistenceLayer {
 
         loop {
             // Check for updates or timeout
-            let update = receiver.recv_timeout(std::time::Duration::from_secs(1)).ok();
+            let update = receiver
+                .recv_timeout(std::time::Duration::from_secs(1))
+                .ok();
 
             // Process update if we got one
             if let Some(update) = update {

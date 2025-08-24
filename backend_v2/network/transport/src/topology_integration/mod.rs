@@ -4,16 +4,18 @@
 //! for automatic transport selection and configuration based on actor
 //! placement and channel requirements.
 
-pub mod resolver;
 pub mod factory;
+pub mod resolver;
 
 // Re-export main types
-pub use factory::{TopologyTransportResolver, TransportResolution, TransportCriteria, TransportFactory};
+pub use factory::{
+    TopologyTransportResolver, TransportCriteria, TransportFactory, TransportResolution,
+};
 
-use crate::{TransportError, Result, Transport};
-use crate::hybrid::{TransportConfig, ChannelConfig};
-use alphapulse_topology::{TopologyConfig, Actor, Node};
+use crate::hybrid::{ChannelConfig, TransportConfig};
+use crate::{Result, Transport, TransportError};
 use alphapulse_topology::resolution::TopologyResolver as AlphaPulseTopologyResolver;
+use alphapulse_topology::{Actor, Node, TopologyConfig};
 use std::sync::Arc;
 
 /// Integration layer between topology and transport systems
@@ -67,17 +69,21 @@ impl TopologyIntegration {
 
     /// Get complete transport configuration for an actor
     pub fn get_actor_transport_config(&self, actor_id: &str) -> Result<ActorTransportConfig> {
-        let actor = self.topology_resolver
+        let actor = self
+            .topology_resolver
             .get_actor(actor_id)
             .ok_or_else(|| TransportError::topology(format!("Actor not found: {}", actor_id)))?;
 
-        let node = self.topology_resolver
+        let node = self
+            .topology_resolver
             .get_actor_node_object(actor_id)
-            .ok_or_else(|| TransportError::topology(format!("Node not found for actor: {}", actor_id)))?;
+            .ok_or_else(|| {
+                TransportError::topology(format!("Node not found for actor: {}", actor_id))
+            })?;
 
         // Determine transport configuration based on actor placement and requirements
         let mut channels = Vec::new();
-        
+
         // Add input channels
         for input_channel in &actor.inputs {
             let channel_config = self.transport_config.get_channel_config(input_channel);
@@ -85,7 +91,11 @@ impl TopologyIntegration {
                 name: input_channel.to_string(),
                 direction: ChannelDirection::Input,
                 config: channel_config,
-                transport_mode: self.determine_channel_transport_mode(&actor, &node, input_channel)?,
+                transport_mode: self.determine_channel_transport_mode(
+                    &actor,
+                    &node,
+                    input_channel,
+                )?,
             });
         }
 
@@ -96,7 +106,11 @@ impl TopologyIntegration {
                 name: output_channel.to_string(),
                 direction: ChannelDirection::Output,
                 config: channel_config,
-                transport_mode: self.determine_channel_transport_mode(&actor, &node, output_channel)?,
+                transport_mode: self.determine_channel_transport_mode(
+                    &actor,
+                    &node,
+                    output_channel,
+                )?,
             });
         }
 
@@ -112,7 +126,9 @@ impl TopologyIntegration {
     /// Update transport configuration
     pub async fn update_config(&mut self, config: TransportConfig) -> Result<()> {
         config.validate()?;
-        self.transport_resolver.update_config(config.clone()).await?;
+        self.transport_resolver
+            .update_config(config.clone())
+            .await?;
         self.factory.update_config(config.clone()).await?;
         self.transport_config = config;
         Ok(())
@@ -142,7 +158,7 @@ impl TopologyIntegration {
         channel: &str,
     ) -> Result<crate::hybrid::TransportMode> {
         let channel_config = self.transport_config.get_channel_config(channel);
-        
+
         // If explicitly configured, use that mode
         if !matches!(channel_config.mode, crate::hybrid::TransportMode::Auto) {
             return Ok(channel_config.mode);
@@ -150,18 +166,14 @@ impl TopologyIntegration {
 
         // Auto-select based on requirements
         match (channel_config.criticality, channel_config.reliability) {
-            (crate::Criticality::UltraLowLatency, _) => {
-                Ok(crate::hybrid::TransportMode::Direct)
-            }
+            (crate::Criticality::UltraLowLatency, _) => Ok(crate::hybrid::TransportMode::Direct),
             (_, crate::Reliability::GuaranteedDelivery) => {
                 Ok(crate::hybrid::TransportMode::MessageQueue)
             }
             (crate::Criticality::LowLatency, crate::Reliability::AtLeastOnce) => {
                 Ok(crate::hybrid::TransportMode::DirectWithMqFallback)
             }
-            _ => {
-                Ok(crate::hybrid::TransportMode::Direct)
-            }
+            _ => Ok(crate::hybrid::TransportMode::Direct),
         }
     }
 
@@ -264,11 +276,7 @@ pub trait TopologyAwareTransport: Transport {
     ) -> Result<()>;
 
     /// Update actor placement (for migration)
-    async fn update_placement(
-        &mut self,
-        new_node: &str,
-        new_numa_node: Option<u8>,
-    ) -> Result<()>;
+    async fn update_placement(&mut self, new_node: &str, new_numa_node: Option<u8>) -> Result<()>;
 
     /// Get current placement info
     fn placement_info(&self) -> Option<PlacementInfo>;
@@ -314,23 +322,22 @@ impl TopologyIntegrationBuilder {
 
     /// Load topology configuration from file
     pub async fn load_topology_config(mut self, path: &str) -> Result<Self> {
-        let config = TopologyConfig::from_file(path)
-            .map_err(|e| TransportError::topology_with_source(
-                "Failed to load topology configuration",
-                e
-            ))?;
+        let config = TopologyConfig::from_file(path).map_err(|e| {
+            TransportError::topology_with_source("Failed to load topology configuration", e)
+        })?;
         self.topology_config = Some(config);
         Ok(self)
     }
 
     /// Load transport configuration from file
     pub async fn load_transport_config(mut self, path: &str) -> Result<Self> {
-        let yaml = tokio::fs::read_to_string(path).await
-            .map_err(|e| TransportError::configuration(
+        let yaml = tokio::fs::read_to_string(path).await.map_err(|e| {
+            TransportError::configuration(
                 format!("Failed to read transport config file: {}", e),
-                Some("config_file")
-            ))?;
-        
+                Some("config_file"),
+            )
+        })?;
+
         let config = TransportConfig::from_yaml(&yaml)?;
         self.transport_config = Some(config);
         Ok(self)
@@ -338,14 +345,14 @@ impl TopologyIntegrationBuilder {
 
     /// Build the integration
     pub async fn build(self) -> Result<TopologyIntegration> {
-        let topology_config = self.topology_config
-            .ok_or_else(|| TransportError::configuration(
+        let topology_config = self.topology_config.ok_or_else(|| {
+            TransportError::configuration(
                 "Topology configuration required",
-                Some("topology_config")
-            ))?;
+                Some("topology_config"),
+            )
+        })?;
 
-        let transport_config = self.transport_config
-            .unwrap_or_default();
+        let transport_config = self.transport_config.unwrap_or_default();
 
         TopologyIntegration::new(topology_config, transport_config).await
     }
@@ -365,9 +372,9 @@ mod tests {
 
     #[test]
     fn test_builder_pattern() {
-        let builder = TopologyIntegrationBuilder::new()
-            .with_transport_config(TransportConfig::default());
-            
+        let builder =
+            TopologyIntegrationBuilder::new().with_transport_config(TransportConfig::default());
+
         // Builder should be ready to build (with default topology config)
         assert!(builder.transport_config.is_some());
     }

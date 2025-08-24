@@ -148,7 +148,7 @@ fn test_all_tlv_struct_zero_copy() {
         asset_id: 12345,
     };
 
-    let trade = TradeTLV::new(
+    let trade = TradeTLV::from_instrument(
         VenueId::Polygon,
         instrument_id,
         100000000i64,   // $1.00 with 8 decimal places
@@ -166,7 +166,7 @@ fn test_all_tlv_struct_zero_copy() {
     assert_eq!(*trade_ref, trade);
 
     // Test QuoteTLV
-    let quote = QuoteTLV::new(
+    let quote = QuoteTLV::from_instrument(
         VenueId::Polygon,
         instrument_id,
         99900000i64,  // $0.999 bid

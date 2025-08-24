@@ -1,0 +1,53 @@
+#+TITLE: Mermaid Org Demo
+
+* Hot Path (5-35μs latency)
+
+* Hot Path
+* Hot Path (5-35μs latency)
+#+begin_src mermaid :file hotpath.png
+%%{init: {"themeVariables": {"fontSize": 16}}}%%
+graph TD
+    %% Collectors
+    subgraph "Collectors"
+        KrakenCollector[Kraken Collector]
+        AlpacaCollector[Alpaca Collector]
+        PolygonCollector[Polygon Collector]
+        TradovateCollector[Tradovate Collector]
+        DataBentoCollector[DataBento Collector]
+    end
+
+    %% Relay / Fan-out
+    RelayServer[Relay Server]
+
+    %% Trading Systems
+    subgraph "Trading Systems"
+        FrontendBridge[FE Bridge: Bin→JSON]
+        NautilusTrader[NautilusTrader Engine]
+        DeFiSystem[DeFi System]
+    end
+
+    %% Data Flow
+    KrakenCollector --> RelayServer
+    AlpacaCollector --> RelayServer
+    PolygonCollector --> RelayServer
+    TradovateCollector --> RelayServer
+    DataBentoCollector --> RelayServer
+
+    RelayServer --> FrontendBridge
+    RelayServer --> NautilusTrader
+    RelayServer --> DeFiSystem
+    RelayServer --> TimescaleDB[TimescaleDB Storage]
+
+    %% Trading Execution
+    NautilusTrader --> Exchanges[Exchanges]
+    DeFiSystem --> DEXs[DeFi DEXs]
+    NautilusTrader --> FrontendBridge
+    DeFiSystem --> FrontendBridge
+
+    %% Styling
+    classDef hotPath fill:#ff6b6b,stroke:#d63031,stroke-width:2px,color:#fff
+    class KrakenCollector,AlpacaCollector,PolygonCollector,TradovateCollector,DataBentoCollector,RelayServer,FrontendBridge,NautilusTrader,DeFiSystem hotPath
+#+end_src
+
+#+RESULTS:
+[[file:hotpath.png]]

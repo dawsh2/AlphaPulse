@@ -3,8 +3,8 @@
 //! Provides HTTP endpoints for the trace visualization web interface.
 
 use crate::{
-    hex_to_trace_id, CollectorHealth, HealthReporter, Result, TraceCollectorStats,
-    TraceError, TraceId, TraceTimeline,
+    hex_to_trace_id, CollectorHealth, HealthReporter, Result, TraceCollectorStats, TraceError,
+    TraceId, TraceTimeline,
 };
 
 use dashmap::DashMap;
@@ -188,7 +188,7 @@ impl TraceApiServer {
 
         loop {
             match listener.accept().await {
-                Ok((stream, peer_addr)) => {
+                Ok((_stream, peer_addr)) => {
                     info!("API connection from {}", peer_addr);
                     // TODO: Handle HTTP request/response cycle
                     // This would parse the request, route to appropriate handler,
@@ -206,7 +206,7 @@ impl TraceApiServer {
         &self,
         query: Option<TraceQuery>,
     ) -> Result<DashboardSummary> {
-        let start_time = std::time::Instant::now();
+        let _start_time = std::time::Instant::now();
 
         // Get health status
         let health = self.health_reporter.check_health().await?;
@@ -253,11 +253,12 @@ impl TraceApiServer {
 
         let query_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
 
+        let count = if trace.is_some() { 1 } else { 0 };
         Ok(TraceResponse {
             data: trace,
             meta: ResponseMetadata {
-                total: if trace.is_some() { 1 } else { 0 },
-                count: if trace.is_some() { 1 } else { 0 },
+                total: count,
+                count,
                 query_time_ms,
                 timestamp: current_timestamp_ns(),
             },
@@ -299,13 +300,14 @@ impl TraceApiServer {
             traces.truncate(limit);
         }
 
+        let count = traces.len();
         let query_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
 
         Ok(TraceResponse {
             data: traces,
             meta: ResponseMetadata {
                 total,
-                count: traces.len(),
+                count,
                 query_time_ms,
                 timestamp: current_timestamp_ns(),
             },
@@ -462,7 +464,7 @@ impl TraceApiServer {
 
     /// Calculate service performance metrics
     async fn calculate_service_metrics(&self) -> HashMap<String, ServiceMetrics> {
-        let mut metrics = HashMap::new();
+        let metrics = HashMap::new();
 
         // TODO: Implement service metrics calculation
         // This would analyze all traces to calculate:

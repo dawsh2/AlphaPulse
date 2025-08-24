@@ -71,14 +71,14 @@ async fn main() -> Result<()> {
     info!("🚀 Starting Relay Development Tool");
 
     match args.relay_type {
-        RelayType::MarketData { config } => {
-            run_relay("market_data", config, &args).await?;
+        RelayType::MarketData { ref config } => {
+            run_relay("market_data", config.clone(), &args).await?;
         }
-        RelayType::Signal { config } => {
-            run_relay("signal", config, &args).await?;
+        RelayType::Signal { ref config } => {
+            run_relay("signal", config.clone(), &args).await?;
         }
-        RelayType::Execution { config } => {
-            run_relay("execution", config, &args).await?;
+        RelayType::Execution { ref config } => {
+            run_relay("execution", config.clone(), &args).await?;
         }
         RelayType::All => {
             run_all_relays(&args).await?;
@@ -137,7 +137,7 @@ async fn run_relay(relay_name: &str, custom_config: Option<String>, args: &Args)
     Ok(())
 }
 
-async fn run_all_relays(args: &Args) -> Result<()> {
+async fn run_all_relays(_args: &Args) -> Result<()> {
     info!("Starting ALL relays for integration testing");
 
     // Create all three relays with dev paths

@@ -2,7 +2,7 @@
 //!
 //! This test properly parses real Uniswap V3 swap events from Polygon mainnet
 
-use alphapulse_protocol_v2::{PoolInstrumentId, PoolSwapTLV, VenueId};
+use protocol_v2::{PoolInstrumentId, PoolSwapTLV, VenueId};
 use web3::types::{FilterBuilder, Log, H160, H256};
 
 /// Parse real Uniswap V3 swap event with proper two's complement handling

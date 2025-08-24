@@ -194,7 +194,7 @@ pub use input::collectors::{
     BinanceCollector,
     CoinbaseCollector, // GeminiCollector,
     KrakenCollector,
-    // PolygonDexCollector replaced by bin/polygon/polygon.rs
+    // Polygon collector implemented as standalone binary: bin/polygon/polygon.rs
 };
 
 // Re-export protocol types for convenience

@@ -41,94 +41,70 @@
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use tokio::io::AsyncWriteExt;
-use tokio::net::UnixStream;
-use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
 use crate::relay_consumer::ArbitrageOpportunity;
+use alphapulse_adapter_service::output::RelayOutput;
 use protocol_v2::{
-    tlv::DemoDeFiArbitrageTLV, InstrumentId as PoolInstrumentId, MessageHeader, RelayDomain,
-    SourceType, TLVMessageBuilder, TLVType, VenueId,
+    tlv::{build_message_direct, ArbitrageConfig, DemoDeFiArbitrageTLV},
+    InstrumentId as PoolInstrumentId, MessageHeader, RelayDomain, SourceType,
+    TLVType, VenueId,
 };
 
 const FLASH_ARBITRAGE_STRATEGY_ID: u16 = 21;
 
-/// Signal output component for arbitrage opportunities
+/// Signal output component for arbitrage opportunities - Direct relay integration
 pub struct SignalOutput {
-    signal_relay_path: String,
-    signal_tx: Option<mpsc::UnboundedSender<ArbitrageOpportunity>>,
+    relay_output: Arc<RelayOutput>,
+    signal_nonce: Arc<tokio::sync::Mutex<u32>>,
 }
 
 impl SignalOutput {
     pub fn new(signal_relay_path: String) -> Self {
+        let relay_output = Arc::new(RelayOutput::new(signal_relay_path, RelayDomain::Signal));
+
         Self {
-            signal_relay_path,
-            signal_tx: None,
+            relay_output,
+            signal_nonce: Arc::new(tokio::sync::Mutex::new(0)),
         }
     }
 
-    /// Start the signal output component
-    pub async fn start(&mut self) -> Result<mpsc::UnboundedSender<ArbitrageOpportunity>> {
-        let (tx, rx) = mpsc::unbounded_channel::<ArbitrageOpportunity>();
-
-        let signal_relay_path = self.signal_relay_path.clone();
-        tokio::spawn(async move {
-            if let Err(e) = Self::signal_sender_task(signal_relay_path, rx).await {
-                error!("Signal sender task failed: {}", e);
-            }
-        });
-
-        self.signal_tx = Some(tx.clone());
-        info!("Signal output component started");
-
-        Ok(tx)
+    /// Start the signal output component - connects to relay
+    pub async fn start(&self) -> Result<()> {
+        self.relay_output
+            .connect()
+            .await
+            .context("Failed to connect to signal relay")?;
+        info!("Signal output component started with direct relay connection");
+        Ok(())
     }
 
-    async fn signal_sender_task(
-        signal_relay_path: String,
-        mut opportunity_rx: mpsc::UnboundedReceiver<ArbitrageOpportunity>,
-    ) -> Result<()> {
-        info!("Starting signal sender task: {}", signal_relay_path);
-        let mut signal_nonce = 0u32;
+    /// Send arbitrage opportunity directly to relay - no MPSC channel
+    pub async fn send_opportunity(&self, opportunity: &ArbitrageOpportunity) -> Result<()> {
+        let mut nonce = self.signal_nonce.lock().await;
+        *nonce += 1;
+        let signal_nonce = *nonce;
 
-        loop {
-            // Connect to signal relay
-            match UnixStream::connect(&signal_relay_path).await {
-                Ok(mut stream) => {
-                    info!("Connected to signal relay: {}", signal_relay_path);
+        let message_bytes = self.build_arbitrage_signal(opportunity, signal_nonce)?;
 
-                    // Process opportunities while connected
-                    while let Some(opportunity) = opportunity_rx.recv().await {
-                        signal_nonce += 1;
+        self.relay_output
+            .send_bytes(message_bytes)
+            .await
+            .context("Failed to send arbitrage signal to relay")?;
 
-                        if let Err(e) =
-                            Self::send_arbitrage_signal(&mut stream, &opportunity, signal_nonce)
-                                .await
-                        {
-                            warn!("Failed to send arbitrage signal: {}", e);
-                            break; // Reconnect
-                        }
+        debug!(
+            "Sent arbitrage signal #{} for ${:.2} profit directly to relay",
+            signal_nonce, opportunity.expected_profit_usd
+        );
 
-                        debug!(
-                            "Sent arbitrage signal #{} for ${:.2} profit",
-                            signal_nonce, opportunity.expected_profit_usd
-                        );
-                    }
-                }
-                Err(e) => {
-                    warn!("Failed to connect to signal relay: {} (retrying in 5s)", e);
-                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                }
-            }
-        }
+        Ok(())
     }
 
-    async fn send_arbitrage_signal(
-        stream: &mut UnixStream,
+    fn build_arbitrage_signal(
+        &self,
         opportunity: &ArbitrageOpportunity,
         signal_nonce: u32,
-    ) -> Result<()> {
+    ) -> Result<Vec<u8>> {
         // Convert f64 values to fixed-point with proper scaling
         let expected_profit_q = ((opportunity.expected_profit_usd * 100000000.0) as i128); // 8 decimals for USD
         let required_capital_q = ((opportunity.required_capital_usd * 100000000.0) as u128); // 8 decimals for USD
@@ -146,54 +122,50 @@ impl SignalOutput {
 
         let optimal_amount_q = ((opportunity.required_capital_usd * 100000000.0) as u128); // Same as capital for demo
 
-        // Create DemoDeFiArbitrageTLV
-        let arbitrage_tlv = DemoDeFiArbitrageTLV::new(
-            FLASH_ARBITRAGE_STRATEGY_ID,
-            opportunity.timestamp_ns, // Use timestamp as signal ID
-            95,                       // 95% confidence for arbitrage
-            137,                      // Polygon chain ID
+        // Create ArbitrageConfig struct for DemoDeFiArbitrageTLV
+        let arbitrage_config = ArbitrageConfig {
+            strategy_id: FLASH_ARBITRAGE_STRATEGY_ID,
+            signal_id: opportunity.timestamp_ns, // Use timestamp as signal ID
+            confidence: 95,                      // 95% confidence for arbitrage
+            chain_id: 137,                       // Polygon chain ID
             expected_profit_q,
             required_capital_q,
             estimated_gas_cost_q,
-            VenueId::UniswapV2,  // Pool A venue
-            [0u8; 20],           // Pool A address (mock for demo)
-            VenueId::UniswapV3,  // Pool B venue
-            [1u8; 20],           // Pool B address (mock for demo)
-            usdc_token.asset_id, // Token in (extract asset_id)
-            weth_token.asset_id, // Token out (extract asset_id)
+            venue_a: VenueId::UniswapV2,    // Pool A venue
+            pool_a: [0u8; 20],              // Pool A address (mock for demo)
+            venue_b: VenueId::UniswapV3,    // Pool B venue
+            pool_b: [1u8; 20],              // Pool B address (mock for demo)
+            token_in: usdc_token.asset_id,  // Token in (extract asset_id)
+            token_out: weth_token.asset_id, // Token out (extract asset_id)
             optimal_amount_q,
-            50,                                                      // 0.5% slippage tolerance
-            100,                                                     // 100 Gwei max gas
-            (opportunity.timestamp_ns / 1_000_000_000) as u32 + 300, // Valid for 5 minutes
-            200,                                                     // High priority
-            opportunity.timestamp_ns,
-        );
+            slippage_tolerance: 50,  // 0.5% slippage tolerance
+            max_gas_price_gwei: 100, // 100 Gwei max gas
+            valid_until: (opportunity.timestamp_ns / 1_000_000_000) as u32 + 300, // Valid for 5 minutes
+            priority: 200,                                                        // High priority
+            timestamp_ns: opportunity.timestamp_ns,
+        };
+
+        // Create DemoDeFiArbitrageTLV from config
+        let arbitrage_tlv = DemoDeFiArbitrageTLV::new(arbitrage_config);
 
         // Serialize the DemoDeFiArbitrageTLV to bytes
         let tlv_payload = arbitrage_tlv.to_bytes();
 
-        // Build complete protocol message with header using ExtendedTLV
-        let message_bytes =
-            TLVMessageBuilder::new(RelayDomain::Signal, SourceType::ArbitrageStrategy)
-                .add_tlv_bytes(TLVType::ExtendedTLV, tlv_payload)
-                .build();
-
-        // Send complete message
-        stream
-            .write_all(&message_bytes)
-            .await
-            .context("Failed to write DemoDeFiArbitrageTLV message")?;
-        stream
-            .flush()
-            .await
-            .context("Failed to flush signal relay stream")?;
+        // Build complete protocol message with header using ExtendedTLV (true zero-copy)
+        let message_bytes = build_message_direct(
+            RelayDomain::Signal,
+            SourceType::ArbitrageStrategy,
+            TLVType::ExtendedTLV,
+            tlv_payload.as_slice(),
+        )
+        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
 
         debug!(
-            "Sent DemoDeFiArbitrageTLV for ${:.2} profit, {} USDC trade",
+            "Built DemoDeFiArbitrageTLV for ${:.2} profit, {} USDC trade",
             opportunity.expected_profit_usd, opportunity.required_capital_usd
         );
 
-        Ok(())
+        Ok(message_bytes)
     }
 }
 

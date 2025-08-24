@@ -55,17 +55,16 @@ pub use health::{CollectorHealth, HealthReporter};
 pub use timeline::{MessageFlow, TraceSpan, TraceTimeline};
 
 // use protocol_v2::{SourceType, TraceEvent, TraceEventType};
-use std::collections::HashMap;
 use thiserror::Error;
 
 /// Errors that can occur in the TraceCollector service
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error, serde::Serialize, serde::Deserialize)]
 pub enum TraceError {
     #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+    Io(String),
 
     #[error("JSON serialization error: {0}")]
-    Json(#[from] serde_json::Error),
+    Json(String),
 
     #[error("Invalid trace ID: {0}")]
     InvalidTraceId(String),

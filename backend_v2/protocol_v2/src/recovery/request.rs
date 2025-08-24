@@ -2,20 +2,27 @@
 //!
 //! Handles RecoveryRequest TLV (Type 110) for sequence gap recovery
 
-use crate::tlv::{TLVMessageBuilder, TLVType};
+use crate::tlv::{self, TLVType};
 use crate::{RelayDomain, SourceType};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
-/// Recovery Request TLV (Type 110, 20 bytes payload)
-#[repr(C, packed)]
+/// Recovery Request TLV (Type 110, 24 bytes payload)
+///
+/// Fields ordered to eliminate padding: u64 → u32 → u8
+#[repr(C)]
 #[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
 pub struct RecoveryRequestTLV {
-    pub tlv_type: u8,          // 110
-    pub tlv_length: u8,        // 20
-    pub consumer_id: u32,      // Identifies requesting consumer
+    // Group 64-bit fields first
     pub last_sequence: u64,    // Last successfully received sequence
     pub current_sequence: u64, // Current sequence from header (gap detected)
-    pub request_type: u8,      // 1=retransmit, 2=snapshot
+
+    // Then 32-bit fields
+    pub consumer_id: u32, // Identifies requesting consumer
+
+    // Finally 8-bit fields (need 4 bytes to reach 24 total)
+    pub tlv_type: u8,     // 110
+    pub tlv_length: u8,   // 24
+    pub request_type: u8, // 1=retransmit, 2=snapshot
     pub reserved: u8,
 }
 
@@ -103,9 +110,12 @@ impl RecoveryRequestBuilder {
             RecoveryRequestType::Retransmit,
         );
 
-        TLVMessageBuilder::new(relay_domain, self.source)
-            .add_tlv(TLVType::RecoveryRequest, &recovery_tlv)
-            .build()
+        tlv::build_message_direct(
+            relay_domain,
+            self.source,
+            TLVType::RecoveryRequest,
+            &recovery_tlv
+        ).expect("Recovery request TLV build should never fail")
     }
 
     /// Build a snapshot request
@@ -122,9 +132,12 @@ impl RecoveryRequestBuilder {
             RecoveryRequestType::Snapshot,
         );
 
-        TLVMessageBuilder::new(relay_domain, self.source)
-            .add_tlv(TLVType::RecoveryRequest, &recovery_tlv)
-            .build()
+        tlv::build_message_direct(
+            relay_domain,
+            self.source,
+            TLVType::RecoveryRequest,
+            &recovery_tlv
+        ).expect("Recovery request TLV build should never fail")
     }
 
     /// Build a smart recovery request (chooses type based on gap size)
@@ -148,9 +161,12 @@ impl RecoveryRequestBuilder {
             request_type,
         );
 
-        TLVMessageBuilder::new(relay_domain, self.source)
-            .add_tlv(TLVType::RecoveryRequest, &recovery_tlv)
-            .build()
+        tlv::build_message_direct(
+            relay_domain,
+            self.source,
+            TLVType::RecoveryRequest,
+            &recovery_tlv
+        ).expect("Recovery request TLV build should never fail")
     }
 }
 
