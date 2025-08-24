@@ -1,7 +1,7 @@
 //! # Unified Polygon Collector - Direct RelayOutput Integration
 //!
 //! ## Architecture
-//! 
+//!
 //! Eliminates MPSC channel overhead by connecting WebSocket events directly to RelayOutput:
 //! ```
 //! Polygon WebSocket → Event Processing → TLV Builder → RelayOutput → MarketDataRelay
@@ -26,12 +26,14 @@
 //! - **Complete transparency**: Log everything, hide nothing
 
 use anyhow::{Context, Result};
+use ethabi::{Event, EventParam, ParamType, RawLog};
 use futures_util::{SinkExt, StreamExt};
+use once_cell::sync::Lazy;
 use protocol_v2::{
-    tlv::market_data::{PoolBurnTLV, PoolMintTLV, PoolSwapTLV, PoolSyncTLV, PoolTickTLV},
-    tlv::pool_state::{PoolStateTLV, PoolType},
-    InstrumentId, RelayDomain, SourceType, TLVMessageBuilder, TLVType, VenueId,
     parse_header, parse_tlv_extensions,
+    tlv::market_data::{PoolBurnTLV, PoolMintTLV, PoolSwapTLV, PoolSyncTLV, PoolTickTLV},
+    tlv::pool_state::{PoolStateTLV, V2PoolConfig, V3PoolConfig},
+    InstrumentId, SourceType, TLVMessageBuilder, TLVType, VenueId,
 };
 use serde_json::Value;
 use std::sync::Arc;
@@ -39,12 +41,202 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
-use web3::types::{H160, H256, Log};
+use web3::types::{Log, H160, H256};
+use zerocopy::AsBytes;
 
 use alphapulse_adapter_service::output::RelayOutput;
 
 mod config;
 use config::PolygonConfig;
+
+// =============================================================================
+// ETHABI EVENT DEFINITIONS FOR SAFE PARSING
+// =============================================================================
+
+/// Uniswap V3 Swap event ABI definition
+/// event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)
+static UNISWAP_V3_SWAP_EVENT: Lazy<Event> = Lazy::new(|| Event {
+    name: "Swap".to_string(),
+    inputs: vec![
+        EventParam {
+            name: "sender".to_string(),
+            kind: ParamType::Address,
+            indexed: true,
+        },
+        EventParam {
+            name: "recipient".to_string(),
+            kind: ParamType::Address,
+            indexed: true,
+        },
+        EventParam {
+            name: "amount0".to_string(),
+            kind: ParamType::Int(256),
+            indexed: false,
+        },
+        EventParam {
+            name: "amount1".to_string(),
+            kind: ParamType::Int(256),
+            indexed: false,
+        },
+        EventParam {
+            name: "sqrtPriceX96".to_string(),
+            kind: ParamType::Uint(160),
+            indexed: false,
+        },
+        EventParam {
+            name: "liquidity".to_string(),
+            kind: ParamType::Uint(128),
+            indexed: false,
+        },
+        EventParam {
+            name: "tick".to_string(),
+            kind: ParamType::Int(24),
+            indexed: false,
+        },
+    ],
+    anonymous: false,
+});
+
+/// Uniswap V2/QuickSwap Swap event ABI definition  
+/// event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)
+static UNISWAP_V2_SWAP_EVENT: Lazy<Event> = Lazy::new(|| Event {
+    name: "Swap".to_string(),
+    inputs: vec![
+        EventParam {
+            name: "sender".to_string(),
+            kind: ParamType::Address,
+            indexed: true,
+        },
+        EventParam {
+            name: "amount0In".to_string(),
+            kind: ParamType::Uint(256),
+            indexed: false,
+        },
+        EventParam {
+            name: "amount1In".to_string(),
+            kind: ParamType::Uint(256),
+            indexed: false,
+        },
+        EventParam {
+            name: "amount0Out".to_string(),
+            kind: ParamType::Uint(256),
+            indexed: false,
+        },
+        EventParam {
+            name: "amount1Out".to_string(),
+            kind: ParamType::Uint(256),
+            indexed: false,
+        },
+        EventParam {
+            name: "to".to_string(),
+            kind: ParamType::Address,
+            indexed: true,
+        },
+    ],
+    anonymous: false,
+});
+
+/// Uniswap V3 Mint event ABI definition
+/// event Mint(address sender, address indexed owner, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount, uint256 amount0, uint256 amount1)
+static UNISWAP_V3_MINT_EVENT: Lazy<Event> = Lazy::new(|| Event {
+    name: "Mint".to_string(),
+    inputs: vec![
+        EventParam {
+            name: "sender".to_string(),
+            kind: ParamType::Address,
+            indexed: false,
+        },
+        EventParam {
+            name: "owner".to_string(),
+            kind: ParamType::Address,
+            indexed: true,
+        },
+        EventParam {
+            name: "tickLower".to_string(),
+            kind: ParamType::Int(24),
+            indexed: true,
+        },
+        EventParam {
+            name: "tickUpper".to_string(),
+            kind: ParamType::Int(24),
+            indexed: true,
+        },
+        EventParam {
+            name: "amount".to_string(),
+            kind: ParamType::Uint(128),
+            indexed: false,
+        },
+        EventParam {
+            name: "amount0".to_string(),
+            kind: ParamType::Uint(256),
+            indexed: false,
+        },
+        EventParam {
+            name: "amount1".to_string(),
+            kind: ParamType::Uint(256),
+            indexed: false,
+        },
+    ],
+    anonymous: false,
+});
+
+/// Uniswap V3 Burn event ABI definition
+/// event Burn(address indexed owner, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount, uint256 amount0, uint256 amount1)
+static UNISWAP_V3_BURN_EVENT: Lazy<Event> = Lazy::new(|| Event {
+    name: "Burn".to_string(),
+    inputs: vec![
+        EventParam {
+            name: "owner".to_string(),
+            kind: ParamType::Address,
+            indexed: true,
+        },
+        EventParam {
+            name: "tickLower".to_string(),
+            kind: ParamType::Int(24),
+            indexed: true,
+        },
+        EventParam {
+            name: "tickUpper".to_string(),
+            kind: ParamType::Int(24),
+            indexed: true,
+        },
+        EventParam {
+            name: "amount".to_string(),
+            kind: ParamType::Uint(128),
+            indexed: false,
+        },
+        EventParam {
+            name: "amount0".to_string(),
+            kind: ParamType::Uint(256),
+            indexed: false,
+        },
+        EventParam {
+            name: "amount1".to_string(),
+            kind: ParamType::Uint(256),
+            indexed: false,
+        },
+    ],
+    anonymous: false,
+});
+
+/// V2 Sync event ABI definition
+/// event Sync(uint112 reserve0, uint112 reserve1)
+static V2_SYNC_EVENT: Lazy<Event> = Lazy::new(|| Event {
+    name: "Sync".to_string(),
+    inputs: vec![
+        EventParam {
+            name: "reserve0".to_string(),
+            kind: ParamType::Uint(112),
+            indexed: false,
+        },
+        EventParam {
+            name: "reserve1".to_string(),
+            kind: ParamType::Uint(112),
+            indexed: false,
+        },
+    ],
+    anonymous: false,
+});
 
 /// Unified Polygon Collector with direct RelayOutput integration
 pub struct UnifiedPolygonCollector {
@@ -61,15 +253,17 @@ impl UnifiedPolygonCollector {
     /// Create new unified collector with configuration
     pub fn new(config: PolygonConfig) -> Result<Self> {
         config.validate().context("Invalid configuration")?;
-        
-        let relay_domain = config.relay.parse_domain()
+
+        let relay_domain = config
+            .relay
+            .parse_domain()
             .context("Failed to parse relay domain")?;
-        
+
         let relay_output = Arc::new(RelayOutput::new(
             config.relay.socket_path.clone(),
             relay_domain,
         ));
-        
+
         Ok(Self {
             config,
             relay_output,
@@ -86,24 +280,29 @@ impl UnifiedPolygonCollector {
         info!("🚀 Starting Unified Polygon Collector");
         info!("   Direct WebSocket → RelayOutput integration");
         info!("   Configuration: {:?}", self.config.websocket.url);
-        
+
         *self.running.write().await = true;
-        
+
         // Connect to relay first (fail fast if relay unavailable)
-        self.relay_output.connect().await
+        self.relay_output
+            .connect()
+            .await
             .context("Failed to connect to relay - CRASHING as designed")?;
-        
-        info!("✅ Connected to {:?} relay at {}", 
-              self.config.relay.parse_domain()?, 
-              self.config.relay.socket_path);
-        
+
+        info!(
+            "✅ Connected to {:?} relay at {}",
+            self.config.relay.parse_domain()?,
+            self.config.relay.socket_path
+        );
+
         // Start validation disabling timer
         self.start_validation_timer().await;
-        
+
         // Connect to WebSocket and start event processing
-        self.connect_and_process_events().await
+        self.connect_and_process_events()
+            .await
             .context("WebSocket processing failed - CRASHING as designed")?;
-        
+
         Ok(())
     }
 
@@ -111,33 +310,49 @@ impl UnifiedPolygonCollector {
     async fn start_validation_timer(&self) {
         let validation_enabled = self.validation_enabled.clone();
         let validation_duration = self.config.validation.runtime_validation_seconds;
-        
-        tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_secs(validation_duration)).await;
+
+        if validation_duration == 0 {
             *validation_enabled.write().await = false;
-            info!("🔒 Runtime TLV validation disabled after {}s startup period", validation_duration);
-        });
+            info!("🔒 Runtime TLV validation disabled (configured for 0 seconds)");
+        } else {
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(validation_duration)).await;
+                *validation_enabled.write().await = false;
+                info!(
+                    "🔒 Runtime TLV validation disabled after {}s startup period",
+                    validation_duration
+                );
+            });
+        }
     }
 
     /// Connect to WebSocket and process events until failure
     async fn connect_and_process_events(&self) -> Result<()> {
         let mut connection_attempts = 0;
         let max_attempts = self.config.websocket.max_reconnect_attempts;
-        
+
         loop {
             connection_attempts += 1;
-            
+
             if connection_attempts > max_attempts {
-                error!("🔥 CRASH: Exceeded maximum WebSocket connection attempts ({})", max_attempts);
-                return Err(anyhow::anyhow!("Max WebSocket connection attempts exceeded"));
+                error!(
+                    "🔥 CRASH: Exceeded maximum WebSocket connection attempts ({})",
+                    max_attempts
+                );
+                return Err(anyhow::anyhow!(
+                    "Max WebSocket connection attempts exceeded"
+                ));
             }
-            
-            info!("🔌 WebSocket connection attempt {} of {}", connection_attempts, max_attempts);
-            
+
+            info!(
+                "🔌 WebSocket connection attempt {} of {}",
+                connection_attempts, max_attempts
+            );
+
             // Try primary URL first, then fallbacks
             let urls = std::iter::once(self.config.websocket.url.clone())
                 .chain(self.config.websocket.fallback_urls.iter().cloned());
-            
+
             for url in urls {
                 match self.try_websocket_connection(&url).await {
                     Ok(()) => {
@@ -150,13 +365,13 @@ impl UnifiedPolygonCollector {
                     }
                 }
             }
-            
+
             // All URLs failed, wait before retry
             let backoff_ms = std::cmp::min(
                 self.config.websocket.base_backoff_ms * (1 << (connection_attempts - 1)),
                 self.config.websocket.max_backoff_ms,
             );
-            
+
             warn!("⏳ All WebSocket URLs failed, retrying in {}ms", backoff_ms);
             tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
         }
@@ -165,28 +380,46 @@ impl UnifiedPolygonCollector {
     /// Attempt WebSocket connection to specific URL
     async fn try_websocket_connection(&self, url: &str) -> Result<()> {
         let timeout_duration = Duration::from_millis(self.config.websocket.connection_timeout_ms);
-        
+
         // Connect with timeout
         let (ws_stream, _) = tokio::time::timeout(timeout_duration, connect_async(url))
             .await
             .context("WebSocket connection timeout")?
             .context("WebSocket connection failed")?;
-        
+
         info!("✅ WebSocket connected to: {}", url);
-        
+
         let (mut ws_sender, mut ws_receiver) = ws_stream.split();
-        
+
         // Subscribe to DEX events
         let subscription_message = self.create_subscription_message();
-        ws_sender.send(Message::Text(subscription_message)).await
+        ws_sender
+            .send(Message::Text(subscription_message))
+            .await
             .context("Failed to send WebSocket subscription")?;
-        
+
         info!("📊 Subscribed to Polygon DEX events");
-        
+
+        // Start status reporter
+        let stats_clone = self.messages_processed.clone();
+        let start_time = self.start_time;
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(10));
+            loop {
+                interval.tick().await;
+                let count = *stats_clone.read().await;
+                let uptime = start_time.elapsed();
+                info!(
+                    "📊 Status: {} events processed, uptime: {:?}",
+                    count, uptime
+                );
+            }
+        });
+
         // Process events until failure
         while *self.running.read().await {
             let message_timeout = Duration::from_millis(self.config.websocket.message_timeout_ms);
-            
+
             match tokio::time::timeout(message_timeout, ws_receiver.next()).await {
                 Ok(Some(Ok(Message::Text(text)))) => {
                     if let Err(e) = self.process_websocket_message(&text).await {
@@ -213,7 +446,10 @@ impl UnifiedPolygonCollector {
                     return Err(anyhow::anyhow!("WebSocket stream ended"));
                 }
                 Err(_) => {
-                    warn!("⏳ WebSocket message timeout ({}ms) - normal during low activity", message_timeout.as_millis());
+                    warn!(
+                        "⏳ WebSocket message timeout ({}ms) - normal during low activity",
+                        message_timeout.as_millis()
+                    );
                     // Continue processing, timeouts are normal
                 }
                 _ => {
@@ -221,14 +457,22 @@ impl UnifiedPolygonCollector {
                 }
             }
         }
-        
+
         Ok(())
     }
 
-    /// Create JSON-RPC subscription message for DEX events
+    /// Create JSON-RPC subscription message for DEX events using ethabi-generated signatures
     fn create_subscription_message(&self) -> String {
-        let signatures = self.config.all_event_signatures();
-        
+        let signatures = alphapulse_dex::get_all_event_signatures();
+
+        info!(
+            "🎯 Subscribing to {} ethabi-generated event signatures",
+            signatures.len()
+        );
+        for (i, sig) in signatures.iter().enumerate() {
+            info!("  {}. {}", i + 1, sig);
+        }
+
         serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -245,64 +489,102 @@ impl UnifiedPolygonCollector {
 
     /// Process WebSocket message (JSON-RPC subscription notification)
     async fn process_websocket_message(&self, message: &str) -> Result<()> {
-        let json_value: Value = serde_json::from_str(message)
-            .context("Failed to parse WebSocket JSON message")?;
-        
+        let json_value: Value =
+            serde_json::from_str(message).context("Failed to parse WebSocket JSON message")?;
+
+        // Handle subscription confirmation
+        if let Some(id) = json_value.get("id") {
+            if id == 1 {
+                if let Some(result) = json_value.get("result") {
+                    info!("🎯 WebSocket subscription confirmed: {}", result);
+                } else if let Some(error) = json_value.get("error") {
+                    error!("❌ WebSocket subscription failed: {}", error);
+                    return Err(anyhow::anyhow!("Subscription failed: {}", error));
+                }
+                return Ok(());
+            }
+        }
+
         // Handle subscription notifications
         if let Some(method) = json_value.get("method") {
             if method == "eth_subscription" {
+                debug!("📥 Received eth_subscription notification");
                 if let Some(params) = json_value.get("params") {
                     if let Some(result) = params.get("result") {
-                        let log = self.json_to_web3_log(result)
+                        let log = self
+                            .json_to_web3_log(result)
                             .context("Failed to convert JSON to Web3 log")?;
-                        
-                        self.process_dex_event(&log).await
+
+                        self.process_dex_event(&log)
+                            .await
                             .context("Failed to process DEX event")?;
                     }
                 }
             }
         }
-        
+
         Ok(())
     }
 
     /// Convert JSON log to Web3 Log format
     fn json_to_web3_log(&self, json_log: &Value) -> Result<Log> {
-        let address_str = json_log.get("address")
+        let address_str = json_log
+            .get("address")
             .and_then(|v| v.as_str())
             .context("Missing address field in log")?;
-        
-        let address = address_str.parse::<H160>()
+
+        let address = address_str
+            .parse::<H160>()
             .context("Invalid address format")?;
-        
-        let topics = json_log.get("topics")
+
+        let topics = json_log
+            .get("topics")
             .and_then(|v| v.as_array())
             .context("Missing topics field")?
             .iter()
             .filter_map(|t| t.as_str())
             .filter_map(|t| t.parse::<H256>().ok())
             .collect();
-        
-        let data_str = json_log.get("data")
+
+        let data_str = json_log
+            .get("data")
             .and_then(|v| v.as_str())
             .unwrap_or("0x");
-        
+
         let data_bytes = if data_str.starts_with("0x") {
             hex::decode(&data_str[2..]).unwrap_or_default()
         } else {
             hex::decode(data_str).unwrap_or_default()
         };
-        
+
         Ok(Log {
             address,
             topics,
             data: web3::types::Bytes(data_bytes),
-            block_hash: json_log.get("blockHash").and_then(|v| v.as_str()).and_then(|s| s.parse().ok()),
-            block_number: json_log.get("blockNumber").and_then(|v| v.as_str()).and_then(|s| s.parse().ok()),
-            transaction_hash: json_log.get("transactionHash").and_then(|v| v.as_str()).and_then(|s| s.parse().ok()),
-            transaction_index: json_log.get("transactionIndex").and_then(|v| v.as_str()).and_then(|s| s.parse().ok()),
-            log_index: json_log.get("logIndex").and_then(|v| v.as_str()).and_then(|s| s.parse().ok()),
-            transaction_log_index: json_log.get("transactionLogIndex").and_then(|v| v.as_str()).and_then(|s| s.parse().ok()),
+            block_hash: json_log
+                .get("blockHash")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse().ok()),
+            block_number: json_log
+                .get("blockNumber")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse().ok()),
+            transaction_hash: json_log
+                .get("transactionHash")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse().ok()),
+            transaction_index: json_log
+                .get("transactionIndex")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse().ok()),
+            log_index: json_log
+                .get("logIndex")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse().ok()),
+            transaction_log_index: json_log
+                .get("transactionLogIndex")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse().ok()),
             log_type: None,
             removed: None,
         })
@@ -311,268 +593,527 @@ impl UnifiedPolygonCollector {
     /// Process DEX event and send directly to RelayOutput
     async fn process_dex_event(&self, log: &Log) -> Result<()> {
         let start_time = Instant::now();
-        
-        // Route event by signature to appropriate TLV processor
-        if let Some(topic0) = log.topics.get(0) {
-            let topic_str = format!("{:?}", topic0);
-            
-            let tlv_message_opt = if topic_str.contains(&self.config.dex_events.swap_signature[2..]) {
+
+        // Route event by signature to appropriate TLV processor using ethabi signatures
+        if let Some(topic0) = log.topics.first() {
+            let signature = format!("{:x}", topic0);
+            let (v2_swap_sig, v3_swap_sig) = alphapulse_dex::get_swap_signatures();
+
+            let tlv_message_opt = if signature == v2_swap_sig[2..] || signature == v3_swap_sig[2..]
+            {
+                debug!("🔄 Processing swap event: 0x{}", signature);
                 self.process_swap_event(log).await
-            } else if topic_str.contains(&self.config.dex_events.mint_signature[2..]) {
-                self.process_mint_event(log).await
-            } else if topic_str.contains(&self.config.dex_events.burn_signature[2..]) {
-                self.process_burn_event(log).await
-            } else if topic_str.contains(&self.config.dex_events.tick_signature[2..]) {
-                self.process_tick_event(log).await
-            } else if topic_str.contains(&self.config.dex_events.sync_signature[2..]) {
-                self.process_sync_event(log).await
-            } else if topic_str.contains(&self.config.dex_events.transfer_signature[2..]) {
-                self.process_transfer_event(log).await
-            } else if topic_str.contains(&self.config.dex_events.v3_pool_created_signature[2..]) {
-                self.process_v3_pool_created_event(log).await
-            } else if topic_str.contains(&self.config.dex_events.v2_pair_created_signature[2..]) {
-                self.process_v2_pair_created_event(log).await
             } else {
-                debug!("Ignoring unknown event signature: {}", topic_str);
+                // For now, focus on swap events only - other events can be added incrementally
+                debug!("📝 Ignoring non-swap event signature: 0x{}", signature);
                 None
             };
-            
+
             if let Some(tlv_message) = tlv_message_opt {
                 // Runtime TLV validation if enabled
                 if *self.validation_enabled.read().await {
                     if let Err(e) = self.validate_tlv_message(&tlv_message).await {
                         let mut failures = self.validation_failures.write().await;
                         *failures += 1;
-                        error!("🔥 CRASH: TLV validation failed: {} (failure #{})", e, *failures);
+                        error!(
+                            "🔥 CRASH: TLV validation failed: {} (failure #{})",
+                            e, *failures
+                        );
                         return Err(e);
                     }
                 }
-                
+
                 // Send directly to RelayOutput (no channel overhead)
-                self.relay_output.send_bytes(tlv_message).await
+                self.relay_output
+                    .send_bytes(tlv_message)
+                    .await
                     .context("RelayOutput send failed - CRASHING as designed")?;
-                
+
                 // Update statistics
                 let mut count = self.messages_processed.write().await;
                 *count += 1;
                 let total = *count;
-                
+
                 let processing_latency = start_time.elapsed();
-                if processing_latency.as_millis() > self.config.monitoring.max_processing_latency_ms {
-                    warn!("⚠️ High processing latency: {}ms (max: {}ms)", 
-                          processing_latency.as_millis(), 
-                          self.config.monitoring.max_processing_latency_ms);
+                if processing_latency.as_millis()
+                    > self.config.monitoring.max_processing_latency_ms as u128
+                {
+                    warn!(
+                        "⚠️ High processing latency: {}ms (max: {}ms)",
+                        processing_latency.as_millis(),
+                        self.config.monitoring.max_processing_latency_ms
+                    );
                 }
-                
+
                 if total <= 5 || total % 100 == 0 {
-                    info!("📊 Processed {} DEX events (latency: {}μs)", total, processing_latency.as_micros());
+                    info!(
+                        "📊 Processed {} DEX events (latency: {}μs)",
+                        total,
+                        processing_latency.as_micros()
+                    );
                 }
             }
         }
-        
+
         Ok(())
     }
 
     /// Validate TLV message by round-trip parsing (startup period only)
     async fn validate_tlv_message(&self, message: &[u8]) -> Result<()> {
         if message.len() < 32 {
-            return Err(anyhow::anyhow!("TLV message too short: {} bytes", message.len()));
+            return Err(anyhow::anyhow!(
+                "TLV message too short: {} bytes",
+                message.len()
+            ));
         }
-        
+
         // Parse header
         let header = parse_header(&message[..32])
             .map_err(|e| anyhow::anyhow!("Header parsing failed: {}", e))?;
-        
-        if header.magic != 0xDEADBEEF {
-            return Err(anyhow::anyhow!("Invalid magic number: 0x{:08X}", header.magic));
+
+        let magic = header.magic;
+        if magic != 0xDEADBEEF {
+            return Err(anyhow::anyhow!("Invalid magic number: 0x{:08X}", magic));
         }
-        
+
         // Parse TLV payload
-        let payload_end = 32 + header.payload_size as usize;
+        let payload_size = header.payload_size;
+        let payload_end = 32 + payload_size as usize;
         if message.len() < payload_end {
-            return Err(anyhow::anyhow!("TLV payload truncated: expected {} bytes, got {}", 
-                                     payload_end, message.len()));
+            return Err(anyhow::anyhow!(
+                "TLV payload truncated: expected {} bytes, got {}",
+                payload_end,
+                message.len()
+            ));
         }
-        
+
         let tlv_payload = &message[32..payload_end];
         let _tlvs = parse_tlv_extensions(tlv_payload)
             .map_err(|e| anyhow::anyhow!("TLV parsing failed: {}", e))?;
-        
+
         if self.config.validation.verbose_validation {
             debug!("✅ TLV validation passed: {} bytes", message.len());
         }
-        
+
         Ok(())
     }
 
-    /// Process swap event and convert to PoolSwapTLV
+    /// Process swap event and convert to PoolSwapTLV with proper ABI decoding
     async fn process_swap_event(&self, log: &Log) -> Option<Vec<u8>> {
-        if log.topics.len() < 3 || log.data.0.len() < 64 {
-            debug!("Insufficient swap log data: {} topics, {} bytes", log.topics.len(), log.data.0.len());
+        // Validate minimum data requirements
+        if log.topics.is_empty() {
+            debug!("No topics in swap log");
             return None;
         }
-        
-        // Extract addresses and amounts
+
         let pool_address = log.address;
-        let sender_bytes = log.topics[1].0;
-        let recipient_bytes = log.topics[2].0;
-        
-        // Create pool and token identifiers
-        let addr_bytes = pool_address.0;
-        let token0 = u64::from_be_bytes(addr_bytes[0..8].try_into().ok()?);
-        let token1 = u64::from_be_bytes(addr_bytes[12..20].try_into().ok()?);
-        
-        let token0_id = InstrumentId::from_u64(token0);
-        let token1_id = InstrumentId::from_u64(token1);
-        
-        // Extract amounts from data
-        let amount_in = i64::from_be_bytes(log.data.0[24..32].try_into().ok()?);
-        let amount_out = i64::from_be_bytes(log.data.0[56..64].try_into().ok()?);
-        
-        // Detect token decimals (preserve native precision)
-        let (amount_in_decimals, amount_out_decimals) = self.detect_token_decimals(token0, token1);
-        
-        // Convert addresses to Protocol V2 format
+
+        // Detect if this is a V2 or V3 swap based on data length and topics
+        // V3 has 7 parameters in data, V2 has 4 parameters
+        let is_v3 = log.data.0.len() >= 224; // 7 * 32 bytes for V3
+
+        // Create RawLog for ethabi parsing
+        let raw_log = RawLog {
+            topics: log.topics.clone(),
+            data: log.data.0.clone(),
+        };
+
+        // Parse using appropriate ABI
+        let (sender, recipient, amount0, amount1, sqrt_price_x96, tick) = if is_v3 {
+            // Use V3 ABI
+            match UNISWAP_V3_SWAP_EVENT.parse_log(raw_log) {
+                Ok(parsed) => {
+                    let sender = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "sender")
+                        .and_then(|p| p.value.clone().into_address())?;
+                    let recipient = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "recipient")
+                        .and_then(|p| p.value.clone().into_address())?;
+                    let amount0 = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "amount0")
+                        .and_then(|p| p.value.clone().into_int())
+                        .map(|v| v.low_u128() as i128)?;
+                    let amount1 = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "amount1")
+                        .and_then(|p| p.value.clone().into_int())
+                        .map(|v| v.low_u128() as i128)?;
+                    let sqrt_price = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "sqrtPriceX96")
+                        .and_then(|p| p.value.clone().into_uint())
+                        .map(|v| v.low_u128())?;
+                    let tick = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "tick")
+                        .and_then(|p| p.value.clone().into_int())
+                        .map(|v| v.low_u32() as i32)?;
+
+                    (sender, recipient, amount0, amount1, sqrt_price, tick)
+                }
+                Err(e) => {
+                    debug!("Failed to parse V3 swap: {}", e);
+                    return None;
+                }
+            }
+        } else {
+            // Use V2 ABI
+            match UNISWAP_V2_SWAP_EVENT.parse_log(raw_log) {
+                Ok(parsed) => {
+                    let sender = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "sender")
+                        .and_then(|p| p.value.clone().into_address())?;
+                    let to = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "to")
+                        .and_then(|p| p.value.clone().into_address())?;
+                    let amount0_in = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "amount0In")
+                        .and_then(|p| p.value.clone().into_uint())
+                        .map(|v| v.low_u128())?;
+                    let amount1_in = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "amount1In")
+                        .and_then(|p| p.value.clone().into_uint())
+                        .map(|v| v.low_u128())?;
+                    let amount0_out = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "amount0Out")
+                        .and_then(|p| p.value.clone().into_uint())
+                        .map(|v| v.low_u128())?;
+                    let amount1_out = parsed
+                        .params
+                        .iter()
+                        .find(|p| p.name == "amount1Out")
+                        .and_then(|p| p.value.clone().into_uint())
+                        .map(|v| v.low_u128())?;
+
+                    // Determine net amounts (in - out)
+                    let amount0 = (amount0_in as i128) - (amount0_out as i128);
+                    let amount1 = (amount1_in as i128) - (amount1_out as i128);
+
+                    (sender, to, amount0, amount1, 0u128, 0i32)
+                }
+                Err(e) => {
+                    debug!("Failed to parse V2 swap: {}", e);
+                    return None;
+                }
+            }
+        };
+
+        // Determine token addresses and amounts based on swap direction
+        let (token_in_addr, token_out_addr, amount_in, amount_out) = if amount0 > 0 {
+            // Token0 in, Token1 out
+            let mut t0 = [0u8; 20];
+            let mut t1 = [0u8; 20];
+            t0.copy_from_slice(&sender.0);
+            t1.copy_from_slice(&recipient.0);
+            (t0, t1, amount0.abs() as u128, amount1.abs() as u128)
+        } else {
+            // Token1 in, Token0 out
+            let mut t0 = [0u8; 20];
+            let mut t1 = [0u8; 20];
+            t0.copy_from_slice(&recipient.0);
+            t1.copy_from_slice(&sender.0);
+            (t1, t0, amount1.abs() as u128, amount0.abs() as u128)
+        };
+
+        // Get pool address
         let mut pool_addr = [0u8; 20];
         pool_addr.copy_from_slice(&pool_address.0);
-        
-        let mut token_in_addr = [0u8; 20];
-        let mut token_out_addr = [0u8; 20];
-        token_in_addr[12..20].copy_from_slice(&sender_bytes[24..32]);
-        token_out_addr[12..20].copy_from_slice(&recipient_bytes[24..32]);
-        
-        let swap_tlv = PoolSwapTLV {
-            venue: VenueId::Polygon,
-            pool_address: pool_addr,
+
+        // Detect token decimals (would need pool registry in production)
+        let (amount_in_decimals, amount_out_decimals) = self.detect_token_decimals(
+            u64::from_be_bytes(token_in_addr[12..20].try_into().ok()?),
+            u64::from_be_bytes(token_out_addr[12..20].try_into().ok()?),
+        );
+
+        let swap_tlv = PoolSwapTLV::new(
+            pool_addr,
             token_in_addr,
             token_out_addr,
-            amount_in: amount_in.unsigned_abs() as u128,
-            amount_out: amount_out.unsigned_abs() as u128,
+            VenueId::Polygon,
+            amount_in,
+            amount_out,
+            0, // liquidity_after - V3 specific, extract from log in production
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64,
+            log.block_number.map(|n| n.as_u64()).unwrap_or(0),
+            0, // tick_after - V3 specific, extract from log in production
             amount_in_decimals,
             amount_out_decimals,
-            sqrt_price_x96_after: [0u8; 20], // V3 specific - extract from log in production
-            tick_after: 0,                   // V3 specific - extract from log in production
-            liquidity_after: 0,              // V3 specific - extract from log in production
-            timestamp_ns: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64,
-            block_number: log.block_number.map(|n| n.as_u64()).unwrap_or(0),
-        };
-        
-        debug!("⚡ Swap processed: {} {} → {} {}", 
-               amount_in, amount_in_decimals, amount_out, amount_out_decimals);
-        
+            0, // sqrt_price_x96_after - V3 specific, extract from log in production
+        );
+
+        debug!(
+            "⚡ Swap processed: {} {} → {} {}",
+            amount_in, amount_in_decimals, amount_out, amount_out_decimals
+        );
+
         let message = TLVMessageBuilder::new(
-            self.config.relay.parse_domain().ok()?, 
-            SourceType::PolygonCollector
+            self.config.relay.parse_domain().ok()?,
+            SourceType::PolygonCollector,
         )
-        .add_tlv_bytes(TLVType::PoolSwap, swap_tlv.as_bytes())
+        .add_tlv_slice(TLVType::PoolSwap, swap_tlv.as_bytes())
         .build();
-        
+
         Some(message)
     }
 
-    /// Process mint event and convert to PoolMintTLV
+    /// Process mint event and convert to PoolMintTLV with proper ABI decoding
     async fn process_mint_event(&self, log: &Log) -> Option<Vec<u8>> {
-        if log.data.0.len() < 32 {
+        // Validate minimum requirements
+        if log.topics.is_empty() {
+            debug!("No topics in mint log");
             return None;
         }
-        
+
         let pool_address = log.address;
-        let addr_bytes = pool_address.0;
-        let token0 = u64::from_be_bytes(addr_bytes[0..8].try_into().ok()?);
-        let token1 = u64::from_be_bytes(addr_bytes[12..20].try_into().ok()?);
-        
-        let liquidity_delta = i64::from_be_bytes(log.data.0[24..32].try_into().ok()?);
-        let (token0_decimals, token1_decimals) = self.detect_token_decimals(token0, token1);
-        
+
+        // Create RawLog for ethabi parsing
+        let raw_log = RawLog {
+            topics: log.topics.clone(),
+            data: log.data.0.clone(),
+        };
+
+        // Parse using V3 Mint ABI
+        let parsed = match UNISWAP_V3_MINT_EVENT.parse_log(raw_log) {
+            Ok(p) => p,
+            Err(e) => {
+                debug!("Failed to parse mint event: {}", e);
+                return None;
+            }
+        };
+
+        // Extract parameters from parsed event
+        let sender = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "sender")
+            .and_then(|p| p.value.clone().into_address())?;
+        let owner = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "owner")
+            .and_then(|p| p.value.clone().into_address())?;
+        let tick_lower = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "tickLower")
+            .and_then(|p| p.value.clone().into_int())
+            .map(|v| v.low_u32() as i32)?;
+        let tick_upper = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "tickUpper")
+            .and_then(|p| p.value.clone().into_int())
+            .map(|v| v.low_u32() as i32)?;
+        let liquidity = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "amount")
+            .and_then(|p| p.value.clone().into_uint())
+            .map(|v| v.low_u128())?;
+        let amount0 = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "amount0")
+            .and_then(|p| p.value.clone().into_uint())
+            .map(|v| v.low_u128())?;
+        let amount1 = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "amount1")
+            .and_then(|p| p.value.clone().into_uint())
+            .map(|v| v.low_u128())?;
+
+        // Get pool address
         let mut pool_addr = [0u8; 20];
         pool_addr.copy_from_slice(&pool_address.0);
-        
+
+        // Get provider address (owner)
+        let mut provider_addr = [0u8; 20];
+        provider_addr.copy_from_slice(&owner.0);
+
+        // Get token addresses from pool (simplified - would need pool registry)
         let mut token0_addr = [0u8; 20];
         let mut token1_addr = [0u8; 20];
-        token0_addr[12..20].copy_from_slice(&token0.to_be_bytes());
-        token1_addr[12..20].copy_from_slice(&token1.to_be_bytes());
-        
-        let mut provider_addr = [0u8; 20];
-        provider_addr[16..20].copy_from_slice(&[0xDE, 0xAD, 0xBE, 0xEF]);
-        
-        let mint_tlv = PoolMintTLV {
-            venue: VenueId::Polygon,
-            pool_address: pool_addr,
+        // In production, query pool for token addresses
+        token0_addr.copy_from_slice(&sender.0); // Placeholder
+        token1_addr[12..20].copy_from_slice(&pool_address.0[0..8]); // Placeholder
+
+        // Detect token decimals
+        let (token0_decimals, token1_decimals) = self.detect_token_decimals(
+            u64::from_be_bytes(token0_addr[12..20].try_into().ok()?),
+            u64::from_be_bytes(token1_addr[12..20].try_into().ok()?),
+        );
+
+        let mint_tlv = PoolMintTLV::new(
+            pool_addr,
             provider_addr,
             token0_addr,
             token1_addr,
-            tick_lower: -887220,
-            tick_upper: 887220,
-            liquidity_delta: liquidity_delta as u128,
-            amount0: (liquidity_delta / 2) as u128,
-            amount1: (liquidity_delta / 2) as u128,
+            VenueId::Polygon,
+            liquidity,
+            amount0,
+            amount1,
+            tick_lower,
+            tick_upper,
             token0_decimals,
             token1_decimals,
-            timestamp_ns: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64,
-        };
-        
-        debug!("💧 Mint processed: liquidity={}", liquidity_delta);
-        
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64,
+        );
+
+        debug!(
+            "💧 Mint processed: liquidity={}, ticks=[{}, {}]",
+            liquidity, tick_lower, tick_upper
+        );
+
         let message = TLVMessageBuilder::new(
-            self.config.relay.parse_domain().ok()?, 
-            SourceType::PolygonCollector
+            self.config.relay.parse_domain().ok()?,
+            SourceType::PolygonCollector,
         )
-        .add_tlv_bytes(TLVType::PoolMint, mint_tlv.as_bytes())
+        .add_tlv_slice(TLVType::PoolMint, mint_tlv.as_bytes())
         .build();
-        
+
         Some(message)
     }
 
-    /// Process burn event and convert to PoolBurnTLV
+    /// Process burn event and convert to PoolBurnTLV with proper ABI decoding
     async fn process_burn_event(&self, log: &Log) -> Option<Vec<u8>> {
-        if log.data.0.len() < 32 {
+        // Validate minimum requirements
+        if log.topics.is_empty() {
+            debug!("No topics in burn log");
             return None;
         }
-        
+
         let pool_address = log.address;
-        let addr_bytes = pool_address.0;
-        let token0 = u64::from_be_bytes(addr_bytes[0..8].try_into().ok()?);
-        let token1 = u64::from_be_bytes(addr_bytes[12..20].try_into().ok()?);
-        
-        let liquidity_delta = i64::from_be_bytes(log.data.0[24..32].try_into().ok()?);
-        let (token0_decimals, token1_decimals) = self.detect_token_decimals(token0, token1);
-        
+
+        // Create RawLog for ethabi parsing
+        let raw_log = RawLog {
+            topics: log.topics.clone(),
+            data: log.data.0.clone(),
+        };
+
+        // Parse using V3 Burn ABI
+        let parsed = match UNISWAP_V3_BURN_EVENT.parse_log(raw_log) {
+            Ok(p) => p,
+            Err(e) => {
+                debug!("Failed to parse burn event: {}", e);
+                return None;
+            }
+        };
+
+        // Extract parameters from parsed event
+        let owner = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "owner")
+            .and_then(|p| p.value.clone().into_address())?;
+        let tick_lower = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "tickLower")
+            .and_then(|p| p.value.clone().into_int())
+            .map(|v| v.low_u32() as i32)?;
+        let tick_upper = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "tickUpper")
+            .and_then(|p| p.value.clone().into_int())
+            .map(|v| v.low_u32() as i32)?;
+        let liquidity = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "amount")
+            .and_then(|p| p.value.clone().into_uint())
+            .map(|v| v.low_u128())?;
+        let amount0 = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "amount0")
+            .and_then(|p| p.value.clone().into_uint())
+            .map(|v| v.low_u128())?;
+        let amount1 = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "amount1")
+            .and_then(|p| p.value.clone().into_uint())
+            .map(|v| v.low_u128())?;
+
+        // Get pool address
         let mut pool_addr = [0u8; 20];
         pool_addr.copy_from_slice(&pool_address.0);
-        
+
+        // Get provider address (owner)
+        let mut provider_addr = [0u8; 20];
+        provider_addr.copy_from_slice(&owner.0);
+
+        // Get token addresses from pool (simplified - would need pool registry)
         let mut token0_addr = [0u8; 20];
         let mut token1_addr = [0u8; 20];
-        token0_addr[12..20].copy_from_slice(&token0.to_be_bytes());
-        token1_addr[12..20].copy_from_slice(&token1.to_be_bytes());
-        
-        let mut provider_addr = [0u8; 20];
-        provider_addr[16..20].copy_from_slice(&[0xCA, 0xFE, 0xBA, 0xBE]);
-        
-        let burn_tlv = PoolBurnTLV {
-            venue: VenueId::Polygon,
-            pool_address: pool_addr,
+        // In production, query pool for token addresses
+        token0_addr[0..8].copy_from_slice(&pool_address.0[0..8]); // Placeholder
+        token1_addr[0..8].copy_from_slice(&pool_address.0[12..20]); // Placeholder
+
+        // Detect token decimals
+        let (token0_decimals, token1_decimals) = self.detect_token_decimals(
+            u64::from_be_bytes(token0_addr[12..20].try_into().ok()?),
+            u64::from_be_bytes(token1_addr[12..20].try_into().ok()?),
+        );
+
+        let burn_tlv = PoolBurnTLV::new(
+            pool_addr,
             provider_addr,
             token0_addr,
             token1_addr,
-            tick_lower: -100,
-            tick_upper: 100,
-            liquidity_delta: liquidity_delta.unsigned_abs() as u128,
-            amount0: (liquidity_delta.abs() / 2) as u128,
-            amount1: (liquidity_delta.abs() / 2) as u128,
+            VenueId::Polygon,
+            liquidity,
+            amount0,
+            amount1,
+            tick_lower,
+            tick_upper,
             token0_decimals,
             token1_decimals,
-            timestamp_ns: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64,
-        };
-        
-        debug!("🔥 Burn processed: liquidity={}", liquidity_delta);
-        
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64,
+        );
+
+        debug!(
+            "🔥 Burn processed: liquidity={}, ticks=[{}, {}]",
+            liquidity, tick_lower, tick_upper
+        );
+
         let message = TLVMessageBuilder::new(
-            self.config.relay.parse_domain().ok()?, 
-            SourceType::PolygonCollector
+            self.config.relay.parse_domain().ok()?,
+            SourceType::PolygonCollector,
         )
-        .add_tlv_bytes(TLVType::PoolBurn, burn_tlv.as_bytes())
+        .add_tlv_slice(TLVType::PoolBurn, burn_tlv.as_bytes())
         .build();
-        
+
         Some(message)
     }
 
@@ -581,80 +1122,116 @@ impl UnifiedPolygonCollector {
         if log.data.0.len() < 4 {
             return None;
         }
-        
+
         let pool_address = log.address;
         let tick = i32::from_be_bytes(log.data.0[0..4].try_into().ok()?);
-        
+
         let mut pool_addr = [0u8; 20];
         pool_addr.copy_from_slice(&pool_address.0);
-        
-        let tick_tlv = PoolTickTLV {
-            venue: VenueId::Polygon,
-            pool_address: pool_addr,
+
+        let tick_tlv = PoolTickTLV::new(
+            pool_addr,
+            VenueId::Polygon,
             tick,
-            liquidity_net: -50000000000000,
-            price_sqrt: 7922816251426433759,
-            timestamp_ns: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64,
-        };
-        
+            -50000000000000,     // liquidity_net
+            7922816251426433759, // price_sqrt
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64,
+        );
+
         debug!("📊 Tick crossing processed: tick={}", tick);
-        
+
         let message = TLVMessageBuilder::new(
-            self.config.relay.parse_domain().ok()?, 
-            SourceType::PolygonCollector
+            self.config.relay.parse_domain().ok()?,
+            SourceType::PolygonCollector,
         )
-        .add_tlv_bytes(TLVType::PoolTick, tick_tlv.as_bytes())
+        .add_tlv_slice(TLVType::PoolTick, tick_tlv.as_bytes())
         .build();
-        
+
         Some(message)
     }
 
-    /// Process V2 sync event and convert to PoolSyncTLV
+    /// Process V2 sync event and convert to PoolSyncTLV with proper ABI decoding
     async fn process_sync_event(&self, log: &Log) -> Option<Vec<u8>> {
-        if log.data.0.len() < 64 {
-            return None;
-        }
-        
         let pool_address = log.address;
-        let addr_bytes = pool_address.0;
-        let token0 = u64::from_be_bytes(addr_bytes[0..8].try_into().ok()?);
-        let token1 = u64::from_be_bytes(addr_bytes[12..20].try_into().ok()?);
-        
-        let reserve0 = i64::from_be_bytes(log.data.0[24..32].try_into().ok()?);
-        let reserve1 = i64::from_be_bytes(log.data.0[56..64].try_into().ok()?);
-        
-        let (token0_decimals, token1_decimals) = self.detect_token_decimals(token0, token1);
-        
+
+        // Create RawLog for ethabi parsing
+        let raw_log = RawLog {
+            topics: log.topics.clone(),
+            data: log.data.0.clone(),
+        };
+
+        // Parse using V2 Sync ABI
+        let parsed = match V2_SYNC_EVENT.parse_log(raw_log) {
+            Ok(p) => p,
+            Err(e) => {
+                debug!("Failed to parse sync event: {}", e);
+                return None;
+            }
+        };
+
+        // Extract reserves from parsed event
+        let reserve0 = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "reserve0")
+            .and_then(|p| p.value.clone().into_uint())
+            .map(|v| v.low_u128())?;
+        let reserve1 = parsed
+            .params
+            .iter()
+            .find(|p| p.name == "reserve1")
+            .and_then(|p| p.value.clone().into_uint())
+            .map(|v| v.low_u128())?;
+
+        // Get pool address
         let mut pool_addr = [0u8; 20];
         pool_addr.copy_from_slice(&pool_address.0);
-        
+
+        // Get token addresses from pool (simplified - would need pool registry)
         let mut token0_addr = [0u8; 20];
         let mut token1_addr = [0u8; 20];
-        token0_addr[12..20].copy_from_slice(&token0.to_be_bytes());
-        token1_addr[12..20].copy_from_slice(&token1.to_be_bytes());
-        
-        let sync_tlv = PoolSyncTLV {
-            venue: VenueId::Polygon,
-            pool_address: pool_addr,
+        // In production, query pool for actual token addresses
+        let addr_bytes = pool_address.0;
+        token0_addr[12..20].copy_from_slice(&addr_bytes[0..8]);
+        token1_addr[12..20].copy_from_slice(&addr_bytes[12..20]);
+
+        // Detect token decimals
+        let (token0_decimals, token1_decimals) = self.detect_token_decimals(
+            u64::from_be_bytes(token0_addr[12..20].try_into().ok()?),
+            u64::from_be_bytes(token1_addr[12..20].try_into().ok()?),
+        );
+
+        let sync_tlv = PoolSyncTLV::new(
+            pool_addr,
             token0_addr,
             token1_addr,
-            reserve0: reserve0 as u128,
-            reserve1: reserve1 as u128,
+            VenueId::Polygon,
+            reserve0,
+            reserve1,
             token0_decimals,
             token1_decimals,
-            timestamp_ns: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64,
-            block_number: log.block_number.map(|n| n.as_u64()).unwrap_or(0),
-        };
-        
-        debug!("🔄 V2 Sync processed: reserve0={}, reserve1={}", reserve0, reserve1);
-        
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64,
+            log.block_number.map(|n| n.as_u64()).unwrap_or(0),
+        );
+
+        debug!(
+            "🔄 V2 Sync processed: reserve0={}, reserve1={}",
+            reserve0, reserve1
+        );
+
         let message = TLVMessageBuilder::new(
-            self.config.relay.parse_domain().ok()?, 
-            SourceType::PolygonCollector
+            self.config.relay.parse_domain().ok()?,
+            SourceType::PolygonCollector,
         )
-        .add_tlv_bytes(TLVType::PoolSync, sync_tlv.as_bytes())
+        .add_tlv_slice(TLVType::PoolSync, sync_tlv.as_bytes())
         .build();
-        
+
         Some(message)
     }
 
@@ -669,52 +1246,66 @@ impl UnifiedPolygonCollector {
         if log.topics.len() < 3 || log.data.0.len() < 64 {
             return None;
         }
-        
+
         let token0_bytes = log.topics[1].0;
         let token1_bytes = log.topics[2].0;
-        
+
         let token0 = u64::from_be_bytes(token0_bytes[24..32].try_into().ok()?);
         let token1 = u64::from_be_bytes(token1_bytes[24..32].try_into().ok()?);
-        
+
         let fee_bytes = &log.data.0[24..28];
         let fee_tier = u32::from_be_bytes([0, fee_bytes[0], fee_bytes[1], fee_bytes[2]]) / 100;
-        
+
         let pool_address_bytes = &log.data.0[log.data.0.len() - 20..];
         let pool_address = H160::from_slice(pool_address_bytes);
-        
+
         let (token0_decimals, token1_decimals) = self.detect_token_decimals(token0, token1);
-        
+
         let mut pool_addr = [0u8; 20];
         pool_addr.copy_from_slice(&pool_address.0);
-        
+
         let mut token0_addr = [0u8; 20];
         let mut token1_addr = [0u8; 20];
         token0_addr[12..20].copy_from_slice(&token0.to_be_bytes());
         token1_addr[12..20].copy_from_slice(&token1.to_be_bytes());
-        
-        let pool_state = PoolStateTLV::from_v3_state(
-            VenueId::Polygon,
-            pool_addr,
-            token0_addr,
-            token1_addr,
+
+        let v3_config = V3PoolConfig {
+            venue: VenueId::Polygon as u16,
+            pool_address: {
+                let mut padded = [0u8; 32];
+                padded[..20].copy_from_slice(&pool_addr);
+                padded
+            },
+            token0_addr: {
+                let mut padded = [0u8; 32];
+                padded[..20].copy_from_slice(&token0_addr);
+                padded
+            },
+            token1_addr: {
+                let mut padded = [0u8; 32];
+                padded[..20].copy_from_slice(&token1_addr);
+                padded
+            },
             token0_decimals,
             token1_decimals,
-            792281625142643375u128,
-            0,
-            0u128,
-            fee_tier,
-            log.block_number.map(|n| n.as_u64()).unwrap_or(0),
-        );
-        
+            sqrt_price_x96: 792281625142643375u128,
+            tick: 0,
+            liquidity: 0u128,
+            fee_rate: fee_tier,
+            block: log.block_number.map(|n| n.as_u64()).unwrap_or(0),
+        };
+
+        let pool_state = PoolStateTLV::from_v3_state(v3_config);
+
         info!("🏭 V3 Pool Created: fee={}bps", fee_tier);
-        
+
         let message = TLVMessageBuilder::new(
-            self.config.relay.parse_domain().ok()?, 
-            SourceType::PolygonCollector
+            self.config.relay.parse_domain().ok()?,
+            SourceType::PolygonCollector,
         )
-        .add_tlv_bytes(TLVType::PoolState, pool_state.as_bytes())
+        .add_tlv_slice(TLVType::PoolState, pool_state.as_bytes())
         .build();
-        
+
         Some(message)
     }
 
@@ -723,49 +1314,63 @@ impl UnifiedPolygonCollector {
         if log.topics.len() < 3 || log.data.0.len() < 64 {
             return None;
         }
-        
+
         let token0_bytes = log.topics[1].0;
         let token1_bytes = log.topics[2].0;
-        
+
         let token0 = u64::from_be_bytes(token0_bytes[24..32].try_into().ok()?);
         let token1 = u64::from_be_bytes(token1_bytes[24..32].try_into().ok()?);
-        
+
         let pair_address_bytes = &log.data.0[12..32];
         let pair_address = H160::from_slice(pair_address_bytes);
-        
+
         let fee_tier = 30u32; // V2 pools typically 0.3%
         let (token0_decimals, token1_decimals) = self.detect_token_decimals(token0, token1);
-        
+
         let mut pool_addr = [0u8; 20];
         pool_addr.copy_from_slice(&pair_address.0);
-        
+
         let mut token0_addr = [0u8; 20];
         let mut token1_addr = [0u8; 20];
         token0_addr[12..20].copy_from_slice(&token0.to_be_bytes());
         token1_addr[12..20].copy_from_slice(&token1.to_be_bytes());
-        
-        let pool_state = PoolStateTLV::from_v2_reserves(
-            VenueId::Polygon,
-            pool_addr,
-            token0_addr,
-            token1_addr,
+
+        let v2_config = V2PoolConfig {
+            venue: VenueId::Polygon as u16,
+            pool_address: {
+                let mut padded = [0u8; 32];
+                padded[..20].copy_from_slice(&pool_addr);
+                padded
+            },
+            token0_addr: {
+                let mut padded = [0u8; 32];
+                padded[..20].copy_from_slice(&token0_addr);
+                padded
+            },
+            token1_addr: {
+                let mut padded = [0u8; 32];
+                padded[..20].copy_from_slice(&token1_addr);
+                padded
+            },
             token0_decimals,
             token1_decimals,
-            0u128,
-            0u128,
-            fee_tier,
-            log.block_number.map(|n| n.as_u64()).unwrap_or(0),
-        );
-        
+            reserve0: 0u128,
+            reserve1: 0u128,
+            fee_rate: fee_tier,
+            block: log.block_number.map(|n| n.as_u64()).unwrap_or(0),
+        };
+
+        let pool_state = PoolStateTLV::from_v2_reserves(v2_config);
+
         info!("🔄 V2 Pair Created: fee={}bps", fee_tier);
-        
+
         let message = TLVMessageBuilder::new(
-            self.config.relay.parse_domain().ok()?, 
-            SourceType::PolygonCollector
+            self.config.relay.parse_domain().ok()?,
+            SourceType::PolygonCollector,
         )
-        .add_tlv_bytes(TLVType::PoolState, pool_state.as_bytes())
+        .add_tlv_slice(TLVType::PoolState, pool_state.as_bytes())
         .build();
-        
+
         Some(message)
     }
 
@@ -773,15 +1378,15 @@ impl UnifiedPolygonCollector {
     fn detect_token_decimals(&self, token0: u64, token1: u64) -> (u8, u8) {
         let detect_decimals = |token_id: u64| -> u8 {
             match (token_id >> 48) & 0xFFFF {
-                0x0d50 => 18,  // WMATIC pattern
-                0x2791 => 6,   // USDC pattern
-                0x7ceB => 18,  // WETH pattern
-                0x8f3C => 18,  // DAI pattern
-                0xc2132 => 6,  // USDT pattern
-                _ => 18,       // Default to 18 decimals
+                0x0d50 => 18, // WMATIC pattern
+                0x2791 => 6,  // USDC pattern
+                0x7CEB => 18, // WETH pattern
+                0x8F3C => 18, // DAI pattern
+                0xc2132 => 6, // USDT pattern
+                _ => 18,      // Default to 18 decimals
             }
         };
-        
+
         (detect_decimals(token0), detect_decimals(token1))
     }
 
@@ -790,7 +1395,7 @@ impl UnifiedPolygonCollector {
         let messages = *self.messages_processed.read().await;
         let failures = *self.validation_failures.read().await;
         let uptime = self.start_time.elapsed();
-        
+
         (messages, failures, uptime)
     }
 
@@ -805,27 +1410,33 @@ impl UnifiedPolygonCollector {
 async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt::init();
-    
+
     info!("🚀 Starting Unified Polygon Collector");
     info!("   Architecture: WebSocket → TLV Builder → RelayOutput");
     info!("   NO MPSC channels - direct relay integration");
-    
+
     // Load configuration
-    let config_path = std::env::args().nth(1)
+    let config_path = std::env::args()
+        .nth(1)
         .unwrap_or_else(|| "polygon.toml".to_string());
-    
+
     let config = PolygonConfig::from_toml_with_env_overrides(&config_path)
         .context("Failed to load configuration")?;
-    
+
     info!("📋 Configuration loaded from: {}", config_path);
     info!("   WebSocket: {}", config.websocket.url);
-    info!("   Relay: {} → {}", config.relay.domain, config.relay.socket_path);
-    info!("   Validation: {}s runtime period", config.validation.runtime_validation_seconds);
-    
+    info!(
+        "   Relay: {} → {}",
+        config.relay.domain, config.relay.socket_path
+    );
+    info!(
+        "   Validation: {}s runtime period",
+        config.validation.runtime_validation_seconds
+    );
+
     // Create and start collector
-    let collector = UnifiedPolygonCollector::new(config)
-        .context("Failed to create collector")?;
-    
+    let collector = UnifiedPolygonCollector::new(config).context("Failed to create collector")?;
+
     // Setup signal handling for graceful shutdown
     let collector_ref = Arc::new(collector);
     let collector_shutdown = collector_ref.clone();
@@ -834,14 +1445,16 @@ async fn main() -> Result<()> {
         info!("📡 Received Ctrl+C, shutting down...");
         collector_shutdown.stop().await;
     });
-    
+
     // Start collector (will crash on WebSocket/relay failures as designed)
     match collector_ref.start().await {
         Ok(()) => {
             let (messages, failures, uptime) = collector_ref.stats().await;
             info!("✅ Collector stopped gracefully");
-            info!("📊 Final stats: {} messages, {} validation failures, uptime: {:?}", 
-                  messages, failures, uptime);
+            info!(
+                "📊 Final stats: {} messages, {} validation failures, uptime: {:?}",
+                messages, failures, uptime
+            );
         }
         Err(e) => {
             error!("🔥 COLLECTOR CRASHED: {}", e);
@@ -849,6 +1462,6 @@ async fn main() -> Result<()> {
             std::process::exit(1);
         }
     }
-    
+
     Ok(())
 }

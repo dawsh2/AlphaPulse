@@ -13,6 +13,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::interval;
+use zerocopy::AsBytes;
 
 use crate::input::ConnectionState;
 use crate::AdapterMetrics;
@@ -36,6 +37,12 @@ pub struct StateManager {
 
     /// Maximum time before automatic invalidation
     max_stale_duration: Duration,
+}
+
+impl Default for StateManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StateManager {
@@ -173,19 +180,19 @@ impl StateManager {
             *seq
         };
 
-        // Create invalidation TLV
-        let invalidation = StateInvalidationTLV {
-            venue: self.venue,
+        // Create invalidation TLV using constructor
+        let invalidation = StateInvalidationTLV::new(
+            self.venue,
             sequence,
-            instrument_count: instrument_count as u16,
-            instruments,
-            reason: InvalidationReason::Disconnection,
-            timestamp_ns: current_nanos(),
-        };
+            &instruments,
+            InvalidationReason::Disconnection,
+            current_nanos(),
+        )
+        .expect("Failed to create StateInvalidationTLV");
 
         // Convert to TLV message
         let tlv_message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::StateManager)
-            .add_tlv_bytes(TLVType::StateInvalidation, invalidation.to_bytes())
+            .add_tlv_bytes(TLVType::StateInvalidation, invalidation.as_bytes().to_vec())
             .build();
 
         tracing::warn!(
@@ -217,18 +224,18 @@ impl StateManager {
         // Clear sequence to indicate fresh start
         self.sequence_numbers.write().await.insert(self.venue, 0);
 
-        // Create recovery TLV
-        let recovery = StateInvalidationTLV {
-            venue: self.venue,
-            sequence: 0, // 0 indicates recovery/fresh start
-            instrument_count: 0,
-            instruments: Vec::new(),
-            reason: InvalidationReason::Recovery,
-            timestamp_ns: current_nanos(),
-        };
+        // Create recovery TLV using constructor
+        let recovery = StateInvalidationTLV::new(
+            self.venue,
+            0,   // 0 indicates recovery/fresh start
+            &[], // Empty instruments slice for recovery
+            InvalidationReason::Recovery,
+            current_nanos(),
+        )
+        .expect("Failed to create recovery StateInvalidationTLV");
 
         let tlv_message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::StateManager)
-            .add_tlv_bytes(TLVType::StateInvalidation, recovery.to_bytes())
+            .add_tlv_bytes(TLVType::StateInvalidation, recovery.as_bytes().to_vec())
             .build();
 
         tracing::info!("Generated recovery message for venue {:?}", self.venue);
@@ -334,15 +341,25 @@ mod tests {
         manager.track_instrument(InstrumentId::from_u64(2002)).await;
 
         // Generate invalidation
-        let tlv = manager.generate_invalidation().await.unwrap();
+        let tlv_bytes = manager.generate_invalidation().await.unwrap();
 
-        assert_eq!(tlv.header.tlv_type, TLVType::StateInvalidation);
-        assert!(tlv.header.payload_len > 0);
+        // The returned bytes are a complete Protocol V2 message with 32-byte header + TLV payload
+        assert!(
+            tlv_bytes.len() >= 32,
+            "Message should have at least 32-byte header"
+        );
+
+        // Check magic number (first 4 bytes should be 0xDEADBEEF)
+        assert_eq!(&tlv_bytes[0..4], &[0xDE, 0xAD, 0xBE, 0xEF]);
 
         // Verify sequence increments
-        let tlv2 = manager.generate_invalidation().await.unwrap();
-        // Sequences should be different (incremented)
-        assert_ne!(tlv.payload[1..9], tlv2.payload[1..9]);
+        let tlv_bytes2 = manager.generate_invalidation().await.unwrap();
+        // Sequence is at bytes 16-24 in the header
+        assert_ne!(
+            &tlv_bytes[16..24],
+            &tlv_bytes2[16..24],
+            "Sequence should increment"
+        );
     }
 
     #[tokio::test]

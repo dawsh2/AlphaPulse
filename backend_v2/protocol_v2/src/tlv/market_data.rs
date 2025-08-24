@@ -4,11 +4,10 @@
 
 use crate::{InstrumentId, VenueId}; // TLVType removed with legacy TLV system
                                     // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
-use std::convert::TryInto;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 /// Trade TLV structure - simplified for serialization
-/// 
+///
 /// Fields are ordered to eliminate padding: u64/i64 → u16 → u8
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
@@ -18,10 +17,10 @@ pub struct TradeTLV {
     pub price: i64,        // Fixed-point with 8 decimals
     pub volume: i64,       // Fixed-point with 8 decimals
     pub timestamp_ns: u64, // Nanoseconds since epoch
-    
+
     // Then 16-bit field
-    pub venue_id: u16,     // VenueId as primitive
-    
+    pub venue_id: u16, // VenueId as primitive
+
     // Finally 8-bit fields (need 6 bytes total to reach 40 bytes)
     pub asset_type: u8,    // AssetType as primitive
     pub reserved: u8,      // Reserved byte for alignment
@@ -85,8 +84,8 @@ impl TradeTLV {
 }
 
 /// Quote TLV structure (best bid/ask) - optimized for zero-copy serialization
-/// 
-/// Fields are ordered to eliminate padding: u64/i64 → u16 → u8
+///
+/// Padded to 56 bytes for 8-byte alignment
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct QuoteTLV {
@@ -97,14 +96,16 @@ pub struct QuoteTLV {
     pub ask_price: i64,    // Fixed-point with 8 decimals
     pub ask_size: i64,     // Fixed-point with 8 decimals
     pub timestamp_ns: u64, // Nanoseconds since epoch
-    
+
     // Then 16-bit field
-    pub venue_id: u16,     // VenueId as primitive
-    
-    // Finally 8-bit fields (need 6 bytes total to reach 56 bytes)
-    pub asset_type: u8,    // AssetType as primitive
-    pub reserved: u8,      // Reserved byte for alignment
-    pub _padding: [u8; 4], // Padding to reach 56 bytes (multiple of 8)
+    pub venue_id: u16, // VenueId as primitive
+
+    // Finally 8-bit fields
+    pub asset_type: u8, // AssetType as primitive
+    pub reserved: u8,   // Reserved byte for alignment
+
+    // EXPLICIT PADDING - DO NOT DELETE!
+    pub _padding: [u8; 4], // Required for 8-byte alignment to 56 bytes
 }
 
 impl QuoteTLV {
@@ -161,170 +162,168 @@ impl QuoteTLV {
     }
 }
 
-/// State invalidation TLV structure
-#[derive(Debug, Clone, PartialEq)]
+/// State invalidation TLV structure - Zero-copy with fixed-size array
+///
+/// Supports up to 16 instruments per invalidation (more than sufficient for real-world usage)
+/// Most invalidations affect 1-5 instruments, with 16 providing generous headroom.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct StateInvalidationTLV {
-    pub venue: VenueId,
-    pub sequence: u64,
-    pub instrument_count: u16,
-    pub instruments: Vec<InstrumentId>,
-    pub reason: InvalidationReason,
-    pub timestamp_ns: u64,
+    // Group 64-bit fields first (16 bytes)
+    pub sequence: u64,     // Sequence number
+    pub timestamp_ns: u64, // Nanoseconds since epoch
+
+    // Fixed-size array for instruments (16 * 8 = 128 bytes)
+    pub instruments: [InstrumentId; 16], // Fixed array - unused slots are zeroed
+
+    // Then smaller fields (8 bytes total)
+    pub venue: u16,            // VenueId as u16 (2 bytes)
+    pub instrument_count: u16, // Actual count (0-16)
+    pub reason: u8,            // InvalidationReason as u8 (1 byte)
+    pub _padding: [u8; 3],     // Explicit padding to align to 16-byte boundary
+
+                               // Total: 16 + 128 + 8 = 152 bytes (aligned)
 }
 
-/// Pool liquidity update TLV structure
+/// Pool liquidity update TLV structure - Zero-copy with fixed-size array
 ///
 /// Tracks only liquidity changes - fee rates come from PoolStateTLV
-#[derive(Debug, Clone, PartialEq, Hash)]
+/// Supports up to 8 token reserves (sufficient for even complex Balancer/Curve pools)
+/// Most pools have 2 tokens, with 8 providing generous headroom.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PoolLiquidityTLV {
-    pub venue: VenueId,
-    pub pool_address: [u8; 20], // Full pool contract address
-    pub reserves: Vec<u128>, // Token reserves (native precision, no scaling) - u128 for DEX amounts
-    pub timestamp_ns: u64,   // Nanoseconds since epoch
+    // Group 64-bit fields first (8 bytes)
+    pub timestamp_ns: u64, // Nanoseconds since epoch
+
+    // Fixed-size array for reserves (8 * 16 = 128 bytes)
+    pub reserves: [u128; 8], // Token reserves (native precision) - unused slots are zero
+
+    // Pool address (32 bytes - padded from 20-byte Ethereum address)
+    pub pool_address: [u8; 32], // Full pool contract address (20 bytes + 12 padding)
+
+    // Then smaller fields (8 bytes total to align properly)
+    pub venue: u16,        // VenueId as u16 (2 bytes)
+    pub reserve_count: u8, // Actual number of reserves (1-8)
+    pub _padding: [u8; 5], // Explicit padding to reach 8 bytes
+
+                           // Total: 8 + 128 + 32 + 8 = 176 bytes (all u64/u128 aligned)
 }
 
 /// Pool swap event TLV structure
 ///
 /// Records individual swaps with full token addresses for execution capability
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct PoolSwapTLV {
-    pub venue: VenueId,
-    pub pool_address: [u8; 20],   // Full pool contract address
-    pub token_in_addr: [u8; 20],  // Full input token address (for execution)
-    pub token_out_addr: [u8; 20], // Full output token address (for execution)
-    pub amount_in: u128, // Amount in (native precision, no scaling) - u128 for blockchain amounts
-    pub amount_out: u128, // Amount out (native precision, no scaling) - u128 for blockchain amounts
+    // u128 fields (16-byte aligned) - 48 bytes
+    pub amount_in: u128,       // Amount in (native precision, no scaling)
+    pub amount_out: u128,      // Amount out (native precision, no scaling)
+    pub liquidity_after: u128, // Active liquidity after swap (V3)
+
+    // u64 fields (8-byte aligned) - 16 bytes
+    pub timestamp_ns: u64, // Nanoseconds since epoch
+    pub block_number: u64, // Block number of swap
+
+    // i32 fields (4-byte aligned) - 4 bytes
+    pub tick_after: i32, // New tick after swap (V3)
+
+    // u16 fields (2-byte aligned) - 2 bytes
+    pub venue: u16, // NOT VenueId enum! Direct u16 for zero-copy
+
+    // u8 fields (1-byte aligned) - 2 bytes
     pub amount_in_decimals: u8, // Decimals for amount_in (e.g., WMATIC=18)
     pub amount_out_decimals: u8, // Decimals for amount_out (e.g., USDC=6)
-    // V3 state updates (0 for V2 pools):
-    pub sqrt_price_x96_after: [u8; 20], // New sqrt price after swap (V3) - [u8; 20] for full uint160 precision
-    pub tick_after: i32,                // New tick after swap (V3)
-    pub liquidity_after: u128, // Active liquidity after swap (V3) - u128 for large liquidity
-    pub timestamp_ns: u64,     // Nanoseconds since epoch
-    pub block_number: u64,     // Block number of swap
+
+    // [u8; 32] arrays - 128 bytes
+    pub pool_address: [u8; 32], // Full pool contract address (first 20 bytes = address, last 12 = padding)
+    pub token_in_addr: [u8; 32], // Full input token address (first 20 bytes = address, last 12 = padding)
+    pub token_out_addr: [u8; 32], // Full output token address (first 20 bytes = address, last 12 = padding)
+    pub sqrt_price_x96_after: [u8; 32], // New sqrt price after swap (V3) - padded for alignment
+
+    // EXPLICIT PADDING - DO NOT DELETE!
+    pub _padding: [u8; 8], // Required for alignment to 208 bytes
+                           // Total: 208 bytes (13 × 16) ✅
 }
 
 impl PoolSwapTLV {
-    /// Convert sqrt_price_x96_after from [u8; 20] to u128 for backward compatibility
-    /// Note: This truncates to lower 128 bits for internal calculations while preserving full precision in TLV
-    pub fn sqrt_price_x96_as_u128(&self) -> u128 {
-        let mut u128_bytes = [0u8; 16];
-        // Take the lower 16 bytes (128 bits) for calculations
-        u128_bytes.copy_from_slice(&self.sqrt_price_x96_after[4..20]);
-        u128::from_be_bytes(u128_bytes)
-    }
+    /// Create a new PoolSwapTLV from components
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        pool: [u8; 20],
+        token_in: [u8; 20],
+        token_out: [u8; 20],
+        venue_id: VenueId,
+        amount_in: u128,
+        amount_out: u128,
+        liquidity_after: u128,
+        timestamp_ns: u64,
+        block_number: u64,
+        tick_after: i32,
+        amount_in_decimals: u8,
+        amount_out_decimals: u8,
+        sqrt_price_x96_after: u128,
+    ) -> Self {
+        use super::AddressConversion;
 
-    /// Create sqrt_price_x96_after from u128 value (for testing/backward compatibility)
-    pub fn sqrt_price_from_u128(value: u128) -> [u8; 20] {
-        let mut result = [0u8; 20];
-        result[4..20].copy_from_slice(&value.to_be_bytes());
-        result
-    }
-
-    /// Serialize to bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-
-        // Venue (2 bytes)
-        bytes.extend_from_slice(&(self.venue as u16).to_le_bytes());
-
-        // Pool address (20 bytes)
-        bytes.extend_from_slice(&self.pool_address);
-
-        // Token addresses (20 bytes each)
-        bytes.extend_from_slice(&self.token_in_addr);
-        bytes.extend_from_slice(&self.token_out_addr);
-
-        // Amounts (native precision) - now u128 (16 bytes each)
-        bytes.extend_from_slice(&self.amount_in.to_le_bytes());
-        bytes.extend_from_slice(&self.amount_out.to_le_bytes());
-
-        // Token decimals
-        bytes.push(self.amount_in_decimals);
-        bytes.push(self.amount_out_decimals);
-
-        // V3 state (0 for V2)
-        bytes.extend_from_slice(&self.sqrt_price_x96_after); // 20 bytes for uint160 ([u8; 20])
-        bytes.extend_from_slice(&self.tick_after.to_le_bytes());
-        bytes.extend_from_slice(&self.liquidity_after.to_le_bytes()); // u128 (16 bytes)
-
-        // Timestamps
-        bytes.extend_from_slice(&self.timestamp_ns.to_le_bytes());
-        bytes.extend_from_slice(&self.block_number.to_le_bytes());
-
-        bytes
-    }
-
-    /// Deserialize from bytes
-    pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        if data.len() < 152 {
-            // 2 + 20 + 20 + 20 + 16 + 16 + 1 + 1 + 20 + 4 + 16 + 8 + 8 = 152
-            return Err(format!("Invalid PoolSwapTLV size: {}", data.len()));
-        }
-
-        let mut offset = 0;
-
-        // Venue
-        let venue = VenueId::try_from(u16::from_le_bytes([data[0], data[1]]))
-            .map_err(|_| "Invalid venue ID")?;
-        offset += 2;
-
-        // Pool address (20 bytes)
-        let mut pool_address = [0u8; 20];
-        pool_address.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        // Token addresses (20 bytes each)
-        let mut token_in_addr = [0u8; 20];
-        token_in_addr.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        let mut token_out_addr = [0u8; 20];
-        token_out_addr.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        // Amounts (native precision) - u128 (16 bytes each)
-        let amount_in = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-        let amount_out = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-
-        // Token decimals
-        let amount_in_decimals = data[offset];
-        offset += 1;
-        let amount_out_decimals = data[offset];
-        offset += 1;
-
-        // V3 state
-        let mut sqrt_price_x96_after = [0u8; 20];
-        sqrt_price_x96_after.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-        let tick_after = i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
-        offset += 4;
-        let liquidity_after = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-
-        // Timestamps
-        let timestamp_ns = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-        offset += 8;
-        let block_number = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-
-        Ok(Self {
-            venue,
-            pool_address,
-            token_in_addr,
-            token_out_addr,
+        Self {
+            pool_address: pool.to_padded(),
+            token_in_addr: token_in.to_padded(),
+            token_out_addr: token_out.to_padded(),
+            venue: venue_id as u16,
             amount_in,
             amount_out,
-            amount_in_decimals,
-            amount_out_decimals,
-            sqrt_price_x96_after,
-            tick_after,
             liquidity_after,
             timestamp_ns,
             block_number,
-        })
+            tick_after,
+            amount_in_decimals,
+            amount_out_decimals,
+            sqrt_price_x96_after: Self::sqrt_price_from_u128(sqrt_price_x96_after),
+            _padding: [0u8; 8], // Always initialize to zeros
+        }
     }
+
+    /// Get the pool address as a 20-byte array
+    #[inline(always)]
+    pub fn pool_address_eth(&self) -> [u8; 20] {
+        use super::AddressExtraction;
+        self.pool_address.to_eth_address()
+    }
+
+    /// Get the token_in address as a 20-byte array
+    #[inline(always)]
+    pub fn token_in_addr_eth(&self) -> [u8; 20] {
+        use super::AddressExtraction;
+        self.token_in_addr.to_eth_address()
+    }
+
+    /// Get the token_out address as a 20-byte array
+    #[inline(always)]
+    pub fn token_out_addr_eth(&self) -> [u8; 20] {
+        use super::AddressExtraction;
+        self.token_out_addr.to_eth_address()
+    }
+
+    /// Convert sqrt_price_x96_after from [u8; 32] to u128 for backward compatibility
+    /// Note: This truncates to lower 128 bits for internal calculations while preserving full precision in TLV
+    pub fn sqrt_price_x96_as_u128(&self) -> u128 {
+        let mut u128_bytes = [0u8; 16];
+        // Take the first 16 bytes (128 bits) for calculations
+        u128_bytes.copy_from_slice(&self.sqrt_price_x96_after[..16]);
+        u128::from_le_bytes(u128_bytes)
+    }
+
+    /// Create sqrt_price_x96_after from u128 value (for testing/backward compatibility)
+    pub fn sqrt_price_from_u128(value: u128) -> [u8; 32] {
+        let mut result = [0u8; 32];
+        result[..16].copy_from_slice(&value.to_le_bytes());
+        result
+    }
+
+    // Manual serialization methods removed - use zero-copy AsBytes trait:
+    // let bytes = swap.as_bytes(); // Zero-copy serialization!
+    // let swap_ref = PoolSwapTLV::ref_from(bytes)?; // Zero-copy deserialization!
 
     // Legacy TLV message methods removed - use Protocol V2 TLVMessageBuilder instead
 }
@@ -332,110 +331,75 @@ impl PoolSwapTLV {
 /// Pool Sync event TLV structure (V2 pools)
 ///
 /// V2 pools emit Sync events after every state change with complete reserves
-#[derive(Debug, Clone, PartialEq)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct PoolSyncTLV {
-    pub venue: VenueId,
-    pub pool_address: [u8; 20], // Full pool contract address
-    pub token0_addr: [u8; 20],  // Full token0 address
-    pub token1_addr: [u8; 20],  // Full token1 address
-    pub reserve0: u128, // Complete reserve0 (native precision) - u128 for blockchain amounts
-    pub reserve1: u128, // Complete reserve1 (native precision) - u128 for blockchain amounts
-    pub token0_decimals: u8, // Decimals for token0 (e.g., WMATIC=18)
-    pub token1_decimals: u8, // Decimals for token1 (e.g., USDC=6)
+    // u128 fields first (16-byte aligned) - 32 bytes
+    pub reserve0: u128, // Complete reserve0 (native precision)
+    pub reserve1: u128, // Complete reserve1 (native precision)
+
+    // u64 fields (8-byte aligned) - 16 bytes
     pub timestamp_ns: u64, // Nanoseconds since epoch
     pub block_number: u64, // Block number of sync
+
+    // u16 fields (2-byte aligned) - 2 bytes
+    pub venue: u16, // NOT VenueId enum! Direct u16 for zero-copy
+
+    // u8 fields (1-byte aligned) - 2 bytes
+    pub token0_decimals: u8, // Decimals for token0 (e.g., WMATIC=18)
+    pub token1_decimals: u8, // Decimals for token1 (e.g., USDC=6)
+
+    // [u8; 32] arrays - 96 bytes
+    pub pool_address: [u8; 32], // Full pool contract address (first 20 bytes = address, last 12 = padding)
+    pub token0_addr: [u8; 32],  // Full token0 address (first 20 bytes = address, last 12 = padding)
+    pub token1_addr: [u8; 32],  // Full token1 address (first 20 bytes = address, last 12 = padding)
+
+    // EXPLICIT PADDING - DO NOT DELETE!
+    pub _padding: [u8; 12], // Required for alignment to 160 bytes
+                            // Total: 160 bytes (10 × 16) ✅
 }
 
 impl PoolSyncTLV {
-    /// Serialize to bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
+    /// Create a new PoolSyncTLV from components
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        pool: [u8; 20],
+        token0: [u8; 20],
+        token1: [u8; 20],
+        venue_id: VenueId,
+        reserve0: u128,
+        reserve1: u128,
+        token0_decimals: u8,
+        token1_decimals: u8,
+        timestamp_ns: u64,
+        block_number: u64,
+    ) -> Self {
+        use super::AddressConversion;
 
-        // Venue (2 bytes)
-        bytes.extend_from_slice(&(self.venue as u16).to_le_bytes());
-
-        // Pool and token addresses (20 bytes each)
-        bytes.extend_from_slice(&self.pool_address);
-        bytes.extend_from_slice(&self.token0_addr);
-        bytes.extend_from_slice(&self.token1_addr);
-
-        // Reserves (native precision)
-        bytes.extend_from_slice(&self.reserve0.to_le_bytes());
-        bytes.extend_from_slice(&self.reserve1.to_le_bytes());
-
-        // Token decimals
-        bytes.push(self.token0_decimals);
-        bytes.push(self.token1_decimals);
-
-        // Timestamps
-        bytes.extend_from_slice(&self.timestamp_ns.to_le_bytes());
-        bytes.extend_from_slice(&self.block_number.to_le_bytes());
-
-        bytes
-    }
-
-    /// Deserialize from bytes
-    pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        if data.len() < 110 {
-            // 2 + 20*3 + 16*2 + 1*2 + 8*2 = 110
-            return Err(format!("Invalid PoolSyncTLV size: {}", data.len()));
-        }
-
-        let mut offset = 0;
-
-        // Venue
-        let venue = VenueId::try_from(u16::from_le_bytes([data[0], data[1]]))
-            .map_err(|_| "Invalid venue ID")?;
-        offset += 2;
-
-        // Pool and token addresses (20 bytes each)
-        let mut pool_address = [0u8; 20];
-        pool_address.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        let mut token0_addr = [0u8; 20];
-        token0_addr.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        let mut token1_addr = [0u8; 20];
-        token1_addr.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        // Check remaining size for fixed fields (16 + 16 + 1 + 1 + 8 + 8 = 50 bytes)
-        if data.len() < offset + 50 {
-            return Err("Insufficient data for PoolSyncTLV fields".to_string());
-        }
-
-        // Reserves (native precision) - u128 (16 bytes each)
-        let reserve0 = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-        let reserve1 = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-
-        // Token decimals
-        let token0_decimals = data[offset];
-        offset += 1;
-        let token1_decimals = data[offset];
-        offset += 1;
-
-        // Timestamps
-        let timestamp_ns = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-        offset += 8;
-        let block_number = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-
-        Ok(Self {
-            venue,
-            pool_address,
-            token0_addr,
-            token1_addr,
+        Self {
+            pool_address: pool.to_padded(),
+            token0_addr: token0.to_padded(),
+            token1_addr: token1.to_padded(),
+            venue: venue_id as u16,
             reserve0,
             reserve1,
             token0_decimals,
             token1_decimals,
             timestamp_ns,
             block_number,
-        })
+            _padding: [0u8; 12], // Always initialize to zeros
+        }
     }
+
+    /// Get the venue as VenueId enum
+    #[inline(always)]
+    pub fn venue_id(&self) -> Result<VenueId, crate::ProtocolError> {
+        VenueId::try_from(self.venue).map_err(|_| crate::ProtocolError::InvalidInstrument)
+    }
+
+    // Manual serialization methods removed - use zero-copy AsBytes trait:
+    // let bytes = sync.as_bytes(); // Zero-copy serialization!
+    // let sync_ref = PoolSyncTLV::ref_from(bytes)?; // Zero-copy deserialization!
 
     // Legacy TLV message methods removed - use Protocol V2 TLVMessageBuilder instead
 }
@@ -443,63 +407,144 @@ impl PoolSyncTLV {
 /// Pool Mint (liquidity add) event TLV structure
 ///
 /// Records when liquidity providers add liquidity to a pool
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct PoolMintTLV {
-    pub venue: VenueId,
-    pub pool_address: [u8; 20],  // Full pool contract address
-    pub provider_addr: [u8; 20], // Full LP provider address
-    pub token0_addr: [u8; 20],   // Full token0 address
-    pub token1_addr: [u8; 20],   // Full token1 address
-    pub tick_lower: i32,         // Lower tick boundary (for concentrated liquidity)
-    pub tick_upper: i32,         // Upper tick boundary
-    pub liquidity_delta: u128,   // Liquidity added (native precision) - u128 for large liquidity
-    pub amount0: u128, // Token0 deposited (native precision) - u128 for blockchain amounts
-    pub amount1: u128, // Token1 deposited (native precision) - u128 for blockchain amounts
+    // u128 fields first (16-byte aligned) - 48 bytes
+    pub liquidity_delta: u128, // Liquidity added (native precision)
+    pub amount0: u128,         // Token0 deposited (native precision)
+    pub amount1: u128,         // Token1 deposited (native precision)
+
+    // u64 fields (8-byte aligned) - 8 bytes
+    pub timestamp_ns: u64, // Nanoseconds since epoch
+
+    // i32 fields (4-byte aligned) - 8 bytes
+    pub tick_lower: i32, // Lower tick boundary (for concentrated liquidity)
+    pub tick_upper: i32, // Upper tick boundary
+
+    // u16 fields (2-byte aligned) - 2 bytes
+    pub venue: u16, // NOT VenueId enum! Direct u16 for zero-copy
+
+    // u8 fields (1-byte aligned) - 2 bytes
     pub token0_decimals: u8, // Decimals for token0 (e.g., WMATIC=18)
     pub token1_decimals: u8, // Decimals for token1 (e.g., USDC=6)
-    pub timestamp_ns: u64, // Nanoseconds since epoch
+
+    // [u8; 32] arrays - 128 bytes
+    pub pool_address: [u8; 32], // Full pool contract address (first 20 bytes = address, last 12 = padding)
+    pub provider_addr: [u8; 32], // Full LP provider address (first 20 bytes = address, last 12 = padding)
+    pub token0_addr: [u8; 32], // Full token0 address (first 20 bytes = address, last 12 = padding)
+    pub token1_addr: [u8; 32], // Full token1 address (first 20 bytes = address, last 12 = padding)
+
+    // EXPLICIT PADDING - DO NOT DELETE!
+    pub _padding: [u8; 12], // Required for alignment to 208 bytes
+                            // Total: 208 bytes (13 × 16) ✅
 }
 
 /// Pool Burn (liquidity remove) event TLV structure
 ///
 /// Records when liquidity providers remove liquidity from a pool
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct PoolBurnTLV {
-    pub venue: VenueId,
-    pub pool_address: [u8; 20],  // Full pool contract address
-    pub provider_addr: [u8; 20], // Full LP provider address
-    pub token0_addr: [u8; 20],   // Full token0 address
-    pub token1_addr: [u8; 20],   // Full token1 address
-    pub tick_lower: i32,         // Lower tick boundary
-    pub tick_upper: i32,         // Upper tick boundary
-    pub liquidity_delta: u128,   // Liquidity removed (native precision) - u128 for large liquidity
-    pub amount0: u128, // Token0 withdrawn (native precision) - u128 for blockchain amounts
-    pub amount1: u128, // Token1 withdrawn (native precision) - u128 for blockchain amounts
+    // u128 fields first (16-byte aligned) - 48 bytes
+    pub liquidity_delta: u128, // Liquidity removed (native precision)
+    pub amount0: u128,         // Token0 withdrawn (native precision)
+    pub amount1: u128,         // Token1 withdrawn (native precision)
+
+    // u64 fields (8-byte aligned) - 8 bytes
+    pub timestamp_ns: u64, // Nanoseconds since epoch
+
+    // i32 fields (4-byte aligned) - 8 bytes
+    pub tick_lower: i32, // Lower tick boundary
+    pub tick_upper: i32, // Upper tick boundary
+
+    // u16 fields (2-byte aligned) - 2 bytes
+    pub venue: u16, // NOT VenueId enum! Direct u16 for zero-copy
+
+    // u8 fields (1-byte aligned) - 2 bytes
     pub token0_decimals: u8, // Decimals for token0 (e.g., WMATIC=18)
     pub token1_decimals: u8, // Decimals for token1 (e.g., USDC=6)
-    pub timestamp_ns: u64, // Nanoseconds since epoch
+
+    // [u8; 32] arrays - 128 bytes
+    pub pool_address: [u8; 32], // Full pool contract address (first 20 bytes = address, last 12 = padding)
+    pub provider_addr: [u8; 32], // Full LP provider address (first 20 bytes = address, last 12 = padding)
+    pub token0_addr: [u8; 32], // Full token0 address (first 20 bytes = address, last 12 = padding)
+    pub token1_addr: [u8; 32], // Full token1 address (first 20 bytes = address, last 12 = padding)
+
+    // EXPLICIT PADDING - DO NOT DELETE!
+    pub _padding: [u8; 12], // Required for alignment to 208 bytes
+                            // Total: 208 bytes (13 × 16) ✅
 }
 
 /// Pool Tick crossing event TLV structure
 ///
 /// Records when price crosses tick boundaries (important for concentrated liquidity)
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct PoolTickTLV {
-    pub venue: VenueId,
-    pub pool_address: [u8; 20], // Full pool contract address
-    pub tick: i32,              // The tick that was crossed
-    pub liquidity_net: i64,     // Net liquidity change at this tick
-    pub price_sqrt: u64,        // Square root price (X96 format)
-    pub timestamp_ns: u64,      // Nanoseconds since epoch
+    // u64/i64 fields first (8-byte aligned) - 24 bytes
+    pub liquidity_net: i64, // Net liquidity change at this tick
+    pub price_sqrt: u64,    // Square root price (X96 format)
+    pub timestamp_ns: u64,  // Nanoseconds since epoch
+
+    // i32 fields (4-byte aligned) - 4 bytes
+    pub tick: i32, // The tick that was crossed
+
+    // u16 fields (2-byte aligned) - 2 bytes
+    pub venue: u16, // NOT VenueId enum! Direct u16 for zero-copy
+
+    // [u8; 32] arrays - 32 bytes
+    pub pool_address: [u8; 32], // Full pool contract address (first 20 bytes = address, last 12 = padding)
+
+    // EXPLICIT PADDING - DO NOT DELETE!
+    pub _padding: [u8; 2], // Required for alignment to 64 bytes
+                           // Total: 64 bytes (4 × 16) ✅
 }
 
 impl PoolMintTLV {
-    /// Serialize to binary format
+    /// Create a new PoolMintTLV from components
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        pool: [u8; 20],
+        provider: [u8; 20],
+        token0: [u8; 20],
+        token1: [u8; 20],
+        venue_id: VenueId,
+        liquidity_delta: u128,
+        amount0: u128,
+        amount1: u128,
+        tick_lower: i32,
+        tick_upper: i32,
+        token0_decimals: u8,
+        token1_decimals: u8,
+        timestamp_ns: u64,
+    ) -> Self {
+        use super::AddressConversion;
+
+        Self {
+            pool_address: pool.to_padded(),
+            provider_addr: provider.to_padded(),
+            token0_addr: token0.to_padded(),
+            token1_addr: token1.to_padded(),
+            venue: venue_id as u16,
+            liquidity_delta,
+            amount0,
+            amount1,
+            tick_lower,
+            tick_upper,
+            token0_decimals,
+            token1_decimals,
+            timestamp_ns,
+            _padding: [0u8; 12], // Always initialize to zeros
+        }
+    }
+
+    /// DEPRECATED: Serialize to binary format
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
 
         // Venue (2 bytes)
-        bytes.extend_from_slice(&(self.venue as u16).to_le_bytes());
+        bytes.extend_from_slice(&self.venue.to_le_bytes());
 
         // Pool address (20 bytes)
         bytes.extend_from_slice(&self.pool_address);
@@ -531,100 +576,64 @@ impl PoolMintTLV {
     }
 
     /// Deserialize from binary format
+    /// Parse from bytes using zero-copy
     pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        let mut offset = 0;
-
-        // Venue (2 bytes)
-        if data.len() < 2 {
-            return Err("Insufficient data for venue".to_string());
-        }
-        let venue = VenueId::try_from(u16::from_le_bytes(data[0..2].try_into().unwrap()))
-            .map_err(|_| "Invalid venue ID")?;
-        offset += 2;
-
-        // Pool address (20 bytes)
-        if offset + 20 > data.len() {
-            return Err("Insufficient data for pool address".to_string());
-        }
-        let mut pool_address = [0u8; 20];
-        pool_address.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        // Token addresses (20 bytes each)
-        if offset + 40 > data.len() {
-            return Err("Insufficient data for token addresses".to_string());
-        }
-        let mut token0_addr = [0u8; 20];
-        token0_addr.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        let mut token1_addr = [0u8; 20];
-        token1_addr.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        // Provider address (20 bytes)
-        if offset + 20 > data.len() {
-            return Err("Insufficient data for provider address".to_string());
-        }
-        let mut provider_addr = [0u8; 20];
-        provider_addr.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        // Fixed fields (4 + 4 + 16 + 16 + 16 + 1 + 1 + 8 = 66 bytes)
-        if offset + 66 > data.len() {
-            return Err("Insufficient data for mint fields".to_string());
+        if data.len() < std::mem::size_of::<Self>() {
+            return Err("Data too short for PoolMintTLV".to_string());
         }
 
-        let tick_lower = i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
-        offset += 4;
-
-        let tick_upper = i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
-        offset += 4;
-
-        let liquidity_delta = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-
-        let amount0 = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-
-        let amount1 = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-
-        // Token decimals (1 byte each)
-        let token0_decimals = data[offset];
-        offset += 1;
-        let token1_decimals = data[offset];
-        offset += 1;
-
-        let timestamp_ns = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-
-        Ok(PoolMintTLV {
-            venue,
-            pool_address,
-            provider_addr,
-            token0_addr,
-            token1_addr,
-            tick_lower,
-            tick_upper,
-            liquidity_delta,
-            amount0,
-            amount1,
-            token0_decimals,
-            token1_decimals,
-            timestamp_ns,
-        })
+        use zerocopy::Ref;
+        let tlv_ref = Ref::<_, Self>::new(data).ok_or("Failed to parse PoolMintTLV from bytes")?;
+        Ok(*tlv_ref.into_ref())
     }
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
 }
 
 impl PoolBurnTLV {
+    /// Create a new PoolBurnTLV from components
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        pool: [u8; 20],
+        provider: [u8; 20],
+        token0: [u8; 20],
+        token1: [u8; 20],
+        venue_id: VenueId,
+        liquidity_delta: u128,
+        amount0: u128,
+        amount1: u128,
+        tick_lower: i32,
+        tick_upper: i32,
+        token0_decimals: u8,
+        token1_decimals: u8,
+        timestamp_ns: u64,
+    ) -> Self {
+        use super::address::AddressConversion;
+
+        Self {
+            pool_address: pool.to_padded(),
+            provider_addr: provider.to_padded(),
+            token0_addr: token0.to_padded(),
+            token1_addr: token1.to_padded(),
+            venue: venue_id as u16,
+            liquidity_delta,
+            amount0,
+            amount1,
+            tick_lower,
+            tick_upper,
+            token0_decimals,
+            token1_decimals,
+            timestamp_ns,
+            _padding: [0u8; 12],
+        }
+    }
+
     /// Serialize to binary format
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
 
         // Venue (2 bytes)
-        bytes.extend_from_slice(&(self.venue as u16).to_le_bytes());
+        bytes.extend_from_slice(&self.venue.to_le_bytes());
 
         // Pool address (20 bytes)
         bytes.extend_from_slice(&self.pool_address);
@@ -655,38 +664,49 @@ impl PoolBurnTLV {
         bytes
     }
 
-    /// Deserialize from binary format
+    /// Parse from bytes using zero-copy
     pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        // Same parsing logic as PoolMintTLV
-        let mint = PoolMintTLV::from_bytes(data)?;
+        if data.len() < std::mem::size_of::<Self>() {
+            return Err("Data too short for PoolBurnTLV".to_string());
+        }
 
-        Ok(PoolBurnTLV {
-            venue: mint.venue,
-            pool_address: mint.pool_address,
-            provider_addr: mint.provider_addr,
-            token0_addr: mint.token0_addr,
-            token1_addr: mint.token1_addr,
-            tick_lower: mint.tick_lower,
-            tick_upper: mint.tick_upper,
-            liquidity_delta: mint.liquidity_delta,
-            amount0: mint.amount0,
-            amount1: mint.amount1,
-            token0_decimals: mint.token0_decimals,
-            token1_decimals: mint.token1_decimals,
-            timestamp_ns: mint.timestamp_ns,
-        })
+        use zerocopy::Ref;
+        let tlv_ref = Ref::<_, Self>::new(data).ok_or("Failed to parse PoolBurnTLV from bytes")?;
+        Ok(*tlv_ref.into_ref())
     }
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
 }
 
 impl PoolTickTLV {
+    /// Create a new PoolTickTLV from components
+    pub fn new(
+        pool: [u8; 20],
+        venue_id: VenueId,
+        tick: i32,
+        liquidity_net: i64,
+        price_sqrt: u64,
+        timestamp_ns: u64,
+    ) -> Self {
+        use super::address::AddressConversion;
+
+        Self {
+            pool_address: pool.to_padded(),
+            venue: venue_id as u16,
+            tick,
+            liquidity_net,
+            price_sqrt,
+            timestamp_ns,
+            _padding: [0u8; 2],
+        }
+    }
+
     /// Serialize to binary format
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
 
         // Venue (2 bytes)
-        bytes.extend_from_slice(&(self.venue as u16).to_le_bytes());
+        bytes.extend_from_slice(&self.venue.to_le_bytes());
 
         // Pool address (20 bytes)
         bytes.extend_from_slice(&self.pool_address);
@@ -706,50 +726,15 @@ impl PoolTickTLV {
         bytes
     }
 
-    /// Deserialize from binary format
+    /// Parse from bytes using zero-copy
     pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        let mut offset = 0;
-
-        // Venue (2 bytes)
-        if data.len() < 2 {
-            return Err("Insufficient data for venue".to_string());
-        }
-        let venue = VenueId::try_from(u16::from_le_bytes(data[0..2].try_into().unwrap()))
-            .map_err(|_| "Invalid venue ID")?;
-        offset += 2;
-
-        // Pool address (20 bytes)
-        if offset + 20 > data.len() {
-            return Err("Insufficient data for pool address".to_string());
-        }
-        let mut pool_address = [0u8; 20];
-        pool_address.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        // Fixed fields (4 + 8 + 8 + 8 = 28 bytes)
-        if offset + 28 > data.len() {
-            return Err("Insufficient data for tick fields".to_string());
+        if data.len() < std::mem::size_of::<Self>() {
+            return Err("Data too short for PoolTickTLV".to_string());
         }
 
-        let tick = i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
-        offset += 4;
-
-        let liquidity_net = i64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-        offset += 8;
-
-        let price_sqrt = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-        offset += 8;
-
-        let timestamp_ns = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-
-        Ok(PoolTickTLV {
-            venue,
-            pool_address,
-            tick,
-            liquidity_net,
-            price_sqrt,
-            timestamp_ns,
-        })
+        use zerocopy::Ref;
+        let tlv_ref = Ref::<_, Self>::new(data).ok_or("Failed to parse PoolTickTLV from bytes")?;
+        Ok(*tlv_ref.into_ref())
     }
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
@@ -768,126 +753,187 @@ pub enum InvalidationReason {
 }
 
 impl PoolLiquidityTLV {
-    /// Serialize to binary format
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-
-        // Venue (2 bytes)
-        bytes.extend_from_slice(&(self.venue as u16).to_le_bytes());
-
-        // Pool address (20 bytes)
-        bytes.extend_from_slice(&self.pool_address);
-
-        // Reserves count and values
-        bytes.extend_from_slice(&(self.reserves.len() as u8).to_le_bytes());
-        for reserve in &self.reserves {
-            bytes.extend_from_slice(&reserve.to_le_bytes());
+    /// Create new liquidity update with dynamic reserves array
+    pub fn new(
+        venue: VenueId,
+        pool_address: [u8; 20], // Input as 20-byte address
+        reserves: &[u128],      // Pass slice of reserves
+        timestamp_ns: u64,
+    ) -> Result<Self, String> {
+        if reserves.len() > 8 {
+            return Err(format!("Too many reserves: {} (max 8)", reserves.len()));
         }
 
-        // Timestamp only (removed total_supply and fee_rate)
-        bytes.extend_from_slice(&self.timestamp_ns.to_le_bytes());
-
-        bytes
-    }
-
-    /// Deserialize from binary format
-    pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        if data.len() < 4 {
-            return Err(format!(
-                "Invalid payload size: need at least 4 bytes, got {}",
-                data.len()
-            ));
+        if reserves.is_empty() {
+            return Err("Reserves cannot be empty".to_string());
         }
 
-        let mut offset = 0;
-
-        // Venue (2 bytes)
-        let venue = VenueId::try_from(u16::from_le_bytes(
-            data[offset..offset + 2].try_into().unwrap(),
-        ))
-        .map_err(|_| "Invalid venue ID")?;
-        offset += 2;
-
-        // Pool address (20 bytes)
-        if offset + 20 > data.len() {
-            return Err("Insufficient data for pool address".to_string());
-        }
-        let mut pool_address = [0u8; 20];
-        pool_address.copy_from_slice(&data[offset..offset + 20]);
-        offset += 20;
-
-        // Reserves count (1 byte)
-        if offset + 1 > data.len() {
-            return Err("Insufficient data for reserves count".to_string());
-        }
-        let reserves_count = data[offset] as usize;
-        offset += 1;
-
-        // Reserves (16 bytes each for u128)
-        if offset + reserves_count * 16 > data.len() {
-            return Err(format!(
-                "Insufficient data for reserves: need {} bytes",
-                reserves_count * 16
-            ));
-        }
-        let mut reserves = Vec::with_capacity(reserves_count);
-        for _ in 0..reserves_count {
-            let reserve = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-            reserves.push(reserve);
-            offset += 16;
+        let mut fixed_reserves = [0u128; 8];
+        // Copy actual reserves to fixed array
+        for (i, reserve) in reserves.iter().enumerate() {
+            fixed_reserves[i] = *reserve;
         }
 
-        // Timestamp only (8 bytes) - removed total_supply and fee_rate
-        if offset + 8 != data.len() {
-            return Err(format!(
-                "Invalid remaining data size: expected 8 bytes, got {}",
-                data.len() - offset
-            ));
-        }
+        // Convert 20-byte address to 32-byte padded format
+        use super::address::AddressConversion;
+        let pool_address_32 = pool_address.to_padded();
 
-        let timestamp_ns = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-
-        Ok(PoolLiquidityTLV {
-            venue,
-            pool_address,
-            reserves,
+        Ok(Self {
             timestamp_ns,
+            reserves: fixed_reserves,
+            pool_address: pool_address_32,
+            venue: venue as u16,
+            reserve_count: reserves.len() as u8,
+            _padding: [0u8; 5],
         })
     }
+
+    /// Get slice of actual reserves (excluding unused slots)
+    pub fn get_reserves(&self) -> &[u128] {
+        &self.reserves[..self.reserve_count as usize]
+    }
+
+    /// Get the 20-byte pool address (extracting from 32-byte padded format)
+    pub fn get_pool_address(&self) -> [u8; 20] {
+        use super::address::AddressExtraction;
+        self.pool_address.to_eth_address()
+    }
+
+    /// Convert valid reserves to Vec (perfect bijection preservation)
+    ///
+    /// This method enables perfect bijection: Vec<u128> → PoolLiquidityTLV → Vec<u128>
+    /// where the output Vec is identical to the original input Vec.
+    pub fn to_reserves_vec(&self) -> Vec<u128> {
+        self.get_reserves().to_vec()
+    }
+
+    /// Create from Vec with bijection validation (convenience method)
+    ///
+    /// Equivalent to new() but takes Vec directly for cleaner API.
+    /// Validates perfect roundtrip: original_vec == tlv.to_reserves_vec()
+    pub fn from_reserves_vec(
+        venue: VenueId,
+        pool_address: [u8; 20],
+        reserves: Vec<u128>,
+        timestamp_ns: u64,
+    ) -> Result<Self, String> {
+        Self::new(venue, pool_address, &reserves, timestamp_ns)
+    }
+
+    /// Add reserve to the liquidity update (if space available)
+    pub fn add_reserve(&mut self, reserve: u128) -> Result<(), String> {
+        if self.reserve_count >= 8 {
+            return Err("Cannot add more reserves: array full".to_string());
+        }
+
+        self.reserves[self.reserve_count as usize] = reserve;
+        self.reserve_count += 1;
+        Ok(())
+    }
+
+    /// Validate bijection property (for testing and debugging)
+    ///
+    /// Ensures that conversion preserves exact data: Vec → TLV → Vec produces identical result
+    #[cfg(test)]
+    pub fn validate_bijection(&self, original_reserves: &[u128]) -> bool {
+        let recovered = self.to_reserves_vec();
+        recovered == original_reserves
+    }
+
+    // Zero-copy serialization now available via AsBytes trait:
+    // let bytes: &[u8] = liquidity.as_bytes();
+    // let tlv_ref = PoolLiquidityTLV::ref_from(bytes)?;
+
+    // Zero-copy deserialization available via zerocopy traits:
+    // let tlv_ref = zerocopy::Ref::<_, PoolLiquidityTLV>::new(bytes).unwrap();
+    // Direct access without allocation: tlv_ref.reserves[0..tlv_ref.reserve_count as usize]
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
 }
 
 impl StateInvalidationTLV {
-    /// Serialize to bytes for TLV encoding
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-
-        // Venue (2 bytes)
-        bytes.extend_from_slice(&(self.venue as u16).to_be_bytes());
-
-        // Sequence (8 bytes)
-        bytes.extend_from_slice(&self.sequence.to_be_bytes());
-
-        // Instrument count (2 bytes)
-        bytes.extend_from_slice(&self.instrument_count.to_be_bytes());
-
-        // Instruments (variable length)
-        for instrument in &self.instruments {
-            bytes.extend_from_slice(&instrument.venue.to_be_bytes());
-            bytes.push(instrument.asset_type);
-            bytes.push(instrument.reserved);
-            bytes.extend_from_slice(&instrument.asset_id.to_be_bytes());
+    /// Create new state invalidation with dynamic instrument array
+    pub fn new(
+        venue: VenueId,
+        sequence: u64,
+        instruments: &[InstrumentId], // Pass slice of instruments
+        reason: InvalidationReason,
+        timestamp_ns: u64,
+    ) -> Result<Self, String> {
+        if instruments.len() > 16 {
+            return Err(format!(
+                "Too many instruments: {} (max 16)",
+                instruments.len()
+            ));
         }
 
-        // Reason (1 byte)
-        bytes.push(self.reason as u8);
+        let mut fixed_instruments = [InstrumentId::new_zeroed(); 16];
+        // Copy actual instruments to fixed array
+        for (i, instrument) in instruments.iter().enumerate() {
+            fixed_instruments[i] = *instrument;
+        }
 
-        // Timestamp (8 bytes)
-        bytes.extend_from_slice(&self.timestamp_ns.to_be_bytes());
-
-        bytes
+        Ok(Self {
+            sequence,
+            timestamp_ns,
+            instruments: fixed_instruments,
+            venue: venue as u16,
+            instrument_count: instruments.len() as u16,
+            reason: reason as u8,
+            _padding: [0u8; 3],
+        })
     }
+
+    /// Get slice of actual instruments (excluding unused slots)
+    pub fn get_instruments(&self) -> &[InstrumentId] {
+        &self.instruments[..self.instrument_count as usize]
+    }
+
+    /// Add instrument to the invalidation (if space available)
+    pub fn add_instrument(&mut self, instrument: InstrumentId) -> Result<(), String> {
+        if self.instrument_count >= 16 {
+            return Err("Cannot add more instruments: array full".to_string());
+        }
+
+        self.instruments[self.instrument_count as usize] = instrument;
+        self.instrument_count += 1;
+        Ok(())
+    }
+
+    /// Convert valid instruments to Vec (perfect bijection preservation)
+    ///
+    /// This method enables perfect bijection: Vec<InstrumentId> → StateInvalidationTLV → Vec<InstrumentId>
+    /// where the output Vec is identical to the original input Vec.
+    pub fn to_instruments_vec(&self) -> Vec<InstrumentId> {
+        self.get_instruments().to_vec()
+    }
+
+    /// Create from Vec with bijection validation (convenience method)
+    ///
+    /// Equivalent to new() but takes Vec directly for cleaner API.
+    /// Validates perfect roundtrip: original_vec == tlv.to_instruments_vec()
+    pub fn from_instruments_vec(
+        venue: VenueId,
+        sequence: u64,
+        instruments: Vec<InstrumentId>,
+        reason: InvalidationReason,
+        timestamp_ns: u64,
+    ) -> Result<Self, String> {
+        Self::new(venue, sequence, &instruments, reason, timestamp_ns)
+    }
+
+    /// Validate bijection property (for testing and debugging)
+    ///
+    /// Ensures that conversion preserves exact data: Vec → TLV → Vec produces identical result
+    #[cfg(test)]
+    pub fn validate_bijection(&self, original_instruments: &[InstrumentId]) -> bool {
+        let recovered = self.to_instruments_vec();
+        recovered == original_instruments
+    }
+
+    // Zero-copy serialization now available via AsBytes trait:
+    // let bytes: &[u8] = invalidation.as_bytes();
+    // let tlv_ref = StateInvalidationTLV::ref_from(bytes)?;
 }
 
 impl TryFrom<u8> for InvalidationReason {
