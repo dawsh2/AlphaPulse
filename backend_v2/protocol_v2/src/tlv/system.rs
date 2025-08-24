@@ -22,29 +22,23 @@ pub type TraceId = [u8; 16];
 /// Enables end-to-end tracing from Polygon Collector → Dashboard.
 ///
 /// Size: 32 bytes (fits in bounded constraint 32-256 bytes)
-#[repr(C, packed)]
+/// Fields ordered to eliminate padding: u64 → [u8;16] → u8
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct TraceContextTLV {
-    /// Unique trace ID for this message flow (16 bytes for UUID-like uniqueness)
-    pub trace_id: [u8; 16],
-
-    /// Source service that initiated this trace (relay consumer, strategy, etc.)
-    pub source_service: u8, // SourceType as u8
-
-    /// Current span depth (how many hops from origin)
-    pub span_depth: u8,
-
-    /// Processing stage flags (bit field for different pipeline stages)
-    pub stage_flags: u8, // 0x01=Collected, 0x02=Relayed, 0x04=Processed, 0x08=Executed
-
-    /// Reserved for future use
-    pub reserved: u8,
-
-    /// Timestamp when trace was started (nanoseconds since epoch)
-    pub start_timestamp_ns: u64,
-
-    /// Current processing timestamp (nanoseconds since epoch)
-    pub current_timestamp_ns: u64,
+    // Group 64-bit fields first
+    pub start_timestamp_ns: u64,   // Timestamp when trace was started (nanoseconds since epoch)
+    pub current_timestamp_ns: u64, // Current processing timestamp (nanoseconds since epoch)
+    
+    // Then array (16 bytes, naturally aligned)
+    pub trace_id: [u8; 16],        // Unique trace ID for this message flow (16 bytes for UUID-like uniqueness)
+    
+    // Finally 8-bit fields (need 8 bytes to reach 40 total)
+    pub source_service: u8,        // SourceType as u8 - Source service that initiated this trace
+    pub span_depth: u8,           // Current span depth (how many hops from origin)
+    pub stage_flags: u8,          // Processing stage flags (0x01=Collected, 0x02=Relayed, etc.)
+    pub reserved: u8,             // Reserved for future use
+    pub _padding: [u8; 4],        // Explicit padding to reach 40 bytes
 }
 
 impl TraceContextTLV {
@@ -66,6 +60,7 @@ impl TraceContextTLV {
             reserved: 0,
             start_timestamp_ns: current_time,
             current_timestamp_ns: current_time,
+            _padding: [0; 4],
         }
     }
 
@@ -79,6 +74,7 @@ impl TraceContextTLV {
             reserved: 0,
             start_timestamp_ns: self.start_timestamp_ns,
             current_timestamp_ns: current_timestamp_ns(),
+            _padding: [0; 4],
         }
     }
 
@@ -131,41 +127,31 @@ impl TraceContextTLV {
 ///
 /// Reports health status of individual services for real-time monitoring.
 /// Size: 48 bytes (fixed size for predictable processing)
-#[repr(C, packed)]
+/// Fields ordered to eliminate padding: u64 → u32 → u16 → u8
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct SystemHealthTLV {
-    /// Service type reporting health
-    pub service_type: u8, // SourceType as u8
+    // Group 64-bit fields first
+    pub timestamp_ns: u64,           // Timestamp of health check (8 bytes)
 
-    /// Health status: 0=Healthy, 1=Degraded, 2=Unhealthy, 3=Unknown
-    pub health_status: u8,
+    // Then 32-bit fields
+    pub connection_count: u32,       // Active connections count (4 bytes)
+    pub message_rate_per_sec: u32,   // Messages processed per second (4 bytes)
+    pub last_error_code: u32,        // Last error code (0 = no error) (4 bytes)
 
-    /// CPU usage percentage (0-100)
-    pub cpu_usage_pct: u8,
+    // Then 16-bit fields
+    pub error_rate_per_thousand: u16, // Error rate per thousand messages (2 bytes)
+    pub latency_p95_us: u16,         // Latency percentile 95th in microseconds (2 bytes)
 
-    /// Memory usage percentage (0-100)  
-    pub memory_usage_pct: u8,
+    // Finally 8-bit fields
+    pub service_type: u8,            // SourceType as u8 (1 byte)
+    pub health_status: u8,           // Health status: 0=Healthy, 1=Degraded, 2=Unhealthy, 3=Unknown (1 byte)
+    pub cpu_usage_pct: u8,           // CPU usage percentage (0-100) (1 byte)
+    pub memory_usage_pct: u8,        // Memory usage percentage (0-100) (1 byte)
 
-    /// Active connections count
-    pub connection_count: u32,
-
-    /// Messages processed per second (average over last minute)
-    pub message_rate_per_sec: u32,
-
-    /// Error rate per thousand messages (0-1000)
-    pub error_rate_per_thousand: u16,
-
-    /// Latency percentile 95th in microseconds
-    pub latency_p95_us: u16,
-
-    /// Timestamp of health check
-    pub timestamp_ns: u64,
-
-    /// Last error code (0 = no error)
-    pub last_error_code: u32,
-
-    /// Reserved for future metrics
-    pub reserved: [u8; 16],
+    // Reserved for future metrics - pad to reach 48 bytes
+    // Currently: 8 + 12 + 4 + 4 = 28 bytes, need 20 more bytes
+    pub reserved: [u8; 20],          // (20 bytes to reach exactly 48 bytes)
 }
 
 impl SystemHealthTLV {
@@ -185,17 +171,17 @@ impl SystemHealthTLV {
         msg_rate: u32,
     ) -> Self {
         Self {
+            timestamp_ns: current_timestamp_ns(),
+            connection_count: connections,
+            message_rate_per_sec: msg_rate,
+            last_error_code: 0,
+            error_rate_per_thousand: 0,
+            latency_p95_us: 0,
             service_type: service as u8,
             health_status: status,
             cpu_usage_pct: cpu_pct,
             memory_usage_pct: memory_pct,
-            connection_count: connections,
-            message_rate_per_sec: msg_rate,
-            error_rate_per_thousand: 0,
-            latency_p95_us: 0,
-            timestamp_ns: current_timestamp_ns(),
-            last_error_code: 0,
-            reserved: [0; 16],
+            reserved: [0; 20],
         }
     }
 
@@ -376,7 +362,7 @@ mod tests {
     fn test_trace_serialization() {
         let original = TraceContextTLV::new(SourceType::ArbitrageStrategy);
         // Legacy TLV message test removed - use Protocol V2 TLVMessageBuilder for testing
-        let bytes = original.as_bytes().to_vec();
+        let bytes = original.as_bytes();
 
         assert_eq!(bytes.len(), 32);
 

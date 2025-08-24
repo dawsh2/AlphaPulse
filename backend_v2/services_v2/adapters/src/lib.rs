@@ -20,7 +20,7 @@
 //!
 //! Adapters serve as the critical boundary between external exchange protocols and the
 //! unified Protocol V2 message system, ensuring data integrity and performance isolation.
-//! 
+//!
 //! See [`architecture_diagram()`] for visual representation of the data flow.
 //!
 //! ## Performance Profile
@@ -90,7 +90,7 @@
 //! | Exchange | Type | Protocol | Status | Template For |
 //! |----------|------|----------|--------|--------------|
 //! | [`CoinbaseCollector`] | CEX | WebSocket | ✅ Production | **CEX adapters** |
-//! | [`PolygonDexCollector`] | DEX | RPC + Events | ✅ Production | **DEX adapters** |
+//! | bin/polygon/polygon.rs | DEX | WebSocket | ✅ Production | **Unified DEX collector** |
 //! | [`KrakenCollector`] | CEX | WebSocket | ⚠️ Legacy | - |
 //! | [`BinanceCollector`] | CEX | WebSocket | ⚠️ Legacy | - |
 //!
@@ -122,7 +122,7 @@
 //!
 //! ### DEX Adapter with Pool Monitoring
 //! ```rust
-//! use alphapulse_adapters::PolygonDexCollector;
+//! // Use the unified polygon binary instead: bin/polygon/polygon.rs
 //!
 //! // Monitor specific pools for arbitrage opportunities
 //! let pools = vec![
@@ -130,7 +130,7 @@
 //!     "0xA374094527e1673A86dE625aa59517c5dE346d32".to_string(), // USDC/WMATIC
 //! ];
 //!
-//! let dex_collector = PolygonDexCollector::new(pools, message_tx);
+//! // See bin/polygon/polygon.rs for direct relay integration
 //! tokio::spawn(async move {
 //!     dex_collector.collect_pool_events().await.expect("DEX collector failed");
 //! });
@@ -194,7 +194,7 @@ pub use input::collectors::{
     BinanceCollector,
     CoinbaseCollector, // GeminiCollector,
     KrakenCollector,
-    PolygonDexCollector,
+    // PolygonDexCollector replaced by bin/polygon/polygon.rs
 };
 
 // Re-export protocol types for convenience

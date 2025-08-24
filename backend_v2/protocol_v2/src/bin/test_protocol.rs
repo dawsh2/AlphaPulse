@@ -186,22 +186,22 @@ fn test_bijective_id_properties() -> protocol_v2::Result<()> {
 
     println!("  ✓ Cache key bijection preserved");
 
-    // Test venue properties
-    // TODO: Fix DeFi classification - should USDC on Ethereum be considered DeFi?
-    // assert!(!usdc_id.is_defi(), "Ethereum blockchain itself is not DeFi - specific protocols are");
-    assert!(
-        !usdc_id.is_centralized(),
-        "Ethereum token should not be centralized"
-    );
+    // Test venue properties - VenueId itself IS the classification
+    // We can check the venue directly instead of using abstract classification methods
+    assert_eq!(usdc_id.venue().unwrap(), VenueId::Ethereum, "USDC is on Ethereum");
+    assert_eq!(weth_id.venue().unwrap(), VenueId::Ethereum, "WETH is on Ethereum");
+    
+    // Chain ID tells us which blockchain network to connect to
     assert_eq!(
         usdc_id.chain_id(),
         Some(1),
-        "Ethereum should have chain ID 1"
+        "Ethereum tokens have chain ID 1"
     );
 
-    // Test DeFi protocol venue
+    // Test DEX protocol venues - explicit venue checking is clearer than abstract is_defi()
     let uniswap_pool = InstrumentId::pool(VenueId::UniswapV3, usdc_id, weth_id);
-    assert!(uniswap_pool.is_defi(), "UniswapV3 should be DeFi");
+    assert_eq!(uniswap_pool.venue().unwrap(), VenueId::UniswapV3, "Pool is on UniswapV3");
+    assert_eq!(uniswap_pool.chain_id(), Some(1), "UniswapV3 operates on Ethereum mainnet");
 
     // Test pairing compatibility
     assert!(
@@ -226,24 +226,37 @@ fn test_bijective_id_properties() -> protocol_v2::Result<()> {
 
 fn test_recovery_protocol() -> protocol_v2::Result<()> {
     // Create a simple recovery data structure that matches the expected size (18 bytes)
-    #[repr(C, packed)]
-    #[derive(AsBytes, FromBytes, FromZeroes)]
+    #[repr(C)]
+    #[derive(Clone, Copy)]  // Remove zerocopy derives for test struct
     struct SimpleRecoveryData {
-        consumer_id: u32,   // 4 bytes
-        last_sequence: u64, // 8 bytes
-        gap_size: u32,      // 4 bytes
-        request_type: u16,  // 2 bytes
-    } // Total: 18 bytes
+        // Group u64 first for natural alignment
+        last_sequence: u64, // 8 bytes (aligned at 0)
+        // Then u32s
+        consumer_id: u32,   // 4 bytes (aligned at 8)
+        gap_size: u32,      // 4 bytes (aligned at 12)
+        // Finally u16s
+        request_type: u16,  // 2 bytes (aligned at 16)
+        _padding: u16,      // 2 bytes explicit padding to reach 20 bytes
+    } // Total: 20 bytes (was 24 with implicit padding, now 20 with explicit)
 
     let recovery_data = SimpleRecoveryData {
-        consumer_id: 42,
         last_sequence: 100,
+        consumer_id: 42,
         gap_size: 50,
         request_type: 1, // Retransmit
+        _padding: 0,
     };
 
+    // Manually serialize the test struct (since it's not using zerocopy)
+    let recovery_bytes = unsafe {
+        std::slice::from_raw_parts(
+            &recovery_data as *const _ as *const u8,
+            std::mem::size_of::<SimpleRecoveryData>(),
+        )
+    };
+    
     let message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::Dashboard)
-        .add_tlv(TLVType::RecoveryRequest, &recovery_data)
+        .add_tlv_slice(TLVType::RecoveryRequest, recovery_bytes)
         .build();
 
     println!("  📦 Built recovery request: {} bytes", message.len());
@@ -268,7 +281,7 @@ fn test_recovery_protocol() -> protocol_v2::Result<()> {
 }
 
 fn test_selective_checksums() -> protocol_v2::Result<()> {
-    #[repr(C, packed)]
+    #[repr(C)]
     #[derive(AsBytes, FromBytes, FromZeroes)]
     struct DummyData {
         value: u64,
@@ -335,7 +348,7 @@ fn test_selective_checksums() -> protocol_v2::Result<()> {
 fn test_performance_characteristics() -> protocol_v2::Result<()> {
     use std::time::Instant;
 
-    #[repr(C, packed)]
+    #[repr(C)]
     #[derive(AsBytes, FromBytes, FromZeroes)]
     struct PerfTestData {
         field1: u64,

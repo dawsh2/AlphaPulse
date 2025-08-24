@@ -8,17 +8,25 @@ use std::convert::TryInto;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 /// Trade TLV structure - simplified for serialization
-#[repr(C, packed)]
+/// 
+/// Fields are ordered to eliminate padding: u64/i64 → u16 → u8
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct TradeTLV {
-    pub venue_id: u16,     // VenueId as primitive
-    pub asset_type: u8,    // AssetType as primitive
-    pub reserved: u8,      // Reserved byte for alignment
+    // Group 64-bit fields first for natural alignment
     pub asset_id: u64,     // Asset identifier
     pub price: i64,        // Fixed-point with 8 decimals
     pub volume: i64,       // Fixed-point with 8 decimals
-    pub side: u8,          // 0 = buy, 1 = sell
     pub timestamp_ns: u64, // Nanoseconds since epoch
+    
+    // Then 16-bit field
+    pub venue_id: u16,     // VenueId as primitive
+    
+    // Finally 8-bit fields (need 6 bytes total to reach 40 bytes)
+    pub asset_type: u8,    // AssetType as primitive
+    pub reserved: u8,      // Reserved byte for alignment
+    pub side: u8,          // 0 = buy, 1 = sell
+    pub _padding: [u8; 3], // Padding to reach 40 bytes (multiple of 8)
 }
 
 impl TradeTLV {
@@ -32,14 +40,18 @@ impl TradeTLV {
         timestamp_ns: u64,
     ) -> Self {
         Self {
-            venue_id: venue as u16,
-            asset_type: instrument_id.asset_type,
-            reserved: instrument_id.reserved,
+            // 64-bit fields
             asset_id: instrument_id.asset_id,
             price,
             volume,
-            side,
             timestamp_ns,
+            // 16-bit field
+            venue_id: venue as u16,
+            // 8-bit fields
+            asset_type: instrument_id.asset_type,
+            reserved: instrument_id.reserved,
+            side,
+            _padding: [0; 3],
         }
     }
 
@@ -73,18 +85,26 @@ impl TradeTLV {
 }
 
 /// Quote TLV structure (best bid/ask) - optimized for zero-copy serialization
-#[repr(C, packed)]
+/// 
+/// Fields are ordered to eliminate padding: u64/i64 → u16 → u8
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct QuoteTLV {
-    pub venue_id: u16,     // VenueId as primitive
-    pub asset_type: u8,    // AssetType as primitive
-    pub reserved: u8,      // Reserved byte for alignment
+    // Group 64-bit fields first for natural alignment
     pub asset_id: u64,     // Asset identifier
     pub bid_price: i64,    // Fixed-point with 8 decimals
     pub bid_size: i64,     // Fixed-point with 8 decimals
     pub ask_price: i64,    // Fixed-point with 8 decimals
     pub ask_size: i64,     // Fixed-point with 8 decimals
     pub timestamp_ns: u64, // Nanoseconds since epoch
+    
+    // Then 16-bit field
+    pub venue_id: u16,     // VenueId as primitive
+    
+    // Finally 8-bit fields (need 6 bytes total to reach 56 bytes)
+    pub asset_type: u8,    // AssetType as primitive
+    pub reserved: u8,      // Reserved byte for alignment
+    pub _padding: [u8; 4], // Padding to reach 56 bytes (multiple of 8)
 }
 
 impl QuoteTLV {
@@ -108,6 +128,7 @@ impl QuoteTLV {
             ask_price,
             ask_size,
             timestamp_ns,
+            _padding: [0; 4],
         }
     }
 
@@ -900,7 +921,7 @@ mod tests {
             1700000000000000000,
         );
 
-        let bytes = trade.as_bytes().to_vec();
+        let bytes = trade.as_bytes();
         let recovered = TradeTLV::from_bytes(&bytes).unwrap();
 
         assert_eq!(trade, recovered);
@@ -918,7 +939,7 @@ mod tests {
         );
 
         // Legacy TLV message test removed - use Protocol V2 TLVMessageBuilder for testing
-        let recovered = TradeTLV::from_bytes(&trade.as_bytes().to_vec()).unwrap();
+        let recovered = TradeTLV::from_bytes(trade.as_bytes()).unwrap();
         assert_eq!(trade, recovered);
     }
 
@@ -937,7 +958,7 @@ mod tests {
             1700000000000000000,
         );
 
-        let bytes = quote.as_bytes().to_vec();
+        let bytes = quote.as_bytes();
         let recovered = QuoteTLV::from_bytes(&bytes).unwrap();
 
         assert_eq!(quote, recovered);
@@ -963,7 +984,7 @@ mod tests {
         );
 
         // Legacy TLV message test removed - use Protocol V2 TLVMessageBuilder for testing
-        let recovered = QuoteTLV::from_bytes(&quote.as_bytes().to_vec()).unwrap();
+        let recovered = QuoteTLV::from_bytes(quote.as_bytes()).unwrap();
         assert_eq!(quote, recovered);
     }
 

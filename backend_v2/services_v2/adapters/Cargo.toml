@@ -13,17 +13,34 @@ strict-validation = []
 metrics = ["prometheus"]
 
 [[bin]]
-name = "polygon_publisher"
-path = "src/bin/polygon_publisher.rs"
-
-[[bin]]
 name = "unified_polygon"
 path = "src/bin/polygon/polygon.rs"
+
+[[bin]]
+name = "unified_binance"
+path = "src/bin/binance/binance.rs"
+
+[[bin]]
+name = "unified_kraken"
+path = "src/bin/kraken/kraken.rs"
+
+[[bin]]
+name = "unified_coinbase"
+path = "src/bin/coinbase/coinbase.rs"
+
+[[bin]]
+name = "test_semantic_equality" 
+path = "../../test_semantic_equality.rs"
+
+[[bin]]
+name = "test_real_polygon_pipeline"
+path = "../../test_real_polygon_pipeline.rs"
 
 [dependencies]
 # Core protocol
 protocol_v2 = { workspace = true }
 alphapulse-state-market = { workspace = true }
+alphapulse-dex = { workspace = true }
 async-trait = { workspace = true }
 
 # Async runtime
@@ -41,6 +58,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
+chrono = { workspace = true }
 
 # Utilities
 hex = { workspace = true }
@@ -57,6 +75,7 @@ url = { workspace = true }
 # Web3 and Ethereum
 web3 = { workspace = true }
 ethabi = { workspace = true }
+lazy_static = "1.4"
 
 # Rate limiting
 governor = { workspace = true }
@@ -69,7 +88,6 @@ prometheus = { version = "0.13", optional = true }
 memmap2 = { workspace = true }
 crc32fast = { workspace = true }
 crossbeam-channel = { workspace = true }
-chrono = { workspace = true }
 
 # Documentation enhancements
 aquamarine = { workspace = true }
