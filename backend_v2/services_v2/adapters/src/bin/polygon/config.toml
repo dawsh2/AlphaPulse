@@ -2,13 +2,13 @@
 # Unified collector configuration for WebSocket connectivity and relay output
 
 [websocket]
-# Primary WebSocket endpoint for real-time Polygon events
-url = "wss://polygon-bor-rpc.publicnode.com"
+# Primary WebSocket endpoint for real-time Polygon events (tested working with Python)
+url = "wss://polygon.drpc.org"
 
-# Fallback endpoints (will try in order if primary fails)
+# Fallback endpoints (will try in order if primary fails) 
 fallback_urls = [
-    "wss://polygon-mainnet.g.alchemy.com/v2/demo",
-    "wss://ws-polygon-mainnet.chainstacklabs.com"
+    "wss://polygon.gateway.tenderly.co",
+    "wss://polygon-bor-rpc.publicnode.com"
 ]
 
 # Connection timeout for WebSocket establishment (milliseconds)

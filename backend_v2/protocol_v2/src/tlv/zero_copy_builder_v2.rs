@@ -6,7 +6,15 @@
 use crate::{MessageHeader, RelayDomain, SourceType, TLVType};
 use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use std::io;
+use std::sync::atomic::{AtomicU64, Ordering};
 use zerocopy::AsBytes;
+
+/// Global sequence counter for build_message_direct calls
+/// 
+/// This ensures every message gets a unique, monotonically increasing sequence number
+/// across all threads and collectors. Uses relaxed ordering for maximum performance
+/// since exact ordering between threads isn't critical for debugging/tracing purposes.
+static GLOBAL_SEQUENCE_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 /// Build errors for zero-copy message construction
 /// 
@@ -178,7 +186,11 @@ pub fn build_message_direct<T: AsBytes>(
     use crate::tlv::with_hot_path_buffer;
     
     with_hot_path_buffer(|buffer| {
-        let builder = TrueZeroCopyBuilder::new(domain, source);
+        // Get unique sequence number for this message (atomic increment)
+        let sequence = GLOBAL_SEQUENCE_COUNTER.fetch_add(1, Ordering::Relaxed);
+        
+        let builder = TrueZeroCopyBuilder::new(domain, source)
+            .with_sequence(sequence);
         let size = builder.build_into_buffer(buffer, tlv_type, tlv_data)
             .map_err(|e| std::io::Error::from(e))?;
         

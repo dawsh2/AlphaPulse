@@ -183,46 +183,43 @@ impl OpportunityDetector {
         opportunities
     }
 
-    /// Simplified method for relay consumer - check if a pool swap creates arbitrage
+    /// Simplified method for relay consumer - delegates to native precision method
     pub async fn check_arbitrage_opportunity(
         &self,
         pool_id: u64,
-        _token_in: u8,
-        _token_out: u8,
+        token_in: u8,
+        token_out: u8,
         amount_in: i64,
         amount_out: i64,
     ) -> Option<crate::relay_consumer::DetectedOpportunity> {
-        // Simplified arbitrage detection based on price movement
-
-        // Calculate effective price (not used for now, market data comes from relay)
-        if amount_in == 0 {
+        // Convert to native precision format and delegate
+        if amount_in <= 0 || amount_out <= 0 {
             return None;
         }
 
-        // For demonstration, create a mock arbitrage opportunity every 10th swap
-        // In a real implementation, this would:
-        // 1. Compare prices across multiple pools
-        // 2. Calculate optimal trade size
-        // 3. Account for gas costs and slippage
-        // 4. Verify profitability after all costs
+        // Create mock addresses from pool and token IDs
+        let mut pool_address = [0u8; 20];
+        pool_address[..8].copy_from_slice(&pool_id.to_le_bytes());
+        
+        let mut token_in_addr = [0u8; 20];
+        token_in_addr[0] = token_in;
+        
+        let mut token_out_addr = [0u8; 20];
+        token_out_addr[0] = token_out;
 
-        if pool_id % 10 == 0 {
-            let expected_profit = 15.75; // Mock profit in USD
-            let required_capital = 1000.0; // Mock capital requirement
-            let spread_percentage = 0.25; // Mock spread %
-
-            return Some(crate::relay_consumer::DetectedOpportunity {
-                expected_profit,
-                spread_percentage,
-                required_capital,
-                target_pool: format!("0x{:040x}", pool_id + 1), // Mock target pool
-            });
-        }
-
-        None
+        // Use standard 18 decimals for now (can be improved with actual token info)
+        self.check_arbitrage_opportunity_native(
+            &pool_address,
+            token_in_addr,
+            token_out_addr,
+            amount_in.abs() as u128,
+            amount_out.abs() as u128,
+            18, // Assume 18 decimals
+            18, // Assume 18 decimals
+        ).await
     }
 
-    /// Native precision arbitrage detection - handles actual token decimals
+    /// Native precision arbitrage detection - uses real pool state comparison
     /// Takes raw TLV data with no precision loss
     pub async fn check_arbitrage_opportunity_native(
         &self,
@@ -234,40 +231,131 @@ impl OpportunityDetector {
         amount_in_decimals: u8,
         amount_out_decimals: u8,
     ) -> Option<crate::relay_consumer::DetectedOpportunity> {
-        // Convert amounts to Decimal for precise calculations (no f64 precision loss)
-        let amount_in_decimal = Decimal::from(amount_in);
-        let amount_out_decimal = Decimal::from(amount_out);
+        // Convert addresses to u64 for pool/token identification
+        let pool_id = u64::from_le_bytes([
+            pool_address[0], pool_address[1], pool_address[2], pool_address[3],
+            pool_address[4], pool_address[5], pool_address[6], pool_address[7],
+        ]);
+        
+        let token_in_id = u64::from_le_bytes([
+            token_in_addr[0], token_in_addr[1], token_in_addr[2], token_in_addr[3],
+            token_in_addr[4], token_in_addr[5], token_in_addr[6], token_in_addr[7],
+        ]);
+        
+        let token_out_id = u64::from_le_bytes([
+            token_out_addr[0], token_out_addr[1], token_out_addr[2], token_out_addr[3],
+            token_out_addr[4], token_out_addr[5], token_out_addr[6], token_out_addr[7],
+        ]);
 
-        let divisor_in = Decimal::from(10u64.pow(amount_in_decimals as u32));
-        let divisor_out = Decimal::from(10u64.pow(amount_out_decimals as u32));
+        // Create instrument ID for the pool that just swapped
+        let updated_pool_id = PoolInstrumentId {
+            venue: VenueId::Polygon as u16,
+            asset_type: 3, // Pool type
+            reserved: 0,
+            asset_id: pool_id,
+        };
 
-        let amount_in_normalized = amount_in_decimal / divisor_in;
-        let amount_out_normalized = amount_out_decimal / divisor_out;
+        // Find arbitrage pairs that include this pool
+        let pairs = self.pool_manager.find_arbitrage_pairs_for_pool(&updated_pool_id);
+        
+        let num_pairs = pairs.len();
+        info!(
+            "🔍 Checking arbitrage for pool {}: found {} potential pairs",
+            hex::encode(pool_address),
+            num_pairs
+        );
 
-        // Simple arbitrage detection: create opportunity if transaction is large enough
-        if amount_in_normalized > dec!(100.0) {
-            // $100+ transaction
-            let mock_profit = amount_in_normalized * dec!(0.01); // 1% profit simulation
-            let profit_usd = mock_profit.to_f64().unwrap_or(0.0);
+        // Evaluate each pair for profitability
+        for pair in pairs {
+            // Check if this pair involves our tokens
+            if !pair.shared_tokens.contains(&token_in_id) || !pair.shared_tokens.contains(&token_out_id) {
+                continue;
+            }
+
+            // Get pool states for comparison
+            let pool_a_state = self.pool_manager.get_strategy_pool(pair.pool_a);
+            let pool_b_state = self.pool_manager.get_strategy_pool(pair.pool_b);
+
+            if pool_a_state.is_none() || pool_b_state.is_none() {
+                continue;
+            }
+
+            // Dereference the Arc to get references to StrategyPoolState
+            let pool_a_ref = pool_a_state.as_ref().unwrap();
+            let pool_b_ref = pool_b_state.as_ref().unwrap();
+
+            // Calculate price difference between pools
+            let (price_a, price_b) = match (pool_a_ref.as_ref(), pool_b_ref.as_ref()) {
+                (PoolState::V2 { reserves: (r0_a, r1_a), .. }, PoolState::V2 { reserves: (r0_b, r1_b), .. }) => {
+                    // V2 pools - simple price calculation
+                    let price_a = r1_a.to_f64().unwrap_or(0.0) / r0_a.to_f64().unwrap_or(1.0);
+                    let price_b = r1_b.to_f64().unwrap_or(0.0) / r0_b.to_f64().unwrap_or(1.0);
+                    (price_a, price_b)
+                },
+                (PoolState::V3 { sqrt_price_x96, .. }, PoolState::V3 { sqrt_price_x96: sqrt_b, .. }) => {
+                    // V3 pools - convert sqrt price to regular price
+                    let price_a = ((*sqrt_price_x96 as f64) / (2_f64.powi(96))).powi(2);
+                    let price_b = ((*sqrt_b as f64) / (2_f64.powi(96))).powi(2);
+                    (price_a, price_b)
+                },
+                _ => continue, // Skip mixed pool types for now
+            };
+
+            // Calculate spread
+            let spread = ((price_b - price_a) / price_a * 100.0).abs();
+            
+            // Only consider if spread is above minimum threshold (accounting for fees)
+            let min_spread_for_profit = 0.6; // 0.3% fee each side minimum
+            if spread < min_spread_for_profit {
+                continue;
+            }
+
+            // Convert amounts to normalized values for profit calculation
+            let amount_in_decimal = Decimal::from(amount_in);
+            let divisor_in = Decimal::from(10u64.pow(amount_in_decimals as u32));
+            let amount_in_normalized = amount_in_decimal / divisor_in;
+
+            // Calculate potential profit
+            let trade_size_usd = amount_in_normalized.to_f64().unwrap_or(0.0) * price_a;
+            let gross_profit = trade_size_usd * (spread / 100.0);
+            let fees = trade_size_usd * 0.006; // 0.3% each side
+            let gas_cost = 3.0; // Estimated gas cost in USD for Polygon (300k gas @ 30 gwei @ $0.33 MATIC)
+            let net_profit = gross_profit - fees - gas_cost;
 
             info!(
-                "🧮 Native precision check: amount_in={}, profit_usd=${:.2}, min_profit=${:.2}",
-                amount_in_normalized,
-                profit_usd,
-                self.config.min_profit_usd.to_f64().unwrap_or(0.0)
+                "📊 Pool pair analysis: spread={:.2}%, gross=${:.2}, fees=${:.2}, gas=${:.2}, net=${:.2}",
+                spread, gross_profit, fees, gas_cost, net_profit
             );
 
-            if profit_usd > self.config.min_profit_usd.to_f64().unwrap_or(0.0) {
-                info!("✅ NATIVE ARBITRAGE OPPORTUNITY: ${:.2} profit", profit_usd);
+            // Check if profitable (any positive net profit)
+            if net_profit > 0.0 {
+                info!(
+                    "✅ REAL ARBITRAGE OPPORTUNITY DETECTED: ${:.2} profit between pools",
+                    net_profit
+                );
+                
+                // Find the other pool address
+                let target_pool_id = if pair.pool_a == pool_id {
+                    pair.pool_b
+                } else {
+                    pair.pool_a
+                };
+
                 return Some(crate::relay_consumer::DetectedOpportunity {
-                    expected_profit: profit_usd,
-                    spread_percentage: 0.0125, // 1.25% spread
-                    required_capital: amount_in_normalized.to_f64().unwrap_or(0.0),
-                    target_pool: format!("0x{}", hex::encode(pool_address)),
+                    expected_profit: net_profit,
+                    spread_percentage: spread,
+                    required_capital: trade_size_usd,
+                    target_pool: format!("0x{:016x}", target_pool_id),
                 });
             }
         }
 
+        // No profitable arbitrage found
+        debug!(
+            "No profitable arbitrage found for pool {} with {} pairs checked",
+            hex::encode(pool_address),
+            num_pairs
+        );
         None
     }
 

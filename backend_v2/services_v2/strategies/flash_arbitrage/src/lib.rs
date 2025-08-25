@@ -169,6 +169,7 @@ pub mod mev;
 pub mod relay_consumer;
 pub mod signal_output;
 pub mod strategy_engine;
+pub mod arbitrage_calculator;
 
 // Export directly from state library
 pub use alphapulse_state_market::{

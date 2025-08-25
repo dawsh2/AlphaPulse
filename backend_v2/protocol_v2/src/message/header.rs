@@ -24,20 +24,22 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 #[repr(C)]
 #[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
 pub struct MessageHeader {
-    // Group u64s first for natural alignment (bytes 0-15)
-    pub sequence: u64,  // Monotonic sequence per source
-    pub timestamp: u64, // Nanoseconds since epoch
+    // CRITICAL: Magic MUST be first for immediate protocol identification (bytes 0-3)
+    pub magic: u32,        // 0xDEADBEEF (bytes 0-3)
+    
+    // Protocol metadata packed in remaining 4 bytes for alignment (bytes 4-7)
+    pub relay_domain: u8,  // Which relay handles this (1=market, 2=signal, 3=execution)
+    pub version: u8,       // Protocol version
+    pub source: u8,        // Source service type  
+    pub flags: u8,         // Compression, priority, etc.
 
-    // Then u32s (bytes 16-27)
-    pub magic: u32,        // 0xDEADBEEF
-    pub payload_size: u32, // TLV payload bytes
-    pub checksum: u32,     // CRC32 of entire message
+    // Performance-critical fields - 8-byte aligned (bytes 8-23)
+    pub sequence: u64,     // Monotonic sequence per source (bytes 8-15)
+    pub timestamp: u64,    // Nanoseconds since epoch (bytes 16-23)
 
-    // Finally u8s packed together (bytes 28-31)
-    pub relay_domain: u8, // Which relay handles this (1=market, 2=signal, 3=execution)
-    pub version: u8,      // Protocol version
-    pub source: u8,       // Source service type
-    pub flags: u8,        // Compression, priority, etc.
+    // Message metadata (bytes 24-31)
+    pub payload_size: u32, // TLV payload bytes (bytes 24-27)
+    pub checksum: u32,     // CRC32 of entire message (bytes 28-31)
 }
 // Total: EXACTLY 32 bytes with zero padding!
 
@@ -110,8 +112,8 @@ impl MessageHeader {
     /// Calculate and set the checksum for the entire message
     pub fn calculate_checksum(&mut self, full_message: &[u8]) {
         self.checksum = 0;
-        // CRC32 over entire message except checksum field (bytes 24-27)
-        let checksum_offset = 24; // checksum field starts at byte 24
+        // CRC32 over entire message except checksum field (bytes 28-31)
+        let checksum_offset = 28; // checksum field starts at byte 28
         let before_checksum = &full_message[..checksum_offset];
         let after_checksum = &full_message[checksum_offset + 4..Self::SIZE]; // skip 4 checksum bytes
         let payload = &full_message[Self::SIZE..];
@@ -125,7 +127,7 @@ impl MessageHeader {
 
     /// Verify the checksum against the full message
     pub fn verify_checksum(&self, full_message: &[u8]) -> bool {
-        let checksum_offset = 24; // checksum field starts at byte 24
+        let checksum_offset = 28; // checksum field starts at byte 28
         let before_checksum = &full_message[..checksum_offset];
         let after_checksum = &full_message[checksum_offset + 4..Self::SIZE]; // skip 4 checksum bytes
         let payload = &full_message[Self::SIZE..];

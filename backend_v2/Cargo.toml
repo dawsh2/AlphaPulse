@@ -22,7 +22,7 @@ members = [
     "libs/state/portfolio",
 ]
 
-exclude = ["temp_test", "tests/e2e", "tools/rq"]
+exclude = ["temp_test", "tools/rq"]
 
 [workspace.package]
 version = "0.1.0"
