@@ -242,6 +242,7 @@ impl TransportRouter {
 mod tests {
     use super::*;
     use crate::{Criticality, Reliability};
+    use crate::hybrid::config::{BridgeConfig, TransportConfig, TransportMode, ChannelConfig};
     use std::collections::HashMap;
 
     fn create_test_config() -> TransportConfig {
@@ -252,7 +253,7 @@ mod tests {
             "critical_actor".to_string(),
             ChannelConfig {
                 mode: TransportMode::Direct,
-                criticality: Criticality::Critical,
+                criticality: Criticality::UltraLowLatency,
                 reliability: Reliability::BestEffort,
                 queue_name: None,
             },
@@ -270,12 +271,12 @@ mod tests {
             },
         );
 
-        super::config::TransportConfig {
+        TransportConfig {
             default_mode: TransportMode::Auto,
             channels,
             routes: Vec::new(),
             enable_bridge: false,
-            bridge: super::config::BridgeConfig::default(),
+            bridge: BridgeConfig::default(),
         }
     }
 

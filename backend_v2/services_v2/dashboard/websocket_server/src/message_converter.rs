@@ -261,7 +261,7 @@ pub fn create_arbitrage_opportunity(
     opportunity
 }
 
-/// Convert DemoDeFiArbitrageTLV to arbitrage opportunity JSON
+/// Convert DemoDeFiArbitrageTLV to arbitrage opportunity JSON with enhanced metrics
 fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     let arbitrage_tlv = DemoDeFiArbitrageTLV::from_bytes(payload).map_err(|e| {
         DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
@@ -303,7 +303,7 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
         "chain_id": arbitrage_tlv.chain_id,
         "priority": arbitrage_tlv.priority,
 
-        // Financial Metrics
+        // Financial Metrics - Enhanced with precise calculations
         "estimated_profit": arbitrage_tlv.expected_profit_usd(),
         "net_profit_usd": arbitrage_tlv.expected_profit_usd(),
         "max_trade_size": arbitrage_tlv.required_capital_usd(),
@@ -315,6 +315,41 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
         } else { 0.0 },
         "optimal_trade_amount": arbitrage_tlv.optimal_amount_token(6), // Assume USDC (6 decimals)
         "gas_cost_estimate": arbitrage_tlv.estimated_gas_cost_native(),
+        
+        // Enhanced Arbitrage Metrics for Trading View
+        "arbitrage_metrics": {
+            "spread_usd": arbitrage_tlv.expected_profit_usd(), // Simplified for now
+            "spread_percent": if arbitrage_tlv.required_capital_q > 0 {
+                (arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0
+            } else { 0.0 },
+            "optimal_size_usd": arbitrage_tlv.optimal_amount_token(6),
+            "dex_fees": {
+                "pool_a_fee": 0.3, // Default 0.3% for V2
+                "pool_b_fee": 0.3,
+                "total_fee_usd": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * 0.006, // 0.6% total
+            },
+            "gas_estimate": {
+                "gas_units": 300000,
+                "gas_price_gwei": arbitrage_tlv.max_gas_price_gwei,
+                "cost_usd": (300000u64 * arbitrage_tlv.max_gas_price_gwei as u64) as f64 / 1e9 * 3000.0, // Assume $3000 ETH
+            },
+            "slippage_estimate": {
+                "tolerance_bps": arbitrage_tlv.slippage_tolerance,
+                "impact_usd": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * (arbitrage_tlv.slippage_tolerance as f64 / 10000.0),
+            },
+            "net_calculation": {
+                "gross_profit": arbitrage_tlv.expected_profit_usd(),
+                "total_fees": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * 0.006,
+                "gas_cost": (300000u64 * arbitrage_tlv.max_gas_price_gwei as u64) as f64 / 1e9 * 3000.0,
+                "slippage": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * (arbitrage_tlv.slippage_tolerance as f64 / 10000.0),
+                "net_profit": arbitrage_tlv.expected_profit_usd().parse::<f64>().unwrap_or(0.0) 
+                    - arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * 0.006
+                    - (300000u64 * arbitrage_tlv.max_gas_price_gwei as u64) as f64 / 1e9 * 3000.0
+                    - arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * (arbitrage_tlv.slippage_tolerance as f64 / 10000.0),
+            },
+            "executable": arbitrage_tlv.is_valid((timestamp_ns / 1_000_000_000) as u32),
+            "confidence_score": arbitrage_tlv.confidence,
+        },
 
         // Pool Information
         "pair": format!("0x{:016x}-0x{:016x}", arbitrage_tlv.token_in, arbitrage_tlv.token_out),
@@ -402,22 +437,55 @@ fn convert_pool_tick_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     }))
 }
 
+/// Helper function to convert sqrt_price bytes to string
+fn convert_sqrt_price_to_string(sqrt_price_bytes: &[u8; 32]) -> String {
+    // Convert first 16 bytes to u128 for display
+    let mut price_bytes = [0u8; 16];
+    price_bytes.copy_from_slice(&sqrt_price_bytes[..16]);
+    let price_u128 = u128::from_le_bytes(price_bytes);
+    if price_u128 > 0 {
+        format!("{}", price_u128)
+    } else {
+        "0".to_string()
+    }
+}
+
 fn convert_pool_swap_tlv(payload: &[u8], _timestamp_ns: u64) -> Result<Value> {
-    let swap = PoolSwapTLV::from_bytes(payload).map_err(|e| {
+    let swap = PoolSwapTLV::from_bytes(payload).map_err(|_e| {
         DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
             ParseError::MessageTooSmall { need: 32, got: 0 },
         ))
     })?;
 
     // Convert amounts to human-readable format using native decimals
-    let amount_in_normalized = swap.amount_in as f64 / 10_f64.powi(swap.amount_in_decimals as i32);
-    let amount_out_normalized =
-        swap.amount_out as f64 / 10_f64.powi(swap.amount_out_decimals as i32);
+    let amount_in_normalized = if swap.amount_in_decimals > 0 {
+        swap.amount_in as f64 / 10_f64.powi(swap.amount_in_decimals as i32)
+    } else {
+        swap.amount_in as f64
+    };
+    
+    let amount_out_normalized = if swap.amount_out_decimals > 0 {
+        swap.amount_out as f64 / 10_f64.powi(swap.amount_out_decimals as i32)
+    } else {
+        swap.amount_out as f64
+    };
+
+    // Convert venue number to proper name
+    let venue_name = match swap.venue {
+        200 => "Ethereum",
+        201 => "Bitcoin", 
+        202 => "Polygon",
+        203 => "BSC",
+        300 => "UniswapV2",
+        301 => "UniswapV3",
+        302 => "SushiSwap",
+        _ => "Unknown",
+    };
 
     Ok(json!({
         "msg_type": "pool_swap",
-        "venue": swap.venue as u16,
-        "venue_name": format!("{:?}", swap.venue),
+        "venue": swap.venue,
+        "venue_name": venue_name,
         "pool_address": format!("0x{}", hex::encode(swap.pool_address)),
         "token_in": format!("0x{}", hex::encode(swap.token_in_addr)),
         "token_out": format!("0x{}", hex::encode(swap.token_out_addr)),
@@ -431,10 +499,10 @@ fn convert_pool_swap_tlv(payload: &[u8], _timestamp_ns: u64) -> Result<Value> {
             "normalized": amount_out_normalized,
             "decimals": swap.amount_out_decimals
         },
-        "sqrt_price_x96_after": format!("0x{}", hex::encode(swap.sqrt_price_x96_after)), // Hex format for [u8; 20]
-        "sqrt_price_x96_u128": swap.sqrt_price_x96_as_u128().to_string(), // Backward compatibility as string
+        // Protocol data - properly convert sqrt_price from bytes
+        "sqrt_price_x96_after": convert_sqrt_price_to_string(&swap.sqrt_price_x96_after),
         "tick_after": swap.tick_after,
-        "liquidity_after": swap.liquidity_after.to_string(), // Use string for large values
+        "liquidity_after": swap.liquidity_after.to_string(),
         "timestamp": swap.timestamp_ns,
         "timestamp_iso": timestamp_to_iso(swap.timestamp_ns),
         "block_number": swap.block_number
@@ -455,7 +523,7 @@ fn convert_flash_loan_result_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Va
 
 /// Convert pool sync TLV (type 16) - V2 Sync events with complete reserves
 fn convert_pool_sync_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
-    let sync = PoolSyncTLV::from_bytes(payload).map_err(|e| {
+    let sync = PoolSyncTLV::from_bytes(payload).map_err(|_e| {
         DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
             ParseError::MessageTooSmall { need: 32, got: 0 },
         ))

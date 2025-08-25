@@ -15,6 +15,7 @@ pub use router::{RouteDecision, TransportRouter};
 
 use crate::{Priority, Result, Transport, TransportError, TransportStatistics};
 use async_trait::async_trait;
+use std::collections::HashMap;
 use tokio::sync::RwLock;
 
 /// Hybrid transport that combines direct and message queue transport

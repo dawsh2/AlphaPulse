@@ -152,8 +152,8 @@ pub struct TraceCollectorStats {
     pub uptime_seconds: u64,
 }
 
-/// Trace ID type alias for clarity
-pub type TraceId = [u8; 16];
+/// Trace ID type alias for clarity (matches protocol_v2 definition)
+pub type TraceId = [u8; 8];
 
 /// Convert trace ID to hex string for logging and JSON
 pub fn trace_id_to_hex(trace_id: &TraceId) -> String {
@@ -162,15 +162,15 @@ pub fn trace_id_to_hex(trace_id: &TraceId) -> String {
 
 /// Convert hex string back to trace ID
 pub fn hex_to_trace_id(hex: &str) -> Result<TraceId> {
-    if hex.len() != 32 {
+    if hex.len() != 16 {
         return Err(TraceError::InvalidTraceId(format!(
-            "Expected 32 hex chars, got {}",
+            "Expected 16 hex chars, got {}",
             hex.len()
         )));
     }
 
     let bytes = hex::decode(hex).map_err(|_| TraceError::InvalidTraceId(hex.to_string()))?;
-    let mut trace_id = [0u8; 16];
+    let mut trace_id = [0u8; 8];
     trace_id.copy_from_slice(&bytes);
     Ok(trace_id)
 }
