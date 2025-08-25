@@ -82,6 +82,10 @@ path = "../../test_quicknode_polygon.rs"
 name = "test_market_data_consumer"
 path = "../../test_market_data_consumer.rs"
 
+[[bin]]
+name = "test_pool_cache_integration"
+path = "../../test_pool_cache_integration_manual.rs"
+
 [dependencies]
 # Core protocol
 protocol_v2 = { workspace = true }
