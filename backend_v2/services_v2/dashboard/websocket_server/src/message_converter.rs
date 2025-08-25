@@ -274,16 +274,16 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
 
     // Extract pool information
     let pool_a_venues = match arbitrage_tlv.venue_a {
-        protocol_v2::VenueId::UniswapV2 => "Uniswap V2",
-        protocol_v2::VenueId::UniswapV3 => "Uniswap V3",
-        protocol_v2::VenueId::SushiSwap => "SushiSwap V2",
+        x if x == protocol_v2::VenueId::UniswapV2 as u16 => "Uniswap V2",
+        x if x == protocol_v2::VenueId::UniswapV3 as u16 => "Uniswap V3", 
+        x if x == protocol_v2::VenueId::SushiSwap as u16 => "SushiSwap V2",
         _ => "Unknown DEX",
     };
 
     let pool_b_venues = match arbitrage_tlv.venue_b {
-        protocol_v2::VenueId::UniswapV2 => "Uniswap V2",
-        protocol_v2::VenueId::UniswapV3 => "Uniswap V3",
-        protocol_v2::VenueId::SushiSwap => "SushiSwap V2",
+        x if x == protocol_v2::VenueId::UniswapV2 as u16 => "Uniswap V2",
+        x if x == protocol_v2::VenueId::UniswapV3 as u16 => "Uniswap V3",
+        x if x == protocol_v2::VenueId::SushiSwap as u16 => "SushiSwap V2", 
         _ => "Unknown DEX",
     };
 

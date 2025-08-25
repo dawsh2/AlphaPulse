@@ -51,7 +51,7 @@ pub struct TrueZeroCopyBuilder {
     domain: RelayDomain,
     source: SourceType,
     sequence: u64,
-    buffer_offset: usize,
+    _buffer_offset: usize, // Reserved for future zero-copy optimizations
 }
 
 impl TrueZeroCopyBuilder {
@@ -61,7 +61,7 @@ impl TrueZeroCopyBuilder {
             domain,
             source,
             sequence: 0,
-            buffer_offset: std::mem::size_of::<MessageHeader>(), // Reserve space for header
+            _buffer_offset: std::mem::size_of::<MessageHeader>(), // Reserve space for header
         }
     }
     

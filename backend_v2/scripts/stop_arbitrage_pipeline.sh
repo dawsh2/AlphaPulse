@@ -69,8 +69,8 @@ stop_service "/tmp/alphapulse/dashboard_websocket.pid" "Dashboard WebSocket Serv
 # Stop Flash Arbitrage Strategy
 stop_service "/tmp/alphapulse/flash_arbitrage.pid" "Flash Arbitrage Strategy"
 
-# Stop Polygon Publisher  
-stop_service "/tmp/alphapulse/polygon_publisher.pid" "Polygon DEX Publisher"
+# Stop Polygon Collector
+stop_service "/tmp/alphapulse/polygon_collector.pid" "Polygon DEX Collector"
 
 # Stop Domain Relay Services
 stop_service "/tmp/alphapulse/execution.pid" "ExecutionRelay"
@@ -87,15 +87,30 @@ cleanup_socket "/tmp/alphapulse/market_data.sock" "MarketDataRelay"
 
 echo ""
 
+# Additional cleanup - kill any remaining processes by name
+echo "🧹 Additional process cleanup..."
+pkill -f "market_data_relay" 2>/dev/null || true
+pkill -f "signal_relay" 2>/dev/null || true  
+pkill -f "execution_relay" 2>/dev/null || true
+pkill -f "polygon.*adapter" 2>/dev/null || true
+pkill -f "alphapulse-flash-arbitrage" 2>/dev/null || true
+pkill -f "alphapulse-dashboard-websocket" 2>/dev/null || true
+
+# Wait a moment for processes to terminate
+sleep 2
+
 # Final status check
 echo "📋 Final Status Check:"
-remaining_processes=$(ps aux | grep -E "(start_market_data_relay|start_signal_relay|start_execution_relay|polygon_publisher|alphapulse-flash-arbitrage|alphapulse-dashboard-websocket)" | grep -v grep | wc -l)
+remaining_processes=$(ps aux | grep -E "(market_data_relay|signal_relay|execution_relay|polygon.*adapter|alphapulse-flash-arbitrage|alphapulse-dashboard-websocket)" | grep -v grep | wc -l)
 
 if [[ $remaining_processes -eq 0 ]]; then
     echo -e "${GREEN}✅ All AlphaPulse services stopped successfully${NC}"
 else
     echo -e "${RED}⚠️ $remaining_processes processes may still be running${NC}"
-    echo "Run this to check: ps aux | grep alphapulse"
+    echo "Remaining processes:"
+    ps aux | grep -E "(market_data_relay|signal_relay|execution_relay|polygon.*adapter|alphapulse-flash-arbitrage|alphapulse-dashboard-websocket)" | grep -v grep || echo "None found"
+    echo ""
+    echo "💡 If needed, use: pkill -f alphapulse"
 fi
 
 echo ""

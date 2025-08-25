@@ -12,9 +12,9 @@ protocol_v2 = { path = "../protocol_v2", package = "protocol_v2" }
 alphapulse-transport = { path = "../network/transport" }
 alphapulse-topology = { path = "../network/topology" }
 
-# Service infrastructure (TODO: implement these libraries)
-# alphapulse-health-check = { path = "../libs/health_check" }
-# alphapulse-service-discovery = { path = "../libs/service_discovery" }
+# Service infrastructure
+alphapulse_health_check = { path = "../libs/health_check" }
+alphapulse_service_discovery = { path = "../libs/service_discovery" }
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }

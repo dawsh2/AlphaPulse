@@ -876,7 +876,7 @@ impl UnifiedPolygonCollector {
             TLVType::PoolSwap,
             &swap_tlv,
         )
-        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
+        .ok()?;
 
         Some(message)
     }
@@ -999,7 +999,7 @@ impl UnifiedPolygonCollector {
             TLVType::PoolMint,
             &mint_tlv,
         )
-        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
+        .ok()?;
 
         Some(message)
     }
@@ -1117,7 +1117,7 @@ impl UnifiedPolygonCollector {
             TLVType::PoolBurn,
             &burn_tlv,
         )
-        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
+        .ok()?;
 
         Some(message)
     }
@@ -1154,7 +1154,7 @@ impl UnifiedPolygonCollector {
             TLVType::PoolTick,
             &tick_tlv,
         )
-        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
+        .ok()?;
 
         Some(message)
     }
@@ -1210,7 +1210,7 @@ impl UnifiedPolygonCollector {
             u64::from_be_bytes(token1_addr[12..20].try_into().ok()?),
         );
 
-        let sync_tlv = PoolSyncTLV::new(
+        let sync_tlv = PoolSyncTLV::from_components(
             pool_addr,
             token0_addr,
             token1_addr,
@@ -1237,7 +1237,7 @@ impl UnifiedPolygonCollector {
             TLVType::PoolSync,
             &sync_tlv,
         )
-        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
+        .ok()?;
 
         Some(message)
     }
@@ -1312,7 +1312,7 @@ impl UnifiedPolygonCollector {
             TLVType::PoolState,
             &pool_state,
         )
-        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
+        .ok()?;
 
         Some(message)
     }
@@ -1378,7 +1378,7 @@ impl UnifiedPolygonCollector {
             TLVType::PoolState,
             &pool_state,
         )
-        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
+        .ok()?;
 
         Some(message)
     }

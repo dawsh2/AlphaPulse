@@ -223,8 +223,6 @@ impl OrderLevel {
     }
 }
 
-/// Maximum order book levels (generous headroom for deep order books)
-const MAX_ORDER_LEVELS: usize = 100;
 
 /// OrderBook TLV structure for complete order book snapshots
 ///

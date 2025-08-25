@@ -9,10 +9,10 @@
 //! This is the next-generation relay architecture that replaces hardcoded paths
 //! and enables zero-downtime deployments with automatic failover.
 
-use alphapulse_health_check::{HealthCheckServer, ServiceHealth, MetricsCollector, PerformanceMetrics};
+use alphapulse_health_check::{HealthCheckServer, ServiceHealth, MetricsCollector};
 use alphapulse_service_discovery::{ServiceDiscovery, ServiceType, Environment};
 use alphapulse_relays::SignalRelay;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
 use std::sync::Arc;
 use tokio::signal;
@@ -158,7 +158,7 @@ async fn main() -> Result<()> {
                 let performance_metrics = metrics.get_metrics();
                 
                 health_server.update_health(|health| {
-                    health.update_metrics(performance_metrics);
+                    health.update_metrics(performance_metrics.clone());
                     health.add_detail("last_metrics_update", &chrono::Utc::now().to_rfc3339());
                 }).await;
                 
