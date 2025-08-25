@@ -98,9 +98,10 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::mem::size_of;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::io::AsyncReadExt;
 use tokio::net::UnixStream;
+use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 use zerocopy::Ref;
 
@@ -193,73 +194,54 @@ impl RelayConsumer {
                     let mut message_buffer = Vec::new(); // Accumulate partial messages
 
                     loop {
-                        match stream.read(&mut buffer).await {
-                            Ok(0) => {
+                        // Use non-blocking read with short timeout to enable continuous polling
+                        // This prevents the consumer from getting stuck waiting for data
+                        match tokio::time::timeout(Duration::from_millis(50), stream.read(&mut buffer)).await {
+                            Ok(Ok(0)) => {
                                 warn!("{:?} relay connection closed", domain);
                                 break;
                             }
-                            Ok(bytes_read) => {
+                            Ok(Ok(bytes_read)) => {
+                                debug!("Read {} bytes from {:?} relay", bytes_read, domain);
+                                
+                                // Log first 32 bytes in hex for debugging
+                                if bytes_read >= 32 {
+                                    let hex_preview: String = buffer[..32]
+                                        .iter()
+                                        .map(|b| format!("{:02x}", b))
+                                        .collect::<Vec<_>>()
+                                        .join(" ");
+                                    debug!("Message header bytes: [{}]", hex_preview);
+                                }
+                                
                                 // Append new data to message buffer
                                 message_buffer.extend_from_slice(&buffer[..bytes_read]);
 
-                                // Process complete messages from buffer
-                                let mut processed_bytes = 0;
-                                while message_buffer.len() >= processed_bytes + 32 {
-                                    let remaining_data = &message_buffer[processed_bytes..];
-
-                                    // Try to parse header to get message size
-                                    let header_result = match domain {
-                                        RelayDomain::MarketData => {
-                                            Self::parse_header_fast(remaining_data)
-                                        }
-                                        _ => parse_header(remaining_data),
-                                    };
-
-                                    match header_result {
-                                        Ok(header) => {
-                                            let total_message_size =
-                                                32 + header.payload_size as usize;
-
-                                            // Check if we have the complete message
-                                            if remaining_data.len() >= total_message_size {
-                                                let complete_message =
-                                                    &remaining_data[..total_message_size];
-
-                                                if let Err(e) = Self::process_relay_data(
-                                                    &client_manager,
-                                                    complete_message,
-                                                    domain,
-                                                    &mut signal_buffer,
-                                                )
-                                                .await
-                                                {
-                                                    warn!(
-                                                        "Error processing {:?} relay data: {}",
-                                                        domain, e
-                                                    );
-                                                }
-
-                                                processed_bytes += total_message_size;
-                                            } else {
-                                                // Incomplete message, wait for more data
-                                                break;
-                                            }
-                                        }
-                                        Err(_) => {
-                                            // Invalid header, skip this byte and try next
-                                            processed_bytes += 1;
-                                        }
+                                // Process complete messages from buffer with robust multi-message parsing
+                                if let Err(e) = Self::process_message_buffer(
+                                    &client_manager,
+                                    &mut message_buffer,
+                                    domain,
+                                    &mut signal_buffer,
+                                )
+                                .await
+                                {
+                                    warn!("Error processing message buffer: {}", e);
+                                    // On parsing failure, clear corrupted buffer to prevent infinite loops
+                                    if message_buffer.len() > 8192 {
+                                        warn!("Clearing oversized buffer ({} bytes) due to parsing failure", message_buffer.len());
+                                        message_buffer.clear();
                                     }
                                 }
-
-                                // Remove processed data from buffer
-                                if processed_bytes > 0 {
-                                    message_buffer.drain(..processed_bytes);
-                                }
-                            }
-                            Err(e) => {
+                                    }
+                            Ok(Err(e)) => {
                                 error!("Error reading from {:?} relay: {}", domain, e);
                                 break;
+                            }
+                            Err(_timeout) => {
+                                // Timeout occurred - no data available, continue polling 
+                                // This prevents infinite blocking and enables continuous streaming
+                                continue;
                             }
                         }
                     }
@@ -386,6 +368,36 @@ impl RelayConsumer {
                         entry.0 = Some(json_message);
                     }
                 }
+                11 => {
+                    // PoolSwap - broadcast for dashboard "pool_swap" channel
+                    client_manager.broadcast(json_message).await;
+                    debug!("Broadcasted pool_swap message");
+                }
+                16 => {
+                    // PoolSync - broadcast for dashboard pool updates
+                    client_manager.broadcast(json_message).await;
+                    debug!("Broadcasted pool_sync message");
+                }
+                10 => {
+                    // PoolLiquidity - broadcast for dashboard liquidity updates
+                    client_manager.broadcast(json_message).await;
+                    debug!("Broadcasted pool_liquidity message");
+                }
+                12 => {
+                    // PoolMint - broadcast for dashboard mint events
+                    client_manager.broadcast(json_message).await;
+                    debug!("Broadcasted pool_mint message");
+                }
+                13 => {
+                    // PoolBurn - broadcast for dashboard burn events
+                    client_manager.broadcast(json_message).await;
+                    debug!("Broadcasted pool_burn message");
+                }
+                14 => {
+                    // PoolTick - broadcast for dashboard tick events
+                    client_manager.broadcast(json_message).await;
+                    debug!("Broadcasted pool_tick message");
+                }
                 3 => {
                     // Economics
                     if let Some(signal_id) = current_signal_id {
@@ -447,6 +459,165 @@ impl RelayConsumer {
         Ok(())
     }
 
+    /// Process message buffer handling multiple concatenated TLV messages
+    async fn process_message_buffer(
+        client_manager: &ClientManager,
+        message_buffer: &mut Vec<u8>,
+        domain: RelayDomain,
+        signal_buffer: &mut HashMap<u64, (Option<Value>, Option<Value>)>,
+    ) -> Result<()> {
+        let mut offset = 0;
+        let mut consecutive_failures = 0;
+        const MAX_CONSECUTIVE_FAILURES: u8 = 10;
+        const MAX_BUFFER_SIZE: usize = 16384; // Increased to handle more messages
+
+        debug!("Processing buffer with {} bytes", message_buffer.len());
+
+        while offset + 32 <= message_buffer.len() {
+            // Pre-check magic number for fast rejection - magic is at bytes 0-3 in Protocol V2 (fixed header)
+            if message_buffer.len() >= offset + 4 { // Need at least 4 bytes to read magic at offset 0
+                let magic = u32::from_le_bytes([  // Protocol V2 uses little-endian
+                    message_buffer[offset + 0],  // Magic is at bytes 0-3 after the fix
+                    message_buffer[offset + 1],
+                    message_buffer[offset + 2], 
+                    message_buffer[offset + 3],
+                ]);
+                
+                if magic != MESSAGE_MAGIC {
+                    debug!("Invalid magic at offset {}: expected 0x{:08X}, got 0x{:08X}", 
+                           offset, MESSAGE_MAGIC, magic);
+                    // Invalid magic - look for next valid magic number
+                    if let Some(next_magic_offset) = Self::find_next_magic(&message_buffer[offset..]) {
+                        offset += next_magic_offset;
+                        consecutive_failures += 1;
+                        
+                        if consecutive_failures > MAX_CONSECUTIVE_FAILURES {
+                            warn!("Too many consecutive parsing failures, clearing buffer");
+                            message_buffer.clear();
+                            return Ok(());
+                        }
+                        continue;
+                    } else {
+                        // No valid magic found in remaining buffer
+                        debug!("No valid magic found in remaining {} bytes", message_buffer.len() - offset);
+                        break;
+                    }
+                }
+            }
+
+            // Parse header at exact offset
+            let header_slice = &message_buffer[offset..offset + 32];
+            let header = match domain {
+                RelayDomain::MarketData => Self::parse_header_fast(header_slice),
+                _ => parse_header(header_slice),
+            };
+
+            match header {
+                Ok(header) => {
+                    let total_message_size = 32 + header.payload_size as usize;
+                    debug!("Found valid message: payload_size={}, total_size={} at offset={}, magic=0x{:08X}", 
+                           header.payload_size, total_message_size, offset, header.magic);
+
+                    // Validate complete message availability
+                    if offset + total_message_size > message_buffer.len() {
+                        debug!("Incomplete message: need {} bytes, have {} remaining", 
+                               total_message_size, message_buffer.len() - offset);
+                        break; // Wait for more data
+                    }
+
+                    // Extract and process complete message
+                    let complete_message = &message_buffer[offset..offset + total_message_size];
+                    
+                    if let Err(e) = Self::process_relay_data(
+                        client_manager,
+                        complete_message,
+                        domain,
+                        signal_buffer,
+                    )
+                    .await
+                    {
+                        warn!("Error processing message at offset {}: {}", offset, e);
+                        consecutive_failures += 1;
+                    } else {
+                        debug!("Successfully processed message at offset {}", offset);
+                        consecutive_failures = 0; // Reset on success
+                    }
+
+                    // Move to next message boundary
+                    offset += total_message_size;
+                    
+                    // Yield control to prevent burst behavior
+                    tokio::task::yield_now().await;
+                }
+                Err(e) => {
+                    debug!("Failed to parse header at offset {}: {:?}", offset, e);
+                    // Try to find next valid message
+                    if let Some(next_magic_offset) = Self::find_next_magic(&message_buffer[offset + 1..]) {
+                        offset += 1 + next_magic_offset;
+                        consecutive_failures += 1;
+                    } else {
+                        break; // No more valid messages in buffer
+                    }
+
+                    if consecutive_failures > MAX_CONSECUTIVE_FAILURES {
+                        warn!("Circuit breaker triggered: {} consecutive failures", consecutive_failures);
+                        message_buffer.clear();
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        // Remove all processed messages from buffer
+        if offset > 0 {
+            debug!("Draining {} bytes from buffer (had {} bytes)", offset, message_buffer.len());
+            message_buffer.drain(..offset);
+            debug!("Buffer after processing: {} bytes remaining", message_buffer.len());
+            consecutive_failures = 0; // Reset on successful processing
+        }
+
+        // Only truncate buffer if parsing consistently fails AND buffer is oversized
+        if consecutive_failures > MAX_CONSECUTIVE_FAILURES && message_buffer.len() > MAX_BUFFER_SIZE {
+            warn!("Circuit breaker triggered: {} consecutive failures with oversized buffer, clearing", consecutive_failures);
+            message_buffer.clear();
+        } else if message_buffer.len() > MAX_BUFFER_SIZE * 2 {
+            // Emergency truncation only if buffer becomes extremely large
+            warn!("Emergency buffer truncation: {} bytes exceeds safety limit", message_buffer.len());
+            message_buffer.truncate(MAX_BUFFER_SIZE);
+        }
+
+        Ok(())
+    }
+
+    /// Find next occurrence of MESSAGE_MAGIC in buffer at Protocol V2 header offsets
+    /// Magic number is at bytes 0-3 of each message (after header fix)
+    fn find_next_magic(buffer: &[u8]) -> Option<usize> {
+        if buffer.len() < 4 { // Need at least 4 bytes to read magic at offset 0
+            return None;
+        }
+
+        // Check every byte for the magic number (since messages can start at any byte after corruption)
+        let mut search_offset = 1; // Start at 1 since we already checked 0
+        while search_offset + 4 <= buffer.len() {
+            // Check for magic at current search position
+            let magic = u32::from_le_bytes([  // Protocol V2 uses little-endian
+                buffer[search_offset],
+                buffer[search_offset + 1], 
+                buffer[search_offset + 2],
+                buffer[search_offset + 3],
+            ]);
+            
+            if magic == MESSAGE_MAGIC {
+                return Some(search_offset); // Return start of message
+            }
+            
+            // Move to next byte
+            search_offset += 1;
+        }
+        
+        None
+    }
+
     /// Fast header parsing without checksum validation (MarketData optimization)
     fn parse_header_fast(data: &[u8]) -> std::result::Result<&MessageHeader, ParseError> {
         if data.len() < size_of::<MessageHeader>() {
@@ -479,6 +650,12 @@ impl RelayConsumer {
 mod tests {
     use super::*;
     use crate::client::ClientManager;
+    use protocol_v2::{
+        message::header::MessageHeader,
+        RelayDomain, MESSAGE_MAGIC,
+    };
+    use std::collections::HashMap;
+    use zerocopy::AsBytes;
 
     #[test]
     fn test_relay_consumer_creation() {
@@ -493,5 +670,213 @@ mod tests {
         assert_eq!(consumer.market_data_path, "/tmp/test_market.sock");
         assert_eq!(consumer.signal_path, "/tmp/test_signal.sock");
         assert_eq!(consumer.execution_path, "/tmp/test_execution.sock");
+    }
+
+    fn create_test_message(payload_size: u16) -> Vec<u8> {
+        let header = MessageHeader {
+            magic: MESSAGE_MAGIC,
+            relay_domain: RelayDomain::MarketData as u8,
+            source: 1,
+            sequence: 1,
+            timestamp: 1234567890,
+            payload_size: payload_size.into(),
+            checksum: 0, // Not used in fast parsing
+            version: 1,
+            flags: 0,
+        };
+
+        let mut message = header.as_bytes().to_vec();
+        
+        // Add minimal TLV payload
+        if payload_size > 0 {
+            // Add SimpleTLV header manually (2 bytes)
+            message.push(1); // tlv_type = 1 (Trade)
+            message.push((payload_size - 2) as u8); // tlv_length
+            
+            // Pad with zeros to reach payload_size
+            let remaining = payload_size as usize - 2;
+            message.extend(vec![0u8; remaining]);
+        }
+
+        message
+    }
+
+    #[tokio::test]
+    async fn test_single_message_processing() {
+        let client_manager = Arc::new(ClientManager::new(100));
+        let mut message_buffer = create_test_message(210); // 242 total bytes (32 + 210)
+        let mut signal_buffer = HashMap::new();
+
+        let result = RelayConsumer::process_message_buffer(
+            &client_manager,
+            &mut message_buffer,
+            RelayDomain::MarketData,
+            &mut signal_buffer,
+        )
+        .await;
+
+        assert!(result.is_ok(), "Single message processing should succeed");
+        assert_eq!(message_buffer.len(), 0, "Buffer should be empty after processing");
+    }
+
+    #[tokio::test]
+    async fn test_concatenated_messages() {
+        let client_manager = Arc::new(ClientManager::new(100));
+        
+        // Create two identical messages concatenated
+        let mut message_buffer = create_test_message(210);
+        message_buffer.extend_from_slice(&create_test_message(210));
+        
+        assert_eq!(message_buffer.len(), 484, "Should have 2 messages of 242 bytes each");
+        
+        let mut signal_buffer = HashMap::new();
+
+        let result = RelayConsumer::process_message_buffer(
+            &client_manager,
+            &mut message_buffer,
+            RelayDomain::MarketData,
+            &mut signal_buffer,
+        )
+        .await;
+
+        assert!(result.is_ok(), "Concatenated message processing should succeed");
+        assert_eq!(message_buffer.len(), 0, "Buffer should be empty after processing both messages");
+    }
+
+    #[tokio::test]
+    async fn test_partial_message_buffering() {
+        let client_manager = Arc::new(ClientManager::new(100));
+        
+        // Create partial message (only header + half payload)
+        let full_message = create_test_message(210);
+        let mut message_buffer = full_message[..100].to_vec(); // Incomplete message
+        
+        let mut signal_buffer = HashMap::new();
+
+        let result = RelayConsumer::process_message_buffer(
+            &client_manager,
+            &mut message_buffer,
+            RelayDomain::MarketData,
+            &mut signal_buffer,
+        )
+        .await;
+
+        assert!(result.is_ok(), "Partial message handling should succeed");
+        assert_eq!(message_buffer.len(), 100, "Incomplete message should remain in buffer");
+        
+        // Add remaining bytes
+        message_buffer.extend_from_slice(&full_message[100..]);
+        
+        let result = RelayConsumer::process_message_buffer(
+            &client_manager,
+            &mut message_buffer,
+            RelayDomain::MarketData,
+            &mut signal_buffer,
+        )
+        .await;
+
+        assert!(result.is_ok(), "Complete message processing should succeed");
+        assert_eq!(message_buffer.len(), 0, "Buffer should be empty after completing message");
+    }
+
+    #[tokio::test]
+    async fn test_corrupted_message_recovery() {
+        let client_manager = Arc::new(ClientManager::new(100));
+        
+        // Create buffer with corrupted data followed by valid message
+        let mut message_buffer = vec![0xFF, 0xDE, 0xAD, 0xBE]; // Invalid magic
+        message_buffer.extend_from_slice(&create_test_message(210)); // Valid message
+        
+        let mut signal_buffer = HashMap::new();
+
+        let result = RelayConsumer::process_message_buffer(
+            &client_manager,
+            &mut message_buffer,
+            RelayDomain::MarketData,
+            &mut signal_buffer,
+        )
+        .await;
+
+        assert!(result.is_ok(), "Should recover from corrupted message");
+        assert_eq!(message_buffer.len(), 0, "Buffer should be clean after recovery");
+    }
+
+    #[tokio::test] 
+    async fn test_oversized_buffer_handling() {
+        let client_manager = Arc::new(ClientManager::new(100));
+        
+        // Create oversized buffer (> 8KB)
+        let mut message_buffer = vec![0xFF; 10000];
+        let mut signal_buffer = HashMap::new();
+
+        let result = RelayConsumer::process_message_buffer(
+            &client_manager,
+            &mut message_buffer,
+            RelayDomain::MarketData,
+            &mut signal_buffer,
+        )
+        .await;
+
+        assert!(result.is_ok(), "Should handle oversized buffer");
+        assert!(message_buffer.len() <= 8192, "Buffer should be truncated to max size");
+    }
+
+    #[tokio::test]
+    async fn test_circuit_breaker() {
+        let client_manager = Arc::new(ClientManager::new(100));
+        
+        // Create buffer with many invalid magic numbers
+        let mut message_buffer = vec![0xFF; 1000]; // All invalid data
+        let mut signal_buffer = HashMap::new();
+
+        let result = RelayConsumer::process_message_buffer(
+            &client_manager,
+            &mut message_buffer,
+            RelayDomain::MarketData,
+            &mut signal_buffer,
+        )
+        .await;
+
+        assert!(result.is_ok(), "Should handle circuit breaker gracefully");
+        // Buffer may be cleared by circuit breaker
+    }
+
+    #[test]
+    fn test_find_next_magic() {
+        // Test finding magic in buffer
+        let mut buffer = vec![0xFF, 0xDE, 0xAD, 0xBE]; // Invalid data
+        buffer.extend_from_slice(&MESSAGE_MAGIC.to_be_bytes()); // Valid magic
+        buffer.extend(&[0x12, 0x34]); // More data
+
+        let magic_offset = RelayConsumer::find_next_magic(&buffer);
+        assert_eq!(magic_offset, Some(4), "Should find magic at offset 4");
+
+        // Test no magic found
+        let no_magic_buffer = vec![0xFF; 100];
+        let no_magic_result = RelayConsumer::find_next_magic(&no_magic_buffer);
+        assert_eq!(no_magic_result, None, "Should return None when no magic found");
+    }
+
+    #[test]
+    fn test_magic_precheck() {
+        // Test buffer starting with valid magic
+        let valid_buffer = create_test_message(10);
+        let magic = u32::from_be_bytes([
+            valid_buffer[0],
+            valid_buffer[1], 
+            valid_buffer[2],
+            valid_buffer[3],
+        ]);
+        assert_eq!(magic, MESSAGE_MAGIC, "Should have valid magic number");
+
+        // Test buffer with invalid magic
+        let invalid_buffer = vec![0xFF, 0xDE, 0xAD, 0xBE];
+        let invalid_magic = u32::from_be_bytes([
+            invalid_buffer[0],
+            invalid_buffer[1],
+            invalid_buffer[2], 
+            invalid_buffer[3],
+        ]);
+        assert_ne!(invalid_magic, MESSAGE_MAGIC, "Should have invalid magic number");
     }
 }

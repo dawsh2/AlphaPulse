@@ -187,21 +187,25 @@ async fn handle_connection(
 
                         // Forward to broadcast channel immediately
                         let message_data = read_buffer[..n].to_vec();
-                        if let Err(e) = message_tx.send(message_data) {
-                            debug!("No broadcast subscribers: {}", e);
-                        }
-
-                        if read_count <= 5 {
+                        
+                        // Log every message for debugging
+                        if read_count <= 10 || read_count % 100 == 0 {
                             let preview = &read_buffer[..std::cmp::min(32, n)];
                             info!(
-                                "📨 Connection {} forwarded message {}: {} bytes, preview: {:?}",
-                                connection_id, read_count, n, preview
+                                "📨 Connection {} forwarded message {}: {} bytes, preview: {:02x?}",
+                                connection_id, read_count, n, &preview[..std::cmp::min(16, preview.len())]
                             );
-                        } else if read_count % 1000 == 0 {
-                            info!(
-                                "📊 Connection {}: {} messages forwarded",
-                                connection_id, read_count
-                            );
+                        }
+                        
+                        match message_tx.send(message_data.clone()) {
+                            Ok(num_receivers) => {
+                                if read_count <= 10 || read_count % 100 == 0 {
+                                    info!("✅ Broadcast to {} receivers", num_receivers);
+                                }
+                            }
+                            Err(e) => {
+                                warn!("❌ No broadcast subscribers: {}", e);
+                            }
                         }
                     }
                     Err(e) => {
@@ -233,17 +237,14 @@ async fn handle_connection(
 
                         write_count += 1;
 
-                        if write_count <= 5 {
-                            debug!(
-                                "📤 Sent message {} to connection {}: {} bytes",
+                        if write_count <= 10 || write_count % 100 == 0 {
+                            let preview_len = std::cmp::min(16, message_data.len());
+                            info!(
+                                "📤 Sent message {} to connection {}: {} bytes, preview: {:02x?}",
                                 write_count,
                                 connection_id,
-                                message_data.len()
-                            );
-                        } else if write_count % 1000 == 0 {
-                            info!(
-                                "📊 Connection {}: {} messages sent",
-                                connection_id, write_count
+                                message_data.len(),
+                                &message_data[..preview_len]
                             );
                         }
                     }

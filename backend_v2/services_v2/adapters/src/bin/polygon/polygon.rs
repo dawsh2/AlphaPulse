@@ -285,17 +285,23 @@ impl UnifiedPolygonCollector {
 
         *self.running.write().await = true;
 
-        // Connect to relay first (fail fast if relay unavailable)
-        self.relay_output
-            .connect()
-            .await
-            .context("Failed to connect to relay - CRASHING as designed")?;
-
-        info!(
-            "✅ Connected to {:?} relay at {}",
-            self.config.relay.parse_domain()?,
-            self.config.relay.socket_path
-        );
+        // Attempt to connect to relay (graceful degradation if unavailable)
+        match self.relay_output.connect().await {
+            Ok(()) => {
+                info!(
+                    "✅ Connected to {:?} relay at {}",
+                    self.config.relay.parse_domain()?,
+                    self.config.relay.socket_path
+                );
+            }
+            Err(e) => {
+                warn!(
+                    "⚠️ Failed to connect to relay ({}), continuing without relay output",
+                    e
+                );
+                warn!("   Events will be processed but not forwarded to relay");
+            }
+        }
 
         // Start validation disabling timer
         self.start_validation_timer().await;
@@ -424,6 +430,8 @@ impl UnifiedPolygonCollector {
 
             match tokio::time::timeout(message_timeout, ws_receiver.next()).await {
                 Ok(Some(Ok(Message::Text(text)))) => {
+                    debug!("📥 Raw WebSocket message received: {} bytes", text.len());
+                    debug!("📥 Message preview: {}", text.chars().take(200).collect::<String>());
                     if let Err(e) = self.process_websocket_message(&text).await {
                         error!("🔥 CRASH: Failed to process WebSocket message: {}", e);
                         return Err(e);
@@ -513,16 +521,28 @@ impl UnifiedPolygonCollector {
                 debug!("📥 Received eth_subscription notification");
                 if let Some(params) = json_value.get("params") {
                     if let Some(result) = params.get("result") {
+                        debug!("📥 Processing log result: {}", result);
                         let log = self
                             .json_to_web3_log(result)
                             .context("Failed to convert JSON to Web3 log")?;
 
+                        debug!("📥 Converted to Web3 log: address={:?}, topics={}, data_len={}", 
+                               log.address, log.topics.len(), log.data.0.len());
+
                         self.process_dex_event(&log)
                             .await
                             .context("Failed to process DEX event")?;
+                    } else {
+                        debug!("📥 No result field in params");
                     }
+                } else {
+                    debug!("📥 No params field in eth_subscription");
                 }
+            } else {
+                debug!("📥 Received non-subscription method: {}", method);
             }
+        } else {
+            debug!("📥 No method field in message");
         }
 
         Ok(())
@@ -625,11 +645,16 @@ impl UnifiedPolygonCollector {
                     }
                 }
 
-                // Send directly to RelayOutput (no channel overhead)
-                self.relay_output
-                    .send_bytes(tlv_message)
-                    .await
-                    .context("RelayOutput send failed - CRASHING as designed")?;
+                // Send directly to RelayOutput (graceful degradation if relay unavailable)
+                match self.relay_output.send_bytes(tlv_message).await {
+                    Ok(()) => {
+                        debug!("📤 TLV message sent to relay");
+                    }
+                    Err(e) => {
+                        warn!("⚠️ Failed to send to relay: {}, continuing processing", e);
+                        // Continue processing even if relay send fails
+                    }
+                }
 
                 // Update statistics
                 let mut count = self.messages_processed.write().await;
@@ -1431,7 +1456,7 @@ async fn main() -> Result<()> {
     // Load configuration
     let config_path = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "polygon.toml".to_string());
+        .unwrap_or_else(|| "config.toml".to_string());
 
     let config = PolygonConfig::from_toml_with_env_overrides(&config_path)
         .context("Failed to load configuration")?;

@@ -132,9 +132,9 @@ impl SignalOutput {
             required_capital_q,
             estimated_gas_cost_q,
             venue_a: VenueId::UniswapV2,    // Pool A venue
-            pool_a: [0u8; 20],              // Pool A address (mock for demo)
+            pool_a: [0u8; 32],              // Pool A address (mock for demo)
             venue_b: VenueId::UniswapV3,    // Pool B venue
-            pool_b: [1u8; 20],              // Pool B address (mock for demo)
+            pool_b: [1u8; 32],              // Pool B address (mock for demo)
             token_in: usdc_token.asset_id,  // Token in (extract asset_id)
             token_out: weth_token.asset_id, // Token out (extract asset_id)
             optimal_amount_q,
@@ -148,15 +148,12 @@ impl SignalOutput {
         // Create DemoDeFiArbitrageTLV from config
         let arbitrage_tlv = DemoDeFiArbitrageTLV::new(arbitrage_config);
 
-        // Serialize the DemoDeFiArbitrageTLV to bytes
-        let tlv_payload = arbitrage_tlv.to_bytes();
-
         // Build complete protocol message with header using ExtendedTLV (true zero-copy)
         let message_bytes = build_message_direct(
             RelayDomain::Signal,
             SourceType::ArbitrageStrategy,
             TLVType::ExtendedTLV,
-            tlv_payload.as_slice(),
+            &arbitrage_tlv,
         )
         .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
 

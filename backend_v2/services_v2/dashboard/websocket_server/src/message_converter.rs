@@ -507,6 +507,7 @@ fn convert_proprietary_data_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Val
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::UNIX_EPOCH;
 
     #[test]
     fn test_timestamp_conversion() {

@@ -247,8 +247,8 @@ impl DashboardServer {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_dashboard_server_creation() {
+    #[tokio::test]
+    async fn test_dashboard_server_creation() {
         let config = DashboardConfig::default();
         let server = DashboardServer::new(config);
         assert_eq!(server.client_manager.client_count().await, 0);

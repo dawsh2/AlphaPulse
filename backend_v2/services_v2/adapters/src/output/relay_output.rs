@@ -45,14 +45,26 @@ impl RelayOutput {
 
                 // Send a small identification message immediately to be classified as publisher
                 // This is a minimal Protocol V2 header (32 bytes) with zero payload
+                // CORRECTED MessageHeader field order: magic(4), relay_domain(1), version(1), source(1), flags(1), sequence(8), timestamp(8), payload_size(4), checksum(4)
                 let identification_header = [
-                    0xEF, 0xBE, 0xAD, 0xDE, // magic: 0xDEADBEEF (little endian)
-                    0x00, 0x00, 0x00, 0x00, // payload_size: 0
-                    0x01, 0x00, 0x00, 0x00, // relay_domain: MarketData (1)
-                    0x02, 0x00, 0x00, 0x00, // source: PolygonCollector (2)
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // sequence: 0
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // timestamp: 0
-                    0x00, 0x00, 0x00, 0x00, // checksum: 0 (simplified)
+                    // magic: 0xDEADBEEF (4 bytes, little endian) - CRITICAL: FIRST 4 BYTES FOR IMMEDIATE PROTOCOL ID
+                    0xEF, 0xBE, 0xAD, 0xDE,
+                    // relay_domain: MarketData (1 byte)
+                    0x01,
+                    // version: 1 (1 byte)
+                    0x01,
+                    // source: PolygonCollector (1 byte)
+                    0x02,
+                    // flags: 0 (1 byte)
+                    0x00,
+                    // sequence: 0 (8 bytes)
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    // timestamp: 0 (8 bytes)
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    // payload_size: 0 (4 bytes)
+                    0x00, 0x00, 0x00, 0x00,
+                    // checksum: 0 (4 bytes)
+                    0x00, 0x00, 0x00, 0x00,
                 ];
 
                 match stream.write_all(&identification_header).await {

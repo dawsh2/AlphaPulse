@@ -53,9 +53,34 @@
   gap: 20px;
   align-items: center;
   margin-bottom: 20px;
-  padding: 10px;
+  padding: 15px;
   background: #0f0f23;
   border-radius: 4px;
+  flex-wrap: wrap;
+}
+
+.view-mode-selector {
+  display: flex;
+  gap: 15px;
+  padding: 8px;
+  background: #1a1a2e;
+  border-radius: 4px;
+  border: 1px solid #333;
+}
+
+.view-mode-selector label {
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.view-mode-selector label:has(input:checked) {
+  background: #4fc3f7;
+  color: #000;
+}
+
+.view-mode-selector input[type="radio"] {
+  margin-right: 4px;
 }
 
 .controls label {
@@ -71,8 +96,13 @@
 
 .stats {
   margin-left: auto;
-  font-size: 13px;
-  color: #888;
+  font-size: 12px;
+  color: #4fc3f7;
+  font-weight: 500;
+  background: #1a1a2e;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #333;
 }
 
 .pool-swaps-section {
@@ -86,8 +116,56 @@
 }
 
 .pool-swaps-table {
-  max-height: 200px;
+  max-height: 400px;
   overflow-y: auto;
+}
+
+/* Token Activity Styles */
+.token-activity-section {
+  margin-bottom: 30px;
+}
+
+.token-activity-section h3 {
+  color: #4fc3f7;
+  font-size: 18px;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.token-activity-table {
+  max-height: 600px;
+  overflow-y: auto;
+  border-radius: 4px;
+  border: 1px solid #333;
+}
+
+.token-activity-row {
+  transition: background-color 0.3s ease;
+}
+
+.token-activity-row:hover {
+  background: #252540;
+}
+
+.token-activity-row.recent-activity {
+  background: #1a2f1a;
+  animation: highlight-fade 3s ease-out;
+}
+
+.swap-row.very-recent {
+  background: #2a1a3a;
+  animation: pulse-highlight 2s ease-out;
+}
+
+@keyframes highlight-fade {
+  0% { background: #2a4f2a; }
+  100% { background: #1a2f1a; }
+}
+
+@keyframes pulse-highlight {
+  0% { background: #3a2a4a; }
+  50% { background: #2a1a3a; }
+  100% { background: #2a1a3a; }
 }
 
 .opportunities-table {
@@ -154,6 +232,127 @@ td {
 .exchange {
   color: #888;
   font-size: 11px;
+}
+
+/* Token Activity Table Styles */
+.token-pair {
+  font-weight: 600;
+  color: #4fc3f7;
+  font-size: 12px;
+}
+
+.venue {
+  color: #fff;
+  font-size: 11px;
+  background: #252540;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.pool-address {
+  color: #888;
+  font-size: 10px;
+}
+
+.swap-direction {
+  color: #ccc;
+  font-size: 10px;
+  text-align: center;
+}
+
+.amount-in, .amount-out {
+  text-align: right;
+}
+
+.amount {
+  color: #4caf50;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.decimals, .raw-amount {
+  color: #666;
+  font-size: 9px;
+  font-family: 'Courier New', monospace;
+}
+
+/* Protocol Data Styling */
+.protocol-data {
+  text-align: left;
+  padding: 4px;
+  font-size: 10px;
+  line-height: 1.2;
+  min-width: 120px;
+}
+
+.protocol-data .label {
+  color: #888;
+  font-size: 8px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.price-data, .tick-data, .liquidity-data {
+  margin-bottom: 2px;
+}
+
+.price-data .mono, .liquidity-data .mono {
+  color: #4fc3f7;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+}
+
+.tick-data div:last-child {
+  color: #ff9800;
+  font-weight: 600;
+}
+
+.block-number {
+  color: #888;
+  font-size: 11px;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+}
+
+.activity-count {
+  text-align: center;
+}
+
+.count {
+  color: #ff9800;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.label {
+  color: #666;
+  font-size: 9px;
+  display: block;
+}
+
+.timestamp {
+  color: #888;
+  font-size: 10px;
+  text-align: right;
+}
+
+/* Raw swaps specific styles */
+.token-swap {
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.token-swap > div:nth-child(2) {
+  color: #4fc3f7;
+  font-weight: bold;
+  margin: 1px 0;
+}
+
+.block {
+  color: #666;
+  font-size: 10px;
+  text-align: center;
 }
 
 .spread {

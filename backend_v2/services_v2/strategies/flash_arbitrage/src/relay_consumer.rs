@@ -492,13 +492,30 @@ impl RelayConsumer {
 
         info!("🎯 Checking arbitrage opportunity for pool_id: {}", pool_id);
 
+        // Extract 20-byte addresses from 32-byte fields (last 20 bytes)
+        let pool_addr_20 = {
+            let mut addr = [0u8; 20];
+            addr.copy_from_slice(&swap.pool_address[12..32]);
+            addr
+        };
+        let token_in_addr_20 = {
+            let mut addr = [0u8; 20];
+            addr.copy_from_slice(&swap.token_in_addr[12..32]);
+            addr
+        };
+        let token_out_addr_20 = {
+            let mut addr = [0u8; 20];
+            addr.copy_from_slice(&swap.token_out_addr[12..32]);
+            addr
+        };
+
         // Check for arbitrage opportunities using native precision
         if let Some(opportunity) = self
             .detector
             .check_arbitrage_opportunity_native(
-                &swap.pool_address,
-                swap.token_in_addr,
-                swap.token_out_addr,
+                &pool_addr_20,
+                token_in_addr_20,
+                token_out_addr_20,
                 swap.amount_in,  // Pass u128 directly, no lossy conversion
                 swap.amount_out, // Pass u128 directly, no lossy conversion
                 swap.amount_in_decimals,

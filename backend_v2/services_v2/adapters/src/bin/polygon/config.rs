@@ -36,11 +36,8 @@ pub struct WebSocketConfig {
 impl Default for WebSocketConfig {
     fn default() -> Self {
         Self {
-            url: "wss://polygon-bor-rpc.publicnode.com".to_string(),
-            fallback_urls: vec![
-                "wss://polygon-mainnet.g.alchemy.com/v2/demo".to_string(),
-                "wss://ws-polygon-mainnet.chainstacklabs.com".to_string(),
-            ],
+            url: "wss://polygon.drpc.org".to_string(),
+            fallback_urls: vec![],
             connection_timeout_ms: 30000,
             message_timeout_ms: 60000,
             base_backoff_ms: 1000,
