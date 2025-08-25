@@ -16,6 +16,9 @@ pub struct WebSocketConfig {
 
     /// Fallback endpoints (tried in order)
     pub fallback_urls: Vec<String>,
+    
+    /// RPC URL for pool discovery (optional)
+    pub rpc_url: Option<String>,
 
     /// Connection timeout in milliseconds
     pub connection_timeout_ms: u64,
@@ -38,6 +41,7 @@ impl Default for WebSocketConfig {
         Self {
             url: "wss://polygon.drpc.org".to_string(),
             fallback_urls: vec![],
+            rpc_url: Some("https://polygon-rpc.com".to_string()),
             connection_timeout_ms: 30000,
             message_timeout_ms: 60000,
             base_backoff_ms: 1000,
