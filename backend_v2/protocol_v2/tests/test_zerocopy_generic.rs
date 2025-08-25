@@ -20,8 +20,8 @@ impl<T: Copy + Default + AsBytes + FromBytes + FromZeroes, const N: usize> TestF
         }
         let mut data = [T::default(); N];
         data[..slice.len()].copy_from_slice(slice);
-        Ok(Self { 
-            len: slice.len() as u16, 
+        Ok(Self {
+            len: slice.len() as u16,
             _padding: [0; 6],
             data,
         })
@@ -47,19 +47,19 @@ mod tests {
 
         // Zero-copy cast to bytes
         let bytes: &[u8] = fixed.as_bytes();
-        
+
         // Zero-copy recovery
         let recovered: &TestFixedVec<u64, 8> = TestFixedVec::ref_from(bytes).unwrap();
-        
+
         // Verify perfect bijection
         assert_eq!(fixed, *recovered);
         assert_eq!(original, recovered.as_slice());
         assert_eq!(original.to_vec(), recovered.to_vec());
-        
+
         println!("✅ u64 zerocopy test passed: {:?}", fixed.as_slice());
     }
 
-    #[test] 
+    #[test]
     fn test_u128_zerocopy_roundtrip() {
         let original = &[100u128, 200, 300];
         let fixed: TestFixedVec<u128, 8> = TestFixedVec::new(original).unwrap();
@@ -67,10 +67,10 @@ mod tests {
         // Zero-copy operations
         let bytes: &[u8] = fixed.as_bytes();
         let recovered: &TestFixedVec<u128, 8> = TestFixedVec::ref_from(bytes).unwrap();
-        
+
         // Perfect bijection validation
         assert_eq!(original, recovered.as_slice());
-        
+
         println!("✅ u128 zerocopy test passed: {:?}", fixed.as_slice());
     }
 
@@ -78,15 +78,15 @@ mod tests {
     fn test_empty_vec() {
         let empty: &[u64] = &[];
         let fixed: TestFixedVec<u64, 8> = TestFixedVec::new(empty).unwrap();
-        
+
         assert_eq!(fixed.len, 0);
         assert_eq!(fixed.as_slice(), empty);
-        
+
         // Zero-copy with empty
         let bytes: &[u8] = fixed.as_bytes();
         let recovered: &TestFixedVec<u64, 8> = TestFixedVec::ref_from(bytes).unwrap();
         assert_eq!(recovered.as_slice(), empty);
-        
+
         println!("✅ Empty vec zerocopy test passed");
     }
 
@@ -95,7 +95,7 @@ mod tests {
         let too_big = &[1u64; 10]; // Exceeds capacity of 8
         let result = TestFixedVec::<u64, 8>::new(too_big);
         assert!(result.is_err());
-        
+
         println!("✅ Capacity limit test passed");
     }
 
@@ -104,10 +104,10 @@ mod tests {
         // Verify expected memory layout
         assert_eq!(std::mem::size_of::<TestFixedVec<u64, 8>>(), 8 + 64); // 2 + 6 + 64
         assert_eq!(std::mem::align_of::<TestFixedVec<u64, 8>>(), 8);
-        
-        assert_eq!(std::mem::size_of::<TestFixedVec<u128, 8>>(), 8 + 128); // 2 + 6 + 128  
+
+        assert_eq!(std::mem::size_of::<TestFixedVec<u128, 8>>(), 8 + 128); // 2 + 6 + 128
         assert_eq!(std::mem::align_of::<TestFixedVec<u128, 8>>(), 16);
-        
+
         println!("✅ Size and alignment test passed");
     }
 }

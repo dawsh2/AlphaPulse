@@ -10,7 +10,7 @@
 //! ## Integration Points
 //!
 //! - **Message Construction**: TLVMessageBuilder for composing protocol messages
-//! - **Parsing Pipeline**: Standard and extended TLV parsing with validation  
+//! - **Parsing Pipeline**: Standard and extended TLV parsing with validation
 //! - **Relay Routing**: Automatic domain-based message routing to appropriate services
 //! - **Serialization**: Zero-copy binary serialization via zerocopy crate
 //! - **Type Registry**: Complete catalog of all supported message types with metadata
@@ -62,7 +62,7 @@
 //! - **Examples**: TradeTLV (40 bytes), Economics (32 bytes)
 //! - **Use Case**: High-frequency market data, critical trading signals
 //!
-//! ### Bounded-Size TLVs (Good Performance)  
+//! ### Bounded-Size TLVs (Good Performance)
 //! - **Size**: Minimum and maximum bounds with single validation check
 //! - **Performance**: One bounds check per message
 //! - **Examples**: PoolSwap (60-200 bytes), SignalIdentity (32-128 bytes)
@@ -96,7 +96,7 @@
 //! ### Checksum Validation
 //! All TLV messages include checksums for data integrity verification
 //!
-//! ### Size Validation  
+//! ### Size Validation
 //! Parser enforces size constraints based on TLV type metadata
 //!
 //! ## Examples
@@ -214,7 +214,7 @@
 //! cargo run --bin test_protocol --release
 //! cargo bench --package protocol_v2
 //!
-//! # Validation testing  
+//! # Validation testing
 //! cargo test tlv --package protocol_v2
 //! ```
 //!
@@ -287,6 +287,7 @@
 //! - [`type_safe`] - Type-safe wrappers and validation utilities
 
 pub mod address;
+pub mod arbitrage_signal;
 pub mod builder;
 pub mod demo_defi;
 pub mod dynamic_payload;
@@ -308,6 +309,7 @@ pub mod zero_copy_builder_v2;
 pub mod zero_copy_tests;
 
 pub use address::{AddressConversion, AddressExtraction, PaddedAddress};
+pub use arbitrage_signal::{ArbitrageSignalTLV, ARBITRAGE_SIGNAL_TLV_SIZE};
 pub use builder::*;
 pub use dynamic_payload::{
     DynamicPayload, FixedStr, FixedVec, PayloadError, MAX_INSTRUMENTS, MAX_POOL_TOKENS,
@@ -323,7 +325,7 @@ pub use parser::*;
 pub use relay_parser::*;
 pub use types::*;
 // zero_copy_builder exports DELETED - use build_message_direct instead
-pub use zero_copy_builder_v2::{TrueZeroCopyBuilder, build_message_direct};
+pub use zero_copy_builder_v2::{build_message_direct, TrueZeroCopyBuilder};
 // Export pool_state PoolType explicitly (it's a type alias for DEXProtocol)
 pub use demo_defi::*;
 pub use pool_state::{DEXProtocol, PoolStateTLV, PoolStateTracker, PoolType};

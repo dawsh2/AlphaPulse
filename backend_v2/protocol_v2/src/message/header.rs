@@ -2,8 +2,8 @@
 //!
 //! The header is identical for all messages and contains routing and validation information.
 
-use crate::{ProtocolError, RelayDomain, SourceType, MESSAGE_MAGIC};
 use crate::tlv::fast_timestamp::fast_timestamp_ns;
+use crate::{ProtocolError, RelayDomain, SourceType, MESSAGE_MAGIC};
 use std::time::{SystemTime, UNIX_EPOCH};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
@@ -25,17 +25,17 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 #[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
 pub struct MessageHeader {
     // CRITICAL: Magic MUST be first for immediate protocol identification (bytes 0-3)
-    pub magic: u32,        // 0xDEADBEEF (bytes 0-3)
-    
+    pub magic: u32, // 0xDEADBEEF (bytes 0-3)
+
     // Protocol metadata packed in remaining 4 bytes for alignment (bytes 4-7)
-    pub relay_domain: u8,  // Which relay handles this (1=market, 2=signal, 3=execution)
-    pub version: u8,       // Protocol version
-    pub source: u8,        // Source service type  
-    pub flags: u8,         // Compression, priority, etc.
+    pub relay_domain: u8, // Which relay handles this (1=market, 2=signal, 3=execution)
+    pub version: u8,      // Protocol version
+    pub source: u8,       // Source service type
+    pub flags: u8,        // Compression, priority, etc.
 
     // Performance-critical fields - 8-byte aligned (bytes 8-23)
-    pub sequence: u64,     // Monotonic sequence per source (bytes 8-15)
-    pub timestamp: u64,    // Nanoseconds since epoch (bytes 16-23)
+    pub sequence: u64,  // Monotonic sequence per source (bytes 8-15)
+    pub timestamp: u64, // Nanoseconds since epoch (bytes 16-23)
 
     // Message metadata (bytes 24-31)
     pub payload_size: u32, // TLV payload bytes (bytes 24-27)
@@ -48,7 +48,7 @@ impl MessageHeader {
     pub const SIZE: usize = 32;
 
     /// Create a new message header with ultra-fast timestamp
-    /// 
+    ///
     /// Uses the global coarse clock + fine counter for ~5ns timestamp generation
     /// instead of SystemTime::now() which costs ~200ns per call.
     pub fn new(domain: RelayDomain, source: SourceType) -> Self {
@@ -153,7 +153,7 @@ impl MessageHeader {
 }
 
 /// Get current timestamp in nanoseconds since Unix epoch (ultra-fast)
-/// 
+///
 /// Uses the global coarse clock system for ~5ns performance instead of
 /// SystemTime::now() which costs ~200ns. Maintains ±10μs accuracy.
 pub fn current_timestamp_ns() -> u64 {
@@ -161,7 +161,7 @@ pub fn current_timestamp_ns() -> u64 {
 }
 
 /// Get precise system timestamp (fallback for critical operations)
-/// 
+///
 /// Uses SystemTime::now() for perfect accuracy at the cost of ~200ns latency.
 /// Use this sparingly for critical operations requiring perfect timestamp accuracy.
 pub fn precise_timestamp_ns() -> u64 {

@@ -20,7 +20,7 @@ impl TransportFactory {
     }
 
     /// Update configuration
-    pub async fn update_config(&self, config: crate::hybrid::TransportConfig) -> Result<()> {
+    pub async fn update_config(&self, _config: crate::hybrid::TransportConfig) -> Result<()> {
         // Placeholder implementation
         Ok(())
     }

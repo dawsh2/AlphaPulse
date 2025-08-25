@@ -1,7 +1,7 @@
 //! Integration tests with adapters service
 
 use alphapulse_flash_arbitrage::pool_state::{PoolState, PoolStateManager};
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     instrument_id::{PoolInstrumentId, VenueId},
     tlv::TLVMessageBuilder,
     SourceType, TLVType,

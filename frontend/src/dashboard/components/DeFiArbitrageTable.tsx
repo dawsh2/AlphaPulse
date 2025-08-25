@@ -19,7 +19,6 @@ interface ArbitrageOpportunity {
   netProfitPercent: number;
   buyPool: string;
   sellPool: string;
-  confidence?: number;
   executable: boolean;
 }
 
@@ -65,19 +64,19 @@ export const DeFiArbitrageTable: React.FC = () => {
   //   const pairs = ['WMATIC/USDC', 'WETH/USDC', 'WBTC/USDC'];
   //   const exchanges = [
   //     ['QuickSwap', 'SushiSwap'],
-  //     ['Uniswap V3', 'QuickSwap'], 
+  //     ['Uniswap V3', 'QuickSwap'],
   //     ['SushiSwap', 'Uniswap V3']
   //   ];
-    
+
   //   const generateDemoOpportunity = (): ArbitrageOpportunity => {
   //     const profit = 50 + Math.random() * 250;
   //     const spread = 1.5 + Math.random() * 3.0;
   //     const basePrice = 0.45 + Math.random() * 0.05;
-      
+
   //     // Pick a random pair and exchange combination
   //     const pairIndex = Math.floor(Math.random() * pairs.length);
   //     const exchangePair = exchanges[pairIndex];
-      
+
   //     return {
   //       id: `demo-arb-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
   //       timestamp: Date.now(),
@@ -108,15 +107,15 @@ export const DeFiArbitrageTable: React.FC = () => {
   //   // Update opportunities every 5 seconds for demo (update existing instead of append)
   //   const interval = setInterval(() => {
   //     const updatedOpp = generateDemoOpportunity();
-      
+
   //     setOpportunities(prev => {
   //       // Find existing opportunity for same pair and pools
-  //       const existingIndex = prev.findIndex(opp => 
-  //         opp.pair === updatedOpp.pair && 
-  //         opp.buyExchange === updatedOpp.buyExchange && 
+  //       const existingIndex = prev.findIndex(opp =>
+  //         opp.pair === updatedOpp.pair &&
+  //         opp.buyExchange === updatedOpp.buyExchange &&
   //         opp.sellExchange === updatedOpp.sellExchange
   //       );
-        
+
   //       if (existingIndex >= 0) {
   //         // Update existing opportunity
   //         const updated = [...prev];
@@ -127,7 +126,7 @@ export const DeFiArbitrageTable: React.FC = () => {
   //         return [updatedOpp, ...prev].slice(0, 20); // Limit to 20 opportunities max
   //       }
   //     });
-      
+
   //     console.log('📊 Updated arbitrage opportunity:', updatedOpp.pair, `- $${updatedOpp.netProfit.toFixed(2)} profit`);
   //   }, 5000); // Update every 5 seconds instead of 10
 
@@ -138,7 +137,7 @@ export const DeFiArbitrageTable: React.FC = () => {
     const connectToScanner = () => {
       try {
         const ws = new WebSocket('ws://localhost:8080/ws');
-        
+
         ws.onopen = () => {
           console.log('Connected to arbitrage scanner');
           setIsConnected(true);
@@ -148,43 +147,46 @@ export const DeFiArbitrageTable: React.FC = () => {
           try {
             const message = JSON.parse(event.data);
             console.log('📨 Received WebSocket message:', message);
-            
+
             // Debug specific message types
             if (message.msg_type) {
               console.log(`🔍 Message type: ${message.msg_type} | TLV type: ${message.tlv_type || 'unknown'}`);
             }
-            
+
             if (message.msg_type === 'arbitrage_opportunity' || message.type === 'demo_defi_arbitrage') {
+              // Use enhanced metrics if available
+              const metrics = message.arbitrage_metrics;
+
               const opp: ArbitrageOpportunity = {
                 id: message.id || `${message.pair}-${message.timestamp}-${Math.random()}`,
-                timestamp: message.timestamp || Date.now(),
+                // Convert nanoseconds to milliseconds if needed
+                timestamp: message.timestamp > 1e15 ? Math.floor(message.timestamp / 1e6) : message.timestamp || Date.now(),
                 pair: message.pair,
                 buyExchange: message.buyExchange || message.dex_buy,
                 sellExchange: message.sellExchange || message.dex_sell,
                 buyPrice: message.buyPrice || message.price_buy,
                 sellPrice: message.sellPrice || message.price_sell,
-                spread: ((message.sellPrice - message.buyPrice) / message.buyPrice * 100) || message.profitPercent,
-                tradeSize: message.tradeSize || message.max_trade_size,
-                grossProfit: message.grossProfit || message.estimated_profit,
-                gasFee: message.gasFee || message.gas_fee_usd || 0,
-                dexFees: message.dexFees || message.dex_fees_usd || 0,
-                slippage: message.slippageCost || message.slippage_cost_usd || 0,
-                netProfit: message.netProfit || message.net_profit_usd,
+                spread: metrics?.spread_percent || ((message.sellPrice - message.buyPrice) / message.buyPrice * 100) || message.profitPercent,
+                tradeSize: metrics?.optimal_size_usd || message.tradeSize || message.max_trade_size,
+                grossProfit: metrics?.net_calculation?.gross_profit || message.grossProfit || message.estimated_profit,
+                gasFee: metrics?.gas_estimate?.cost_usd || message.gasFee || message.gas_fee_usd || 0,
+                dexFees: metrics?.dex_fees?.total_fee_usd || message.dexFees || message.dex_fees_usd || 0,
+                slippage: metrics?.slippage_estimate?.impact_usd || message.slippageCost || message.slippage_cost_usd || 0,
+                netProfit: metrics?.net_calculation?.net_profit || message.netProfit || message.net_profit_usd,
                 netProfitPercent: message.netProfitPercent || message.net_profit_percent || 0,
-                buyPool: message.buyPool,
-                sellPool: message.sellPool,
-                confidence: message.confidence || message.confidence_score,
-                executable: message.executable
+                buyPool: message.buyPool || message.pool_a,
+                sellPool: message.sellPool || message.pool_b,
+                executable: metrics?.executable || message.executable
               };
-              
+
               // Update existing opportunity or add new one
               setOpportunities(prev => {
-                const existingIndex = prev.findIndex(existing => 
-                  existing.pair === opp.pair && 
-                  existing.buyExchange === opp.buyExchange && 
+                const existingIndex = prev.findIndex(existing =>
+                  existing.pair === opp.pair &&
+                  existing.buyExchange === opp.buyExchange &&
                   existing.sellExchange === opp.sellExchange
                 );
-                
+
                 if (existingIndex >= 0) {
                   // Update existing opportunity
                   const updated = [...prev];
@@ -196,6 +198,7 @@ export const DeFiArbitrageTable: React.FC = () => {
                 }
               });
             } else if (message.msg_type === 'pool_swap') {
+              // Process pool swap for token activity view
               const swap: PoolSwap = {
                 pool_id: message.pool_address || message.pool_id || 'Unknown',
                 pool_address: message.pool_address || 'Unknown',
@@ -209,10 +212,11 @@ export const DeFiArbitrageTable: React.FC = () => {
                 sqrt_price_x96_after: message.sqrt_price_x96_after,
                 tick_after: message.tick_after,
                 liquidity_after: message.liquidity_after,
-                timestamp: message.timestamp || Date.now(),
+                // Convert nanoseconds to milliseconds if needed
+                timestamp: message.timestamp > 1e15 ? Math.floor(message.timestamp / 1e6) : message.timestamp || Date.now(),
                 block_number: message.block_number
               };
-              
+
               console.log('🔄 Received pool swap:', swap);
               console.log('📊 Raw message amounts:', {
                 amount_in_from_message: message.amount_in,
@@ -222,10 +226,10 @@ export const DeFiArbitrageTable: React.FC = () => {
                 amount_in_normalized: message.amount_in?.normalized,
                 amount_out_normalized: message.amount_out?.normalized
               });
-              
+
               // Update pool swaps with sliding window
               setPoolSwaps(prev => [swap, ...prev].slice(0, 100));
-              
+
               // Update token pair activities (throttled)
               const now = Date.now();
               if (now - lastUpdateTime > 200) { // Throttle to 200ms
@@ -268,10 +272,10 @@ export const DeFiArbitrageTable: React.FC = () => {
   const updateTokenActivities = (swap: PoolSwap) => {
     setTokenActivities(prev => {
       const tokenPair = `${formatTokenAddress(swap.token_in)}/${formatTokenAddress(swap.token_out)}`;
-      const existingIndex = prev.findIndex(activity => 
+      const existingIndex = prev.findIndex(activity =>
         activity.token_pair === tokenPair && activity.pool_address === swap.pool_address
       );
-      
+
       if (existingIndex >= 0) {
         // Update existing activity
         const updated = [...prev];
@@ -300,7 +304,7 @@ export const DeFiArbitrageTable: React.FC = () => {
 
   const groupedOpportunities = useMemo(() => {
     if (!groupByPool) return { all: opportunities };
-    
+
     const groups: Record<string, ArbitrageOpportunity[]> = {};
     opportunities.forEach(opp => {
       const poolKey = `${opp.buyPool}-${opp.sellPool}`;
@@ -348,7 +352,7 @@ export const DeFiArbitrageTable: React.FC = () => {
   const formatTimestamp = (timestamp: number) => {
     const now = Date.now();
     const diff = now - timestamp;
-    
+
     if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`;
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     return new Date(timestamp).toLocaleTimeString();
@@ -367,27 +371,27 @@ export const DeFiArbitrageTable: React.FC = () => {
       <div className="controls">
         <div className="view-mode-selector">
           <label>
-            <input 
-              type="radio" 
-              name="viewMode" 
+            <input
+              type="radio"
+              name="viewMode"
               checked={viewMode === 'token_activity'}
               onChange={() => setViewMode('token_activity')}
             />
             Token Activity
           </label>
           <label>
-            <input 
-              type="radio" 
-              name="viewMode" 
+            <input
+              type="radio"
+              name="viewMode"
               checked={viewMode === 'arbitrage'}
               onChange={() => setViewMode('arbitrage')}
             />
             Arbitrage Opportunities
           </label>
           <label>
-            <input 
-              type="radio" 
-              name="viewMode" 
+            <input
+              type="radio"
+              name="viewMode"
               checked={viewMode === 'raw_swaps'}
               onChange={() => setViewMode('raw_swaps')}
             />
@@ -396,8 +400,8 @@ export const DeFiArbitrageTable: React.FC = () => {
         </div>
         {viewMode === 'arbitrage' && (
           <label>
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               checked={groupByPool}
               onChange={(e) => setGroupByPool(e.target.checked)}
             />
@@ -408,7 +412,7 @@ export const DeFiArbitrageTable: React.FC = () => {
           {viewMode === 'token_activity' ? (
             <>Active Pairs: {tokenActivities.length} | Recent Swaps: {poolSwaps.length}</>
           ) : viewMode === 'arbitrage' ? (
-            <>Total: {opportunities.length} | Executable: {opportunities.filter(o => o.executable).length}</>  
+            <>Total: {opportunities.length} | Executable: {opportunities.filter(o => o.executable).length}</>
           ) : (
             <>Recent Swaps: {poolSwaps.length} | Live Updates</>
           )}
@@ -438,7 +442,7 @@ export const DeFiArbitrageTable: React.FC = () => {
                 {tokenActivities.map((activity, idx) => {
                   const isRecent = Date.now() - activity.last_updated < 5000; // Highlight recent activity
                   return (
-                    <tr key={`${activity.pool_address}-${activity.token_pair}`} 
+                    <tr key={`${activity.pool_address}-${activity.token_pair}`}
                         className={`token-activity-row ${isRecent ? 'recent-activity' : ''}`}>
                       <td className="token-pair">{activity.token_pair}</td>
                       <td className="venue">{activity.venue_name}</td>
@@ -457,22 +461,32 @@ export const DeFiArbitrageTable: React.FC = () => {
                         <div className="decimals">({activity.latest_swap.amount_out.decimals}d)</div>
                       </td>
                       <td className="protocol-data">
-                        {activity.latest_swap.sqrt_price_x96_after && (
+                        {activity.latest_swap.sqrt_price_x96_after && activity.latest_swap.sqrt_price_x96_after !== "0" && (
                           <div className="price-data">
                             <div className="label">Price:</div>
-                            <div className="mono">{activity.latest_swap.sqrt_price_x96_after.substring(0, 8)}...</div>
+                            <div className="mono">{
+                              typeof activity.latest_swap.sqrt_price_x96_after === 'string' &&
+                              activity.latest_swap.sqrt_price_x96_after.length > 8
+                                ? activity.latest_swap.sqrt_price_x96_after.substring(0, 8) + '...'
+                                : activity.latest_swap.sqrt_price_x96_after
+                            }</div>
                           </div>
                         )}
-                        {activity.latest_swap.tick_after !== undefined && (
+                        {activity.latest_swap.tick_after !== undefined && activity.latest_swap.tick_after !== 0 && (
                           <div className="tick-data">
                             <div className="label">Tick:</div>
                             <div>{activity.latest_swap.tick_after}</div>
                           </div>
                         )}
-                        {activity.latest_swap.liquidity_after && (
+                        {activity.latest_swap.liquidity_after && activity.latest_swap.liquidity_after !== "0" && (
                           <div className="liquidity-data">
                             <div className="label">Liquidity:</div>
-                            <div className="mono">{activity.latest_swap.liquidity_after.substring(0, 8)}...</div>
+                            <div className="mono">{
+                              typeof activity.latest_swap.liquidity_after === 'string' &&
+                              activity.latest_swap.liquidity_after.length > 8
+                                ? activity.latest_swap.liquidity_after.substring(0, 8) + '...'
+                                : activity.latest_swap.liquidity_after
+                            }</div>
                           </div>
                         )}
                       </td>
@@ -518,7 +532,7 @@ export const DeFiArbitrageTable: React.FC = () => {
                 {poolSwaps.slice(0, 20).map((swap, idx) => {
                   const isVeryRecent = Date.now() - swap.timestamp < 2000;
                   return (
-                    <tr key={`${swap.pool_id}-${swap.timestamp}-${idx}`} 
+                    <tr key={`${swap.pool_id}-${swap.timestamp}-${idx}`}
                         className={`swap-row ${isVeryRecent ? 'very-recent' : ''}`}>
                       <td className="venue">{swap.venue_name}</td>
                       <td className="mono pool-address">{formatTokenAddress(swap.pool_address)}</td>
@@ -565,9 +579,8 @@ export const DeFiArbitrageTable: React.FC = () => {
               <th>Gas</th>
               <th>DEX</th>
               <th>Slip</th>
-              <th>Net</th>
+              <th>Net ↓</th>
               <th>%</th>
-              <th>Conf</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -576,13 +589,15 @@ export const DeFiArbitrageTable: React.FC = () => {
               <React.Fragment key={poolKey}>
                 {groupByPool && poolKey !== 'all' && (
                   <tr className="pool-group-header">
-                    <td colSpan={13}>
+                    <td colSpan={12}>
                       Pool Pair: {poolKey.substring(0, 10)}...{poolKey.substring(poolKey.length - 6)}
                     </td>
                   </tr>
                 )}
-                {opps.map((opp) => (
-                  <tr 
+                {opps
+                  .sort((a, b) => b.netProfit - a.netProfit) // Sort by net profit descending
+                  .map((opp) => (
+                  <tr
                     key={opp.id}
                     className={`opportunity-row ${opp.executable ? 'executable' : ''} ${opp.netProfit > 25 ? 'high-profit' : ''}`}
                   >
@@ -600,9 +615,6 @@ export const DeFiArbitrageTable: React.FC = () => {
                     </td>
                     <td className={`percent ${opp.netProfitPercent > 0 ? 'positive' : 'negative'}`}>
                       {formatPercent(opp.netProfitPercent)}
-                    </td>
-                    <td className="confidence">
-                      {opp.confidence ? `${(opp.confidence * 100).toFixed(0)}%` : '-'}
                     </td>
                     <td className="status">
                       {opp.executable ? (
@@ -628,11 +640,11 @@ export const DeFiArbitrageTable: React.FC = () => {
       <div className="data-flow-info">
         <h4>Data Flow Architecture:</h4>
         <div className="flow-diagram">
-          <span>Polygon DEX</span> → 
-          <span>Collector (TLV)</span> → 
-          <span>Relay</span> → 
-          <span>Arbitrage Strategy</span> → 
-          <span>WebSocket Bridge</span> → 
+          <span>Polygon DEX</span> →
+          <span>Collector (TLV)</span> →
+          <span>Relay</span> →
+          <span>Arbitrage Strategy</span> →
+          <span>WebSocket Bridge</span> →
           <span>Dashboard</span>
         </div>
         <div className="validation-status">

@@ -3,9 +3,10 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use protocol_v2::{
     tlv::{
-        builder::TLVMessageBuilder, market_data::TradeTLV,
-        zero_copy_builder_v2::{TrueZeroCopyBuilder, build_message_direct},
+        builder::TLVMessageBuilder,
+        market_data::TradeTLV,
         with_hot_path_buffer,
+        zero_copy_builder_v2::{build_message_direct, TrueZeroCopyBuilder},
     },
     InstrumentId, RelayDomain, SourceType, TLVType, VenueId,
 };
@@ -50,7 +51,8 @@ fn bench_true_zero_copy_builder(c: &mut Criterion) {
                 SourceType::PolygonCollector,
                 TLVType::Trade,
                 &trade,
-            ).unwrap();
+            )
+            .unwrap();
             criterion::black_box(message);
         })
     });
@@ -62,8 +64,10 @@ fn bench_true_zero_copy_with_thread_local_buffer(c: &mut Criterion) {
     // Warmup the thread-local buffer
     for _ in 0..100 {
         let _ = with_hot_path_buffer(|buffer| {
-            let builder = TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
-            builder.build_into_buffer(buffer, TLVType::Trade, &trade)
+            let builder =
+                TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
+            builder
+                .build_into_buffer(buffer, TLVType::Trade, &trade)
                 .map(|size| (size, size))
         });
     }
@@ -71,13 +75,14 @@ fn bench_true_zero_copy_with_thread_local_buffer(c: &mut Criterion) {
     c.bench_function("true_zero_copy_with_thread_local_buffer", |b| {
         b.iter(|| {
             let size = with_hot_path_buffer(|buffer| {
-                let builder = TrueZeroCopyBuilder::new(
-                    RelayDomain::MarketData,
-                    SourceType::PolygonCollector,
-                );
-                let size = builder.build_into_buffer(buffer, TLVType::Trade, &trade).unwrap();
+                let builder =
+                    TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
+                let size = builder
+                    .build_into_buffer(buffer, TLVType::Trade, &trade)
+                    .unwrap();
                 Ok((size, size))
-            }).unwrap();
+            })
+            .unwrap();
             criterion::black_box(size);
         })
     });

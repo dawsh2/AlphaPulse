@@ -6,7 +6,7 @@
 //! - Memory efficiency: <1KB per signal average
 //! - End-to-end latency validation
 
-use alphapulse_protocol::{
+use protocol_v2::{
     tlv::builder::TLVMessageBuilder, tlv::demo_defi::DemoDeFiArbitrageTLV, tlv::types::TLVType,
     MessageHeader, PoolInstrumentId, RelayDomain, SourceType, VenueId,
 };

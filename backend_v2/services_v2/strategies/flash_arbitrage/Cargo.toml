@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 # Protocol dependencies
 protocol_v2 = { path = "../../../protocol_v2" }
+alphapulse-types = { path = "../../../libs/types" }
 alphapulse-adapter-service = { path = "../../adapters" }
 alphapulse-amm = { path = "../../../libs/amm" }
 # State management - embedded for microsecond latency

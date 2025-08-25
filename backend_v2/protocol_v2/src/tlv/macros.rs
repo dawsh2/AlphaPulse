@@ -69,7 +69,7 @@
 /// ```rust
 /// // ❌ WRONG - May cause alignment issues
 /// assert_eq!(tlv_struct.some_field, expected_value);
-/// 
+///
 /// // ✅ CORRECT - Copy field first
 /// let field_value = tlv_struct.some_field;
 /// assert_eq!(field_value, expected_value);
@@ -112,11 +112,11 @@ macro_rules! define_tlv {
         unsafe impl ::zerocopy::AsBytes for $name {
             fn only_derive_is_allowed_to_implement_this_trait() {}
         }
-        
+
         unsafe impl ::zerocopy::FromBytes for $name {
             fn only_derive_is_allowed_to_implement_this_trait() {}
         }
-        
+
         unsafe impl ::zerocopy::FromZeroes for $name {
             fn only_derive_is_allowed_to_implement_this_trait() {}
         }
@@ -220,11 +220,11 @@ macro_rules! define_tlv_with_padding {
             const EXPECTED: usize = $expected_size;
             if ACTUAL != EXPECTED {
                 panic!(concat!(
-                    stringify!($name), 
-                    " size mismatch - expected ", 
-                    stringify!($expected_size), 
-                    " bytes but got ", 
-                    stringify!(ACTUAL), 
+                    stringify!($name),
+                    " size mismatch - expected ",
+                    stringify!($expected_size),
+                    " bytes but got ",
+                    stringify!(ACTUAL),
                     " bytes. Check field alignment and padding!"
                 ));
             }
@@ -258,11 +258,11 @@ mod tests {
     #[test]
     fn test_macro_generates_struct() {
         let tlv = TestTLV::new_raw(
-            100,  // timestamp
-            200,  // value
-            300,  // count
-            400,  // flags
-            1,    // status
+            100,    // timestamp
+            200,    // value
+            300,    // count
+            400,    // flags
+            1,      // status
             [0; 1], // padding
         );
 
@@ -276,11 +276,11 @@ mod tests {
     #[test]
     fn test_zero_copy_serialization() {
         let tlv = TestTLV::new_raw(100, 200, 300, 400, 1, [0; 1]);
-        
+
         // Test serialization
         let bytes = tlv.to_bytes();
         assert_eq!(bytes.len(), std::mem::size_of::<TestTLV>());
-        
+
         // Test deserialization
         let parsed = TestTLV::from_bytes(bytes).unwrap();
         assert_eq!(parsed, tlv);
@@ -312,15 +312,15 @@ mod tests {
     #[test]
     fn test_complex_tlv_with_addresses() {
         let tlv = ComplexTLV::new_raw(
-            1000,      // amount_in
-            2000,      // amount_out
-            12345,     // block
-            1,         // venue
-            18,        // decimals_in
-            6,         // decimals_out
-            [1; 20],   // pool_address
-            [2; 20],   // token_in
-            [3; 20],   // token_out
+            1000,    // amount_in
+            2000,    // amount_out
+            12345,   // block
+            1,       // venue
+            18,      // decimals_in
+            6,       // decimals_out
+            [1; 20], // pool_address
+            [2; 20], // token_in
+            [3; 20], // token_out
         );
 
         assert_eq!(tlv.amount_in, 1000);

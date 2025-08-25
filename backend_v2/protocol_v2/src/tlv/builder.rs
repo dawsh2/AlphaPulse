@@ -281,26 +281,26 @@ impl TLVMessageBuilder {
     }
 
     /// Build message directly into provided buffer for zero-copy operations
-    /// 
+    ///
     /// This method supports the hot path buffer pattern where messages are built
     /// directly into thread-local buffers to eliminate allocations.
     pub fn build_into_buffer(self, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
         let message = self.build();
         let size = message.len();
-        
+
         if buffer.len() < size {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 format!("Buffer too small: need {}, got {}", size, buffer.len()),
             ));
         }
-        
+
         buffer[..size].copy_from_slice(&message);
         Ok(size)
     }
 
     /// Build and send message using the provided send function
-    /// 
+    ///
     /// Convenience method that builds the message and immediately sends it,
     /// allowing for patterns like socket sends or channel operations.
     pub fn build_and_send<T, F>(self, send_fn: F) -> Result<T, std::io::Error>

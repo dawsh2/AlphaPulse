@@ -9,17 +9,18 @@
 //!
 //! Kraken uses array-based format for data messages and JSON for control messages
 
+use crate::output::RelayOutput;
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use protocol_v2::{
-    current_timestamp_ns, tlv::build_message_direct, InstrumentId, QuoteTLV, RelayDomain, 
+    current_timestamp_ns, tlv::build_message_direct, InstrumentId, QuoteTLV, RelayDomain,
     SourceType, TLVType, TradeTLV, VenueId,
 };
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use url::Url;
 
@@ -39,7 +40,7 @@ const KRAKEN_TRADE_ARRAY_SCHEMA: &str = r#"
   [
     [
       "113879.30000",                  // Price (string)
-      "0.01317184",                    // Volume (string)  
+      "0.01317184",                    // Volume (string)
       "1755750124.577095",             // Time (string, seconds.microseconds)
       "s",                             // Side: "b" = buy, "s" = sell
       "m",                             // Order type: "m" = market, "l" = limit
@@ -69,7 +70,7 @@ const KRAKEN_BOOK_ARRAY_SCHEMA: &str = r#"
     "as": [                            // Asks (best to worst)
       [
         "4287.74000",                  // Price (string)
-        "0.05000000",                  // Volume (string) 
+        "0.05000000",                  // Volume (string)
         "1755750122.927411"            // Timestamp (string)
       ]
     ]
@@ -191,31 +192,36 @@ impl From<KrakenError> for AdapterError {
 }
 
 /// Production Kraken WebSocket collector with Protocol V2 integration
+/// Kraken WebSocket collector with direct RelayOutput integration
+///
+/// Following the optimized pattern from Polygon - eliminates MPSC channel overhead
+/// by connecting WebSocket events directly to RelayOutput for maximum performance.
 pub struct KrakenCollector {
     config: KrakenConfig,
     metrics: Arc<AdapterMetrics>,
-    output_tx: mpsc::Sender<Vec<u8>>, // Protocol V2 binary messages
+    /// Direct RelayOutput connection (no channel overhead)
+    relay_output: Arc<RelayOutput>,
     running: Arc<RwLock<bool>>,
     reconnect_attempts: Arc<RwLock<usize>>,
 }
 
 impl KrakenCollector {
-    /// Create new Kraken collector with configuration
-    pub fn new(config: KrakenConfig, output_tx: mpsc::Sender<Vec<u8>>) -> Self {
+    /// Create new Kraken collector with direct RelayOutput integration
+    pub async fn new(config: KrakenConfig, relay_output: Arc<RelayOutput>) -> crate::Result<Self> {
         let metrics = Arc::new(AdapterMetrics::new());
 
-        Self {
+        Ok(Self {
             config,
             metrics,
-            output_tx,
+            relay_output,
             running: Arc::new(RwLock::new(false)),
             reconnect_attempts: Arc::new(RwLock::new(0)),
-        }
+        })
     }
 
     /// Create Kraken collector with default configuration
-    pub fn with_defaults(output_tx: mpsc::Sender<Vec<u8>>) -> Self {
-        Self::new(KrakenConfig::default(), output_tx)
+    pub async fn with_defaults(relay_output: Arc<RelayOutput>) -> crate::Result<Self> {
+        Self::new(KrakenConfig::default(), relay_output).await
     }
 
     /// Get schema reference for documentation
@@ -223,7 +229,7 @@ impl KrakenCollector {
         KRAKEN_TRADE_ARRAY_SCHEMA
     }
 
-    /// Get order book schema reference  
+    /// Get order book schema reference
     pub fn get_book_schema() -> &'static str {
         KRAKEN_BOOK_ARRAY_SCHEMA
     }
@@ -522,13 +528,13 @@ impl InputAdapter for KrakenCollector {
 
         // Start WebSocket connection task
         let config = self.config.clone();
-        let output_tx = self.output_tx.clone();
+        let relay_output = self.relay_output.clone();
         let running = self.running.clone();
         let reconnect_attempts = self.reconnect_attempts.clone();
         let metrics = self.metrics.clone();
 
         tokio::spawn(async move {
-            Self::websocket_task(config, output_tx, running, reconnect_attempts, metrics).await;
+            Self::websocket_task(config, relay_output, running, reconnect_attempts, metrics).await;
         });
 
         tracing::info!("Kraken collector started successfully");
@@ -597,7 +603,7 @@ impl KrakenCollector {
     /// Main WebSocket connection and message handling task
     async fn websocket_task(
         config: KrakenConfig,
-        output_tx: mpsc::Sender<Vec<u8>>,
+        relay_output: Arc<RelayOutput>,
         running: Arc<RwLock<bool>>,
         reconnect_attempts: Arc<RwLock<usize>>,
         metrics: Arc<AdapterMetrics>,
@@ -613,7 +619,7 @@ impl KrakenCollector {
                 break;
             }
 
-            match Self::connect_and_run(&config, &output_tx, &running, &metrics).await {
+            match Self::connect_and_run(&config, &relay_output, &running, &metrics).await {
                 Ok(_) => {
                     tracing::info!("WebSocket connection closed normally");
                     *reconnect_attempts.write().await = 0;
@@ -641,7 +647,7 @@ impl KrakenCollector {
     /// Connect to Kraken WebSocket and handle messages
     async fn connect_and_run(
         config: &KrakenConfig,
-        output_tx: &mpsc::Sender<Vec<u8>>,
+        relay_output: &Arc<RelayOutput>,
         running: &Arc<RwLock<bool>>,
         metrics: &Arc<AdapterMetrics>,
     ) -> std::result::Result<(), KrakenError> {
@@ -692,7 +698,7 @@ impl KrakenCollector {
                 message = ws_receiver.next() => {
                     match message {
                         Some(Ok(msg)) => {
-                            if let Err(e) = Self::handle_message(msg, output_tx, config, metrics).await {
+                            if let Err(e) = Self::handle_message(msg, relay_output, config, metrics).await {
                                 tracing::error!("Message handling error: {}", e);
                                 metrics.increment_errors();
                             } else {
@@ -724,7 +730,7 @@ impl KrakenCollector {
     /// Handle individual WebSocket messages
     async fn handle_message(
         message: Message,
-        output_tx: &mpsc::Sender<Vec<u8>>,
+        relay_output: &Arc<RelayOutput>,
         config: &KrakenConfig,
         metrics: &Arc<AdapterMetrics>,
     ) -> std::result::Result<(), KrakenError> {
@@ -760,8 +766,13 @@ impl KrakenCollector {
                                     if let Ok(trade_message) =
                                         Self::parse_trade_message_static(&value, config.venue_id)
                                     {
-                                        if let Err(e) = output_tx.send(trade_message).await {
-                                            tracing::error!("Failed to send trade message: {}", e);
+                                        if let Err(e) =
+                                            relay_output.send_bytes(&trade_message).await
+                                        {
+                                            tracing::error!(
+                                                "Kraken RelayOutput send failed for trade TLV ({}B message): {}",
+                                                trade_message.len(), e
+                                            );
                                         } else {
                                             metrics.increment_messages_sent();
                                         }
@@ -771,8 +782,12 @@ impl KrakenCollector {
                                     if let Ok(book_message) =
                                         Self::parse_book_message_static(&value, config.venue_id)
                                     {
-                                        if let Err(e) = output_tx.send(book_message).await {
-                                            tracing::error!("Failed to send book message: {}", e);
+                                        if let Err(e) = relay_output.send_bytes(&book_message).await
+                                        {
+                                            tracing::error!(
+                                                "Kraken RelayOutput send failed for book TLV ({}B message): {}",
+                                                book_message.len(), e
+                                            );
                                         } else {
                                             metrics.increment_messages_sent();
                                         }

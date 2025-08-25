@@ -4,7 +4,7 @@ use alphapulse_flash_arbitrage::{
     detector::{DetectorConfig, OpportunityDetector, StrategyType, TokenPriceOracle},
     pool_state::{PoolState, PoolStateManager},
 };
-use alphapulse_protocol_v2::instrument_id::{PoolInstrumentId, VenueId};
+use protocol_v2::instrument_id::{PoolInstrumentId, VenueId};
 use rust_decimal_macros::dec;
 use std::sync::Arc;
 

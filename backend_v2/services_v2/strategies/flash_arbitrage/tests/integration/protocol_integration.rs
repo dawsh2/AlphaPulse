@@ -1,7 +1,7 @@
 //! Integration tests with protocol_v2 TLV messages
 
 use alphapulse_flash_arbitrage::pool_state::{PoolState, PoolStateManager};
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     instrument_id::{InstrumentId, PoolInstrumentId, VenueId},
     tlv::{parse_tlv_extensions, TLVMessageBuilder, TLVType},
     MessageHeader, RelayDomain, SourceType,
@@ -56,7 +56,7 @@ fn test_parse_trade_tlv_to_pool_update() {
 
 #[test]
 fn test_build_execution_control_tlv() {
-    use alphapulse_protocol_v2::tlv::builder::ExecutionControlData;
+    use protocol_v2::tlv::builder::ExecutionControlData;
 
     // Simulate building an execution control message for arbitrage
     let mut builder = TLVMessageBuilder::new(SourceType::FlashArbitrageStrategy, 987654321);
@@ -84,7 +84,7 @@ fn test_build_execution_control_tlv() {
 
 #[test]
 fn test_pool_addresses_tlv_parsing() {
-    use alphapulse_protocol_v2::tlv::builder::PoolAddressesData;
+    use protocol_v2::tlv::builder::PoolAddressesData;
 
     // Build PoolAddresses TLV (for flash loan contract addresses)
     let mut builder = TLVMessageBuilder::new(SourceType::PolygonCollector, 111111111);
@@ -114,7 +114,7 @@ fn test_pool_addresses_tlv_parsing() {
 
 #[test]
 fn test_extended_tlv_for_large_orderbook() {
-    use alphapulse_protocol_v2::tlv::extended::ExtendedTLVPayload;
+    use protocol_v2::tlv::extended::ExtendedTLVPayload;
 
     // Create large orderbook snapshot (>255 bytes)
     let mut orderbook_data = Vec::with_capacity(1000);
@@ -143,7 +143,7 @@ fn test_extended_tlv_for_large_orderbook() {
 
 #[test]
 fn test_mev_bundle_tlv_construction() {
-    use alphapulse_protocol_v2::tlv::builder::MEVBundleData;
+    use protocol_v2::tlv::builder::MEVBundleData;
 
     let mut builder = TLVMessageBuilder::new(SourceType::FlashArbitrageStrategy, 222222222);
 
@@ -188,7 +188,7 @@ impl PoolInstrumentId {
 
 #[tokio::test]
 async fn test_relay_domain_routing() {
-    use alphapulse_protocol_v2::relay::{MarketDataRelay, RelayCore, SignalRelay};
+    use protocol_v2::relay::{MarketDataRelay, RelayCore, SignalRelay};
 
     // Create relays
     let market_relay = MarketDataRelay::new().await;

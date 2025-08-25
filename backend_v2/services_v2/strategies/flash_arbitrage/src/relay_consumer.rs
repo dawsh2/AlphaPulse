@@ -42,24 +42,30 @@
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
+use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tracing::{debug, error, info, warn};
 
 use protocol_v2::{
-    MessageHeader,
+    parse_header_without_checksum,
     PoolSwapTLV,
     SourceType,
     // Add trace event imports for observability
     TraceEvent,
     TraceEventType,
     TraceId,
-    TradeTLV,
 };
+
+// Import from shared types library for financial calculations
+use alphapulse_types::{FixedPointError, PercentageFixedPoint4, UsdFixedPoint8};
 
 use crate::detector::OpportunityDetector;
 use crate::signal_output::SignalOutput;
 use alphapulse_state_market::{PoolEvent, PoolStateManager, Stateful};
+
+// Fixed-point types now imported from alphapulse-types shared library
+// This ensures consistent precision handling across the entire system
 
 /// Relay consumer that connects to MarketDataRelay - Direct integration, no MPSC
 pub struct RelayConsumer {
@@ -73,15 +79,19 @@ pub struct RelayConsumer {
 }
 
 /// Arbitrage opportunity detected from market data
+/// Uses type-safe fixed-point arithmetic for financial values to prevent precision loss
 #[derive(Debug, Clone)]
 pub struct ArbitrageOpportunity {
     pub source_pool: String,
     pub target_pool: String,
     pub token_in: String,
     pub token_out: String,
-    pub expected_profit_usd: f64,
-    pub spread_percentage: f64,
-    pub required_capital_usd: f64,
+    /// Expected profit in USD with type-safe fixed-point representation
+    pub expected_profit_usd: UsdFixedPoint8,
+    /// Spread percentage with type-safe fixed-point representation
+    pub spread_percentage: PercentageFixedPoint4,
+    /// Required capital in USD with type-safe fixed-point representation
+    pub required_capital_usd: UsdFixedPoint8,
     pub timestamp_ns: u64,
 }
 
@@ -235,11 +245,11 @@ impl RelayConsumer {
                 let mut meta = HashMap::new();
                 meta.insert(
                     "profit_usd".to_string(),
-                    format!("{:.2}", opportunity.expected_profit_usd),
+                    format!("{:.2}", opportunity.expected_profit_usd.to_f64()),
                 );
                 meta.insert(
                     "spread_percentage".to_string(),
-                    format!("{:.4}", opportunity.spread_percentage),
+                    format!("{:.4}", opportunity.spread_percentage.to_f64()),
                 );
                 meta.insert("source_pool".to_string(), opportunity.source_pool.clone());
                 meta.insert("target_pool".to_string(), opportunity.target_pool.clone());
@@ -288,14 +298,20 @@ impl RelayConsumer {
     }
 
     async fn connect_and_consume(&mut self) -> Result<()> {
+        debug!(
+            "🔍 STRATEGY: Attempting to connect to MarketData relay at {}",
+            self.relay_socket_path
+        );
+
         // Connect to market data relay socket
         let mut stream = UnixStream::connect(&self.relay_socket_path)
             .await
             .context("Failed to connect to MarketDataRelay")?;
 
-        info!("Connected to MarketDataRelay socket");
+        info!("🔍 STRATEGY: Successfully connected to MarketDataRelay socket");
 
-        let mut buffer = vec![0u8; 8192];
+        // Use 64KB buffer to handle extended TLVs (up to 65KB)
+        let mut buffer = vec![0u8; 65536];
         let mut message_count = 0;
 
         loop {
@@ -325,7 +341,16 @@ impl RelayConsumer {
     async fn process_relay_message(&mut self, data: &[u8]) -> Result<()> {
         // Parse relay message header
         if data.len() < 32 {
+            debug!("🔍 STRATEGY: Message too small: {} bytes", data.len());
             return Ok(()); // Incomplete message header
+        }
+
+        debug!("🔍 STRATEGY: Processing message with {} bytes", data.len());
+
+        // Print full header for debugging
+        if data.len() >= 32 {
+            let header_preview = &data[..32];
+            debug!("🔍 STRATEGY: Header bytes: {:02x?}", header_preview);
         }
 
         // Extract or generate trace ID for this message
@@ -336,19 +361,36 @@ impl RelayConsumer {
         // Emit MessageReceived trace event
         self.emit_message_received_event(trace_id, data).await;
 
-        // Check magic number (0xDEADBEEF)
-        let magic = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
-        if magic != 0xDEADBEEF {
-            debug!("Invalid magic number: {:08x}", magic);
+        // Use parse_header_without_checksum for MarketDataRelay messages per Protocol V2
+        // Protocol V2 explicitly supports selective checksum validation:
+        // - MarketDataRelay: Checksums disabled for >1M msg/s performance (this case)
+        // - SignalRelay/ExecutionRelay: Checksums enabled for safety-critical messages
+        // See docs/protocol.md "Checksum Policy by Relay Domain" for full specification
+        let header = match parse_header_without_checksum(data) {
+            Ok(h) => h,
+            Err(e) => {
+                debug!("Failed to parse header: {:?}", e);
+                return Ok(());
+            }
+        };
+
+        let payload_size = header.payload_size as usize;
+        let timestamp_ns = header.timestamp;
+        debug!("🔍 STRATEGY: Parsed header - magic=0x{:08x}, sequence={}, payload_size={}, timestamp={}",
+               header.magic, header.sequence, payload_size, timestamp_ns);
+
+        // Skip messages with empty payloads (heartbeat/control messages)
+        if payload_size == 0 {
+            debug!("🔍 STRATEGY: Skipping message with empty payload (likely heartbeat)");
             return Ok(());
         }
 
-        let payload_size = u32::from_le_bytes([data[8], data[9], data[10], data[11]]) as usize;
-        let timestamp_ns = u64::from_le_bytes([
-            data[16], data[17], data[18], data[19], data[20], data[21], data[22], data[23],
-        ]);
-
         if data.len() < 32 + payload_size {
+            debug!(
+                "🔍 STRATEGY: Incomplete payload: need {} bytes, got {}",
+                32 + payload_size,
+                data.len()
+            );
             return Ok(()); // Incomplete payload
         }
 
@@ -356,6 +398,11 @@ impl RelayConsumer {
 
         // Extract TLV payload
         let tlv_data = &data[32..32 + payload_size];
+        debug!(
+            "🔍 STRATEGY: Extracted TLV payload: {} bytes",
+            tlv_data.len()
+        );
+
         self.process_tlv_data(tlv_data, timestamp_ns, trace_id)
             .await?;
 
@@ -374,6 +421,10 @@ impl RelayConsumer {
         timestamp_ns: u64,
         trace_id: TraceId,
     ) -> Result<()> {
+        debug!(
+            "🔍 STRATEGY: Received TLV data {} bytes at offset 0",
+            tlv_data.len()
+        );
         let mut offset = 0;
 
         while offset + 2 <= tlv_data.len() {
@@ -381,10 +432,21 @@ impl RelayConsumer {
             let tlv_length = tlv_data[offset + 1] as usize;
 
             if offset + 2 + tlv_length > tlv_data.len() {
-                break; // Incomplete TLV
+                let err = ParseError::TruncatedTLV {
+                    offset,
+                    required: 2 + tlv_length,
+                    available: tlv_data.len() - offset,
+                };
+                debug!("Incomplete TLV: {}", err);
+                break; // Stop processing on incomplete TLV
             }
 
             let tlv_payload = &tlv_data[offset + 2..offset + 2 + tlv_length];
+
+            debug!(
+                "🔍 STRATEGY: Processing TLV type {} with {} bytes",
+                tlv_type, tlv_length
+            );
 
             // Process different TLV types
             match tlv_type {
@@ -395,7 +457,7 @@ impl RelayConsumer {
                     {
                         debug!(
                             "🎯 Arbitrage opportunity detected: profit=${:.2}",
-                            opportunity.expected_profit_usd
+                            opportunity.expected_profit_usd.to_f64()
                         );
 
                         // Emit ExecutionTriggered trace event for arbitrage opportunity
@@ -452,11 +514,41 @@ impl RelayConsumer {
         payload: &[u8],
         _timestamp_ns: u64,
     ) -> Result<Option<ArbitrageOpportunity>> {
-        // Parse PoolSwapTLV using the proper protocol
-        let swap = match PoolSwapTLV::from_bytes(payload) {
+        // Debug the payload details
+        debug!(
+            "🔍 STRATEGY: Attempting to parse PoolSwapTLV from {} bytes",
+            payload.len()
+        );
+        if payload.len() >= 16 {
+            debug!(
+                "🔍 STRATEGY: First 16 bytes of payload: {:02x?}",
+                &payload[..16]
+            );
+        }
+
+        // Parse PoolSwapTLV - check size first
+        if payload.len() < std::mem::size_of::<PoolSwapTLV>() {
+            let err = ParseError::PayloadTooSmall {
+                actual: payload.len(),
+                required: std::mem::size_of::<PoolSwapTLV>(),
+            };
+            warn!("{}", err);
+            return Ok(None);
+        }
+
+        // Parse PoolSwapTLV using the macro-generated from_bytes method
+        // This provides zero-copy parsing when the data is properly aligned (best case)
+        // Note: PoolSwapTLV must derive FromBytes + AsBytes from the zerocopy crate
+        // Performance: Zero-copy in aligned case, single memcpy in unaligned case
+        // The from_bytes method is safe because it validates alignment and size constraints
+        let swap = match PoolSwapTLV::from_bytes(&payload[..std::mem::size_of::<PoolSwapTLV>()]) {
             Ok(swap) => swap,
             Err(e) => {
                 warn!("Failed to parse PoolSwapTLV: {}", e);
+                debug!(
+                    "First 16 bytes of payload: {:02x?}",
+                    &payload[..16.min(payload.len())]
+                );
                 return Ok(None);
             }
         };
@@ -525,10 +617,10 @@ impl RelayConsumer {
         {
             info!(
                 "✅ ARBITRAGE OPPORTUNITY DETECTED: profit=${:.2}",
-                opportunity.expected_profit
+                opportunity.expected_profit.to_f64()
             );
 
-            // Convert to our opportunity format
+            // Use the already fixed-point values from detector with type-safe wrappers
             let arb_opportunity = ArbitrageOpportunity {
                 source_pool: format!("0x{}", hex::encode(swap.pool_address)),
                 target_pool: opportunity.target_pool.clone(),
@@ -551,7 +643,7 @@ impl RelayConsumer {
         Ok(None)
     }
 
-    async fn process_trade_data(&self, payload: &[u8], timestamp_ns: u64) -> Result<()> {
+    async fn process_trade_data(&self, payload: &[u8], _timestamp_ns: u64) -> Result<()> {
         // Process trade data for additional market insights
         debug!("Processing trade data: {} bytes", payload.len());
         Ok(())
@@ -655,10 +747,34 @@ impl RelayConsumer {
 }
 
 /// Simplified arbitrage opportunity from detector
+/// Uses type-safe fixed-point arithmetic for consistency with ArbitrageOpportunity
 #[derive(Debug)]
 pub struct DetectedOpportunity {
-    pub expected_profit: f64,
-    pub spread_percentage: f64,
-    pub required_capital: f64,
+    /// Expected profit in USD with type-safe fixed-point representation
+    pub expected_profit: UsdFixedPoint8,
+    /// Spread percentage with type-safe fixed-point representation
+    pub spread_percentage: PercentageFixedPoint4,
+    /// Required capital in USD with type-safe fixed-point representation
+    pub required_capital: UsdFixedPoint8,
     pub target_pool: String,
+}
+
+/// Errors that can occur during TLV parsing
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("Payload too small: got {actual} bytes, need {required} bytes")]
+    PayloadTooSmall { actual: usize, required: usize },
+
+    #[error("Failed to parse PoolSwapTLV: alignment or structure issue")]
+    AlignmentError,
+
+    #[error("TLV payload truncated: need {required} bytes at offset {offset}, but only {available} available")]
+    TruncatedTLV {
+        offset: usize,
+        required: usize,
+        available: usize,
+    },
+
+    #[error("Invalid TLV header: type={tlv_type}, length={length}")]
+    InvalidTLVHeader { tlv_type: u8, length: usize },
 }

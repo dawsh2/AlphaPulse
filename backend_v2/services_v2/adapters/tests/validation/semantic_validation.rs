@@ -6,7 +6,7 @@
 use crate::fixtures::polygon;
 use crate::*;
 use alphapulse_adapter_service::{SemanticValidator, ValidationResult};
-use alphapulse_protocol_v2::tlv::market_data::PoolSwapTLV;
+use protocol_v2::tlv::market_data::PoolSwapTLV;
 
 #[test]
 fn test_semantic_validation_success() {

@@ -2,15 +2,15 @@
 //!
 //! Validates that the new TLV system meets performance requirements:
 //! - TLV serialization/deserialization: <1μs per message
-//! - Signal output throughput: >10K arbitrage signals/second  
+//! - Signal output throughput: >10K arbitrage signals/second
 //! - Dashboard conversion: <100μs per message
 //! - End-to-end latency: <35μs (signal creation to relay output)
 
-use alphapulse_protocol::{
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use protocol_v2::{
     tlv::builder::TLVMessageBuilder, tlv::demo_defi::DemoDeFiArbitrageTLV, tlv::types::TLVType,
     MessageHeader, PoolInstrumentId, RelayDomain, SourceType, VenueId,
 };
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const FLASH_ARBITRAGE_STRATEGY_ID: u16 = 21;

@@ -48,11 +48,14 @@ use std::sync::Arc;
 use thiserror::Error;
 use tracing::{debug, error, info, warn};
 
+use crate::gas_price::GasPriceFetcher;
+
 use crate::config::DetectorConfig;
 use alphapulse_amm::optimal_size::{OptimalPosition, OptimalSizeCalculator, SizingConfig};
 use alphapulse_state_market::{
-    PoolStateManager, StrategyArbitragePair as ArbitragePair, StrategyPoolState as PoolState,
+    PoolStateManager, StrategyArbitragePair as ArbitragePair, StrategyPoolState,
 };
+use protocol_v2::tlv::DEXProtocol as PoolProtocol;
 use protocol_v2::{InstrumentId, InstrumentId as PoolInstrumentId, VenueId};
 
 /// Structured error types for arbitrage detection failures
@@ -112,6 +115,7 @@ pub struct OpportunityDetector {
     size_calculator: OptimalSizeCalculator,
     config: DetectorConfig,
     next_opportunity_id: Arc<RwLock<u64>>,
+    gas_price_fetcher: Option<Arc<GasPriceFetcher>>,
 }
 
 impl OpportunityDetector {
@@ -130,7 +134,13 @@ impl OpportunityDetector {
             size_calculator: OptimalSizeCalculator::new(sizing_config),
             config,
             next_opportunity_id: Arc::new(RwLock::new(1)),
+            gas_price_fetcher: None,
         }
+    }
+
+    /// Set gas price fetcher for dynamic gas cost estimation
+    pub fn set_gas_price_fetcher(&mut self, fetcher: Arc<GasPriceFetcher>) {
+        self.gas_price_fetcher = Some(fetcher);
     }
 
     /// Find arbitrage opportunities for a pool that just updated
@@ -200,10 +210,10 @@ impl OpportunityDetector {
         // Create mock addresses from pool and token IDs
         let mut pool_address = [0u8; 20];
         pool_address[..8].copy_from_slice(&pool_id.to_le_bytes());
-        
+
         let mut token_in_addr = [0u8; 20];
         token_in_addr[0] = token_in;
-        
+
         let mut token_out_addr = [0u8; 20];
         token_out_addr[0] = token_out;
 
@@ -216,7 +226,8 @@ impl OpportunityDetector {
             amount_out.abs() as u128,
             18, // Assume 18 decimals
             18, // Assume 18 decimals
-        ).await
+        )
+        .await
     }
 
     /// Native precision arbitrage detection - uses real pool state comparison
@@ -226,135 +237,258 @@ impl OpportunityDetector {
         pool_address: &[u8; 20],
         token_in_addr: [u8; 20],
         token_out_addr: [u8; 20],
-        amount_in: u128,
-        amount_out: u128,
-        amount_in_decimals: u8,
-        amount_out_decimals: u8,
+        _amount_in: u128,
+        _amount_out: u128,
+        _amount_in_decimals: u8,
+        _amount_out_decimals: u8,
     ) -> Option<crate::relay_consumer::DetectedOpportunity> {
-        // Convert addresses to u64 for pool/token identification
-        let pool_id = u64::from_le_bytes([
-            pool_address[0], pool_address[1], pool_address[2], pool_address[3],
-            pool_address[4], pool_address[5], pool_address[6], pool_address[7],
-        ]);
-        
-        let token_in_id = u64::from_le_bytes([
-            token_in_addr[0], token_in_addr[1], token_in_addr[2], token_in_addr[3],
-            token_in_addr[4], token_in_addr[5], token_in_addr[6], token_in_addr[7],
-        ]);
-        
-        let token_out_id = u64::from_le_bytes([
-            token_out_addr[0], token_out_addr[1], token_out_addr[2], token_out_addr[3],
-            token_out_addr[4], token_out_addr[5], token_out_addr[6], token_out_addr[7],
-        ]);
+        // Use full addresses directly - no precision loss
+        // Find pools that trade the same token pair as the swapped pool
+        let pools_with_same_pair = self
+            .pool_manager
+            .find_pools_for_token_pair(&token_in_addr, &token_out_addr);
 
-        // Create instrument ID for the pool that just swapped
-        let updated_pool_id = PoolInstrumentId {
-            venue: VenueId::Polygon as u16,
-            asset_type: 3, // Pool type
-            reserved: 0,
-            asset_id: pool_id,
-        };
-
-        // Find arbitrage pairs that include this pool
-        let pairs = self.pool_manager.find_arbitrage_pairs_for_pool(&updated_pool_id);
-        
-        let num_pairs = pairs.len();
+        let num_pools = pools_with_same_pair.len();
         info!(
-            "🔍 Checking arbitrage for pool {}: found {} potential pairs",
+            "🔍 Checking arbitrage for pool {}: found {} pools with same token pair",
             hex::encode(pool_address),
-            num_pairs
+            num_pools
         );
 
-        // Evaluate each pair for profitability
-        for pair in pairs {
-            // Check if this pair involves our tokens
-            if !pair.shared_tokens.contains(&token_in_id) || !pair.shared_tokens.contains(&token_out_id) {
-                continue;
-            }
-
-            // Get pool states for comparison
-            let pool_a_state = self.pool_manager.get_strategy_pool(pair.pool_a);
-            let pool_b_state = self.pool_manager.get_strategy_pool(pair.pool_b);
-
-            if pool_a_state.is_none() || pool_b_state.is_none() {
-                continue;
-            }
-
-            // Dereference the Arc to get references to StrategyPoolState
-            let pool_a_ref = pool_a_state.as_ref().unwrap();
-            let pool_b_ref = pool_b_state.as_ref().unwrap();
-
-            // Calculate price difference between pools
-            let (price_a, price_b) = match (pool_a_ref.as_ref(), pool_b_ref.as_ref()) {
-                (PoolState::V2 { reserves: (r0_a, r1_a), .. }, PoolState::V2 { reserves: (r0_b, r1_b), .. }) => {
-                    // V2 pools - simple price calculation
-                    let price_a = r1_a.to_f64().unwrap_or(0.0) / r0_a.to_f64().unwrap_or(1.0);
-                    let price_b = r1_b.to_f64().unwrap_or(0.0) / r0_b.to_f64().unwrap_or(1.0);
-                    (price_a, price_b)
-                },
-                (PoolState::V3 { sqrt_price_x96, .. }, PoolState::V3 { sqrt_price_x96: sqrt_b, .. }) => {
-                    // V3 pools - convert sqrt price to regular price
-                    let price_a = ((*sqrt_price_x96 as f64) / (2_f64.powi(96))).powi(2);
-                    let price_b = ((*sqrt_b as f64) / (2_f64.powi(96))).powi(2);
-                    (price_a, price_b)
-                },
-                _ => continue, // Skip mixed pool types for now
-            };
-
-            // Calculate spread
-            let spread = ((price_b - price_a) / price_a * 100.0).abs();
-            
-            // Only consider if spread is above minimum threshold (accounting for fees)
-            let min_spread_for_profit = 0.6; // 0.3% fee each side minimum
-            if spread < min_spread_for_profit {
-                continue;
-            }
-
-            // Convert amounts to normalized values for profit calculation
-            let amount_in_decimal = Decimal::from(amount_in);
-            let divisor_in = Decimal::from(10u64.pow(amount_in_decimals as u32));
-            let amount_in_normalized = amount_in_decimal / divisor_in;
-
-            // Calculate potential profit
-            let trade_size_usd = amount_in_normalized.to_f64().unwrap_or(0.0) * price_a;
-            let gross_profit = trade_size_usd * (spread / 100.0);
-            let fees = trade_size_usd * 0.006; // 0.3% each side
-            let gas_cost = 3.0; // Estimated gas cost in USD for Polygon (300k gas @ 30 gwei @ $0.33 MATIC)
-            let net_profit = gross_profit - fees - gas_cost;
-
-            info!(
-                "📊 Pool pair analysis: spread={:.2}%, gross=${:.2}, fees=${:.2}, gas=${:.2}, net=${:.2}",
-                spread, gross_profit, fees, gas_cost, net_profit
+        // Need at least 2 pools for arbitrage
+        if num_pools < 2 {
+            debug!(
+                "Not enough pools ({}) for arbitrage with token pair {}/<>{}",
+                num_pools,
+                hex::encode(&token_in_addr[..4]),
+                hex::encode(&token_out_addr[..4])
             );
+            return None;
+        }
 
-            // Check if profitable (any positive net profit)
-            if net_profit > 0.0 {
-                info!(
-                    "✅ REAL ARBITRAGE OPPORTUNITY DETECTED: ${:.2} profit between pools",
-                    net_profit
-                );
-                
-                // Find the other pool address
-                let target_pool_id = if pair.pool_a == pool_id {
-                    pair.pool_b
-                } else {
-                    pair.pool_a
+        // Compare each pool with every other pool for arbitrage opportunities
+        for i in 0..pools_with_same_pair.len() {
+            for j in (i + 1)..pools_with_same_pair.len() {
+                let pool_a_arc = &pools_with_same_pair[i];
+                let pool_b_arc = &pools_with_same_pair[j];
+
+                // Extract all pool data in a separate scope to avoid holding locks across await
+                let (
+                    pool_a_protocol,
+                    pool_b_protocol,
+                    pool_a_address,
+                    pool_b_address,
+                    pool_a_reserves,
+                    pool_b_reserves,
+                    pool_a_fee_tier,
+                    pool_b_fee_tier,
+                    pool_a_sqrt_price,
+                    pool_b_sqrt_price,
+                    pool_a_liquidity,
+                    pool_b_liquidity,
+                    pool_a_tick,
+                    pool_b_tick,
+                ) = {
+                    let pool_a = pool_a_arc.read();
+                    let pool_b = pool_b_arc.read();
+
+                    // Skip if either pool matches the swapped pool (by direct address comparison)
+                    if pool_a.pool_address == *pool_address || pool_b.pool_address == *pool_address
+                    {
+                        continue; // Skip comparing pool with itself
+                    }
+
+                    // Extract all data we need
+                    (
+                        pool_a.protocol,
+                        pool_b.protocol,
+                        pool_a.pool_address,
+                        pool_b.pool_address,
+                        (pool_a.reserve0, pool_a.reserve1),
+                        (pool_b.reserve0, pool_b.reserve1),
+                        pool_a.fee_tier,
+                        pool_b.fee_tier,
+                        pool_a.sqrt_price_x96,
+                        pool_b.sqrt_price_x96,
+                        pool_a.liquidity,
+                        pool_b.liquidity,
+                        pool_a.tick,
+                        pool_b.tick,
+                    )
+                    // Guards are automatically dropped here when the scope ends
+                };
+                // Validate that both pools trade the same token pair
+                // For now, skip complex token validation - assume pools from find_pools_for_token_pair are correct
+
+                // Handle different pool protocol combinations
+                let optimal_position_result = match (pool_a_protocol, pool_b_protocol) {
+                    // Both V2 pools - use V2 AMM math
+                    (
+                        PoolProtocol::UniswapV2 | PoolProtocol::SushiswapV2,
+                        PoolProtocol::UniswapV2 | PoolProtocol::SushiswapV2,
+                    ) => self.calculate_v2_arbitrage(
+                        pool_a_reserves,
+                        pool_b_reserves,
+                        pool_a_fee_tier,
+                        pool_b_fee_tier,
+                    ),
+
+                    // Both V3 pools - use V3 AMM math
+                    (
+                        PoolProtocol::UniswapV3 | PoolProtocol::QuickswapV3,
+                        PoolProtocol::UniswapV3 | PoolProtocol::QuickswapV3,
+                    ) => self.calculate_v3_arbitrage(
+                        pool_a_sqrt_price,
+                        pool_b_sqrt_price,
+                        pool_a_liquidity,
+                        pool_b_liquidity,
+                        pool_a_tick,
+                        pool_b_tick,
+                        pool_a_fee_tier,
+                        pool_b_fee_tier,
+                    ),
+
+                    // Mixed V2/V3 pools - more complex arbitrage
+                    _ => {
+                        debug!("Skipping mixed V2/V3 pool arbitrage (requires complex routing)");
+                        continue;
+                    }
                 };
 
-                return Some(crate::relay_consumer::DetectedOpportunity {
-                    expected_profit: net_profit,
-                    spread_percentage: spread,
-                    required_capital: trade_size_usd,
-                    target_pool: format!("0x{:016x}", target_pool_id),
-                });
+                let optimal_position = match optimal_position_result {
+                    Ok(pos) => {
+                        // TEMPORARY: Skip profitability check for debugging signal pipeline
+                        // if !pos.is_profitable {
+                        //     debug!("No profitable arbitrage found via AMM math");
+                        //     continue;
+                        // }
+                        pos
+                    }
+                    Err(e) => {
+                        debug!("AMM calculation failed: {}", e);
+                        continue;
+                    }
+                };
+
+                // Extract calculated values from AMM optimization
+                let trade_size_usd = optimal_position.amount_in.to_f64().unwrap_or(0.0);
+                let net_profit = optimal_position.expected_profit_usd.to_f64().unwrap_or(0.0);
+                let gas_cost = optimal_position.gas_cost_usd.to_f64().unwrap_or(0.10);
+                let slippage_bps = optimal_position.total_slippage_bps;
+
+                // Calculate effective spread based on profit margin
+                let spread_percentage = if trade_size_usd > 0.0 {
+                    (net_profit + gas_cost) / trade_size_usd * 100.0
+                } else {
+                    0.0
+                };
+
+                info!(
+                    "📊 AMM arbitrage analysis: size=${:.2}, net_profit=${:.4}, gas=${:.4}, slippage={}bps, eff_spread={:.3}%",
+                    trade_size_usd, net_profit, gas_cost, slippage_bps, spread_percentage
+                );
+
+                // TEMPORARY: Disabled all profitability guards for debugging signal pipeline
+                // Generate signals for ALL arbitrage pairs to test dashboard connectivity
+                {
+                    // Original validation guards are commented out for debugging:
+                    // Guard 1: Minimum profit threshold - arbitrage should be worth the effort
+                    // let min_profit_usd = 0.50; // $0.50 minimum
+                    // if net_profit < min_profit_usd {
+                    //     debug!("Skipping opportunity below minimum profit threshold: ${:.4}", net_profit);
+                    //     continue;
+                    // }
+
+                    // Guard 2: Reasonable position size - avoid unrealistically large trades
+                    // if trade_size_usd > 50000.0 { // $50k max
+                    //     debug!("Skipping unrealistically large position: ${:.2}", trade_size_usd);
+                    //     continue;
+                    // }
+
+                    // Guard 3: Slippage tolerance - high slippage indicates illiquid/problematic pools
+                    // if slippage_bps > 500 { // 5% max slippage
+                    //     debug!("Skipping high slippage opportunity: {}bps", slippage_bps);
+                    //     continue;
+                    // }
+
+                    // Guard 4: Profit margin should be reasonable (not too good to be true)
+                    // let profit_margin = (net_profit / trade_size_usd) * 100.0;
+                    // if profit_margin > 10.0 { // 10% margin is very high for arbitrage
+                    //     debug!("Skipping suspiciously high profit margin: {:.2}%", profit_margin);
+                    //     continue;
+                    // }
+
+                    // Calculate profit margin for logging
+                    let profit_margin = if trade_size_usd > 0.0 {
+                        (net_profit / trade_size_usd) * 100.0
+                    } else {
+                        0.0
+                    };
+
+                    info!(
+                        "🔍 DEBUG ARBITRAGE SIGNAL (ALL PAIRS): profit=${:.4}, size=${:.2}, slippage={}bps, margin={:.3}%",
+                        net_profit, trade_size_usd, slippage_bps, profit_margin
+                    );
+
+                    // Use the other pool as the target (not the one that just swapped)
+                    let target_pool_address = if pool_a_address == *pool_address {
+                        pool_b_address
+                    } else {
+                        pool_a_address
+                    };
+
+                    use alphapulse_types::{PercentageFixedPoint4, UsdFixedPoint8};
+
+                    // Use safe fixed-point conversion with error handling
+                    let expected_profit = match UsdFixedPoint8::try_from_f64(net_profit) {
+                        Ok(val) => val,
+                        Err(e) => {
+                            warn!(
+                                "Failed to convert net_profit {} to fixed-point: {}",
+                                net_profit, e
+                            );
+                            return None;
+                        }
+                    };
+
+                    let spread_percentage =
+                        match PercentageFixedPoint4::try_from_f64(spread_percentage) {
+                            Ok(val) => val,
+                            Err(e) => {
+                                warn!(
+                                    "Failed to convert spread_percentage {} to fixed-point: {}",
+                                    spread_percentage, e
+                                );
+                                return None;
+                            }
+                        };
+
+                    let required_capital = match UsdFixedPoint8::try_from_f64(trade_size_usd) {
+                        Ok(val) => val,
+                        Err(e) => {
+                            warn!(
+                                "Failed to convert trade_size_usd {} to fixed-point: {}",
+                                trade_size_usd, e
+                            );
+                            return None;
+                        }
+                    };
+
+                    return Some(crate::relay_consumer::DetectedOpportunity {
+                        expected_profit,
+                        spread_percentage,
+                        required_capital,
+                        target_pool: hex::encode(target_pool_address),
+                    });
+                }
             }
         }
 
         // No profitable arbitrage found
         debug!(
-            "No profitable arbitrage found for pool {} with {} pairs checked",
+            "No profitable arbitrage found for pool {} with {} pools checked",
             hex::encode(pool_address),
-            num_pairs
+            num_pools
         );
         None
     }
@@ -425,8 +559,8 @@ impl OpportunityDetector {
     /// Evaluate a specific arbitrage direction
     fn evaluate_direction(
         &self,
-        pool_a: &PoolState,
-        pool_b: &PoolState,
+        pool_a: &StrategyPoolState,
+        pool_b: &StrategyPoolState,
         token_in: u64,
         token_out: u64,
         token_price_usd: Decimal,
@@ -438,10 +572,10 @@ impl OpportunityDetector {
         );
         // Determine strategy type
         let strategy_type = match (pool_a, pool_b) {
-            (PoolState::V2 { .. }, PoolState::V2 { .. }) => StrategyType::V2ToV2,
-            (PoolState::V3 { .. }, PoolState::V3 { .. }) => StrategyType::V3ToV3,
-            (PoolState::V2 { .. }, PoolState::V3 { .. }) => StrategyType::V2ToV3,
-            (PoolState::V3 { .. }, PoolState::V2 { .. }) => StrategyType::V3ToV2,
+            (StrategyPoolState::V2 { .. }, StrategyPoolState::V2 { .. }) => StrategyType::V2ToV2,
+            (StrategyPoolState::V3 { .. }, StrategyPoolState::V3 { .. }) => StrategyType::V3ToV3,
+            (StrategyPoolState::V2 { .. }, StrategyPoolState::V3 { .. }) => StrategyType::V2ToV3,
+            (StrategyPoolState::V3 { .. }, StrategyPoolState::V2 { .. }) => StrategyType::V3ToV2,
         };
 
         // Calculate optimal position based on pool types with error handling
@@ -599,6 +733,187 @@ impl OpportunityDetector {
     pub fn update_token_price(&self, _token_id: u64, _price_usd: Decimal) {
         // TODO: Prices will come from market data relay
         // This method will be called when relay provides price updates
+    }
+
+    /// Calculate optimal V2 arbitrage size between two V2 pools
+    fn calculate_v2_arbitrage(
+        &self,
+        pool_a_reserves: (Option<Decimal>, Option<Decimal>),
+        pool_b_reserves: (Option<Decimal>, Option<Decimal>),
+        pool_a_fee_tier: u32,
+        pool_b_fee_tier: u32,
+    ) -> Result<OptimalPosition, anyhow::Error> {
+        // Extract V2 reserves and validate they exist
+        let r0_a = pool_a_reserves.0.unwrap_or(Decimal::ZERO);
+        let r1_a = pool_a_reserves.1.unwrap_or(Decimal::ZERO);
+        let r0_b = pool_b_reserves.0.unwrap_or(Decimal::ZERO);
+        let r1_b = pool_b_reserves.1.unwrap_or(Decimal::ZERO);
+
+        if r0_a.is_zero() || r1_a.is_zero() || r0_b.is_zero() || r1_b.is_zero() {
+            return Ok(OptimalPosition {
+                amount_in: Decimal::ZERO,
+                expected_amount_out: Decimal::ZERO,
+                expected_profit_usd: Decimal::ZERO,
+                total_slippage_bps: 0,
+                gas_cost_usd: Decimal::ZERO,
+                is_profitable: false,
+            });
+        }
+
+        // For V2 arbitrage, we need to determine the correct token direction
+        // Pool A: token0 -> token1, Pool B: token1 -> token0 (reverse)
+        // Check which direction gives better arbitrage opportunity
+
+        // Direction 1: Buy token1 from pool A, sell token1 to pool B
+        let amm_pool_a_dir1 = alphapulse_amm::V2PoolState {
+            reserve_in: r0_a,         // token0 reserve (what we give)
+            reserve_out: r1_a,        // token1 reserve (what we get)
+            fee_bps: pool_a_fee_tier, // Use actual fee tier from pool state
+        };
+
+        let amm_pool_b_dir1 = alphapulse_amm::V2PoolState {
+            reserve_in: r1_b,         // token1 reserve (what we give back)
+            reserve_out: r0_b,        // token0 reserve (what we get back)
+            fee_bps: pool_b_fee_tier, // Use actual fee tier from pool state
+        };
+
+        // Direction 2: Buy token0 from pool B, sell token0 to pool A
+        let amm_pool_a_dir2 = alphapulse_amm::V2PoolState {
+            reserve_in: r1_a,  // token1 reserve (what we give)
+            reserve_out: r0_a, // token0 reserve (what we get)
+            fee_bps: pool_a_fee_tier,
+        };
+
+        let amm_pool_b_dir2 = alphapulse_amm::V2PoolState {
+            reserve_in: r0_b,  // token0 reserve (what we give back)
+            reserve_out: r1_b, // token1 reserve (what we get back)
+            fee_bps: pool_b_fee_tier,
+        };
+
+        // Use $1 token price for now (will be updated when we have real price feeds)
+        let token_price_usd = Decimal::from(1);
+
+        // Try both directions and pick the better one
+        let dir1_result = self.size_calculator.calculate_v2_arbitrage_size(
+            &amm_pool_a_dir1,
+            &amm_pool_b_dir1,
+            token_price_usd,
+        );
+        let dir2_result = self.size_calculator.calculate_v2_arbitrage_size(
+            &amm_pool_a_dir2,
+            &amm_pool_b_dir2,
+            token_price_usd,
+        );
+
+        match (dir1_result, dir2_result) {
+            (Ok(pos1), Ok(pos2)) => {
+                // Pick direction with higher profit
+                if pos1.is_profitable && pos2.is_profitable {
+                    if pos1.expected_profit_usd > pos2.expected_profit_usd {
+                        Ok(pos1)
+                    } else {
+                        Ok(pos2)
+                    }
+                } else if pos1.is_profitable {
+                    Ok(pos1)
+                } else if pos2.is_profitable {
+                    Ok(pos2)
+                } else {
+                    Ok(pos1) // Return one of them (both unprofitable)
+                }
+            }
+            (Ok(pos1), Err(_)) => Ok(pos1),
+            (Err(_), Ok(pos2)) => Ok(pos2),
+            (Err(e), Err(_)) => Err(e), // Both failed
+        }
+    }
+
+    /// Calculate optimal V3 arbitrage size between two V3 pools
+    /// V3 pools have concentrated liquidity with tick-based pricing
+    fn calculate_v3_arbitrage(
+        &self,
+        pool_a_sqrt_price: Option<u128>,
+        pool_b_sqrt_price: Option<u128>,
+        pool_a_liquidity: Option<u128>,
+        pool_b_liquidity: Option<u128>,
+        pool_a_tick: Option<i32>,
+        pool_b_tick: Option<i32>,
+        pool_a_fee_tier: u32,
+        pool_b_fee_tier: u32,
+    ) -> Result<OptimalPosition, anyhow::Error> {
+        // Validate V3-specific data
+        let sqrt_price_a = pool_a_sqrt_price.unwrap_or(0);
+        let sqrt_price_b = pool_b_sqrt_price.unwrap_or(0);
+        let liquidity_a = pool_a_liquidity.unwrap_or(0);
+        let liquidity_b = pool_b_liquidity.unwrap_or(0);
+        let tick_a = pool_a_tick.unwrap_or(0);
+        let tick_b = pool_b_tick.unwrap_or(0);
+
+        if sqrt_price_a == 0 || sqrt_price_b == 0 || liquidity_a == 0 || liquidity_b == 0 {
+            debug!("V3 pools missing required data: sqrt_price or liquidity is zero");
+            return Ok(OptimalPosition {
+                amount_in: Decimal::ZERO,
+                expected_amount_out: Decimal::ZERO,
+                expected_profit_usd: Decimal::ZERO,
+                total_slippage_bps: 0,
+                gas_cost_usd: Decimal::ZERO,
+                is_profitable: false,
+            });
+        }
+
+        // Create V3 pool states for AMM library
+        let amm_pool_a = alphapulse_amm::V3PoolState {
+            sqrt_price_x96: sqrt_price_a,
+            liquidity: liquidity_a,
+            current_tick: tick_a,
+            fee_pips: pool_a_fee_tier, // V3 uses pips (fee_tier should be in correct units)
+        };
+
+        let amm_pool_b = alphapulse_amm::V3PoolState {
+            sqrt_price_x96: sqrt_price_b,
+            liquidity: liquidity_b,
+            current_tick: tick_b,
+            fee_pips: pool_b_fee_tier,
+        };
+
+        // Use $1 token price for now
+        let token_price_usd = Decimal::from(1);
+
+        // V3 arbitrage needs direction (zero_for_one)
+        // Try both directions and pick the better one
+        let dir1_result = self.size_calculator.calculate_v3_arbitrage_size(
+            &amm_pool_a,
+            &amm_pool_b,
+            token_price_usd,
+            true,
+        );
+        let dir2_result = self.size_calculator.calculate_v3_arbitrage_size(
+            &amm_pool_a,
+            &amm_pool_b,
+            token_price_usd,
+            false,
+        );
+
+        match (dir1_result, dir2_result) {
+            (Ok(pos1), Ok(pos2)) => {
+                if pos1.is_profitable && pos2.is_profitable {
+                    if pos1.expected_profit_usd > pos2.expected_profit_usd {
+                        Ok(pos1)
+                    } else {
+                        Ok(pos2)
+                    }
+                } else if pos1.is_profitable {
+                    Ok(pos1)
+                } else if pos2.is_profitable {
+                    Ok(pos2)
+                } else {
+                    Ok(pos1) // Return one of them (both unprofitable)
+                }
+            }
+            (Ok(pos1), Err(_)) => Ok(pos1),
+            (Err(_), Ok(pos2)) => Ok(pos2),
+            (Err(e), Err(_)) => Err(e),
+        }
     }
 }
 

@@ -45,9 +45,9 @@ impl TopologyResolver {
     /// Resolve transport between two actors
     pub async fn resolve_transport(
         &self,
-        source_actor: &str,
+        _source_actor: &str,
         target_actor: &str,
-        channel: &str,
+        _channel: &str,
     ) -> Result<super::factory::TransportResolution> {
         let target_node = self.resolve_actor(target_actor).await?;
         let node_address = self.resolve_node(&target_node).await?;
@@ -64,7 +64,7 @@ impl TopologyResolver {
     }
 
     /// Update configuration
-    pub async fn update_config(&self, config: crate::hybrid::TransportConfig) -> Result<()> {
+    pub async fn update_config(&self, _config: crate::hybrid::TransportConfig) -> Result<()> {
         // Placeholder implementation
         Ok(())
     }

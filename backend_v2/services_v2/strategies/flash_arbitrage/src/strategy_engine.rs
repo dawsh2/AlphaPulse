@@ -77,22 +77,22 @@ pub struct StrategyEngine {
 }
 
 impl StrategyEngine {
-    pub fn new(config: StrategyConfig) -> Self {
+    pub async fn new(config: StrategyConfig) -> Result<Self> {
         let pool_manager = Arc::new(PoolStateManager::new());
         let detector = Arc::new(OpportunityDetector::new(
             pool_manager.clone(),
             config.detector.clone(),
         ));
-        let executor = Arc::new(Executor::new(config.executor.clone()));
+        let executor = Arc::new(Executor::new(config.executor.clone()).await?);
         let signal_output = Arc::new(SignalOutput::new(config.signal_relay_path.clone()));
 
-        Self {
+        Ok(Self {
             pool_manager,
             detector,
             executor,
             signal_output,
             config,
-        }
+        })
     }
 
     /// Run the strategy engine

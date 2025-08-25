@@ -4,8 +4,8 @@ use crate::error::{DashboardError, Result};
 use base64::prelude::*;
 use protocol_v2::InstrumentId;
 use protocol_v2::{
-    tlv::{DemoDeFiArbitrageTLV, PoolSyncTLV},
-    ParseError, PoolSwapTLV, QuoteTLV,
+    tlv::{ArbitrageSignalTLV, DemoDeFiArbitrageTLV, PoolSyncTLV},
+    ParseError, PoolSwapTLV, QuoteTLV, VenueId,
 };
 use serde_json::{json, Value};
 use std::time::SystemTime;
@@ -22,6 +22,7 @@ pub fn convert_tlv_to_json(tlv_type: u8, payload: &[u8], timestamp_ns: u64) -> R
         13 => convert_pool_burn_tlv(payload, timestamp_ns), // PoolBurnTLV
         14 => convert_pool_tick_tlv(payload, timestamp_ns), // PoolTickTLV
         16 => convert_pool_sync_tlv(payload, timestamp_ns), // PoolSyncTLV
+        32 => convert_arbitrage_signal_tlv(payload, timestamp_ns), // ArbitrageSignalTLV
         67 => convert_flash_loan_result_tlv(payload, timestamp_ns), // TLVType::FlashLoanResult
         202 => convert_proprietary_data_tlv(payload, timestamp_ns), // VendorTLVType::ProprietaryData
         255 => convert_demo_defi_arbitrage_tlv(payload, timestamp_ns), // DemoDeFiArbitrageTLV
@@ -261,6 +262,119 @@ pub fn create_arbitrage_opportunity(
     opportunity
 }
 
+/// Convert ArbitrageSignalTLV to arbitrage opportunity JSON
+fn convert_arbitrage_signal_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
+    let signal = ArbitrageSignalTLV::from_bytes(payload).map_err(|_| {
+        DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
+            ParseError::MessageTooSmall {
+                need: 168,
+                got: payload.len(),
+            },
+        ))
+    })?;
+
+    // Copy packed fields to avoid unaligned references
+    let source_venue = signal.source_venue;
+    let target_venue = signal.target_venue;
+    let token_in = signal.token_in;
+    let token_out = signal.token_out;
+    let source_pool = signal.source_pool;
+    let target_pool = signal.target_pool;
+    let strategy_id = signal.strategy_id;
+    let signal_id = signal.signal_id;
+    let chain_id = signal.chain_id;
+    let slippage_tolerance_bps = signal.slippage_tolerance_bps;
+    let max_gas_price_gwei = signal.max_gas_price_gwei;
+    let valid_until = signal.valid_until;
+    let priority = signal.priority;
+
+    // Map venue IDs to DEX names - improved mapping for Polygon DEXs
+    let dex_buy = match source_venue {
+        x if x == VenueId::UniswapV2 as u16 => "Uniswap V2",
+        x if x == VenueId::UniswapV3 as u16 => "Uniswap V3",
+        x if x == VenueId::SushiSwap as u16 => "SushiSwap",
+        x if x == VenueId::SushiSwapPolygon as u16 => "SushiSwap",
+        x if x == VenueId::QuickSwap as u16 => "QuickSwap",
+        x if x == VenueId::CurvePolygon as u16 => "Curve",
+        x if x == VenueId::BalancerPolygon as u16 => "Balancer",
+        x if x == VenueId::Polygon as u16 => "QuickSwap", // Fallback: treat blockchain ID as DEX
+        202 => "QuickSwap",                               // Direct numeric fallback for venue 202
+        _ => "Unknown DEX",
+    };
+
+    let dex_sell = match target_venue {
+        x if x == VenueId::UniswapV2 as u16 => "Uniswap V2",
+        x if x == VenueId::UniswapV3 as u16 => "Uniswap V3",
+        x if x == VenueId::SushiSwap as u16 => "SushiSwap",
+        x if x == VenueId::SushiSwapPolygon as u16 => "SushiSwap",
+        x if x == VenueId::QuickSwap as u16 => "QuickSwap",
+        x if x == VenueId::CurvePolygon as u16 => "Curve",
+        x if x == VenueId::BalancerPolygon as u16 => "Balancer",
+        x if x == VenueId::Polygon as u16 => "SushiSwap", // Fallback: alternate DEX for differentiation
+        202 => "SushiSwap",                               // Direct numeric fallback for venue 202
+        _ => "Unknown DEX",
+    };
+
+    Ok(json!({
+        "msg_type": "arbitrage_opportunity",
+        "type": "real_arbitrage",
+        "timestamp": timestamp_ns,
+        "timestamp_iso": timestamp_to_iso(timestamp_ns),
+
+        // Pool and token information
+        "pair": format!("{}/{}",
+            format_token_address(&token_in),
+            format_token_address(&token_out)
+        ),
+        "token_a": hex::encode(token_in),
+        "token_b": hex::encode(token_out),
+        "pool_a": hex::encode(source_pool),
+        "pool_b": hex::encode(target_pool),
+        "dex_buy": dex_buy,
+        "dex_sell": dex_sell,
+        "buyExchange": dex_buy, // Alternative field name
+        "sellExchange": dex_sell, // Alternative field name
+
+        // Financial metrics
+        "estimated_profit": signal.expected_profit_usd(),
+        "net_profit_usd": signal.net_profit_usd(),
+        "max_trade_size": signal.required_capital_usd(),
+        "required_capital_usd": signal.required_capital_usd(),
+        "spread": signal.spread_percent(),
+        "spread_percent": signal.spread_percent(),
+        "profit_percent": (signal.net_profit_usd() / signal.required_capital_usd() * 100.0),
+        "net_profit_percent": (signal.net_profit_usd() / signal.required_capital_usd() * 100.0),
+
+        // Cost breakdown
+        "gas_fee_usd": signal.gas_cost_usd(),
+        "dex_fees_usd": signal.dex_fees_usd(),
+        "slippage_cost_usd": signal.slippage_usd(),
+
+        // Trading parameters
+        "slippage_tolerance": slippage_tolerance_bps as f64 / 100.0,
+        "max_gas_price_gwei": max_gas_price_gwei,
+        "valid_until": valid_until,
+        "priority": priority,
+        "executable": signal.is_valid((timestamp_ns / 1_000_000_000) as u32),
+
+        // Strategy metadata
+        "strategy_id": strategy_id,
+        "signal_id": signal_id.to_string(),
+        "chain_id": chain_id,
+    }))
+}
+
+/// Helper to format token address for display
+fn format_token_address(addr: &[u8; 20]) -> String {
+    let hex_str = hex::encode(addr);
+    // Show first 6 and last 4 chars
+    if hex_str.len() >= 10 {
+        format!("0x{}...{}", &hex_str[..6], &hex_str[hex_str.len() - 4..])
+    } else {
+        format!("0x{}", hex_str)
+    }
+}
+
 /// Convert DemoDeFiArbitrageTLV to arbitrage opportunity JSON with enhanced metrics
 fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     let arbitrage_tlv = DemoDeFiArbitrageTLV::from_bytes(payload).map_err(|e| {
@@ -275,7 +389,7 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
     // Extract pool information
     let pool_a_venues = match arbitrage_tlv.venue_a {
         x if x == protocol_v2::VenueId::UniswapV2 as u16 => "Uniswap V2",
-        x if x == protocol_v2::VenueId::UniswapV3 as u16 => "Uniswap V3", 
+        x if x == protocol_v2::VenueId::UniswapV3 as u16 => "Uniswap V3",
         x if x == protocol_v2::VenueId::SushiSwap as u16 => "SushiSwap V2",
         _ => "Unknown DEX",
     };
@@ -283,7 +397,7 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
     let pool_b_venues = match arbitrage_tlv.venue_b {
         x if x == protocol_v2::VenueId::UniswapV2 as u16 => "Uniswap V2",
         x if x == protocol_v2::VenueId::UniswapV3 as u16 => "Uniswap V3",
-        x if x == protocol_v2::VenueId::SushiSwap as u16 => "SushiSwap V2", 
+        x if x == protocol_v2::VenueId::SushiSwap as u16 => "SushiSwap V2",
         _ => "Unknown DEX",
     };
 
@@ -315,7 +429,7 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
         } else { 0.0 },
         "optimal_trade_amount": arbitrage_tlv.optimal_amount_token(6), // Assume USDC (6 decimals)
         "gas_cost_estimate": arbitrage_tlv.estimated_gas_cost_native(),
-        
+
         // Enhanced Arbitrage Metrics for Trading View
         "arbitrage_metrics": {
             "spread_usd": arbitrage_tlv.expected_profit_usd(), // Simplified for now
@@ -342,7 +456,7 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
                 "total_fees": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * 0.006,
                 "gas_cost": (300000u64 * arbitrage_tlv.max_gas_price_gwei as u64) as f64 / 1e9 * 3000.0,
                 "slippage": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * (arbitrage_tlv.slippage_tolerance as f64 / 10000.0),
-                "net_profit": arbitrage_tlv.expected_profit_usd().parse::<f64>().unwrap_or(0.0) 
+                "net_profit": arbitrage_tlv.expected_profit_usd().parse::<f64>().unwrap_or(0.0)
                     - arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * 0.006
                     - (300000u64 * arbitrage_tlv.max_gas_price_gwei as u64) as f64 / 1e9 * 3000.0
                     - arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * (arbitrage_tlv.slippage_tolerance as f64 / 10000.0),
@@ -463,7 +577,7 @@ fn convert_pool_swap_tlv(payload: &[u8], _timestamp_ns: u64) -> Result<Value> {
     } else {
         swap.amount_in as f64
     };
-    
+
     let amount_out_normalized = if swap.amount_out_decimals > 0 {
         swap.amount_out as f64 / 10_f64.powi(swap.amount_out_decimals as i32)
     } else {
@@ -473,7 +587,7 @@ fn convert_pool_swap_tlv(payload: &[u8], _timestamp_ns: u64) -> Result<Value> {
     // Convert venue number to proper name
     let venue_name = match swap.venue {
         200 => "Ethereum",
-        201 => "Bitcoin", 
+        201 => "Bitcoin",
         202 => "Polygon",
         203 => "BSC",
         300 => "UniswapV2",

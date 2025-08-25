@@ -9,11 +9,11 @@
 
 use super::ParseError;
 // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
-use crate::SourceType; // TLVType removed with legacy TLV system
+use crate::define_tlv;
 use crate::tlv::fast_timestamp::fast_timestamp_ns;
+use crate::SourceType; // TLVType removed with legacy TLV system
 use std::collections::HashMap;
 use zerocopy::AsBytes;
-use crate::define_tlv;
 
 /// Type alias for trace identifiers
 pub type TraceId = [u8; 8];
@@ -58,14 +58,14 @@ impl TraceContextTLV {
         let current_time = fast_timestamp_ns();
 
         Self::new_raw(
-            current_time,                // start_timestamp_ns
-            current_time,                // current_timestamp_ns
-            source as u8,                // source_service
-            0,                           // span_depth
-            0,                           // stage_flags
-            0,                           // reserved
-            [0; 4],                      // _padding
-            generate_trace_id(),         // trace_id
+            current_time,        // start_timestamp_ns
+            current_time,        // current_timestamp_ns
+            source as u8,        // source_service
+            0,                   // span_depth
+            0,                   // stage_flags
+            0,                   // reserved
+            [0; 4],              // _padding
+            generate_trace_id(), // trace_id
         )
     }
 
@@ -77,8 +77,8 @@ impl TraceContextTLV {
             current_service as u8,
             self.span_depth.saturating_add(1),
             self.stage_flags,
-            0,  // reserved
-            [0; 4],  // _padding
+            0,      // reserved
+            [0; 4], // _padding
             self.trace_id,
         )
     }
@@ -202,7 +202,7 @@ fn generate_trace_id() -> [u8; 8] {
 
 /// Get current timestamp in nanoseconds since Unix epoch (ultra-fast)
 fn current_timestamp_ns() -> u64 {
-    fast_timestamp_ns()  // ~5ns vs ~200ns SystemTime::now()
+    fast_timestamp_ns() // ~5ns vs ~200ns SystemTime::now()
 }
 
 /// Trace Event - individual step in message flow
@@ -230,7 +230,7 @@ pub enum TraceEventType {
     /// Message received from relay
     MessageReceived,
 
-    /// Message processed by strategy/consumer  
+    /// Message processed by strategy/consumer
     MessageProcessed,
 
     /// Execution action taken

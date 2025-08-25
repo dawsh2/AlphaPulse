@@ -1,12 +1,12 @@
 //! Mock implementations for testing
 
 use alphapulse_flash_arbitrage::pool_state::PoolState;
-use alphapulse_protocol_v2::{
+use parking_lot::RwLock;
+use protocol_v2::{
     instrument_id::{InstrumentId, PoolInstrumentId, VenueId},
     tlv::{TLVMessageBuilder, TLVType},
     MessageHeader, SourceType,
 };
-use parking_lot::RwLock;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use std::sync::Arc;

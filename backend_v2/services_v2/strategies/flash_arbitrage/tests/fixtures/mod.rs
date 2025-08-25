@@ -4,7 +4,7 @@ use alphapulse_flash_arbitrage::{
     math::{V2PoolState, V3PoolState},
     pool_state::PoolState,
 };
-use alphapulse_protocol_v2::instrument_id::{PoolInstrumentId, VenueId};
+use protocol_v2::instrument_id::{PoolInstrumentId, VenueId};
 use rand::Rng;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;

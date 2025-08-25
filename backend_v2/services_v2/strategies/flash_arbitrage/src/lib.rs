@@ -23,40 +23,40 @@
 //!     Events[Pool Events] --> Detection[Opportunity Detection]
 //!     Detection --> Validation[Profit Validation]
 //!     Validation --> Execution[Flash Execution]
-//!     
+//!
 //!     subgraph "Input Processing"
 //!         Events
 //!         Relay[MarketDataRelay<br/>TLV Messages]
 //!         States[Pool States<br/>Price Updates]
 //!     end
-//!     
+//!
 //!     subgraph "Analysis Engine"
 //!         Detection
 //!         Analysis[Real-time Analysis<br/>Multi-hop Paths<br/>Spread Calculation<br/>Liquidity Checks]
 //!     end
-//!     
+//!
 //!     subgraph "Risk Management"
 //!         Validation
 //!         GasCost[Gas Cost Modeling<br/>MEV Protection]
 //!     end
-//!     
+//!
 //!     subgraph "Execution Layer"
 //!         Execution
 //!         Settlement[Atomic Settlement<br/>Capital Recovery<br/>Zero Risk<br/>Guaranteed Profit]
 //!         Bundle[Bundle Construction<br/>Private Execution]
 //!     end
-//!     
+//!
 //!     Relay --> Detection
 //!     States --> Detection
 //!     Analysis --> Validation
 //!     GasCost --> Execution
 //!     Bundle --> Settlement
-//!     
+//!
 //!     classDef input fill:#E3F2FD
-//!     classDef analysis fill:#F3E5F5  
+//!     classDef analysis fill:#F3E5F5
 //!     classDef risk fill:#FFF3E0
 //!     classDef execution fill:#E8F5E8
-//!     
+//!
 //!     class Events,Relay,States input
 //!     class Detection,Analysis analysis
 //!     class Validation,GasCost risk
@@ -83,7 +83,7 @@
 //! - **Liquidity Validation**: Ensures sufficient depth for profitable execution
 //! - **Gas Cost Integration**: Dynamic gas price feeds with execution cost modeling
 //!
-//! ### Execution Framework  
+//! ### Execution Framework
 //! - **Flash Loan Integration**: Aave V3 primary, Compound/Balancer fallback
 //! - **Atomic Settlement**: Single transaction for loan + arbitrage + repayment
 //! - **Slippage Protection**: Maximum 0.1% slippage tolerance with revert protection
@@ -110,7 +110,7 @@
 //!     // Initialize strategy engine with pool state management
 //!     let mut strategy = StrategyEngine::new(config).await?;
 //!
-//!     // Connect to relay infrastructure  
+//!     // Connect to relay infrastructure
 //!     let (execution_tx, execution_rx) = mpsc::channel(1000);
 //!     strategy.set_execution_output(execution_tx);
 //!
@@ -129,7 +129,7 @@
 //! ```
 //!
 //! ### Custom Detection Configuration
-//! ```rust  
+//! ```rust
 //! use alphapulse_flash_arbitrage::{OpportunityDetector, DetectorConfig};
 //!
 //! let detector_config = DetectorConfig {
@@ -152,7 +152,7 @@
 //! // Configure multiple flash loan providers for redundancy
 //! let executor = Executor::new()
 //!     .with_provider(FlashLoanProvider::AaveV3, 0.09)    // Primary: 0.09% fee
-//!     .with_provider(FlashLoanProvider::Compound, 0.10)   // Backup: 0.10% fee  
+//!     .with_provider(FlashLoanProvider::Compound, 0.10)   // Backup: 0.10% fee
 //!     .with_mev_protection(true)                         // Enable Flashbots bundles
 //!     .with_gas_limit(500_000)                          // Conservative gas limit
 //!     .build();
@@ -162,14 +162,15 @@
 //! println!("Profit: {} ETH, Gas: {} gwei", result.net_profit, result.gas_used);
 //! ```
 
+pub mod arbitrage_calculator;
 pub mod config;
 pub mod detector;
 pub mod executor;
+pub mod gas_price;
 pub mod mev;
 pub mod relay_consumer;
 pub mod signal_output;
 pub mod strategy_engine;
-pub mod arbitrage_calculator;
 
 // Export directly from state library
 pub use alphapulse_state_market::{
@@ -177,6 +178,7 @@ pub use alphapulse_state_market::{
 };
 pub use detector::OpportunityDetector;
 pub use executor::Executor;
+pub use gas_price::GasPriceFetcher;
 pub use strategy_engine::{StrategyConfig, StrategyEngine};
 
 /// Strategy configuration

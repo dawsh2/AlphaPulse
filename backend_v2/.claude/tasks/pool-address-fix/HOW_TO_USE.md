@@ -2,23 +2,32 @@
 
 ## 🚀 Quick Start for Task Distribution
 
+**⚠️ CRITICAL**: All terminals share the SAME git state. When any agent switches branches, ALL terminals see that branch immediately.
+
 ### Step 1: Open New Terminal for Each Agent
 ```bash
-# Terminal 1 - Cache Structure Agent
+# Terminal 1 - Your Monitoring Terminal (STAYS ON MAIN)
 cd /Users/daws/alphapulse/backend_v2
+git checkout main  # Keep one terminal on main for oversight
+git status         # Monitor agent changes in real-time
+
+# Terminal 2 - Agent A
+cd /Users/daws/alphapulse/backend_v2
+# Agent will: git checkout -b fix/pool-cache-integration
 cat .claude/tasks/pool-address-fix/POOL-001_cache_structure.md
-# Agent reads task and begins work...
 
-# Terminal 2 - Event Parser Agent  
+# Terminal 3 - Agent B (after Agent A finishes)
 cd /Users/daws/alphapulse/backend_v2
-cat .claude/tasks/pool-address-fix/POOL-002_event_extraction.md
-# Agent reads task and begins work...
+# Agent will: git checkout -b fix/signal-precision-loss
+cat .claude/tasks/pool-address-fix/PRECISION-001_signal_output.md
 
-# Terminal 3 - Async Queue Agent
-cd /Users/daws/alphapulse/backend_v2
-cat .claude/tasks/pool-address-fix/POOL-003_discovery_queue.md
-# Agent reads task and begins work...
+# NOTE: All terminals will show whichever branch is currently active!
 ```
+
+### 🌍 Shared State Implications
+- When Agent A runs `git checkout -b fix/branch`, ALL terminals switch to that branch
+- You can monitor their progress from any terminal with `git status`, `git diff`
+- After agent creates PR, you switch back: `git checkout main` (affects all terminals)
 
 ### Step 2: Agents Work Independently
 Each agent will:
@@ -85,7 +94,7 @@ git pull origin main
 # Merge POOL-001
 gh pr merge [POOL-001-PR] --squash
 
-# Merge POOL-002  
+# Merge POOL-002
 gh pr merge [POOL-002-PR] --squash
 ```
 
@@ -196,7 +205,7 @@ When all tasks are done:
 # Terminal 1
 osascript -e 'tell app "Terminal" to do script "cd /Users/daws/alphapulse/backend_v2 && echo \"Task: POOL-001 Cache Structure\" && cat .claude/tasks/pool-address-fix/POOL-001_cache_structure.md"'
 
-# Terminal 2  
+# Terminal 2
 osascript -e 'tell app "Terminal" to do script "cd /Users/daws/alphapulse/backend_v2 && echo \"Task: POOL-002 Event Extraction\" && cat .claude/tasks/pool-address-fix/POOL-002_event_extraction.md"'
 
 # Terminal 3

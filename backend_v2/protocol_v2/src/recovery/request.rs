@@ -9,6 +9,7 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 /// Recovery Request TLV (Type 110, 24 bytes payload)
 ///
 /// Fields ordered to eliminate padding: u64 → u32 → u8
+/// TLV header fields are handled by the parsing infrastructure
 #[repr(C)]
 #[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
 pub struct RecoveryRequestTLV {
@@ -17,13 +18,8 @@ pub struct RecoveryRequestTLV {
     pub current_sequence: u64, // Current sequence from header (gap detected)
 
     // Then 32-bit fields
-    pub consumer_id: u32, // Identifies requesting consumer
-
-    // Finally 8-bit fields (need 4 bytes to reach 24 total)
-    pub tlv_type: u8,     // 110
-    pub tlv_length: u8,   // 24
-    pub request_type: u8, // 1=retransmit, 2=snapshot
-    pub reserved: u8,
+    pub consumer_id: u32,  // Identifies requesting consumer
+    pub request_type: u32, // 1=retransmit, 2=snapshot (promoted to u32 for alignment)
 }
 
 /// Recovery request types
@@ -43,13 +39,10 @@ impl RecoveryRequestTLV {
         request_type: RecoveryRequestType,
     ) -> Self {
         Self {
-            tlv_type: TLVType::RecoveryRequest as u8,
-            tlv_length: 20,
             consumer_id,
             last_sequence,
             current_sequence,
-            request_type: request_type as u8,
-            reserved: 0,
+            request_type: request_type as u32,
         }
     }
 
@@ -114,8 +107,9 @@ impl RecoveryRequestBuilder {
             relay_domain,
             self.source,
             TLVType::RecoveryRequest,
-            &recovery_tlv
-        ).expect("Recovery request TLV build should never fail")
+            &recovery_tlv,
+        )
+        .expect("Recovery request TLV build should never fail")
     }
 
     /// Build a snapshot request
@@ -136,8 +130,9 @@ impl RecoveryRequestBuilder {
             relay_domain,
             self.source,
             TLVType::RecoveryRequest,
-            &recovery_tlv
-        ).expect("Recovery request TLV build should never fail")
+            &recovery_tlv,
+        )
+        .expect("Recovery request TLV build should never fail")
     }
 
     /// Build a smart recovery request (chooses type based on gap size)
@@ -165,8 +160,9 @@ impl RecoveryRequestBuilder {
             relay_domain,
             self.source,
             TLVType::RecoveryRequest,
-            &recovery_tlv
-        ).expect("Recovery request TLV build should never fail")
+            &recovery_tlv,
+        )
+        .expect("Recovery request TLV build should never fail")
     }
 }
 
@@ -265,13 +261,11 @@ mod tests {
             RecoveryRequestType::Retransmit,
         );
 
-        let tlv_type = request.tlv_type;
-        let tlv_length = request.tlv_length;
+        // Copy fields from the struct to avoid any alignment issues
         let consumer_id = request.consumer_id;
         let last_sequence = request.last_sequence;
         let current_sequence = request.current_sequence;
-        assert_eq!(tlv_type, TLVType::RecoveryRequest as u8);
-        assert_eq!(tlv_length, 20);
+
         assert_eq!(consumer_id, 12345);
         assert_eq!(last_sequence, 100);
         assert_eq!(current_sequence, 150);
@@ -306,7 +300,7 @@ mod tests {
         assert_eq!(consumer_id, 999);
         assert_eq!(last_sequence, 10);
         assert_eq!(current_sequence, 20);
-        assert_eq!(request.request_type, RecoveryRequestType::Retransmit as u8);
+        assert_eq!(request.request_type, RecoveryRequestType::Retransmit as u32);
     }
 
     #[test]
@@ -322,7 +316,7 @@ mod tests {
             .unwrap()
             .into_ref();
 
-        assert_eq!(request.request_type, RecoveryRequestType::Retransmit as u8);
+        assert_eq!(request.request_type, RecoveryRequestType::Retransmit as u32);
 
         // Large gap should use snapshot
         let builder2 = RecoveryRequestBuilder::new(2, SourceType::ArbitrageStrategy);
@@ -334,7 +328,7 @@ mod tests {
             .unwrap()
             .into_ref();
 
-        assert_eq!(request2.request_type, RecoveryRequestType::Snapshot as u8);
+        assert_eq!(request2.request_type, RecoveryRequestType::Snapshot as u32);
     }
 
     #[test]

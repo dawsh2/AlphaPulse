@@ -31,56 +31,26 @@ name = "event_validator"
 path = "src/bin/event_validator.rs"
 
 [[bin]]
-name = "test_semantic_equality" 
-path = "../../test_semantic_equality.rs"
+name = "benchmark_mpsc_elimination"
+path = "src/bin/benchmark_mpsc_elimination.rs"
 
 [[bin]]
-name = "test_real_polygon_pipeline"
-path = "../../test_real_polygon_pipeline.rs"
+name = "e2e_validation_consumer"
+path = "src/bin/e2e_validation_consumer.rs"
 
-[[bin]]
-name = "test_polygon_streaming"
-path = "../../test_polygon_streaming.rs"
 
-[[bin]]
-name = "test_polygon_websocket"
-path = "../../test_polygon_websocket.rs"
 
-[[bin]]
-name = "test_alternative_polygon_endpoints"
-path = "../../test_alternative_polygon_endpoints.rs"
 
-[[bin]]
-name = "test_exact_subscription"
-path = "../../test_exact_subscription.rs"
 
-[[bin]]
-name = "test_ethabi_events"
-path = "../../test_ethabi_events.rs"
 
-[[bin]]
-name = "debug_subscription"
-path = "../../debug_subscription.rs"
 
-[[bin]]
-name = "test_config_signatures"
-path = "../../test_config_signatures.rs"
 
-[[bin]]
-name = "test_ethabi_subscription"
-path = "../../test_ethabi_subscription.rs"
 
-[[bin]]
-name = "test_broader_subscription"
-path = "../../test_broader_subscription.rs"
 
-[[bin]]
-name = "test_quicknode_polygon"
-path = "../../test_quicknode_polygon.rs"
 
-[[bin]]
-name = "test_market_data_consumer"
-path = "../../test_market_data_consumer.rs"
+[[test]]
+name = "test_pool_cache_simple"
+path = "test_pool_cache_simple.rs"
 
 [dependencies]
 # Core protocol

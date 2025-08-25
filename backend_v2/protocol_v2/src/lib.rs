@@ -23,7 +23,7 @@
 //! let btc = InstrumentId::coin(VenueId::Ethereum, "BTC");
 //! let eth = InstrumentId::coin(VenueId::Polygon, "ETH");
 //!
-//! // Stocks - USE stock(exchange, symbol)  
+//! // Stocks - USE stock(exchange, symbol)
 //! let apple = InstrumentId::stock(VenueId::NASDAQ, "AAPL");
 //! let google = InstrumentId::stock(VenueId::NYSE, "GOOGL");
 //!
@@ -39,7 +39,7 @@
 //!
 //! // WRONG - These methods DON'T exist:
 //! // InstrumentId::crypto("BTC", "USD");   // ❌ Use coin(venue, symbol)
-//! // InstrumentId::currency("USD");        // ❌ Use coin(venue, symbol)  
+//! // InstrumentId::currency("USD");        // ❌ Use coin(venue, symbol)
 //! // InstrumentId::stock("AAPL");          // ❌ Missing VenueId parameter
 //! ```
 //!
@@ -152,11 +152,11 @@
 //!
 //! fn process_message(data: &[u8]) -> Result<()> {
 //!     let header = alphapulse_protocol_v2::parse_header(data)?;
-//!     
+//!
 //!     if header.magic != alphapulse_protocol_v2::MESSAGE_MAGIC {
 //!         return Err(ProtocolError::ChecksumFailed);
 //!     }
-//!     
+//!
 //!     // Process TLV payload...
 //!     Ok(())
 //! }
@@ -200,6 +200,7 @@ pub use message::header::*;
 // Re-export specific TLV types to avoid PoolType conflicts
 pub use tlv::{
     parse_header,
+    parse_header_without_checksum,
     parse_tlv_extensions,
     // Export PoolType alias for backward compatibility from pool_state only
     pool_state::PoolType,

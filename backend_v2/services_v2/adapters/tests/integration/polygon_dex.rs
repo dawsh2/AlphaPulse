@@ -9,7 +9,7 @@ use alphapulse_adapter_service::input::collectors::polygon_dex::{
     abi_events::{DEXProtocol as LocalDEXProtocol, SwapEventDecoder},
     validated_decoder::{PolygonRawSwapEvent, ValidatedPolygonDecoder},
 };
-use alphapulse_protocol_v2::{tlv::market_data::PoolSwapTLV, VenueId};
+use protocol_v2::{tlv::market_data::PoolSwapTLV, VenueId};
 
 #[test]
 fn test_uniswap_v3_swap_integration() {

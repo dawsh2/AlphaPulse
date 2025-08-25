@@ -4,16 +4,16 @@
 //! Collectors → TLVMessage → Unix Socket → Relay → Topic Filtering → Consumers
 //!
 //! This validates:
-//! - Multiple collectors can send data simultaneously  
+//! - Multiple collectors can send data simultaneously
 //! - Unix socket communication works correctly
 //! - Topic-based filtering routes messages correctly
 //! - Data integrity is preserved end-to-end
 //! - Performance under concurrent collector load
 
-use alphapulse_protocol_v2::{
+use alphapulse_relays::{ConsumerId, Relay, RelayConfig, TopicConfig, TopicExtractionStrategy};
+use protocol_v2::{
     MessageHeader, PoolSwapTLV, QuoteTLV, TLVMessage, TLVType, TradeTLV, MESSAGE_MAGIC,
 };
-use alphapulse_relays::{ConsumerId, Relay, RelayConfig, TopicConfig, TopicExtractionStrategy};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

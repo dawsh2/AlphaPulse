@@ -29,9 +29,11 @@ This is our standard development framework where:
 
 ## 🔒 Enforcement Mechanisms
 
+**🌍 CRITICAL**: Git state is shared across ALL terminals. When any agent switches branches, every terminal in the repository shows that branch immediately. This makes enforcement even more critical.
+
 ### 1. Agent Instruction Template (ENFORCED)
 
-Every agent receives this MANDATORY preamble:
+Every agent receives this MANDATORY preamble with shared state warnings:
 
 ```markdown
 # AGENT INSTRUCTIONS - MANDATORY COMPLIANCE
@@ -192,7 +194,7 @@ When I create tasks, each follows this structure:
 "Read .claude/sprints/2025-01-FEATURE/tasks/TASK-001_description.md
 Follow AGENT_TEMPLATE.md enforcement rules"
 
-# Terminal 2  
+# Terminal 2
 "Read .claude/sprints/2025-01-FEATURE/tasks/TASK-002_description.md
 Follow AGENT_TEMPLATE.md enforcement rules"
 ```
@@ -201,7 +203,7 @@ Follow AGENT_TEMPLATE.md enforcement rules"
 ```bash
 # I track in STATUS.md
 | Task | Branch | Agent | PR | Status |
-|------|--------|-------|----|---------| 
+|------|--------|-------|----|---------|
 | 001  | fix/cache | A1 | #101 | In Progress |
 | 002  | fix/event | A2 | #102 | Review Ready |
 | 003  | fix/perf  | A3 | - | Not Started |

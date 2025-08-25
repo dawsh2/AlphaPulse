@@ -44,10 +44,8 @@
 //!
 //! ### System Initialization (Once at Startup)
 //! ```rust
-//! fn main() {
-//!     init_timestamp_system(); // Start background updater thread
-//!     start_trading_services();
-//! }
+//! init_timestamp_system(); // Start background updater thread
+//! start_trading_services();
 //! ```
 //!
 //! ### Hot Path Message Construction
@@ -55,7 +53,7 @@
 //! // Ultra-fast timestamping (~5ns per call)
 //! let timestamp_ns = fast_timestamp_ns();
 //! let trade = TradeTLV::new(venue, instrument, price, volume, side, timestamp_ns);
-//! 
+//!
 //! // Build message with fast timestamp
 //! let message = TrueZeroCopyBuilder::new(domain, source)
 //!     .build_into_buffer(buffer, TLVType::Trade, &trade)?;
@@ -68,15 +66,15 @@
 //! - **Overflow Protection**: u32 counter provides 4B unique timestamps per 10μs window
 //! - **Platform Independence**: Works on all architectures (no TSC dependency)
 
-use std::sync::atomic::{AtomicU32, AtomicU64, AtomicBool, Ordering};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Global coarse timestamp updated by background thread (nanoseconds since Unix epoch)
 /// Updated every 10μs to maintain ±10μs accuracy with minimal overhead
 static COARSE_NS: AtomicU64 = AtomicU64::new(0);
 
-/// Global fine counter for nanosecond-unique timestamp generation  
+/// Global fine counter for nanosecond-unique timestamp generation
 /// Incremented on every timestamp request to ensure uniqueness
 static FINE_COUNTER: AtomicU32 = AtomicU32::new(0);
 
@@ -114,11 +112,14 @@ const COARSE_UPDATE_INTERVAL_US: u64 = 10;
 /// ```
 fn ensure_timestamp_system_initialized() {
     // Use compare-and-swap to ensure initialization happens exactly once per process
-    if CLOCK_INITIALIZED.compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed).is_ok() {
+    if CLOCK_INITIALIZED
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
+        .is_ok()
+    {
         // Set initial coarse timestamp IMMEDIATELY
         let initial_time = current_system_time_ns();
         COARSE_NS.store(initial_time, Ordering::Release);
-        
+
         // Start background updater thread
         thread::Builder::new()
             .name("alphapulse-timestamp-updater".to_string())
@@ -127,7 +128,7 @@ fn ensure_timestamp_system_initialized() {
                     // Update coarse timestamp with current wall time
                     let now = current_system_time_ns();
                     COARSE_NS.store(now, Ordering::Release);
-                    
+
                     // Sleep until next update interval
                     thread::sleep(Duration::from_micros(COARSE_UPDATE_INTERVAL_US));
                 }
@@ -149,13 +150,11 @@ fn ensure_timestamp_system_initialized() {
 ///
 /// ## Example
 /// ```rust
-/// fn main() {
-///     // Optional: Initialize explicitly at service startup
-///     init_timestamp_system();
-///     
-///     // Rest of service initialization...
-///     start_trading_operations();
-/// }
+/// // Optional: Initialize explicitly at service startup
+/// init_timestamp_system();
+///
+/// // Rest of service initialization...
+/// start_trading_operations();
 /// ```
 pub fn init_timestamp_system() {
     ensure_timestamp_system_initialized();
@@ -163,7 +162,7 @@ pub fn init_timestamp_system() {
 
 /// Ultra-fast timestamp generation (~5ns per call)
 ///
-/// **Performance**: ~5ns per call (atomic load + atomic increment)  
+/// **Performance**: ~5ns per call (atomic load + atomic increment)
 /// **Accuracy**: ±10μs wall time, nanosecond-unique per message
 /// **Ordering**: Globally monotonic across all threads
 ///
@@ -173,7 +172,7 @@ pub fn init_timestamp_system() {
 ///
 /// ## How It Works
 /// 1. Load coarse wall time (updated every 10μs by background thread) - ~2ns
-/// 2. Increment fine counter atomically for uniqueness - ~3ns  
+/// 2. Increment fine counter atomically for uniqueness - ~3ns
 /// 3. Return coarse + fine for globally unique timestamp - ~5ns total
 ///
 /// ## Example
@@ -192,24 +191,24 @@ pub fn fast_timestamp_ns() -> u64 {
     if !CLOCK_INITIALIZED.load(Ordering::Acquire) {
         ensure_timestamp_system_initialized();
     }
-    
-    let coarse = COARSE_NS.load(Ordering::Acquire);          // ~2ns - background updated
+
+    let coarse = COARSE_NS.load(Ordering::Acquire); // ~2ns - background updated
     let fine = FINE_COUNTER.fetch_add(1, Ordering::Relaxed); // ~3ns - unique increment
-    
+
     // Handle edge case where coarse might be 0 (shouldn't happen but be defensive)
     if coarse == 0 {
         // Fallback to system time (rare case)
         return current_system_time_ns();
     }
-    
-    coarse.saturating_add(fine as u64)                       // ~5ns total, safe arithmetic
+
+    coarse.saturating_add(fine as u64) // ~5ns total, safe arithmetic
 }
 
 /// Get current system timestamp for calibration and testing
 ///
 /// **Performance**: ~200ns per call (includes system call overhead)
 /// **Use**: Background thread updates, testing, calibration
-/// 
+///
 /// This function is used internally by the background updater thread and
 /// for testing/calibration purposes. Hot path code should use fast_timestamp_ns().
 #[inline]
@@ -223,7 +222,7 @@ fn current_system_time_ns() -> u64 {
 /// Get precise system timestamp (fallback for critical operations)
 ///
 /// **Performance**: ~200ns per call (always uses system call)
-/// **Accuracy**: Perfect system synchronization  
+/// **Accuracy**: Perfect system synchronization
 /// **Use Case**: Critical operations requiring perfect accuracy
 ///
 /// Use this sparingly for operations that must have perfect timestamp accuracy,
@@ -247,7 +246,7 @@ pub fn precise_timestamp_ns() -> u64 {
 /// ## Returns
 /// Tuple of (fast_timestamp, precise_timestamp, drift_ns)
 /// - `fast_timestamp`: Current fast timestamp value
-/// - `precise_timestamp`: Current precise system timestamp  
+/// - `precise_timestamp`: Current precise system timestamp
 /// - `drift_ns`: Absolute difference between them
 ///
 /// ## Example
@@ -260,7 +259,7 @@ pub fn precise_timestamp_ns() -> u64 {
 pub fn timestamp_accuracy_info() -> (u64, u64, u64) {
     let fast = fast_timestamp_ns();
     let precise = precise_timestamp_ns();
-    let drift = if fast > precise { fast - precise } else { precise - fast };
+    let drift = fast.abs_diff(precise);
     (fast, precise, drift)
 }
 
@@ -272,10 +271,10 @@ pub fn timestamp_accuracy_info() -> (u64, u64, u64) {
 /// ## Returns
 /// Tuple of (coarse_timestamp, fine_counter_value, update_interval_us)
 ///
-/// ## Example  
+/// ## Example
 /// ```rust
 /// let (coarse, counter, interval) = timestamp_system_stats();
-/// println!("Coarse timestamp: {}, Counter: {}, Interval: {}μs", 
+/// println!("Coarse timestamp: {}, Counter: {}, Interval: {}μs",
 ///          coarse, counter, interval);
 /// ```
 pub fn timestamp_system_stats() -> (u64, u32, u64) {
@@ -295,28 +294,28 @@ mod tests {
         // Auto-initialization should work without explicit init call
         let timestamp1 = fast_timestamp_ns(); // Should auto-initialize
         assert!(timestamp1 > 0);
-        
+
         // Manual initialization should also work without error
         init_timestamp_system();
-        
+
         // Should be safe to call multiple times
         init_timestamp_system();
         init_timestamp_system();
-        
+
         // Timestamps should still work after manual init
         let timestamp2 = fast_timestamp_ns();
         assert!(timestamp2 > timestamp1);
     }
 
-    #[test] 
+    #[test]
     fn test_fast_timestamp_basic() {
         let timestamp1 = fast_timestamp_ns(); // Auto-initializes
         thread::sleep(Duration::from_millis(1));
         let timestamp2 = fast_timestamp_ns();
-        
+
         // Should be monotonically increasing
         assert!(timestamp2 > timestamp1);
-        
+
         // Should be reasonable (within 1 second of system time)
         let precise = precise_timestamp_ns();
         assert!(timestamp1 <= precise + 1_000_000_000);
@@ -325,25 +324,28 @@ mod tests {
 
     #[test]
     fn test_timestamp_uniqueness() {
-        
         // Generate many timestamps rapidly
         const COUNT: usize = 10_000;
         let mut timestamps = Vec::with_capacity(COUNT);
-        
+
         for _ in 0..COUNT {
             timestamps.push(fast_timestamp_ns());
         }
-        
+
         // All timestamps should be unique and increasing
         for i in 1..COUNT {
-            assert!(timestamps[i] > timestamps[i-1], 
-                   "Timestamp {} <= {} at index {}", timestamps[i], timestamps[i-1], i);
+            assert!(
+                timestamps[i] > timestamps[i - 1],
+                "Timestamp {} <= {} at index {}",
+                timestamps[i],
+                timestamps[i - 1],
+                i
+            );
         }
     }
 
     #[test]
     fn test_cross_thread_monotonic() {
-        
         let handle1 = thread::spawn(|| {
             let mut timestamps = Vec::new();
             for _ in 0..1000 {
@@ -351,7 +353,7 @@ mod tests {
             }
             timestamps
         });
-        
+
         let handle2 = thread::spawn(|| {
             let mut timestamps = Vec::new();
             for _ in 0..1000 {
@@ -359,19 +361,23 @@ mod tests {
             }
             timestamps
         });
-        
+
         let timestamps1 = handle1.join().unwrap();
         let timestamps2 = handle2.join().unwrap();
-        
+
         // All timestamps from both threads should be unique
         let mut all_timestamps = timestamps1;
         all_timestamps.extend(timestamps2);
         all_timestamps.sort();
-        
+
         // Check for duplicates
         for i in 1..all_timestamps.len() {
-            assert_ne!(all_timestamps[i], all_timestamps[i-1],
-                      "Duplicate timestamp found: {}", all_timestamps[i]);
+            assert_ne!(
+                all_timestamps[i],
+                all_timestamps[i - 1],
+                "Duplicate timestamp found: {}",
+                all_timestamps[i]
+            );
         }
     }
 
@@ -379,12 +385,12 @@ mod tests {
     fn test_timestamp_accuracy() {
         // Wait for background thread to update a few times (auto-initializes on first call)
         thread::sleep(Duration::from_millis(50));
-        
+
         let (fast, precise, drift) = timestamp_accuracy_info();
-        
+
         // Drift should be reasonable (within 1ms for this test)
         assert!(drift < 1_000_000, "Excessive timestamp drift: {} ns", drift);
-        
+
         // Fast timestamp should be reasonably close to precise
         assert!(fast > 0);
         assert!(precise > 0);
@@ -396,35 +402,39 @@ mod tests {
         for _ in 0..1000 {
             std::hint::black_box(fast_timestamp_ns());
         }
-        
+
         // Measure performance
         const ITERATIONS: usize = 100_000;
         let start = Instant::now();
-        
+
         for _ in 0..ITERATIONS {
             std::hint::black_box(fast_timestamp_ns());
         }
-        
+
         let duration = start.elapsed();
         let ns_per_op = duration.as_nanos() as f64 / ITERATIONS as f64;
-        
+
         println!("Fast timestamp performance: {:.2} ns/op", ns_per_op);
-        
+
         // Should achieve <10ns per operation
-        assert!(ns_per_op < 10.0, "Performance target not met: {:.2} ns/op", ns_per_op);
+        assert!(
+            ns_per_op < 10.0,
+            "Performance target not met: {:.2} ns/op",
+            ns_per_op
+        );
     }
 
     #[test]
     fn test_system_stats() {
         let (coarse, counter, interval) = timestamp_system_stats();
-        
+
         assert!(coarse > 0);
         assert!(interval == COARSE_UPDATE_INTERVAL_US);
-        
+
         // Generate some timestamps and verify counter increases
         fast_timestamp_ns();
         fast_timestamp_ns();
-        
+
         let (_, new_counter, _) = timestamp_system_stats();
         assert!(new_counter > counter);
     }
@@ -435,13 +445,13 @@ mod tests {
         // (This is theoretical since u32::MAX takes ~4 billion calls)
         let timestamp1 = fast_timestamp_ns();
         let timestamp2 = fast_timestamp_ns();
-        
+
         assert!(timestamp2 > timestamp1);
-        
+
         // Verify the arithmetic doesn't cause issues with large values
         let large_coarse = u64::MAX - 1000;
         COARSE_NS.store(large_coarse, Ordering::Relaxed);
-        
+
         let timestamp3 = fast_timestamp_ns();
         assert!(timestamp3 >= large_coarse);
     }

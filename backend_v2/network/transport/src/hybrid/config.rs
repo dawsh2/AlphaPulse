@@ -374,7 +374,7 @@ impl TransportConfig {
 
 impl ChannelConfig {
     /// Validate channel configuration
-    pub fn validate(&self, name: &str) -> Result<()> {
+    pub fn validate(&self, _name: &str) -> Result<()> {
         if self.name.is_empty() {
             return Err(TransportError::configuration(
                 "Channel name cannot be empty",

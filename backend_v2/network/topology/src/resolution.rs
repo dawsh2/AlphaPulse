@@ -9,10 +9,25 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
 
+/// Type alias for actor runtime information mapping
+type ActorRuntimesMap = Arc<RwLock<HashMap<String, ActorRuntimeInfo>>>;
+
+/// Type alias for node transport mapping
+type NodeTransportMap = HashMap<(String, String), Transport>;
+
+/// Type alias for actor channel mapping
+type ActorChannelMap = HashMap<(String, String), ChannelInfo>;
+
+/// Type alias for health data mapping
+type HealthDataMap = Arc<RwLock<HashMap<String, ActorHealth>>>;
+
+/// Type alias for circuit breaker mapping
+type CircuitBreakerMap = Arc<RwLock<HashMap<String, CircuitBreaker>>>;
+
 /// Resolves transport configuration and manages dynamic reconfiguration
 pub struct TopologyResolver {
     config: Arc<RwLock<TopologyConfig>>,
-    actor_runtimes: Arc<RwLock<HashMap<String, ActorRuntimeInfo>>>,
+    actor_runtimes: ActorRuntimesMap,
     transport_graph: Arc<RwLock<TransportGraph>>,
     health_monitor: Arc<ActorHealthMonitor>,
 }
@@ -71,9 +86,9 @@ pub enum ActorStatus {
 #[allow(dead_code)]
 pub struct TransportGraph {
     /// Node-to-node transport configurations
-    node_transports: HashMap<(String, String), Transport>,
+    node_transports: NodeTransportMap,
     /// Actor-to-actor communication channels
-    actor_channels: HashMap<(String, String), ChannelInfo>,
+    actor_channels: ActorChannelMap,
     /// Performance characteristics
     performance_cache: HashMap<String, TransportPerformance>,
 }
@@ -97,8 +112,8 @@ pub struct TransportPerformance {
 
 /// Actor health monitoring service
 pub struct ActorHealthMonitor {
-    health_data: Arc<RwLock<HashMap<String, ActorHealth>>>,
-    circuit_breakers: Arc<RwLock<HashMap<String, CircuitBreaker>>>,
+    health_data: HealthDataMap,
+    circuit_breakers: CircuitBreakerMap,
 }
 
 /// Circuit breaker for actor health management
@@ -147,7 +162,7 @@ pub struct CircuitBreaker {
 ///
 /// **Startup Sequence** (no hardcoded ordering):
 /// 1. `polygon` starts → announces "produces: market_data.polygon.*"
-/// 2. `topology_resolver` sees unrouted data → spawns `market_data_relay`  
+/// 2. `topology_resolver` sees unrouted data → spawns `market_data_relay`
 /// 3. `market_data_relay` starts → announces "consumes: market_data.*"
 /// 4. `polygon` discovers relay → establishes connection → data flows
 /// 5. `arbitrage_strategy` starts → discovers relay → subscribes to signals

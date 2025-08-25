@@ -4,8 +4,8 @@ use alphapulse_flash_arbitrage::{
     math::V3Math,
     pool_state::{PoolState, PoolStateManager},
 };
-use alphapulse_protocol_v2::instrument_id::{PoolInstrumentId, VenueId};
 use proptest::prelude::*;
+use protocol_v2::instrument_id::{PoolInstrumentId, VenueId};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use std::sync::Arc;

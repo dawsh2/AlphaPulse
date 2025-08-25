@@ -1,12 +1,15 @@
 # AlphaPulse Development Roadmap
 *Last Updated: 2025-08-25*
 
-## 🎯 Current Sprint: Test Suite Stabilization & Performance Optimization
-**Goal**: Stabilize Protocol V2 test suite and optimize system performance
+## 🎯 STRATEGIC OBJECTIVE: Arbitrage Strategy to Production
+**Primary Goal**: Complete arbitrage strategy deployment until production-ready and live
+**Secondary Goal**: Modularize and downsize codebase through high-quality consolidations
+
+## Current Sprint: Production Arbitrage Deployment
 
 ### Phase 1: Core Pipeline Fix (COMPLETED ✅)
 - [x] Debug exchange WebSocket connections - Polygon data ingestion working
-- [x] Debug relay message flow - TLV messages flowing between components  
+- [x] Debug relay message flow - TLV messages flowing between components
 - [x] Fix arbitrage strategy - receiving data and generating signals
 - [x] Fix signal relay - receiving and forwarding strategy signals
 - [x] Fix dashboard WebSocket connection - consuming live relay data
@@ -27,51 +30,104 @@
 
 **Achievement**: Protocol V2 header structure correctly positions magic byte at bytes 0-3 with proper 32-byte alignment
 
-### Phase 3: Critical Production Fixes (CURRENT SPRINT)
-**Production pipeline has critical issues that need immediate attention**
+### Phase 3: Arbitrage Production Readiness (CURRENT SPRINT)
+**Drive arbitrage strategy from current state to live production deployment**
 
-#### 🔴 CRITICAL: Production Blockers (Highest Priority)
-- [ ] **POOL-FIX**: Pool/Token address extraction - Currently using [0u8; 20] placeholders
-  - Extract real addresses from log.address
-  - Integrate existing pool_cache.rs infrastructure
-  - Implement async discovery for unknown pools
-- [ ] **PRECISION-FIX**: Signal output precision loss - Float conversion destroying profits
-  - Fix expected_profit_q calculation using integer math
-  - Store amounts as cents/wei from the start
-- [ ] **PERF-FIX**: Checksum validation killing performance
-  - Implement sampling (every 100th message)
-  - Maintain <35μs hot path target
+#### 🔴 CRITICAL: Production Blockers (Block Go-Live)
+- [ ] **POOL-001**: Real pool/token addresses integration (pool_cache.rs)
+- [ ] **PRECISION-001**: Fix signal precision loss in profit calculations (replace f64 with UsdFixedPoint8)
+- [ ] **EXECUTION-001**: Complete arbitrage execution path with real DEX calls
+- [ ] **RISK-001**: Implement position sizing and risk management controls
+- [ ] **MONITORING-001**: Production monitoring and alerting for live trading
 
-#### 🟡 Major Fixes (This Sprint)
-- [ ] **CLEANUP-FIX**: Remove unreachable pattern in relay_consumer.rs:440
-- [ ] **RATE-FIX**: Add dashboard rate limiting (100 msg/sec per client)
-- [ ] Fix 6 failing TLV parsing tests
-- [ ] Fix TLV size assertion failures (QuoteTLV: expected 52, got 56 bytes)
-- [ ] Fix zero-copy validation compilation errors
-- [ ] Address performance regression in fast_timestamp (21.76ns vs 5ns target)
+#### 🚀 PERFORMANCE: Monolith-via-Channels Optimization
+- [ ] **MONOLITH-001**: Extract execution logic from strategy into clean modules (execution, risk, portfolio)
+- [ ] **MONOLITH-002**: Implement embedded vs distributed execution modes via configuration
+- [ ] **MONOLITH-003**: Add Mycelium transport abstraction to strategy service
+- [ ] **MONOLITH-004**: Enable strategy+execution+risk+portfolio as single monolith process
+- [ ] **MONOLITH-005**: Benchmark monolith vs distributed performance (target: 5x speedup)
 
-### Phase 4: Codebase Cleanup (NEXT)
-**Major cleanup needed after protocol fix and pipeline is functional**
+#### 🟡 Production Quality (Must-Have for Live)
+- [ ] **TESTING-001**: End-to-end testing with real market data (no mocks)
+- [ ] **PERF-001**: Optimize hot path to <35μs (checksum sampling, etc.)
+- [ ] **SAFETY-001**: Circuit breakers and emergency stop mechanisms
+- [ ] **CAPITAL-001**: Capital allocation and drawdown protection
+- [ ] **LOGGING-001**: Comprehensive audit logging for regulatory compliance
 
-#### File Organization
-- [ ] Remove duplicate files with 'enhanced', 'fixed', 'new', 'v2' prefixes
-- [ ] Delete deprecated legacy services from backend/
-- [ ] Consolidate scripts directory - remove duplicates, clear naming
-- [ ] Clean up temporary test files and organize test structure
-- [ ] Remove 50+ scattered files in backend root directory
+#### 🟢 Production Nice-to-Have (Post Go-Live)
+- [ ] **DASHBOARD-001**: Real-time P&L and position monitoring
+- [ ] **ANALYTICS-001**: Performance analytics and strategy optimization
+- [ ] **SCALE-001**: Multi-venue arbitrage (Ethereum, Base, Arbitrum)
 
-#### Code Quality  
-- [ ] Standardize file and module naming conventions
-- [ ] Remove all commented out code and unused functions
-- [ ] Complete Symbol → InstrumentId migration (878+ instances)
-- [ ] Update all hardcoded values to configurable parameters
-- [ ] Remove mock/dummy code and test stubs
+### Phase 4: Strategic Codebase Modularization (POST-PRODUCTION)
+**Execute after arbitrage is live: Downsize and modularize through high-quality consolidations**
 
-#### Documentation
-- [ ] Update all README files to reflect current state
-- [ ] Remove outdated documentation
-- [ ] Document actual API endpoints and data flows
-- [ ] Create clear service boundary documentation
+#### High-Quality Consolidations (Strategic Priority)
+- [ ] **MODULE-001**: Extract core arbitrage logic into reusable library
+- [ ] **MODULE-002**: Consolidate all DEX integrations into unified adapter
+- [ ] **MODULE-003**: Create shared execution engine for multiple strategies
+- [ ] **MODULE-004**: Modularize risk management into pluggable components
+- [ ] **MODULE-005**: Extract monitoring/alerting into standalone service
+
+#### Architectural Refactoring (Foundation for Mycelium)
+- [ ] **TYPES-001**: Extract system types to `libs/types/` (fixed-point, identifiers, TLVs)
+- [ ] **TYPES-002**: Move TLV message definitions from `protocol_v2/src/tlv/` to `libs/types/tlv/`
+- [ ] **TYPES-003**: Move identifier types from `protocol_v2/src/identifiers/` to `libs/types/identifiers/`
+- [ ] **MYCELIUM-001**: Consolidate `protocol_v2/` + `network/` into `libs/mycelium/`
+- [ ] **MYCELIUM-002**: Implement transport abstraction (channels, unix sockets, tcp, rdma)
+- [ ] **MYCELIUM-003**: Enable monolith-via-channels deployment mode
+
+#### Service Modularization (Clean Architecture + Performance)
+- [ ] **SERVICE-001**: Refactor arbitrage strategy to use embedded modules pattern
+- [ ] **SERVICE-002**: Extract execution engine from strategy while keeping embedded
+- [ ] **SERVICE-003**: Extract risk manager from strategy while keeping embedded
+- [ ] **SERVICE-004**: Extract portfolio manager from strategy while keeping embedded
+- [ ] **SERVICE-005**: Implement configuration-driven deployment modes (monolith vs distributed)
+- [ ] **SERVICE-006**: Add Mycelium routing: embedded calls vs socket communication
+
+#### Aggressive Downsizing (Remove Litter)
+- [ ] **DELETE-001**: Remove all duplicate/enhanced/v2 files (50+ candidates)
+- [ ] **DELETE-002**: Eliminate entire legacy backend/ directory
+- [ ] **DELETE-003**: Purge unused scripts, configs, and test artifacts
+- [ ] **DELETE-004**: Remove all commented code and mock implementations
+- [ ] **DELETE-005**: Delete Symbol-based code after InstrumentId migration
+
+#### Quality-Focused Refactoring
+- [ ] **REFACTOR-001**: Consolidate 878+ Symbol references into InstrumentId
+- [ ] **REFACTOR-002**: Merge redundant service boundaries into logical units
+- [ ] **REFACTOR-003**: Standardize configuration patterns across services
+- [ ] **REFACTOR-004**: Unify error handling and logging approaches
+- [ ] **REFACTOR-005**: Create single source of truth for constants/parameters
+
+### Phase 5: Three-Repository Architecture (FUTURE VISION)
+**Long-term strategic separation into distinct, focused repositories**
+
+#### Repository 1: `alphapulse` (Frontend Client)
+- [ ] **EXTRACT-001**: Extract current frontend into standalone repo
+- [ ] **API-001**: Define clean REST/WebSocket API for trading system communication
+- [ ] **UI-001**: Enhanced real-time dashboard and portfolio management
+- [ ] **CLIENT-001**: Multi-backend support (dev, staging, prod trading systems)
+
+#### Repository 2: `[trading-system-name]` (Trading Backend)
+- [ ] **EXTRACT-002**: Extract trading logic from current backend_v2
+- [ ] **STRATEGY-001**: Unified strategy framework (arbitrage, market making, etc.)
+- [ ] **EXECUTION-001**: Multi-venue execution engine
+- [ ] **RISK-001**: Comprehensive risk management and capital allocation
+- [ ] **DEPS-001**: Built on top of Mycelium IPC foundation
+
+#### Repository 3: `mycelium` (Low-Latency IPC Foundation)
+- [ ] **EXTRACT-003**: Extract Protocol V2 TLV and transport layer
+- [ ] **GENERALIZE-001**: Remove trading-specific code, make domain-agnostic
+- [ ] **PERFORMANCE-001**: <1μs message latency, >10M msg/s throughput
+- [ ] **BINDINGS-001**: Multi-language support (Python, C++, Go, JavaScript)
+- [ ] **REUSABLE-001**: Universal low-latency distributed system foundation
+
+#### Gradual Migration Strategy
+1. **Post-Arbitrage**: Clean up current backend_v2 thoroughly
+2. **Phase 1**: Extract networking layer → `mycelium` repo
+3. **Phase 2**: Extract trading logic → `[trading-system-name]` repo
+4. **Phase 3**: Extract frontend → standalone `alphapulse` repo
+5. **Result**: Three focused, reusable, best-in-class repositories
 
 ### Phase 4: DevOps & Operations (FUTURE)
 **Standardize deployment, monitoring, and operations**
@@ -124,36 +180,49 @@
 
 ### Historical Velocity
 - Protocol V2 Implementation: ✅ Complete
-- Zero-Copy TLV: ✅ Complete  
+- Zero-Copy TLV: ✅ Complete
 - System Cleanup Round 1: ✅ Complete
 - Protocol V2 Header Fix: ✅ Complete
 - Production Pipeline: ✅ OPERATIONAL
 
-## Next Actions Queue
+## Next Actions Queue - Production Arbitrage Focus
 
-### Immediate (Today) - TEST STABILIZATION
-1. **HIGH PRIORITY**: Fix 6 failing TLV parsing tests to restore CI/CD confidence
-2. Investigate TLV size mismatches (QuoteTLV 52 vs 56 bytes)
-3. Fix zero-copy validation compilation errors (PoolSyncTLV::new method missing)
-4. Address performance regression in fast_timestamp (21.76ns vs 5ns target)
+### Immediate (Today) - Foundation Clean-Up
+1. **FOUNDATION**: Execute pool-cache integration merge after compilation fixes
+2. **CRITICAL**: Fix compilation errors (Vec<u8> vs &[u8] type mismatches)
+3. **STABILITY**: Resolve unreachable pattern and unused variable warnings
+4. **BASELINE**: Establish clean build as foundation for production work
 
-### This Week - Performance & Quality
-1. Fix hot path buffer allocation performance (1083ns vs <500ns target)
-2. Resolve demo arbitrage TLV roundtrip serialization issues
-3. Add comprehensive integration tests for end-to-end pipeline
-4. Validate >1M msg/s throughput is maintained after recent changes
-5. Set up automated performance regression detection
+### This Week - Arbitrage Production Blockers
+1. **EXECUTION-001**: Complete arbitrage execution engine with real DEX calls
+2. **RISK-001**: Implement position sizing and capital allocation controls
+3. **SAFETY-001**: Add circuit breakers and emergency stop mechanisms
+4. **MONITORING-001**: Production monitoring, alerting, and P&L tracking
+5. **TESTING-001**: End-to-end testing with live market data (no mocks)
 
-### Next Week - System Optimization
-1. Execute major codebase cleanup (Phase 4)
-2. Remove all duplicate files and scattered test artifacts
-3. Optimize memory usage and reduce service startup times
-4. Complete Symbol → InstrumentId migration (878+ instances remaining)
+### Next Week - Go-Live Preparation
+1. **PRODUCTION**: Deploy arbitrage strategy to live environment
+2. **VALIDATION**: Monitor live performance and profit generation
+3. **OPTIMIZATION**: Tune parameters based on real trading results
+4. **RISK**: Validate all safety mechanisms under live conditions
+
+### Post Go-Live - Strategic Codebase Improvement
+1. **MODULARIZATION**: Extract arbitrage logic into reusable libraries
+2. **CONSOLIDATION**: Merge redundant services and remove duplicate code
+3. **DOWNSIZING**: Aggressive deletion of unused/legacy components
+4. **QUALITY**: High-quality refactoring focusing on maintainability
 
 ## Notes
 - ✅ **MAJOR MILESTONE**: Full end-to-end pipeline operational with live dashboard
 - ✅ **CRITICAL FIX**: Protocol V2 header magic byte correctly positioned at bytes 0-3
-- **CURRENT FOCUS**: Test suite stabilization to restore development confidence  
-- **NEXT PHASE**: System optimization and performance tuning
-- Breaking changes are encouraged - this is greenfield codebase
-- No backwards compatibility concerns - optimize freely
+- 🎯 **STRATEGIC FOCUS**: Arbitrage strategy to production - everything else is secondary
+- **PRODUCTION TIMELINE**: Target live deployment within 1-2 weeks
+- **POST-PRODUCTION**: Aggressive codebase downsizing and modularization
+- Breaking changes encouraged - greenfield codebase with no backwards compatibility concerns
+
+## Key Arbitrage Production Readiness Metrics
+- [ ] **Real Money**: Live capital allocated and trading automatically
+- [ ] **Profit Generation**: Measurable positive returns from arbitrage opportunities
+- [ ] **Risk Control**: Position sizing, drawdown protection, circuit breakers active
+- [ ] **Monitoring**: Real-time alerts, P&L tracking, performance analytics
+- [ ] **Safety**: Emergency stops, manual overrides, comprehensive logging

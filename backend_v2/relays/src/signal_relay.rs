@@ -392,7 +392,7 @@ impl SignalRelay {
     async fn process_consumer_message(
         data: &[u8],
         consumer_id: &str,
-        stream: &UnixStream,
+        _stream: &UnixStream,
         consumer_streams: &Arc<RwLock<HashMap<String, UnixStream>>>,
         topic_filters: &Arc<RwLock<HashMap<String, TopicFilter>>>,
         signal_sender: &broadcast::Sender<RelayMessage>,
@@ -420,7 +420,7 @@ impl SignalRelay {
 
             // Store stream for broadcasting
             {
-                let mut streams = consumer_streams.write().await;
+                let _streams = consumer_streams.write().await;
                 // Note: UnixStream doesn't have try_clone, store reference differently
                 // For now, we'll manage streams in the connection handler
                 // streams.insert(consumer_id.to_string(), stream.try_clone()?);

@@ -14,7 +14,7 @@ pub use alphapulse_adapter_service::validation::{
 };
 
 // Re-export Protocol V2 types for tests
-pub use alphapulse_protocol_v2::{
+pub use protocol_v2::{
     tlv::market_data::{PoolBurnTLV, PoolLiquidityTLV, PoolMintTLV, PoolSwapTLV, PoolTickTLV},
     InstrumentId, VenueId,
 };

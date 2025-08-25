@@ -2,8 +2,11 @@
 //!
 //! Provides a universal abstraction for fixed-size collections that enable zero-copy
 //! serialization while preserving bijective ID mapping. This solves the fundamental
-//! tension between Vec<T> (bijective but not zero-copy) and fixed arrays (zero-copy
-//! but bounded).
+//! tension between Vec<T> (bijective but not zero-copy due to heap indirection) and
+//! fixed arrays (zero-copy but bounded at compile time).
+//!
+//! **Critical Design Decision**: PoolLiquidityTLV uses `FixedVec<u128, N>` NOT `Vec<u128>`
+//! This enables >1M msg/s zero-copy performance while maintaining dynamic sizing.
 //!
 //! ## Architecture Role
 //!
@@ -108,16 +111,33 @@ pub trait DynamicPayload<T> {
 
 /// Fixed-capacity vector with zero-copy serialization support
 ///
+/// **Key Distinction: FixedVec ≠ Vec**
+/// - `Vec<T>`: Heap-allocated, pointer indirection → **Cannot be zero-copy**
+/// - `FixedVec<T, N>`: Stack-allocated, inline storage → **Enables zero-copy**
+///
+/// This structure solves the fundamental tension between:
+/// 1. `Vec<T>`: Perfect bijection but no zero-copy (heap indirection)
+/// 2. `[T; N]`: Zero-copy but no dynamic sizing (fixed at compile time)
+/// 3. `FixedVec<T, N>`: Both zero-copy AND dynamic sizing (up to N elements)
+///
 /// Maintains exact element count while using fixed-size array for zero-copy.
 /// Unused slots are zeroed for deterministic serialization.
 ///
-/// # Memory Layout
+/// # Memory Layout (Inline Storage)
 ///
 /// ```
 /// [count: u16][_padding: [u8; 6]][elements: [T; N]][_align_padding: varies]
 /// ```
 ///
-/// The padding ensures proper alignment for the elements array.
+/// All data is stored inline (no heap allocation), enabling direct memory mapping
+/// for zero-copy serialization/deserialization with zerocopy traits.
+///
+/// # Zero-Copy vs Bijection Methods
+///
+/// - **Zero-copy**: Direct `AsBytes`/`FromBytes` on entire structure
+/// - **Bijection methods** (`to_vec()`, `from_slice()`): For interoperability with existing Vec-based APIs
+///
+/// The bijection methods exist for convenience, not because internal storage uses `Vec<T>`.
 ///
 /// Note: Due to zerocopy crate limitations with generics, zero-copy serialization
 /// must be implemented manually for specific instantiations.
@@ -142,7 +162,7 @@ where
 //
 // SAFETY: FixedVec has a well-defined memory layout with #[repr(C)]:
 // - count: u16 (2 bytes)
-// - _padding: [u8; 6] (6 bytes) 
+// - _padding: [u8; 6] (6 bytes)
 // - elements: [u128; 8] (128 bytes)
 // Total: 136 bytes with proper alignment
 //
@@ -168,7 +188,7 @@ unsafe impl FromZeroes for FixedVec<u128, MAX_POOL_TOKENS> {
 // SAFETY: FixedVec has a well-defined memory layout with #[repr(C)]:
 // - count: u16 (2 bytes)
 // - _padding: [u8; 6] (6 bytes)
-// - elements: [InstrumentId; 16] (128 bytes) 
+// - elements: [InstrumentId; 16] (128 bytes)
 // Total: 136 bytes with proper alignment
 //
 // InstrumentId is also #[repr(C)] with zerocopy support from the core protocol

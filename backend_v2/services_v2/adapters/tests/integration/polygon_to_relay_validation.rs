@@ -8,7 +8,7 @@ use alphapulse_adapter_service::input::collectors::polygon_dex::{
     abi_events::DEXProtocol,
 };
 use alphapulse_adapter_service::{complete_validation_pipeline, ValidationError};
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     TLVMessage, MessageHeader, RelayDomain, VenueId,
     tlv::market_data::PoolSwapTLV,
     parse_header, parse_tlv_extensions, TLVType,
@@ -23,55 +23,55 @@ use crate::fixtures::polygon;
 #[tokio::test]
 async fn test_polygon_to_relay_tlv_generation() {
     println!("🧪 Testing Polygon → Relay TLV Generation");
-    
+
     // Create TLV message channel
     let (tx, mut rx) = mpsc::channel::<TLVMessage>(10);
-    
+
     // Create Polygon collector with our channel
-    
+
     // Use real Uniswap V3 swap data
     let real_swap_log = polygon::uniswap_v3_swap_real();
-    
+
     // Process the log through the collector's internal pipeline
     let decoder = ValidatedPolygonDecoder::new();
     let result = decoder.decode_and_validate(&real_swap_log, DEXProtocol::UniswapV3);
-    
+
     assert!(result.is_ok(), "Polygon decoder should handle real V3 swap: {:?}", result);
-    
+
     let pool_swap_tlv = result.unwrap();
-    
+
     // Verify TLV structure is correct for relay consumption
     println!("✅ Generated PoolSwapTLV for relay");
     println!("   Pool Address: 0x{}", hex::encode(pool_swap_tlv.pool_address));
     println!("   Amount In: {} (decimals: {})", pool_swap_tlv.amount_in, pool_swap_tlv.amount_in_decimals);
     println!("   Amount Out: {} (decimals: {})", pool_swap_tlv.amount_out, pool_swap_tlv.amount_out_decimals);
     println!("   Block Number: {}", pool_swap_tlv.block_number);
-    
+
     // Validate TLV fields for relay compatibility
     assert_ne!(pool_swap_tlv.pool_address, [0u8; 20], "Pool address must be non-zero");
     assert!(pool_swap_tlv.amount_in > 0, "Amount in must be positive");
     assert!(pool_swap_tlv.amount_out > 0, "Amount out must be positive");
     assert!(pool_swap_tlv.block_number > 0, "Block number must be set");
     assert!(pool_swap_tlv.timestamp_ns > 0, "Timestamp must be set");
-    
+
     // For V3 swaps, validate V3-specific fields are set
     assert_ne!(pool_swap_tlv.sqrt_price_x96_after, [0u8; 20], "V3 sqrt_price must be set");
     assert_ne!(pool_swap_tlv.tick_after, 0, "V3 tick must be set");
-    
+
     println!("✅ All TLV fields properly set for relay consumption");
 }
 
 /// Test relay message header generation and compatibility
-#[tokio::test] 
+#[tokio::test]
 async fn test_relay_message_header_generation() {
     println!("🧪 Testing Relay Message Header Generation");
-    
+
     // Create mock TLV message
     let pool_swap_tlv = create_test_pool_swap_tlv();
     let tlv_message = pool_swap_tlv.to_tlv_message();
-    
+
     println!("   TLV payload size: {} bytes", tlv_message.payload.len());
-    
+
     // Create relay message header (matching live_polygon_relay.rs format)
     let sequence = 1u64;
     let header = MessageHeader {
@@ -88,7 +88,7 @@ async fn test_relay_message_header_generation() {
             .as_nanos() as u64,
         checksum: 0, // Performance mode
     };
-    
+
     // Validate header fields
     assert_eq!(header.magic, 0xDEADBEEF, "Correct magic number");
     assert_eq!(header.relay_domain, RelayDomain::MarketData as u8, "Correct relay domain");
@@ -97,7 +97,7 @@ async fn test_relay_message_header_generation() {
     assert_eq!(header.payload_size as usize, tlv_message.payload.len(), "Payload size matches");
     assert!(header.timestamp > 0, "Timestamp set");
     assert_eq!(header.sequence, sequence, "Sequence number set");
-    
+
     // Test header serialization (unsafe but required for relay compatibility)
     let header_bytes = unsafe {
         std::slice::from_raw_parts(
@@ -105,29 +105,29 @@ async fn test_relay_message_header_generation() {
             std::mem::size_of::<MessageHeader>()
         )
     };
-    
+
     assert_eq!(header_bytes.len(), 32, "Header is exactly 32 bytes");
-    
+
     // Construct complete relay message
     let mut relay_message = Vec::with_capacity(header_bytes.len() + tlv_message.payload.len());
     relay_message.extend_from_slice(header_bytes);
     relay_message.extend_from_slice(&tlv_message.payload);
-    
+
     println!("✅ Relay message generated: {} total bytes", relay_message.len());
     println!("   Header: {} bytes", header_bytes.len());
     println!("   Payload: {} bytes", tlv_message.payload.len());
-    
+
     // Test that relay could parse this message back
     let parsed_header = parse_header(&relay_message).expect("Relay should parse header");
     assert_eq!(parsed_header.magic, 0xDEADBEEF);
     assert_eq!(parsed_header.payload_size as usize, tlv_message.payload.len());
-    
+
     let tlv_payload = &relay_message[32..32 + parsed_header.payload_size as usize];
     let parsed_tlvs = parse_tlv_extensions(tlv_payload).expect("Relay should parse TLVs");
-    
+
     assert_eq!(parsed_tlvs.len(), 1, "Should have exactly one TLV");
     // NOTE: We can't easily verify the TLV type here without more parsing logic
-    
+
     println!("✅ Relay message successfully roundtrips through parser");
 }
 
@@ -135,30 +135,30 @@ async fn test_relay_message_header_generation() {
 #[tokio::test]
 async fn test_e2e_semantic_preservation() {
     println!("🧪 Testing End-to-End Semantic Preservation");
-    
+
     let decoder = ValidatedPolygonDecoder::new();
-    
+
     // Test with real Uniswap V3 data
     let v3_log = polygon::uniswap_v3_swap_real();
     let v3_result = decoder.decode_and_validate(&v3_log, DEXProtocol::UniswapV3);
     assert!(v3_result.is_ok(), "V3 decoding should succeed");
-    
+
     let v3_tlv = v3_result.unwrap();
-    
-    // Test with real V2 data  
+
+    // Test with real V2 data
     let v2_log = polygon::quickswap_v2_swap_real();
     let v2_result = decoder.decode_and_validate(&v2_log, DEXProtocol::UniswapV2);
     assert!(v2_result.is_ok(), "V2 decoding should succeed");
-    
+
     let v2_tlv = v2_result.unwrap();
-    
+
     // Verify V3 vs V2 differentiation
     assert_ne!(v3_tlv.sqrt_price_x96_after, [0u8; 20], "V3 should have sqrt_price");
     assert_eq!(v2_tlv.sqrt_price_x96_after, [0u8; 20], "V2 should have zero sqrt_price");
-    
+
     assert_ne!(v3_tlv.tick_after, 0, "V3 should have tick");
     assert_eq!(v2_tlv.tick_after, 0, "V2 should have zero tick");
-    
+
     // Verify both have valid common fields
     for (tlv, protocol) in [(&v3_tlv, "V3"), (&v2_tlv, "V2")] {
         assert_ne!(tlv.pool_address, [0u8; 20], "{} pool address set", protocol);
@@ -167,13 +167,13 @@ async fn test_e2e_semantic_preservation() {
         assert!(tlv.block_number > 0, "{} block_number set", protocol);
         assert!(tlv.timestamp_ns > 0, "{} timestamp set", protocol);
     }
-    
+
     println!("✅ Semantic preservation validated for V3 and V2");
-    println!("   V3 TLV: sqrt_price={:?}, tick={}", 
-             v3_tlv.sqrt_price_x96_after[0..4].iter().any(|&b| b != 0), 
+    println!("   V3 TLV: sqrt_price={:?}, tick={}",
+             v3_tlv.sqrt_price_x96_after[0..4].iter().any(|&b| b != 0),
              v3_tlv.tick_after);
-    println!("   V2 TLV: sqrt_price={:?}, tick={}", 
-             v2_tlv.sqrt_price_x96_after[0..4].iter().any(|&b| b != 0), 
+    println!("   V2 TLV: sqrt_price={:?}, tick={}",
+             v2_tlv.sqrt_price_x96_after[0..4].iter().any(|&b| b != 0),
              v2_tlv.tick_after);
 }
 
@@ -181,26 +181,26 @@ async fn test_e2e_semantic_preservation() {
 #[tokio::test]
 async fn test_deep_equality_validation() {
     println!("🧪 Testing Deep Equality Validation");
-    
+
     let real_log = polygon::uniswap_v3_swap_real();
-    
+
     // Run complete validation pipeline
     let validation_result = complete_validation_pipeline(&real_log, DEXProtocol::UniswapV3);
     assert!(validation_result.is_ok(), "Complete validation should pass: {:?}", validation_result);
-    
+
     let validated_tlv = validation_result.unwrap();
-    
+
     // Verify the TLV passed all validation stages:
     // 1. Raw data parsing ✓
-    // 2. TLV serialization ✓  
+    // 2. TLV serialization ✓
     // 3. TLV deserialization ✓
     // 4. Deep equality check ✓
-    
+
     println!("✅ Complete validation pipeline passed");
     println!("   Pool: 0x{}", hex::encode(validated_tlv.pool_address));
     println!("   Venue: {:?}", validated_tlv.venue);
     println!("   Block: {}", validated_tlv.block_number);
-    
+
     // This TLV is now certified ready for relay consumption
     assert!(validated_tlv.amount_in > 0);
     assert!(validated_tlv.amount_out > 0);

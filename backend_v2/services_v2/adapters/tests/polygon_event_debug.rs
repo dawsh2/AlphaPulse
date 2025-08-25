@@ -21,6 +21,7 @@ use tokio::sync::RwLock;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 use web3::types::{Log, H160, H256};
+use zerocopy::AsBytes;
 
 // PolygonDexCollector replaced by standalone binary: bin/polygon/polygon.rs
 // Tests now use the unified collector directly
@@ -380,6 +381,12 @@ impl PolygonEventDebugger {
                     warn!("📌 WebSocket closed by remote");
                     break;
                 }
+                Ok(Some(Ok(Message::Binary(_)))) => {
+                    debug!("📦 Binary message received (ignoring)");
+                }
+                Ok(Some(Ok(Message::Frame(_)))) => {
+                    debug!("🔧 Frame message received (ignoring)");
+                }
                 Ok(Some(Err(e))) => {
                     error!("❌ WebSocket error: {}", e);
                     break;
@@ -491,24 +498,21 @@ impl PolygonEventDebugger {
         token_in_addr[12..20].copy_from_slice(&pool_address.0[0..8]);
         token_out_addr[12..20].copy_from_slice(&pool_address.0[12..20]);
 
-        let swap_tlv = PoolSwapTLV {
-            venue: VenueId::Polygon,
-            pool_address: pool_addr,
+        let swap_tlv = PoolSwapTLV::from_addresses(
+            pool_addr,
             token_in_addr,
             token_out_addr,
-            amount_in: 1000000000000000000u128, // 1 token
-            amount_out: 500000000u128,          // 0.5 USDC (6 decimals)
-            amount_in_decimals: 18,             // WETH decimals
-            amount_out_decimals: 6,             // USDC decimals
-            sqrt_price_x96_after: [0u8; 20],
-            tick_after: 0,
-            liquidity_after: 0,
-            timestamp_ns: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
-            block_number: log.block_number.map(|n| n.as_u64()).unwrap_or(0),
-        };
+            VenueId::Polygon,
+            1000000000000000000u128,       // 1 token
+            500000000u128,                 // 0.5 USDC (6 decimals)
+            5000000000000000000u128,       // Some liquidity value
+            1234567890000000000u64,        // timestamp_ns
+            45000000u64,                   // block_number
+            123456i32,                     // tick_after
+            18,                            // amount_in_decimals (WETH)
+            6,                             // amount_out_decimals (USDC)
+            1000000000000000000000000u128, // sqrt_price_x96_after
+        );
 
         // Build TLV message
         let message = TLVMessageBuilder::new(
@@ -662,7 +666,7 @@ impl PolygonEventDebugger {
     /// Log comprehensive summary of all endpoint tests
     fn log_summary_report(&self, results: &[EndpointTestResult]) {
         info!("📋 POLYGON EVENT DEBUG SUMMARY");
-        info!("=".repeat(50));
+        info!("{}", "=".repeat(50));
 
         let total_endpoints = results.len();
         let connected_count = results.iter().filter(|r| r.connected).count();
@@ -735,7 +739,7 @@ impl PolygonEventDebugger {
             }
         }
 
-        info!("=".repeat(50));
+        info!("{}", "=".repeat(50));
     }
 }
 

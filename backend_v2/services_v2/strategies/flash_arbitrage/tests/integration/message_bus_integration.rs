@@ -1,7 +1,7 @@
 //! Integration tests for message bus communication
 
 use alphapulse_flash_arbitrage::pool_state::PoolStateManager;
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     tlv::TLVMessageBuilder, transport::message_bus::InMemoryMessageBus, RelayDomain, SourceType,
     TLVType,
 };

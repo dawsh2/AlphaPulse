@@ -2,16 +2,16 @@
 //!
 //! Tests:
 //! 1. Live data from both Polygon DEX and Kraken
-//! 2. Routing to multiple active strategies (flash-arbitrage, kraken-signal)  
+//! 2. Routing to multiple active strategies (flash-arbitrage, kraken-signal)
 //! 3. Deep equality verification for roundtrip serialization
 //! 4. Ensures no data corruption across the entire pipeline
 
-use alphapulse_protocol_v2::{
+use ethers::prelude::*;
+use futures_util::{SinkExt, StreamExt};
+use protocol_v2::{
     build_instrument_id, InstrumentId, MessageHeader, PoolSwapTLV, QuoteTLV, RelayDomain,
     SourceType, TLVMessage, TLVType, TradeTLV, VenueId, MESSAGE_MAGIC, PROTOCOL_VERSION,
 };
-use ethers::prelude::*;
-use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;

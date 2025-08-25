@@ -1,9 +1,9 @@
 //! End-to-end integration tests for relay functionality
 
-use alphapulse_protocol_v2::{
+use alphapulse_relays::{ConsumerId, Relay, RelayConfig};
+use protocol_v2::{
     MessageHeader, OrderTLV, QuoteTLV, SignalTLV, TLVMessage, TLVType, TradeTLV, MESSAGE_MAGIC,
 };
-use alphapulse_relays::{ConsumerId, Relay, RelayConfig};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, Mutex};

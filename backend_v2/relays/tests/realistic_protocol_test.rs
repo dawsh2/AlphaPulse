@@ -3,7 +3,7 @@
 //! This test uses real MessageHeader and TLV structures from protocol_v2
 //! to verify the relay correctly routes messages based on topics.
 
-use alphapulse_protocol_v2::{
+use protocol_v2::{
     MessageHeader, PoolSwapTLV, QuoteTLV, RelayDomain, SourceType, TLVType, TradeTLV,
     MESSAGE_MAGIC, PROTOCOL_VERSION,
 };
