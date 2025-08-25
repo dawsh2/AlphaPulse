@@ -51,9 +51,15 @@ start_service() {
     echo "🔄 Starting $service_name..."
     cd /Users/daws/alphapulse/backend_v2
     
-    # Check if this is a relay service
+    # Check service type and use appropriate package
     if [[ "$service_path" == *"relay"* ]]; then
         RUST_LOG=info cargo run --release -p alphapulse-relays --bin "$service_path" > "$log_file" 2>&1 &
+    elif [[ "$service_path" == "polygon" ]]; then
+        RUST_LOG=info cargo run --release -p alphapulse-adapter-service --bin "$service_path" > "$log_file" 2>&1 &
+    elif [[ "$service_path" == "alphapulse-flash-arbitrage" ]]; then
+        RUST_LOG=info cargo run --release -p alphapulse-flash-arbitrage > "$log_file" 2>&1 &
+    elif [[ "$service_path" == "alphapulse-dashboard-websocket" ]]; then
+        RUST_LOG=info cargo run --release -p alphapulse-dashboard-websocket > "$log_file" 2>&1 &
     else
         RUST_LOG=info cargo run --release --bin "$service_path" > "$log_file" 2>&1 &
     fi
@@ -91,15 +97,15 @@ fi
 
 echo ""
 
-# Step 2: Start Polygon Publisher (Real DEX Data)
-echo -e "${BLUE}Step 2: Polygon DEX Publisher${NC}"
+# Step 2: Start Polygon Collector (Real DEX Data)
+echo -e "${BLUE}Step 2: Polygon DEX Collector${NC}"
 echo "─────────────────────────────"
 echo "📡 Connecting to live Polygon blockchain..."
 echo "   Subscribes to real DEX events via WebSocket"
 echo "   Forwards TLV messages to MarketDataRelay"
 
 cd /Users/daws/alphapulse/backend_v2/services_v2/adapters
-start_service "polygon_publisher" "Polygon DEX Publisher" "/tmp/alphapulse/logs/polygon_publisher.log" "/tmp/alphapulse/polygon_publisher.pid"
+start_service "polygon" "Polygon DEX Collector" "/tmp/alphapulse/logs/polygon_collector.log" "/tmp/alphapulse/polygon_collector.pid"
 
 # Give publisher time to establish WebSocket connection
 echo "⏳ Waiting for Polygon blockchain connection (15 seconds)..."
@@ -151,7 +157,7 @@ echo "📋 Service Status:"
 echo "   📡 MarketDataRelay: $(test -S /tmp/alphapulse/market_data.sock && echo '✅ Running' || echo '❌ Failed')"
 echo "   🔔 SignalRelay: $(test -S /tmp/alphapulse/signals.sock && echo '✅ Running' || echo '❌ Failed')"
 echo "   ⚡ ExecutionRelay: $(test -S /tmp/alphapulse/execution.sock && echo '✅ Running' || echo '❌ Failed')"
-echo "   🌐 Polygon Publisher: $(test -f /tmp/alphapulse/polygon_publisher.pid && echo '✅ Running' || echo '❌ Failed')"
+echo "   🌐 Polygon Collector: $(test -f /tmp/alphapulse/polygon_collector.pid && echo '✅ Running' || echo '❌ Failed')"
 echo "   🎯 Flash Arbitrage: $(test -f /tmp/alphapulse/flash_arbitrage.pid && echo '✅ Running' || echo '❌ Failed')"
 echo "   📊 Dashboard Server: $(test -f /tmp/alphapulse/dashboard_websocket.pid && echo '✅ Running' || echo '❌ Failed')"
 
@@ -171,7 +177,7 @@ echo "📋 Log Files:"
 echo "   MarketData Relay: /tmp/alphapulse/logs/market_data_relay.log"
 echo "   Signal Relay: /tmp/alphapulse/logs/signal_relay.log"
 echo "   Execution Relay: /tmp/alphapulse/logs/execution_relay.log"
-echo "   Polygon Publisher: /tmp/alphapulse/logs/polygon_publisher.log"
+echo "   Polygon Collector: /tmp/alphapulse/logs/polygon_collector.log"
 echo "   Flash Arbitrage: /tmp/alphapulse/logs/flash_arbitrage.log"
 echo "   Dashboard Server: /tmp/alphapulse/logs/dashboard_websocket.log"
 

@@ -192,7 +192,7 @@ export function useWebSocketFirehose(endpoint: string) {
             // Subscribe to ALL available channels and symbols
             ws.current.send(JSON.stringify({
               msg_type: 'subscribe',
-              channels: ['trades', 'orderbook', 'l2_updates', 'status_updates'],
+              channels: ['trades', 'orderbook', 'l2_updates', 'status_updates', 'pool_swap'],
               symbols: [] // Empty array = subscribe to ALL symbols
             }));
             
@@ -355,6 +355,10 @@ export function useWebSocketFirehose(endpoint: string) {
           } else if (message.msg_type === 'pong') {
             // Handle pong response (keepalive)
             console.log('🏓 Received pong, connection alive');
+          } else if (message.msg_type === 'heartbeat') {
+            // Handle heartbeat - update connection status
+            console.log(`💗 Heartbeat: ${message.client_count} clients connected`);
+            setIsConnected(true);
           } else {
             console.log('Unknown message format:', message);
           }

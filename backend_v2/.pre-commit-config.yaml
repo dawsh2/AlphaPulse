@@ -94,6 +94,16 @@ repos:
         language: system
         files: Cargo.toml
 
+  # Security checks
+  - repo: local
+    hooks:
+      - id: check-secrets
+        name: Secret Detection (with exclusions)
+        entry: ./scripts/check_secrets.sh
+        language: system
+        types: [text]
+        pass_filenames: true
+
   # Git hygiene
   - repo: pre-commit/pre-commit-hooks
     rev: v4.4.0
