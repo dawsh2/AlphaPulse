@@ -5,8 +5,7 @@
 
 use protocol_v2::{
     tlv::{self, StateInvalidationTLV},
-    InstrumentId, InvalidationReason, RelayDomain, SourceType,
-    TLVType, VenueId,
+    InstrumentId, InvalidationReason, RelayDomain, SourceType, TLVType, VenueId,
 };
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
@@ -14,7 +13,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::interval;
-use zerocopy::AsBytes;
 
 use crate::input::ConnectionState;
 use crate::AdapterMetrics;
@@ -193,11 +191,12 @@ impl StateManager {
 
         // Convert to TLV message
         let tlv_message = tlv::build_message_direct(
-            RelayDomain::MarketData, 
+            RelayDomain::MarketData,
             SourceType::StateManager,
-            TLVType::StateInvalidation, 
-            &invalidation
-        ).map_err(|e| AdapterError::Internal(format!("TLV message build failed: {}", e)))?;
+            TLVType::StateInvalidation,
+            &invalidation,
+        )
+        .map_err(|e| AdapterError::Internal(format!("TLV message build failed: {}", e)))?;
 
         tracing::warn!(
             "Generated state invalidation for {} instruments on venue {:?} (seq: {})",
@@ -242,8 +241,9 @@ impl StateManager {
             RelayDomain::MarketData,
             SourceType::StateManager,
             TLVType::StateInvalidation,
-            &recovery
-        ).map_err(|e| AdapterError::Internal(format!("TLV message build failed: {}", e)))?;
+            &recovery,
+        )
+        .map_err(|e| AdapterError::Internal(format!("TLV message build failed: {}", e)))?;
 
         tracing::info!("Generated recovery message for venue {:?}", self.venue);
 

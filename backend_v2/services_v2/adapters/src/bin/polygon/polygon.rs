@@ -32,10 +32,10 @@ use once_cell::sync::Lazy;
 use protocol_v2::{
     parse_header, parse_tlv_extensions,
     tlv::build_message_direct,
+    tlv::fast_timestamp::init_timestamp_system,
     tlv::market_data::{PoolBurnTLV, PoolMintTLV, PoolSwapTLV, PoolSyncTLV, PoolTickTLV},
     tlv::pool_state::{PoolStateTLV, V2PoolConfig, V3PoolConfig},
     SourceType, TLVType, VenueId,
-    tlv::fast_timestamp::init_timestamp_system,
 };
 use serde_json::Value;
 use std::sync::Arc;
@@ -100,7 +100,7 @@ static UNISWAP_V3_SWAP_EVENT: Lazy<Event> = Lazy::new(|| Event {
     anonymous: false,
 });
 
-/// Uniswap V2/QuickSwap Swap event ABI definition  
+/// Uniswap V2/QuickSwap Swap event ABI definition
 /// event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)
 static UNISWAP_V2_SWAP_EVENT: Lazy<Event> = Lazy::new(|| Event {
     name: "Swap".to_string(),
@@ -273,11 +273,11 @@ impl UnifiedPolygonCollector {
         // Initialize pool cache with persistence
         let cache_dir = std::path::PathBuf::from("/tmp/alphapulse");
         std::fs::create_dir_all(&cache_dir)?;
-        
+
         let pool_cache = Arc::new(
-            PoolCache::with_persistence(cache_dir, 137) // 137 is Polygon chain ID
+            PoolCache::with_persistence(cache_dir, 137), // 137 is Polygon chain ID
         );
-        
+
         // Load existing cache from disk if available
         match pool_cache.load_from_disk().await {
             Ok(count) => info!("✅ Loaded {} pools from cache", count),
@@ -285,9 +285,7 @@ impl UnifiedPolygonCollector {
         }
 
         // Initialize pool state manager
-        let pool_state_manager = Arc::new(
-            PoolStateManager::new()
-        );
+        let pool_state_manager = Arc::new(PoolStateManager::new());
 
         Ok(Self {
             config,
@@ -456,7 +454,10 @@ impl UnifiedPolygonCollector {
             match tokio::time::timeout(message_timeout, ws_receiver.next()).await {
                 Ok(Some(Ok(Message::Text(text)))) => {
                     debug!("📥 Raw WebSocket message received: {} bytes", text.len());
-                    debug!("📥 Message preview: {}", text.chars().take(200).collect::<String>());
+                    debug!(
+                        "📥 Message preview: {}",
+                        text.chars().take(200).collect::<String>()
+                    );
                     if let Err(e) = self.process_websocket_message(&text).await {
                         error!("🔥 CRASH: Failed to process WebSocket message: {}", e);
                         return Err(e);
@@ -551,8 +552,12 @@ impl UnifiedPolygonCollector {
                             .json_to_web3_log(result)
                             .context("Failed to convert JSON to Web3 log")?;
 
-                        debug!("📥 Converted to Web3 log: address={:?}, topics={}, data_len={}", 
-                               log.address, log.topics.len(), log.data.0.len());
+                        debug!(
+                            "📥 Converted to Web3 log: address={:?}, topics={}, data_len={}",
+                            log.address,
+                            log.topics.len(),
+                            log.data.0.len()
+                        );
 
                         self.process_dex_event(&log)
                             .await
@@ -671,7 +676,7 @@ impl UnifiedPolygonCollector {
                 }
 
                 // Send directly to RelayOutput (graceful degradation if relay unavailable)
-                match self.relay_output.send_bytes(tlv_message).await {
+                match self.relay_output.send_bytes(&tlv_message).await {
                     Ok(()) => {
                         debug!("📤 TLV message sent to relay");
                     }
@@ -759,17 +764,20 @@ impl UnifiedPolygonCollector {
         }
 
         let pool_address = log.address;
-        
+
         // Convert H160 to [u8; 20]
         let mut pool_addr_bytes = [0u8; 20];
         pool_addr_bytes.copy_from_slice(&pool_address.0);
-        
+
         // Try to get pool info - this will either return cached data or trigger discovery
         let pool_info = match self.pool_cache.get_or_discover_pool(pool_addr_bytes).await {
             Ok(info) => info,
             Err(e) => {
                 // Log warning and skip this event for now
-                warn!("Failed to get pool info for {}: {}, skipping event", pool_address, e);
+                warn!(
+                    "Failed to get pool info for {}: {}, skipping event",
+                    pool_address, e
+                );
                 return None;
             }
         };
@@ -885,7 +893,14 @@ impl UnifiedPolygonCollector {
 
         // Now we have REAL addresses from the pool cache!
         // Determine which token is in and which is out based on swap amounts
-        let (token_in_addr, token_out_addr, amount_in, amount_out, amount_in_decimals, amount_out_decimals) = if amount0 > 0 {
+        let (
+            token_in_addr,
+            token_out_addr,
+            amount_in,
+            amount_out,
+            amount_in_decimals,
+            amount_out_decimals,
+        ) = if amount0 > 0 {
             // Token0 in, Token1 out
             (
                 pool_info.token0,
@@ -908,30 +923,33 @@ impl UnifiedPolygonCollector {
         };
 
         let swap_tlv = PoolSwapTLV::new(
-            pool_info.pool_address,  // REAL pool address!
-            token_in_addr,            // REAL token0 address!
-            token_out_addr,           // REAL token1 address!
+            pool_info.pool_address, // REAL pool address!
+            token_in_addr,          // REAL token0 address!
+            token_out_addr,         // REAL token1 address!
             pool_info.venue,
             amount_in,
             amount_out,
-            sqrt_price_x96,  // liquidity_after - V3 specific, now extracted properly
+            sqrt_price_x96, // liquidity_after - V3 specific, now extracted properly
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos() as u64,
             log.block_number.map(|n| n.as_u64()).unwrap_or(0),
-            tick,  // tick_after - V3 specific, now extracted properly
+            tick, // tick_after - V3 specific, now extracted properly
             amount_in_decimals,
             amount_out_decimals,
-            sqrt_price_x96,  // sqrt_price_x96_after - V3 specific, now extracted properly
+            sqrt_price_x96, // sqrt_price_x96_after - V3 specific, now extracted properly
         );
 
         debug!(
             "⚡ Swap processed for pool {}: {} {} → {} {}",
             hex::encode(pool_info.pool_address),
-            amount_in, amount_in_decimals, amount_out, amount_out_decimals
+            amount_in,
+            amount_in_decimals,
+            amount_out,
+            amount_out_decimals
         );
-        
+
         // Update pool state manager with the swap data
         if let Err(e) = self.pool_state_manager.process_swap(&swap_tlv) {
             warn!("Failed to update pool state: {}", e);
@@ -1486,7 +1504,7 @@ impl UnifiedPolygonCollector {
 async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt::init();
-    
+
     // ✅ CRITICAL: Initialize ultra-fast timestamp system
     init_timestamp_system();
     info!("✅ Ultra-fast timestamp system initialized (~5ns per timestamp)");
@@ -1515,7 +1533,9 @@ async fn main() -> Result<()> {
     );
 
     // Create and start collector
-    let collector = UnifiedPolygonCollector::new(config).await.context("Failed to create collector")?;
+    let collector = UnifiedPolygonCollector::new(config)
+        .await
+        .context("Failed to create collector")?;
 
     // Setup signal handling for graceful shutdown
     let collector_ref = Arc::new(collector);

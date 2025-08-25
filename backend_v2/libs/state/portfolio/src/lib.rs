@@ -60,7 +60,7 @@
 //! impl Stateful for PortfolioStateManager {
 //!     type Event = PortfolioEvent;
 //!     type Error = PortfolioError;
-//!     
+//!
 //!     fn apply_event(&mut self, event: Self::Event) -> Result<(), Self::Error> {
 //!         match event {
 //!             PortfolioEvent::Trade(trade) => self.update_position(trade),
@@ -74,6 +74,9 @@
 
 use alphapulse_state_core::Stateful;
 use rust_decimal::Decimal;
+
+pub mod risk_engine;
+pub use risk_engine::{DetailedRiskCheck, FastRiskCheck, RiskEngine, RiskEngineConfig};
 
 /// Placeholder for portfolio events
 #[derive(Debug)]

@@ -2,6 +2,7 @@
 //!
 //! Contains actual Polygon blockchain data for validation testing.
 
+use alphapulse_dex::{UNISWAP_V2_SWAP, UNISWAP_V3_MINT, UNISWAP_V3_SWAP};
 use hex;
 use web3::types::{Log, H160, H256, U256, U64};
 
@@ -15,9 +16,7 @@ pub fn uniswap_v3_swap_real() -> Log {
             .unwrap(),
         topics: vec![
             // Swap(address,address,int256,int256,uint160,uint128,int24) signature
-            "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67"
-                .parse()
-                .unwrap(),
+            UNISWAP_V3_SWAP,
             // sender (indexed)
             "0x000000000000000000000000e592427a0aece92de3edee1f18e0157c05861564"
                 .parse()
@@ -66,9 +65,7 @@ pub fn quickswap_v2_swap_real() -> Log {
             .unwrap(),
         topics: vec![
             // Swap(address,uint256,uint256,uint256,uint256,address) signature
-            "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
-                .parse()
-                .unwrap(),
+            UNISWAP_V2_SWAP,
             // sender (indexed)
             "0x000000000000000000000000a5e0829caced8ffdd4de3c43696c57f7d7a678ff"
                 .parse()

@@ -7,9 +7,11 @@ use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::net::UnixStream;
 use tracing::{debug, error, info, warn};
+use zerocopy::AsBytes;
 
-use protocol_v2::tlv::market_data::{
-    PoolBurnTLV, PoolLiquidityTLV, PoolMintTLV, PoolSwapTLV, PoolTickTLV,
+use protocol_v2::tlv::{
+    dynamic_payload::DynamicPayload,
+    market_data::{PoolBurnTLV, PoolLiquidityTLV, PoolMintTLV, PoolSwapTLV, PoolTickTLV},
 };
 
 #[derive(Debug, Default)]
@@ -86,7 +88,7 @@ fn validate_pool_swap(swap: &PoolSwapTLV, stats: &Arc<ValidationStats>) -> bool 
     stats.swaps_validated.fetch_add(1, Ordering::Relaxed);
 
     // Serialize and deserialize for roundtrip validation
-    let bytes = swap.to_bytes();
+    let bytes = swap.as_bytes();
     match PoolSwapTLV::from_bytes(&bytes) {
         Ok(recovered) => {
             // Deep equality check
@@ -139,7 +141,7 @@ fn validate_pool_swap(swap: &PoolSwapTLV, stats: &Arc<ValidationStats>) -> bool 
 fn validate_pool_mint(mint: &PoolMintTLV, stats: &Arc<ValidationStats>) -> bool {
     stats.mints_validated.fetch_add(1, Ordering::Relaxed);
 
-    let bytes = mint.to_bytes();
+    let bytes = mint.as_bytes();
     match PoolMintTLV::from_bytes(&bytes) {
         Ok(recovered) => {
             if mint == &recovered {
@@ -183,7 +185,7 @@ fn validate_pool_mint(mint: &PoolMintTLV, stats: &Arc<ValidationStats>) -> bool 
 fn validate_pool_burn(burn: &PoolBurnTLV, stats: &Arc<ValidationStats>) -> bool {
     stats.burns_validated.fetch_add(1, Ordering::Relaxed);
 
-    let bytes = burn.to_bytes();
+    let bytes = burn.as_bytes();
     match PoolBurnTLV::from_bytes(&bytes) {
         Ok(recovered) => {
             if burn == &recovered {
@@ -206,7 +208,7 @@ fn validate_pool_burn(burn: &PoolBurnTLV, stats: &Arc<ValidationStats>) -> bool 
 fn validate_pool_tick(tick: &PoolTickTLV, stats: &Arc<ValidationStats>) -> bool {
     stats.ticks_validated.fetch_add(1, Ordering::Relaxed);
 
-    let bytes = tick.to_bytes();
+    let bytes = tick.as_bytes();
     match PoolTickTLV::from_bytes(&bytes) {
         Ok(recovered) => {
             if tick == &recovered {
@@ -250,10 +252,11 @@ fn validate_pool_tick(tick: &PoolTickTLV, stats: &Arc<ValidationStats>) -> bool 
 fn validate_pool_liquidity(liq: &PoolLiquidityTLV, stats: &Arc<ValidationStats>) -> bool {
     stats.liquidity_validated.fetch_add(1, Ordering::Relaxed);
 
-    let bytes = liq.to_bytes();
-    match PoolLiquidityTLV::from_bytes(&bytes) {
-        Ok(recovered) => {
-            if liq == &recovered {
+    let bytes = liq.as_bytes();
+    match zerocopy::Ref::<_, PoolLiquidityTLV>::new(bytes) {
+        Some(recovered_ref) => {
+            let recovered = recovered_ref.into_ref();
+            if liq == recovered {
                 stats.deep_equality_passes.fetch_add(1, Ordering::Relaxed);
 
                 // Check all reserves preserved
@@ -276,7 +279,7 @@ fn validate_pool_liquidity(liq: &PoolLiquidityTLV, stats: &Arc<ValidationStats>)
                 false
             }
         }
-        Err(_) => {
+        None => {
             stats.deep_equality_failures.fetch_add(1, Ordering::Relaxed);
             false
         }
@@ -349,8 +352,8 @@ async fn process_relay_message(data: &[u8], stats: &Arc<ValidationStats>) {
             }
             10 => {
                 // PoolLiquidityTLV
-                if let Ok(liq) = PoolLiquidityTLV::from_bytes(tlv_payload) {
-                    validate_pool_liquidity(&liq, stats);
+                if let Some(liq_ref) = zerocopy::Ref::<_, PoolLiquidityTLV>::new(tlv_payload) {
+                    validate_pool_liquidity(liq_ref.into_ref(), stats);
                 }
             }
             _ => {}

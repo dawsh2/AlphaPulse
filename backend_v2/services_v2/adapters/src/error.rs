@@ -75,6 +75,10 @@ pub enum AdapterError {
     },
 
     /// Protocol errors
+    #[error("Failed to build TLV message: {0}")]
+    TLVBuildFailed(String),
+
+    /// Failed to send TLV message via relay output
     #[error("Failed to send TLV message: {0}")]
     TLVSendFailed(String),
 

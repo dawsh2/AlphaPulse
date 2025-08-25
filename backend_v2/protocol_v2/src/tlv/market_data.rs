@@ -4,9 +4,9 @@
 
 use crate::{InstrumentId, VenueId}; // TLVType removed with legacy TLV system
                                     // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
-use zerocopy::{AsBytes, FromBytes, FromZeroes};
-use super::dynamic_payload::{FixedVec, DynamicPayload};
+use super::dynamic_payload::{DynamicPayload, FixedVec};
 use crate::{define_tlv, define_tlv_with_padding};
+use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 // Trade TLV structure using macro for consistency
 define_tlv! {
@@ -79,7 +79,7 @@ impl TradeTLV {
         }
     }
 
-    /// Convert to VenueId  
+    /// Convert to VenueId
     pub fn venue(&self) -> Result<VenueId, crate::ProtocolError> {
         VenueId::try_from(self.venue_id).map_err(|_| crate::ProtocolError::InvalidInstrument)
     }
@@ -150,7 +150,15 @@ impl QuoteTLV {
         ask_size: i64,
         timestamp_ns: u64,
     ) -> Self {
-        Self::new(venue, instrument_id, bid_price, bid_size, ask_price, ask_size, timestamp_ns)
+        Self::new(
+            venue,
+            instrument_id,
+            bid_price,
+            bid_size,
+            ask_price,
+            ask_size,
+            timestamp_ns,
+        )
     }
 
     /// Convert to InstrumentId
@@ -163,7 +171,7 @@ impl QuoteTLV {
         }
     }
 
-    /// Convert to VenueId  
+    /// Convert to VenueId
     pub fn venue(&self) -> Result<VenueId, crate::ProtocolError> {
         VenueId::try_from(self.venue_id).map_err(|_| crate::ProtocolError::InvalidInstrument)
     }
@@ -174,7 +182,7 @@ impl QuoteTLV {
 }
 
 /// Order book level for bid/ask aggregation
-#[repr(C)]  // ✅ FIXED: Removed 'packed' to maintain proper alignment
+#[repr(C)] // ✅ FIXED: Removed 'packed' to maintain proper alignment
 #[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
 pub struct OrderLevel {
     /// Price in fixed-point (8 decimals for traditional exchanges, native precision for DEX)
@@ -197,32 +205,36 @@ impl OrderLevel {
             reserved: 0,
         }
     }
-    
+
     /// Get price as decimal (divide by precision factor)
     pub fn price_decimal(&self, precision_factor: i64) -> f64 {
         self.price as f64 / precision_factor as f64
     }
-    
+
     /// Get size as decimal (divide by precision factor)
     pub fn size_decimal(&self, precision_factor: i64) -> f64 {
         self.size as f64 / precision_factor as f64
     }
-    
+
     /// Read OrderLevel from 24-byte slice
     pub fn read_from(bytes: &[u8]) -> Option<Self> {
         if bytes.len() < 24 {
             return None;
         }
-        
+
         let price = i64::from_le_bytes(bytes[0..8].try_into().ok()?);
         let size = i64::from_le_bytes(bytes[8..16].try_into().ok()?);
         let order_count = u32::from_le_bytes(bytes[16..20].try_into().ok()?);
         let reserved = u32::from_le_bytes(bytes[20..24].try_into().ok()?);
-        
-        Some(Self { price, size, order_count, reserved })
+
+        Some(Self {
+            price,
+            size,
+            order_count,
+            reserved,
+        })
     }
 }
-
 
 /// OrderBook TLV structure for complete order book snapshots
 ///
@@ -271,41 +283,45 @@ impl OrderBookTLV {
             asks: Vec::new(),
         }
     }
-    
+
     /// Add bid level (maintains descending price order)
     pub fn add_bid(&mut self, price: i64, size: i64, order_count: u32) {
         let level = OrderLevel::new(price, size, order_count);
-        
+
         // Find insertion point to maintain descending order
-        let insert_pos = self.bids.iter()
+        let insert_pos = self
+            .bids
+            .iter()
             .position(|existing| existing.price < price)
             .unwrap_or(self.bids.len());
-            
+
         self.bids.insert(insert_pos, level);
     }
-    
+
     /// Add ask level (maintains ascending price order)
     pub fn add_ask(&mut self, price: i64, size: i64, order_count: u32) {
         let level = OrderLevel::new(price, size, order_count);
-        
+
         // Find insertion point to maintain ascending order
-        let insert_pos = self.asks.iter()
+        let insert_pos = self
+            .asks
+            .iter()
             .position(|existing| existing.price > price)
             .unwrap_or(self.asks.len());
-            
+
         self.asks.insert(insert_pos, level);
     }
-    
+
     /// Get best bid (highest price)
     pub fn best_bid(&self) -> Option<&OrderLevel> {
         self.bids.first()
     }
-    
+
     /// Get best ask (lowest price)
     pub fn best_ask(&self) -> Option<&OrderLevel> {
         self.asks.first()
     }
-    
+
     /// Calculate spread in basis points
     pub fn spread_bps(&self) -> Option<i32> {
         match (self.best_bid(), self.best_ask()) {
@@ -317,11 +333,11 @@ impl OrderBookTLV {
                 } else {
                     None
                 }
-            },
+            }
             _ => None,
         }
     }
-    
+
     /// Convert to InstrumentId
     pub fn instrument_id(&self) -> InstrumentId {
         InstrumentId {
@@ -331,21 +347,21 @@ impl OrderBookTLV {
             asset_id: self.asset_id,
         }
     }
-    
+
     /// Convert to VenueId
     pub fn venue(&self) -> Result<VenueId, crate::ProtocolError> {
         VenueId::try_from(self.venue_id).map_err(|_| crate::ProtocolError::InvalidInstrument)
     }
-    
+
     /// Calculate total byte size for TLV payload
     pub fn payload_size(&self) -> usize {
-        // Fixed header: asset_id(8) + venue_id(2) + asset_type(1) + reserved(1) + 
+        // Fixed header: asset_id(8) + venue_id(2) + asset_type(1) + reserved(1) +
         // timestamp_ns(8) + sequence(8) + precision_factor(8) = 36 bytes
         // Plus Vec length prefixes (4 bytes each) and OrderLevel data (24 bytes each)
         36 + 4 + (self.bids.len() * 24) + 4 + (self.asks.len() * 24)
     }
-    
-    /// Validate order book integrity  
+
+    /// Validate order book integrity
     pub fn validate(&self) -> Result<(), String> {
         // Check bid ordering (descending)
         for window in self.bids.windows(2) {
@@ -353,43 +369,43 @@ impl OrderBookTLV {
                 return Err("Bids not in descending price order".to_string());
             }
         }
-        
+
         // Check ask ordering (ascending)
         for window in self.asks.windows(2) {
             if window[0].price > window[1].price {
                 return Err("Asks not in ascending price order".to_string());
             }
         }
-        
+
         // Check no negative prices or sizes
         for bid in &self.bids {
             if bid.price <= 0 || bid.size <= 0 {
                 return Err("Invalid bid price or size".to_string());
             }
         }
-        
+
         for ask in &self.asks {
             if ask.price <= 0 || ask.size <= 0 {
                 return Err("Invalid ask price or size".to_string());
             }
         }
-        
+
         // Check spread sanity (best ask >= best bid)
         if let (Some(best_bid), Some(best_ask)) = (self.best_bid(), self.best_ask()) {
             if best_ask.price < best_bid.price {
                 return Err("Best ask price below best bid price".to_string());
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Serialize OrderBook to bytes for TLV payload
     pub fn to_bytes(&self) -> Result<Vec<u8>, String> {
         self.validate()?;
-        
+
         let mut bytes = Vec::with_capacity(self.payload_size());
-        
+
         // Serialize fixed fields (36 bytes)
         bytes.extend_from_slice(&self.asset_id.to_le_bytes());
         bytes.extend_from_slice(&self.venue_id.to_le_bytes());
@@ -398,72 +414,84 @@ impl OrderBookTLV {
         bytes.extend_from_slice(&self.timestamp_ns.to_le_bytes());
         bytes.extend_from_slice(&self.sequence.to_le_bytes());
         bytes.extend_from_slice(&self.precision_factor.to_le_bytes());
-        
+
         // Serialize bids array (length + data)
         bytes.extend_from_slice(&(self.bids.len() as u32).to_le_bytes());
         for bid in &self.bids {
             bytes.extend_from_slice(bid.as_bytes());
         }
-        
+
         // Serialize asks array (length + data)
         bytes.extend_from_slice(&(self.asks.len() as u32).to_le_bytes());
         for ask in &self.asks {
             bytes.extend_from_slice(ask.as_bytes());
         }
-        
+
         Ok(bytes)
     }
-    
+
     /// Deserialize OrderBook from bytes
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
         if bytes.len() < 36 {
             return Err("Insufficient data for OrderBook header".to_string());
         }
-        
+
         let mut offset = 0;
-        
+
         // Deserialize fixed fields
         let asset_id = u64::from_le_bytes(
-            bytes[offset..offset + 8].try_into().map_err(|_| "Invalid asset_id bytes")?
+            bytes[offset..offset + 8]
+                .try_into()
+                .map_err(|_| "Invalid asset_id bytes")?,
         );
         offset += 8;
-        
+
         let venue_id = u16::from_le_bytes(
-            bytes[offset..offset + 2].try_into().map_err(|_| "Invalid venue_id bytes")?
+            bytes[offset..offset + 2]
+                .try_into()
+                .map_err(|_| "Invalid venue_id bytes")?,
         );
         offset += 2;
-        
+
         let asset_type = bytes[offset];
         offset += 1;
-        
+
         let reserved = bytes[offset];
         offset += 1;
-        
+
         let timestamp_ns = u64::from_le_bytes(
-            bytes[offset..offset + 8].try_into().map_err(|_| "Invalid timestamp bytes")?
+            bytes[offset..offset + 8]
+                .try_into()
+                .map_err(|_| "Invalid timestamp bytes")?,
         );
         offset += 8;
-        
+
         let sequence = u64::from_le_bytes(
-            bytes[offset..offset + 8].try_into().map_err(|_| "Invalid sequence bytes")?
+            bytes[offset..offset + 8]
+                .try_into()
+                .map_err(|_| "Invalid sequence bytes")?,
         );
         offset += 8;
-        
+
         let precision_factor = i64::from_le_bytes(
-            bytes[offset..offset + 8].try_into().map_err(|_| "Invalid precision_factor bytes")?
+            bytes[offset..offset + 8]
+                .try_into()
+                .map_err(|_| "Invalid precision_factor bytes")?,
         );
         offset += 8;
-        
+
         // Deserialize bids array
         if offset + 4 > bytes.len() {
             return Err("Insufficient data for bids length".to_string());
         }
-        
+
         let bids_len = u32::from_le_bytes(
-            bytes[offset..offset + 4].try_into().map_err(|_| "Invalid bids length")?
+            bytes[offset..offset + 4]
+                .try_into()
+                .map_err(|_| "Invalid bids length")?,
         ) as usize;
         offset += 4;
-        
+
         let mut bids = Vec::with_capacity(bids_len);
         for _ in 0..bids_len {
             if offset + 24 > bytes.len() {
@@ -474,17 +502,19 @@ impl OrderBookTLV {
             bids.push(level);
             offset += 24;
         }
-        
+
         // Deserialize asks array
         if offset + 4 > bytes.len() {
             return Err("Insufficient data for asks length".to_string());
         }
-        
+
         let asks_len = u32::from_le_bytes(
-            bytes[offset..offset + 4].try_into().map_err(|_| "Invalid asks length")?
+            bytes[offset..offset + 4]
+                .try_into()
+                .map_err(|_| "Invalid asks length")?,
         ) as usize;
         offset += 4;
-        
+
         let mut asks = Vec::with_capacity(asks_len);
         for _ in 0..asks_len {
             if offset + 24 > bytes.len() {
@@ -495,7 +525,7 @@ impl OrderBookTLV {
             asks.push(level);
             offset += 24;
         }
-        
+
         let order_book = Self {
             asset_id,
             venue_id,
@@ -507,10 +537,10 @@ impl OrderBookTLV {
             bids,
             asks,
         };
-        
+
         // Validate integrity after deserialization
         order_book.validate()?;
-        
+
         Ok(order_book)
     }
 }
@@ -527,21 +557,22 @@ pub struct StateInvalidationTLV {
     pub timestamp_ns: u64, // Nanoseconds since epoch
 
     // FixedVec for instruments with zero-copy serialization
-    pub instruments: super::dynamic_payload::FixedVec<InstrumentId, { super::dynamic_payload::MAX_INSTRUMENTS }>, // Instrument IDs
+    pub instruments:
+        super::dynamic_payload::FixedVec<InstrumentId, { super::dynamic_payload::MAX_INSTRUMENTS }>, // Instrument IDs
 
     // Then smaller fields (8 bytes total)
-    pub venue: u16,        // VenueId as u16 (2 bytes)
-    pub reason: u8,        // InvalidationReason as u8 (1 byte)
+    pub venue: u16, // VenueId as u16 (2 bytes)
+    pub reason: u8, // InvalidationReason as u8 (1 byte)
     pub _padding: [u8; 5], // Explicit padding for alignment
 
-                           // Total: 16 + FixedVec size + 8 = varies (aligned)
+                    // Total: 16 + FixedVec size + 8 = varies (aligned)
 }
 
 // Manual zerocopy implementations for StateInvalidationTLV
 // SAFETY: StateInvalidationTLV has a well-defined memory layout with #[repr(C)]:
 // - sequence: u64 (8 bytes)
 // - timestamp_ns: u64 (8 bytes)
-// - instruments: FixedVec<InstrumentId, 16> (136 bytes) 
+// - instruments: FixedVec<InstrumentId, 16> (136 bytes)
 // - venue: u16 (2 bytes)
 // - reason: u8 (1 byte)
 // - _padding: [u8; 5] (5 bytes)
@@ -575,22 +606,23 @@ pub struct PoolLiquidityTLV {
     pub timestamp_ns: u64, // Nanoseconds since epoch
 
     // FixedVec for reserves with zero-copy serialization
-    pub reserves: super::dynamic_payload::FixedVec<u128, { super::dynamic_payload::MAX_POOL_TOKENS }>, // Token reserves (native precision)
+    pub reserves:
+        super::dynamic_payload::FixedVec<u128, { super::dynamic_payload::MAX_POOL_TOKENS }>, // Token reserves (native precision)
 
-    // Pool address (32 bytes - padded from 20-byte Ethereum address)  
+    // Pool address (32 bytes - padded from 20-byte Ethereum address)
     pub pool_address: [u8; 32], // Full pool contract address (20 bytes + 12 padding)
 
     // Then smaller fields (8 bytes total to align properly)
-    pub venue: u16,        // VenueId as u16 (2 bytes)
+    pub venue: u16, // VenueId as u16 (2 bytes)
     pub _padding: [u8; 6], // Explicit padding for alignment
 
-                           // Total: 8 + (2 + 6 + 8*16) + 32 + 8 = 176 bytes (maintaining same size)
+                    // Total: 8 + (2 + 6 + 8*16) + 32 + 8 = 176 bytes (maintaining same size)
 }
 
 // Manual zerocopy implementations for PoolLiquidityTLV
 // SAFETY: PoolLiquidityTLV has a well-defined memory layout with #[repr(C)]:
 // - timestamp_ns: u64 (8 bytes)
-// - reserves: FixedVec<u128, 8> (136 bytes - count:2 + padding:6 + elements:128)  
+// - reserves: FixedVec<u128, 8> (136 bytes - count:2 + padding:6 + elements:128)
 // - pool_address: [u8; 32] (32 bytes)
 // - venue: u16 (2 bytes)
 // - _padding: [u8; 6] (6 bytes)
@@ -635,10 +667,13 @@ define_tlv! {
             _padding: [u8; 8]        // Required for alignment to 208 bytes
         }
         special: {
-            pool_address: [u8; 32],      // Full pool contract address
-            token_in_addr: [u8; 32],     // Full input token address
-            token_out_addr: [u8; 32],    // Full output token address
-            sqrt_price_x96_after: [u8; 32]  // New sqrt price after swap (V3)
+            pool_address: [u8; 20],          // Ethereum pool contract address
+            pool_address_padding: [u8; 12],  // Padding for alignment
+            token_in_addr: [u8; 20],         // Ethereum input token address
+            token_in_padding: [u8; 12],      // Padding for alignment
+            token_out_addr: [u8; 20],        // Ethereum output token address
+            token_out_padding: [u8; 12],     // Padding for alignment
+            sqrt_price_x96_after: [u8; 32]  // New sqrt price after swap (V3) - keep 32 for math
         }
     }
 }
@@ -662,8 +697,6 @@ impl PoolSwapTLV {
         amount_out_decimals: u8,
         sqrt_price_x96_after: u128,
     ) -> Self {
-        use super::AddressConversion;
-
         Self::new_raw(
             amount_in,
             amount_out,
@@ -674,10 +707,13 @@ impl PoolSwapTLV {
             venue_id as u16,
             amount_in_decimals,
             amount_out_decimals,
-            [0u8; 8], // padding
-            pool.to_padded(),
-            token_in.to_padded(),
-            token_out.to_padded(),
+            [0u8; 8],  // padding
+            pool,      // Direct 20-byte address
+            [0u8; 12], // pool_address_padding
+            token_in,  // Direct 20-byte address
+            [0u8; 12], // token_in_padding
+            token_out, // Direct 20-byte address
+            [0u8; 12], // token_out_padding
             Self::sqrt_price_from_u128(sqrt_price_x96_after),
         )
     }
@@ -719,22 +755,19 @@ impl PoolSwapTLV {
     /// Get the pool address as a 20-byte array
     #[inline(always)]
     pub fn pool_address_eth(&self) -> [u8; 20] {
-        use super::AddressExtraction;
-        self.pool_address.to_eth_address()
+        self.pool_address
     }
 
     /// Get the token_in address as a 20-byte array
     #[inline(always)]
     pub fn token_in_addr_eth(&self) -> [u8; 20] {
-        use super::AddressExtraction;
-        self.token_in_addr.to_eth_address()
+        self.token_in_addr
     }
 
     /// Get the token_out address as a 20-byte array
     #[inline(always)]
     pub fn token_out_addr_eth(&self) -> [u8; 20] {
-        use super::AddressExtraction;
-        self.token_out_addr.to_eth_address()
+        self.token_out_addr
     }
 
     /// Convert sqrt_price_x96_after from [u8; 32] to u128 for backward compatibility
@@ -783,9 +816,12 @@ define_tlv_with_padding! {
             _padding: [u8; 12]   // Required for alignment to 160 bytes
         }
         special: {
-            pool_address: [u8; 32], // Full pool contract address
-            token0_addr: [u8; 32],  // Full token0 address
-            token1_addr: [u8; 32]   // Full token1 address
+            pool_address: [u8; 20],          // Ethereum pool contract address
+            pool_address_padding: [u8; 12],  // Padding for alignment
+            token0_addr: [u8; 20],           // Ethereum token0 address
+            token0_padding: [u8; 12],        // Padding for alignment
+            token1_addr: [u8; 20],           // Ethereum token1 address
+            token1_padding: [u8; 12]         // Padding for alignment
         }
     }
 }
@@ -805,8 +841,6 @@ impl PoolSyncTLV {
         timestamp_ns: u64,
         block_number: u64,
     ) -> Self {
-        use super::AddressConversion;
-
         // Use macro-generated new_raw() with proper field order
         Self::new_raw(
             reserve0,
@@ -817,9 +851,12 @@ impl PoolSyncTLV {
             token0_decimals,
             token1_decimals,
             [0u8; 12], // _padding
-            pool.to_padded(),
-            token0.to_padded(),
-            token1.to_padded(),
+            pool,      // Direct 20-byte address
+            [0u8; 12], // pool_address_padding
+            token0,    // Direct 20-byte address
+            [0u8; 12], // token0_padding
+            token1,    // Direct 20-byte address
+            [0u8; 12], // token1_padding
         )
     }
 
@@ -861,11 +898,15 @@ pub struct PoolMintTLV {
     pub token0_decimals: u8, // Decimals for token0 (e.g., WMATIC=18)
     pub token1_decimals: u8, // Decimals for token1 (e.g., USDC=6)
 
-    // [u8; 32] arrays - 128 bytes
-    pub pool_address: [u8; 32], // Full pool contract address (first 20 bytes = address, last 12 = padding)
-    pub provider_addr: [u8; 32], // Full LP provider address (first 20 bytes = address, last 12 = padding)
-    pub token0_addr: [u8; 32], // Full token0 address (first 20 bytes = address, last 12 = padding)
-    pub token1_addr: [u8; 32], // Full token1 address (first 20 bytes = address, last 12 = padding)
+    // Address fields (20 bytes + 12 padding each) - 128 bytes total
+    pub pool_address: [u8; 20],         // Ethereum pool contract address
+    pub pool_address_padding: [u8; 12], // Padding for alignment
+    pub provider_addr: [u8; 20],        // LP provider address
+    pub provider_padding: [u8; 12],     // Padding for alignment
+    pub token0_addr: [u8; 20],          // Token0 address
+    pub token0_padding: [u8; 12],       // Padding for alignment
+    pub token1_addr: [u8; 20],          // Token1 address
+    pub token1_padding: [u8; 12],       // Padding for alignment
 
     // EXPLICIT PADDING - DO NOT DELETE!
     pub _padding: [u8; 12], // Required for alignment to 208 bytes
@@ -897,11 +938,15 @@ pub struct PoolBurnTLV {
     pub token0_decimals: u8, // Decimals for token0 (e.g., WMATIC=18)
     pub token1_decimals: u8, // Decimals for token1 (e.g., USDC=6)
 
-    // [u8; 32] arrays - 128 bytes
-    pub pool_address: [u8; 32], // Full pool contract address (first 20 bytes = address, last 12 = padding)
-    pub provider_addr: [u8; 32], // Full LP provider address (first 20 bytes = address, last 12 = padding)
-    pub token0_addr: [u8; 32], // Full token0 address (first 20 bytes = address, last 12 = padding)
-    pub token1_addr: [u8; 32], // Full token1 address (first 20 bytes = address, last 12 = padding)
+    // Address fields (20 bytes + 12 padding each) - 128 bytes total
+    pub pool_address: [u8; 20],         // Ethereum pool contract address
+    pub pool_address_padding: [u8; 12], // Padding for alignment
+    pub provider_addr: [u8; 20],        // LP provider address
+    pub provider_padding: [u8; 12],     // Padding for alignment
+    pub token0_addr: [u8; 20],          // Token0 address
+    pub token0_padding: [u8; 12],       // Padding for alignment
+    pub token1_addr: [u8; 20],          // Token1 address
+    pub token1_padding: [u8; 12],       // Padding for alignment
 
     // EXPLICIT PADDING - DO NOT DELETE!
     pub _padding: [u8; 12], // Required for alignment to 208 bytes
@@ -925,8 +970,9 @@ pub struct PoolTickTLV {
     // u16 fields (2-byte aligned) - 2 bytes
     pub venue: u16, // NOT VenueId enum! Direct u16 for zero-copy
 
-    // [u8; 32] arrays - 32 bytes
-    pub pool_address: [u8; 32], // Full pool contract address (first 20 bytes = address, last 12 = padding)
+    // Address fields (20 bytes + 12 padding) - 32 bytes total
+    pub pool_address: [u8; 20],         // Ethereum pool contract address
+    pub pool_address_padding: [u8; 12], // Padding for alignment
 
     // EXPLICIT PADDING - DO NOT DELETE!
     pub _padding: [u8; 2], // Required for alignment to 64 bytes
@@ -951,13 +997,15 @@ impl PoolMintTLV {
         token1_decimals: u8,
         timestamp_ns: u64,
     ) -> Self {
-        use super::AddressConversion;
-
         Self {
-            pool_address: pool.to_padded(),
-            provider_addr: provider.to_padded(),
-            token0_addr: token0.to_padded(),
-            token1_addr: token1.to_padded(),
+            pool_address: pool,
+            pool_address_padding: [0u8; 12],
+            provider_addr: provider,
+            provider_padding: [0u8; 12],
+            token0_addr: token0,
+            token0_padding: [0u8; 12],
+            token1_addr: token1,
+            token1_padding: [0u8; 12],
             venue: venue_id as u16,
             liquidity_delta,
             amount0,
@@ -1006,13 +1054,15 @@ impl PoolBurnTLV {
         token1_decimals: u8,
         timestamp_ns: u64,
     ) -> Self {
-        use super::address::AddressConversion;
-
         Self {
-            pool_address: pool.to_padded(),
-            provider_addr: provider.to_padded(),
-            token0_addr: token0.to_padded(),
-            token1_addr: token1.to_padded(),
+            pool_address: pool,
+            pool_address_padding: [0u8; 12],
+            provider_addr: provider,
+            provider_padding: [0u8; 12],
+            token0_addr: token0,
+            token0_padding: [0u8; 12],
+            token1_addr: token1,
+            token1_padding: [0u8; 12],
             venue: venue_id as u16,
             liquidity_delta,
             amount0,
@@ -1052,10 +1102,9 @@ impl PoolTickTLV {
         price_sqrt: u64,
         timestamp_ns: u64,
     ) -> Self {
-        use super::address::AddressConversion;
-
         Self {
-            pool_address: pool.to_padded(),
+            pool_address: pool,
+            pool_address_padding: [0u8; 12],
             venue: venue_id as u16,
             tick,
             liquidity_net,
@@ -1156,7 +1205,8 @@ impl PoolLiquidityTLV {
 
     /// Add reserve to the liquidity update (if space available)
     pub fn add_reserve(&mut self, reserve: u128) -> Result<(), String> {
-        self.reserves.try_push(reserve)
+        self.reserves
+            .try_push(reserve)
             .map_err(|e| format!("Failed to add reserve: {}", e))
     }
 
@@ -1224,7 +1274,8 @@ impl StateInvalidationTLV {
 
     /// Add instrument to the invalidation (if space available)
     pub fn add_instrument(&mut self, instrument: InstrumentId) -> Result<(), String> {
-        self.instruments.try_push(instrument)
+        self.instruments
+            .try_push(instrument)
             .map_err(|e| format!("Failed to add instrument: {}", e))
     }
 

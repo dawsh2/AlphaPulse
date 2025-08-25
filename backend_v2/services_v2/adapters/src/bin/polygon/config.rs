@@ -16,7 +16,7 @@ pub struct WebSocketConfig {
 
     /// Fallback endpoints (tried in order)
     pub fallback_urls: Vec<String>,
-    
+
     /// RPC URL for pool discovery (optional)
     pub rpc_url: Option<String>,
 

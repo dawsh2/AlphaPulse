@@ -40,18 +40,18 @@ graph TD
 
 ```yaml
 Task Dependency Types:
-  NONE: 
+  NONE:
     - Can start immediately
     - Parallel execution possible
-  
+
   SEQUENTIAL:
     - Must wait for predecessor
     - Clear handoff points
-    
+
   SHARED_INTERFACE:
     - Can start in parallel
     - Must agree on contracts
-    
+
   INTEGRATION:
     - All predecessors must complete
     - Final assembly task
@@ -104,13 +104,23 @@ perf/checksum-sampling
 When creating tasks, I generate:
 
 ```markdown
-| Task ID | Branch | Agent Type | Dependencies | Priority | Hours |
-|---------|--------|------------|--------------|----------|-------|
-| POOL-001 | fix/cache | Integration | None | 🔴 High | 3 |
-| POOL-002 | fix/event | Parser | None | 🔴 High | 2 |
-| POOL-003 | fix/discovery | Async | POOL-001 | 🔴 High | 4 |
-| TEST-001 | test/integration | QA | ALL | 🟢 Low | 2 |
+| Task ID | Branch | Agent Type | Dependencies | Priority | Hours | TDD |
+|---------|--------|------------|--------------|----------|-------|-----|
+| POOL-001 | fix/cache | Integration | None | 🔴 High | 3 | ✅ |
+| POOL-002 | fix/event | Parser | None | 🔴 High | 2 | ✅ |
+| POOL-003 | fix/discovery | Async | POOL-001 | 🔴 High | 4 | ✅ |
+| TEST-001 | test/integration | QA | ALL | 🟢 Low | 2 | ✅ |
 ```
+
+### Test-First Task Creation Process
+
+Every task MUST include:
+
+1. **Test Specification Section** - Exact tests agents must write first
+2. **TDD Workflow Steps** - Red → Green → Refactor cycle instructions
+3. **Real Data Test Requirements** - Production validation specifications
+4. **Performance Test Criteria** - Measurable performance targets
+5. **TDD Validation Commands** - Scripts to verify test-first approach
 
 ## 🎭 Agent Specialization Matching
 
@@ -120,27 +130,27 @@ Integration Specialist:
   - API integrations
   - Service connections
   - Cache implementations
-  
+
 Performance Specialist:
   - Hot path optimization
   - Memory management
   - Benchmark improvements
-  
+
 Parser Specialist:
   - Event decoding
   - Protocol parsing
   - Data extraction
-  
+
 Async Specialist:
   - Queue implementations
   - Background workers
   - Non-blocking operations
-  
+
 Precision Specialist:
   - Numerical accuracy
   - Financial calculations
   - Integer arithmetic
-  
+
 Test Engineer:
   - Test suites
   - Validation

@@ -9,7 +9,7 @@
 //! 6. Semantic equality with original Coinbase data
 
 use alphapulse_adapter_service::input::collectors::coinbase::CoinbaseMatchEvent;
-use alphapulse_protocol_v2::{InstrumentId, TradeTLV, VenueId};
+use protocol_v2::{InstrumentId, TradeTLV, VenueId};
 use serde_json::Value;
 use std::convert::TryFrom;
 use zerocopy::{AsBytes, FromBytes};

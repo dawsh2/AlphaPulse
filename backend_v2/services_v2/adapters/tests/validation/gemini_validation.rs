@@ -4,7 +4,7 @@
 //! must complete before production use:
 //!
 //! 1. Raw Data Parsing Validation - Ensure provider data is parsed correctly
-//! 2. TLV Serialization Validation - Ensure semantic mapping is correct  
+//! 2. TLV Serialization Validation - Ensure semantic mapping is correct
 //! 3. TLV Deserialization Validation - Ensure no corruption in binary format
 //! 4. Deep Equality Validation - Ensure perfect roundtrip with zero data loss
 //!
@@ -182,10 +182,10 @@ pub fn validate_gemini_tlv_serialization(tlv: &TradeTLV) -> Result<Vec<u8>, Stri
         ));
     }
 
-    Ok(bytes)
+    Ok(bytes.to_vec())
 }
 
-/// STEP 3: Validate TLV deserialization  
+/// STEP 3: Validate TLV deserialization
 pub fn validate_gemini_tlv_deserialization(bytes: &[u8]) -> Result<TradeTLV, String> {
     // 1. Deserialize from bytes
     let recovered =

@@ -3,11 +3,11 @@
 //! This test connects to Kraken's WebSocket API, receives real market data,
 //! converts it to exact protocol_v2 messages, and tests relay routing.
 
-use alphapulse_protocol_v2::{
+use futures_util::{SinkExt, StreamExt};
+use protocol_v2::{
     build_instrument_id, InstrumentId, MessageHeader, QuoteTLV, RelayDomain, SourceType,
     TLVMessage, TLVType, TradeTLV, VenueId, MESSAGE_MAGIC, PROTOCOL_VERSION,
 };
-use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;

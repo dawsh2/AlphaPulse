@@ -1,6 +1,7 @@
 //! Input adapters for collecting market data from external sources
 
 pub mod collectors;
+pub mod components;
 pub mod connection;
 pub mod state_manager;
 

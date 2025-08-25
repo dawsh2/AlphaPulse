@@ -3,13 +3,11 @@
 //! Automated detection of allocation regressions in critical performance paths.
 //! These tests ensure that hot path operations maintain zero-allocation guarantees.
 
-use protocol_v2::tlv::{
-    with_hot_path_buffer, with_signal_buffer, TrueZeroCopyBuilder, build_message_direct,
-};
-use protocol_v2::{
-    InstrumentId, RelayDomain, SourceType, TLVType, VenueId,
-};
 use protocol_v2::tlv::market_data::TradeTLV;
+use protocol_v2::tlv::{
+    build_message_direct, with_hot_path_buffer, with_signal_buffer, TrueZeroCopyBuilder,
+};
+use protocol_v2::{InstrumentId, RelayDomain, SourceType, TLVType, VenueId};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -67,12 +65,12 @@ macro_rules! assert_zero_allocations {
     ($name:expr, $block:block) => {{
         reset_allocation_tracking();
         let start_allocs = get_allocation_count();
-        
+
         $block
-        
+
         let end_allocs = get_allocation_count();
         let allocations = end_allocs - start_allocs;
-        
+
         assert_eq!(
             allocations, 0,
             "{}: Expected zero allocations, but {} allocations occurred ({} bytes)",
@@ -90,7 +88,7 @@ fn test_hot_path_buffer_zero_allocations() {
         buffer[0] = 0xFF;
         Ok(((), 1))
     });
-    
+
     // Now test that subsequent uses have zero allocations
     assert_zero_allocations!("hot_path_buffer_reuse", {
         let result = with_hot_path_buffer(|buffer| {
@@ -100,7 +98,7 @@ fn test_hot_path_buffer_zero_allocations() {
             }
             Ok((42, 100))
         });
-        
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42);
     });
@@ -113,7 +111,7 @@ fn test_signal_buffer_zero_allocations() {
         buffer[0] = 0xFF;
         Ok(((), 1))
     });
-    
+
     // Test zero allocations on reuse
     assert_zero_allocations!("signal_buffer_reuse", {
         let result = with_signal_buffer(|buffer| {
@@ -122,7 +120,7 @@ fn test_signal_buffer_zero_allocations() {
             }
             Ok((123, 50))
         });
-        
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 123);
     });
@@ -140,37 +138,35 @@ fn test_zero_copy_message_building_no_allocations() {
     let trade = TradeTLV::from_instrument(
         VenueId::Binance,
         instrument_id,
-        100_000_000,  // price: $1.00
-        50_000_000,   // volume: 0.50
-        0,            // side: buy
-        1234567890,   // timestamp
+        100_000_000, // price: $1.00
+        50_000_000,  // volume: 0.50
+        0,           // side: buy
+        1234567890,  // timestamp
     );
-    
+
     // Warm up the buffer
     let _ = with_hot_path_buffer(|buffer| {
-        let builder = TrueZeroCopyBuilder::new(
-            RelayDomain::MarketData,
-            SourceType::BinanceCollector,
-        );
-        builder.build_into_buffer(buffer, TLVType::Trade, &trade)
+        let builder =
+            TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector);
+        builder
+            .build_into_buffer(buffer, TLVType::Trade, &trade)
             .map(|size| (size, size))
     });
-    
+
     // Test zero allocations for message construction into buffer
     // Note: When using build_with_hot_path_buffer() that returns Vec<u8>,
     // one allocation is expected and necessary for thread-safe channel communication
     assert_zero_allocations!("zero_copy_message_build_into_buffer", {
         let result = with_hot_path_buffer(|buffer| {
-            let builder = TrueZeroCopyBuilder::new(
-                RelayDomain::MarketData,
-                SourceType::BinanceCollector,
-            ).with_sequence(12345);
-            
+            let builder =
+                TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
+                    .with_sequence(12345);
+
             let size = builder.build_into_buffer(buffer, TLVType::Trade, &trade)?;
-            
+
             Ok((size, size))
         });
-        
+
         assert!(result.is_ok());
         assert!(result.unwrap() > 32); // At least header size
     });
@@ -192,31 +188,30 @@ fn test_multiple_message_builds_zero_allocations() {
         1,
         1234567891,
     );
-    
+
     // Warm up
     let _ = with_hot_path_buffer(|buffer| {
         TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::KrakenCollector)
             .build_into_buffer(buffer, TLVType::Trade, &trade)
             .map(|size| (size, size))
     });
-    
+
     // Test that building 100 messages causes zero allocations
     assert_zero_allocations!("multiple_message_builds", {
         for i in 0..100 {
             let result = with_hot_path_buffer(|buffer| {
-                let builder = TrueZeroCopyBuilder::new(
-                    RelayDomain::MarketData,
-                    SourceType::KrakenCollector,
-                ).with_sequence(i);
-                
+                let builder =
+                    TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::KrakenCollector)
+                        .with_sequence(i);
+
                 let size = builder.build_into_buffer(buffer, TLVType::Trade, &trade)?;
-                
+
                 // Simulate sending the message
                 std::hint::black_box(&buffer[..size]);
-                
+
                 Ok((size, size))
             });
-            
+
             assert!(result.is_ok());
         }
     });
@@ -238,7 +233,7 @@ fn test_hot_path_performance_target() {
         0,
         1234567892,
     );
-    
+
     // Warm up the buffer and JIT
     for _ in 0..1000 {
         let _ = with_hot_path_buffer(|buffer| {
@@ -247,50 +242,58 @@ fn test_hot_path_performance_target() {
                 .map(|size| (size, size))
         });
     }
-    
+
     // Measure performance
     let iterations = 100_000;
     let start = std::time::Instant::now();
-    
+
     reset_allocation_tracking();
-    
+
     for i in 0..iterations {
         let _ = with_hot_path_buffer(|buffer| {
-            let builder = TrueZeroCopyBuilder::new(
-                RelayDomain::MarketData,
-                SourceType::PolygonCollector,
-            ).with_sequence(i);
-            
+            let builder =
+                TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector)
+                    .with_sequence(i);
+
             let size = builder.build_into_buffer(buffer, TLVType::Trade, &trade)?;
-            
+
             std::hint::black_box(size);
             Ok(((), size))
-        }).unwrap();
+        })
+        .unwrap();
     }
-    
+
     let duration = start.elapsed();
     let allocations = get_allocation_count();
-    
+
     // Calculate performance metrics
     let ns_per_op = duration.as_nanos() as f64 / iterations as f64;
     let allocs_per_op = allocations as f64 / iterations as f64;
-    
+
     println!("Hot Path Performance:");
     println!("  Time per operation: {:.2} ns", ns_per_op);
     println!("  Allocations per operation: {:.4}", allocs_per_op);
     println!("  Total allocations: {}", allocations);
     println!("  Total bytes allocated: {}", get_bytes_allocated());
-    
+
     // Assert performance targets
-    assert!(ns_per_op < 100.0, "Performance target not met: {:.2} ns/op (target: <100ns)", ns_per_op);
-    assert_eq!(allocations, 0, "Hot path should have zero allocations after warmup, but had {}", allocations);
+    assert!(
+        ns_per_op < 100.0,
+        "Performance target not met: {:.2} ns/op (target: <100ns)",
+        ns_per_op
+    );
+    assert_eq!(
+        allocations, 0,
+        "Hot path should have zero allocations after warmup, but had {}",
+        allocations
+    );
 }
 
 #[test]
 fn test_allocation_regression_detection() {
     // This test intentionally triggers an allocation to verify our detection works
     reset_allocation_tracking();
-    
+
     // This should trigger an allocation and be caught
     let allocation_detected = {
         let start = get_allocation_count();
@@ -298,8 +301,11 @@ fn test_allocation_regression_detection() {
         let end = get_allocation_count();
         end > start
     };
-    
-    assert!(allocation_detected, "Allocation tracking is not working properly");
+
+    assert!(
+        allocation_detected,
+        "Allocation tracking is not working properly"
+    );
 }
 
 /// Test that build_with_hot_path_buffer has exactly one allocation (for Vec return)
@@ -319,7 +325,7 @@ fn test_build_with_hot_path_buffer_single_allocation() {
         1,
         1234567894,
     );
-    
+
     // Warm up
     let _ = build_message_direct(
         RelayDomain::MarketData,
@@ -327,31 +333,31 @@ fn test_build_with_hot_path_buffer_single_allocation() {
         TLVType::Trade,
         &trade,
     );
-    
+
     // Test: Expect exactly ONE allocation (for the Vec<u8> return value)
     reset_allocation_tracking();
-    
+
     // For sequence number, we need to use TrueZeroCopyBuilder directly
     let message = with_hot_path_buffer(|buffer| {
-        let builder = TrueZeroCopyBuilder::new(
-            RelayDomain::MarketData,
-            SourceType::BinanceCollector,
-        ).with_sequence(9999);
-        
+        let builder =
+            TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
+                .with_sequence(9999);
+
         let size = builder.build_into_buffer(buffer, TLVType::Trade, &trade)?;
         let result = buffer[..size].to_vec();
         Ok((result, size))
-    }).unwrap();
-    
+    })
+    .unwrap();
+
     let allocations = get_allocation_count();
-    
+
     // This is the expected and correct behavior!
     assert_eq!(
         allocations, 1,
         "Expected exactly 1 allocation for Vec<u8> return, got {}",
         allocations
     );
-    
+
     // Verify the message is valid
     assert!(message.len() > 32);
 }
@@ -374,7 +380,7 @@ fn bench_hot_path_throughput() {
         0,
         1234567893,
     );
-    
+
     // Warm up
     for _ in 0..10_000 {
         let _ = with_hot_path_buffer(|buffer| {
@@ -383,36 +389,39 @@ fn bench_hot_path_throughput() {
                 .map(|size| (size, size))
         });
     }
-    
+
     // Benchmark
     let iterations = 1_000_000;
     let start = std::time::Instant::now();
-    
+
     for i in 0..iterations {
         let _ = with_hot_path_buffer(|buffer| {
-            let builder = TrueZeroCopyBuilder::new(
-                RelayDomain::MarketData,
-                SourceType::BinanceCollector,
-            ).with_sequence(i);
-            
+            let builder =
+                TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
+                    .with_sequence(i);
+
             let size = builder.build_into_buffer(buffer, TLVType::Trade, &trade)?;
-            
+
             // Simulate network send
             std::hint::black_box(&buffer[..size]);
-            
+
             Ok(((), size))
-        }).unwrap();
+        })
+        .unwrap();
     }
-    
+
     let duration = start.elapsed();
     let messages_per_second = iterations as f64 / duration.as_secs_f64();
-    
+
     println!("Hot Path Throughput Benchmark:");
     println!("  Messages processed: {}", iterations);
     println!("  Total time: {:?}", duration);
     println!("  Throughput: {:.0} messages/second", messages_per_second);
-    println!("  Latency: {:.2} ns/message", duration.as_nanos() as f64 / iterations as f64);
-    
+    println!(
+        "  Latency: {:.2} ns/message",
+        duration.as_nanos() as f64 / iterations as f64
+    );
+
     // Assert we meet the >1M messages/second target
     assert!(
         messages_per_second > 1_000_000.0,

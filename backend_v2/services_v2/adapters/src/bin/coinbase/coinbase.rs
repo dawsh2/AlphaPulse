@@ -28,9 +28,9 @@
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use protocol_v2::{
-    parse_header, parse_tlv_extensions, tlv::build_message_direct, InstrumentId, RelayDomain, 
-    SourceType, TLVType, TradeTLV, VenueId,
-    tlv::fast_timestamp::init_timestamp_system,
+    parse_header, parse_tlv_extensions, tlv::build_message_direct,
+    tlv::fast_timestamp::init_timestamp_system, InstrumentId, RelayDomain, SourceType, TLVType,
+    TradeTLV, VenueId,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -101,13 +101,8 @@ impl Default for CoinbaseConfig {
                 domain: "market_data".to_string(),
                 socket_path: "/tmp/alphapulse/market_data.sock".to_string(),
             },
-            products: vec![
-                "BTC-USD".to_string(),
-                "ETH-USD".to_string(),
-                "SOL-USD".to_string(),
-                "ADA-USD".to_string(),
-                "DOT-USD".to_string(),
-            ],
+            // Default to BTC-USD only - use COINBASE_PRODUCTS env var for production
+            products: vec!["BTC-USD".to_string()],
             channels: vec!["matches".to_string(), "level2".to_string()],
             validation: ValidationConfig {
                 runtime_validation_seconds: 60,
@@ -451,7 +446,7 @@ impl UnifiedCoinbaseCollector {
 
             // Send directly to RelayOutput (no channel overhead)
             self.relay_output
-                .send_bytes(tlv_message)
+                .send_bytes(&tlv_message)
                 .await
                 .context("RelayOutput send failed - CRASHING as designed")?;
 
@@ -507,8 +502,11 @@ impl UnifiedCoinbaseCollector {
             return None;
         }
 
-        // Create cryptocurrency spot pair using coin() method
-        let instrument_id = InstrumentId::coin(VenueId::Coinbase, parts[0]);
+        // Normalize to standard format: "BTC-USD" → "BTC/USD"
+        let normalized_symbol = format!("{}/{}", parts[0], parts[1]);
+
+        // Create cryptocurrency spot pair using coin() method with full pair
+        let instrument_id = InstrumentId::coin(VenueId::Coinbase, &normalized_symbol);
 
         // Parse timestamp
         let timestamp = match chrono::DateTime::parse_from_rfc3339(&match_event.time) {
@@ -536,7 +534,8 @@ impl UnifiedCoinbaseCollector {
             TLVType::Trade,
             &trade_tlv,
         )
-        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))
+        .ok()?;
 
         debug!(
             "📈 Trade processed: {} @ {} (size: {})",
@@ -608,7 +607,7 @@ impl UnifiedCoinbaseCollector {
 async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt::init();
-    
+
     // ✅ CRITICAL: Initialize ultra-fast timestamp system
     init_timestamp_system();
     info!("✅ Ultra-fast timestamp system initialized (~5ns per timestamp)");
@@ -617,9 +616,10 @@ async fn main() -> Result<()> {
     info!("   Architecture: WebSocket → TLV Builder → RelayOutput");
     info!("   NO MPSC channels - direct relay integration");
 
-    // Load configuration
+    // Load configuration (supports both CLI arg and env var)
     let config_path = std::env::args()
         .nth(1)
+        .or_else(|| std::env::var("COINBASE_CONFIG_PATH").ok())
         .unwrap_or_else(|| "coinbase.toml".to_string());
 
     let config = CoinbaseConfig::from_toml_with_env_overrides(&config_path).unwrap_or_else(|_| {

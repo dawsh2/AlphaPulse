@@ -8,7 +8,7 @@ use crate::validation::{DataFlowValidator, PrecisionValidator};
 
 use anyhow::{Context, Result};
 use alphapulse_flash_arbitrage::strategy_engine::FlashArbitrageEngine;
-use alphapulse_protocol::relay::{MarketDataRelay, SignalRelay, ExecutionRelay};
+use protocol_v2::relay::{MarketDataRelay, SignalRelay, ExecutionRelay};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -44,7 +44,7 @@ impl Default for PolygonArbitrageTest {
 impl TestScenario for PolygonArbitrageTest {
     async fn setup(&self, framework: &TestFramework) -> Result<()> {
         info!("Setting up Polygon Arbitrage E2E test");
-        
+
         // 1. Start all three relays
         let market_relay_path = framework.relay_paths().market_data.clone();
         framework.start_service(
@@ -57,7 +57,7 @@ impl TestScenario for PolygonArbitrageTest {
                 }
             }
         ).await?;
-        
+
         let signal_relay_path = framework.relay_paths().signals.clone();
         framework.start_service(
             "signal_relay".to_string(),
@@ -69,7 +69,7 @@ impl TestScenario for PolygonArbitrageTest {
                 }
             }
         ).await?;
-        
+
         let execution_relay_path = framework.relay_paths().execution.clone();
         framework.start_service(
             "execution_relay".to_string(),
@@ -81,7 +81,7 @@ impl TestScenario for PolygonArbitrageTest {
                 }
             }
         ).await?;
-        
+
         // 2. Start Polygon DEX collector
         let target_pairs = self.target_pairs.clone();
         framework.start_service(
@@ -93,7 +93,7 @@ impl TestScenario for PolygonArbitrageTest {
                 }
             }
         ).await?;
-        
+
         // 3. Start Flash Arbitrage Engine
         let min_profit = self.min_profit_threshold_usd;
         framework.start_service(
@@ -111,28 +111,28 @@ impl TestScenario for PolygonArbitrageTest {
                 engine.run().await
             }
         ).await?;
-        
+
         // Give all services time to start and sync with Polygon
         info!("Waiting for services to connect to Polygon and sync pool data...");
         tokio::time::sleep(Duration::from_secs(15)).await;
-        
+
         Ok(())
     }
-    
+
     async fn execute(&self, framework: &TestFramework) -> Result<TestResult> {
         info!("Executing Polygon Arbitrage E2E test");
-        
+
         let start_time = Instant::now();
         let mut metrics = TestMetrics::default();
         let mut validation_results = Vec::new();
-        
+
         // Connect to execution relay to monitor arbitrage signals
         let execution_socket = tokio::net::UnixStream::connect(&framework.relay_paths().execution)
             .await
             .context("Failed to connect to execution relay")?;
-        
+
         let (signal_tx, mut signal_rx) = mpsc::unbounded_channel::<Value>();
-        
+
         // Start execution signal collection task
         let collection_handle = tokio::spawn({
             let signal_tx = signal_tx.clone();
@@ -140,7 +140,7 @@ impl TestScenario for PolygonArbitrageTest {
                 Self::collect_execution_signals(execution_socket, signal_tx).await
             }
         });
-        
+
         // Data collection and validation
         let validator = DataFlowValidator::new();
         let precision_validator = PrecisionValidator;
@@ -149,18 +149,18 @@ impl TestScenario for PolygonArbitrageTest {
         let mut signal_latencies = Vec::new();
         let mut profit_estimates = Vec::new();
         let mut pool_updates = HashMap::new();
-        
+
         info!("Monitoring for arbitrage opportunities for {} seconds...", 180);
-        
+
         let collection_timeout = Duration::from_secs(180); // 3 minutes for real market data
         let collection_start = Instant::now();
-        
+
         while collection_start.elapsed() < collection_timeout {
             tokio::select! {
                 signal = signal_rx.recv() => {
                     if let Some(signal_data) = signal {
                         let received_time = Instant::now();
-                        
+
                         // Validate execution signal structure
                         if let Err(e) = validator.validate_message(&signal_data) {
                             validation_results.push(ValidationResult {
@@ -172,17 +172,17 @@ impl TestScenario for PolygonArbitrageTest {
                             });
                             continue;
                         }
-                        
+
                         match signal_data.get("type").and_then(|v| v.as_str()) {
                             Some("trade") => {
                                 trade_count += 1;
-                                
+
                                 // Track pool updates and liquidity changes
                                 if let Some(pair) = signal_data.get("instrument").and_then(|i| i.get("symbol")).and_then(|s| s.as_str()) {
                                     let counter = pool_updates.entry(pair.to_string()).or_insert(0);
                                     *counter += 1;
                                 }
-                                
+
                                 // Validate price precision
                                 if let Some(price) = signal_data.get("price").and_then(|p| p.as_f64()) {
                                     if price > 0.0 {
@@ -195,7 +195,7 @@ impl TestScenario for PolygonArbitrageTest {
                                             Some(symbol) if symbol.contains("USDC") => price > 0.9 && price < 1.1,
                                             _ => true, // Allow other tokens
                                         };
-                                        
+
                                         if !is_reasonable_price {
                                             validation_results.push(ValidationResult {
                                                 validator: "price_sanity".to_string(),
@@ -210,19 +210,19 @@ impl TestScenario for PolygonArbitrageTest {
                             }
                             Some("arbitrage_opportunity") => {
                                 arbitrage_opportunities.push(signal_data.clone());
-                                
+
                                 info!("🎯 Arbitrage opportunity detected: profit=${:.2}, spread={:.3}%",
                                       signal_data.get("expected_profit_usd").and_then(|v| v.as_f64()).unwrap_or(0.0),
                                       signal_data.get("spread_percentage").and_then(|v| v.as_f64()).unwrap_or(0.0) * 100.0);
-                                
+
                                 // Validate arbitrage signal details
                                 self.validate_arbitrage_signal(&signal_data, &mut validation_results)?;
-                                
+
                                 // Track profit estimates
                                 if let Some(profit) = signal_data.get("expected_profit_usd").and_then(|v| v.as_f64()) {
                                     profit_estimates.push(profit);
                                 }
-                                
+
                                 // Calculate detection latency
                                 if let Some(timestamp) = signal_data.get("timestamp").and_then(|v| v.as_u64()) {
                                     let signal_time = std::time::UNIX_EPOCH + Duration::from_nanos(timestamp);
@@ -235,16 +235,16 @@ impl TestScenario for PolygonArbitrageTest {
                                 info!("⚡ Execution signal generated: action={}, amount={}",
                                       signal_data.get("action").and_then(|v| v.as_str()).unwrap_or("unknown"),
                                       signal_data.get("amount_usd").and_then(|v| v.as_f64()).unwrap_or(0.0));
-                                
+
                                 metrics.signals_generated += 1;
                             }
                             _ => {
                                 debug!("Received other signal type: {:?}", signal_data.get("type"));
                             }
                         }
-                        
+
                         metrics.messages_processed += 1;
-                        
+
                         // Break if we've found enough arbitrage opportunities
                         if arbitrage_opportunities.len() >= self.min_arbitrage_opportunities as usize {
                             info!("Found target number of arbitrage opportunities ({})", self.min_arbitrage_opportunities);
@@ -257,27 +257,27 @@ impl TestScenario for PolygonArbitrageTest {
                 }
             }
         }
-        
+
         collection_handle.abort();
-        
+
         // Calculate final metrics
         let total_duration = start_time.elapsed();
         metrics.throughput_msg_per_sec = metrics.messages_processed as f64 / total_duration.as_secs_f64();
-        
+
         if !signal_latencies.is_empty() {
             metrics.avg_latency_ns = signal_latencies.iter().sum::<u64>() / signal_latencies.len() as u64;
             metrics.max_latency_ns = *signal_latencies.iter().max().unwrap_or(&0);
         }
-        
+
         // Validate test results
         let mut success = true;
-        
+
         // Check arbitrage opportunity detection
         if arbitrage_opportunities.len() < self.min_arbitrage_opportunities as usize {
             validation_results.push(ValidationResult {
                 validator: "arbitrage_detection".to_string(),
                 passed: false,
-                message: format!("Expected at least {} arbitrage opportunities, found {}", 
+                message: format!("Expected at least {} arbitrage opportunities, found {}",
                                 self.min_arbitrage_opportunities, arbitrage_opportunities.len()),
                 severity: ValidationSeverity::Error,
                 details: None,
@@ -292,7 +292,7 @@ impl TestScenario for PolygonArbitrageTest {
                 details: None,
             });
         }
-        
+
         // Check pool data coverage
         for target_pair in &self.target_pairs {
             if let Some(updates) = pool_updates.get(target_pair) {
@@ -315,13 +315,13 @@ impl TestScenario for PolygonArbitrageTest {
                 }
             }
         }
-        
+
         // Check detection latency
         if metrics.max_latency_ns > self.max_detection_latency_ms * 1_000_000 {
             validation_results.push(ValidationResult {
                 validator: "detection_latency".to_string(),
                 passed: false,
-                message: format!("Max detection latency {}ms exceeds threshold {}ms", 
+                message: format!("Max detection latency {}ms exceeds threshold {}ms",
                                 metrics.max_latency_ns / 1_000_000, self.max_detection_latency_ms),
                 severity: ValidationSeverity::Warning,
                 details: None,
@@ -330,18 +330,18 @@ impl TestScenario for PolygonArbitrageTest {
             validation_results.push(ValidationResult {
                 validator: "detection_latency".to_string(),
                 passed: true,
-                message: format!("Detection latency {}ms within threshold", 
+                message: format!("Detection latency {}ms within threshold",
                                 metrics.max_latency_ns / 1_000_000),
                 severity: ValidationSeverity::Info,
                 details: None,
             });
         }
-        
+
         // Check profit estimates
         if !profit_estimates.is_empty() {
             let avg_profit = profit_estimates.iter().sum::<f64>() / profit_estimates.len() as f64;
             let max_profit = profit_estimates.iter().fold(0.0, |a, &b| a.max(b));
-            
+
             validation_results.push(ValidationResult {
                 validator: "profit_estimation".to_string(),
                 passed: true,
@@ -354,14 +354,14 @@ impl TestScenario for PolygonArbitrageTest {
                 })),
             });
         }
-        
+
         // System health check
         let health_results = framework.validate_system_health().await?;
         validation_results.extend(health_results);
-        
-        info!("Polygon Arbitrage test completed: {} trades, {} arbitrage opportunities, {} execution signals", 
+
+        info!("Polygon Arbitrage test completed: {} trades, {} arbitrage opportunities, {} execution signals",
               trade_count, arbitrage_opportunities.len(), metrics.signals_generated);
-        
+
         Ok(TestResult {
             scenario_name: self.name().to_string(),
             success,
@@ -371,21 +371,21 @@ impl TestScenario for PolygonArbitrageTest {
             validation_results,
         })
     }
-    
+
     async fn cleanup(&self, framework: &TestFramework) -> Result<()> {
         info!("Cleaning up Polygon Arbitrage test");
         framework.stop_all_services().await?;
         Ok(())
     }
-    
+
     fn name(&self) -> &str {
         "polygon_arbitrage"
     }
-    
+
     fn description(&self) -> &str {
         "End-to-end test of Polygon DEX arbitrage detection and execution signal generation"
     }
-    
+
     fn timeout(&self) -> Duration {
         Duration::from_secs(300) // 5 minutes for real market data processing
     }
@@ -397,9 +397,9 @@ impl PolygonArbitrageTest {
         signal_tx: mpsc::UnboundedSender<Value>,
     ) -> Result<()> {
         use tokio::io::AsyncReadExt;
-        
+
         let mut buffer = vec![0u8; 8192];
-        
+
         loop {
             match stream.read(&mut buffer).await {
                 Ok(0) => break, // Connection closed
@@ -416,16 +416,16 @@ impl PolygonArbitrageTest {
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     fn parse_execution_messages(data: &[u8]) -> Result<Vec<Value>> {
         // Parse TLV messages from execution relay
         // This is a simplified parser - in practice would use the full TLV parsing logic
         let mut messages = Vec::new();
         let mut offset = 0;
-        
+
         while offset + 32 <= data.len() {
             // Check for valid message header
             let magic = u32::from_le_bytes([data[offset], data[offset+1], data[offset+2], data[offset+3]]);
@@ -433,13 +433,13 @@ impl PolygonArbitrageTest {
                 offset += 1;
                 continue;
             }
-            
+
             let payload_size = u32::from_le_bytes([data[offset+8], data[offset+9], data[offset+10], data[offset+11]]) as usize;
-            
+
             if offset + 32 + payload_size > data.len() {
                 break; // Incomplete message
             }
-            
+
             // For this test, create a mock arbitrage signal
             // In practice, this would parse the actual TLV execution data
             let mock_signal = serde_json::json!({
@@ -451,14 +451,14 @@ impl PolygonArbitrageTest {
                 "target_dex": "uniswap_v3",
                 "token_pair": "WETH/USDC"
             });
-            
+
             messages.push(mock_signal);
             offset += 32 + payload_size;
         }
-        
+
         Ok(messages)
     }
-    
+
     fn validate_arbitrage_signal(&self, signal: &Value, validation_results: &mut Vec<ValidationResult>) -> Result<()> {
         // Validate profit is above threshold
         if let Some(profit) = signal.get("expected_profit_usd").and_then(|v| v.as_f64()) {
@@ -472,7 +472,7 @@ impl PolygonArbitrageTest {
                 });
             }
         }
-        
+
         // Validate spread percentage is reasonable (0.01% to 5%)
         if let Some(spread) = signal.get("spread_percentage").and_then(|v| v.as_f64()) {
             if spread < 0.0001 || spread > 0.05 {
@@ -485,7 +485,7 @@ impl PolygonArbitrageTest {
                 });
             }
         }
-        
+
         // Validate required fields exist
         for field in ["source_dex", "target_dex", "token_pair"] {
             if !signal.get(field).is_some() {
@@ -498,7 +498,7 @@ impl PolygonArbitrageTest {
                 });
             }
         }
-        
+
         Ok(())
     }
 }

@@ -1,10 +1,10 @@
 //! Integration tests for topic-based coarse filtering
 
-use alphapulse_protocol_v2::{MessageHeader, MESSAGE_MAGIC};
 use alphapulse_relays::{
     ConsumerId, Relay, RelayConfig, RelayResult, TopicConfig, TopicExtractionStrategy,
     TopicRegistry,
 };
+use protocol_v2::{MessageHeader, MESSAGE_MAGIC};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};

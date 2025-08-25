@@ -3,8 +3,8 @@
 //! Binary TLV format for persisting discovered pool → token mappings.
 //! Uses full 20-byte addresses for execution compatibility.
 
-use crate::{VenueId, define_tlv};
 use crate::tlv::fast_timestamp::fast_timestamp_ns;
+use crate::{define_tlv, VenueId};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 /// Pool type for cache records (renamed to avoid conflict with pool_state)
@@ -177,7 +177,7 @@ impl PoolCacheFileHeader {
             version: Self::VERSION,
             chain_id,
             pool_count,
-            last_updated: (fast_timestamp_ns() / 1_000_000_000),  // Convert ns to seconds
+            last_updated: (fast_timestamp_ns() / 1_000_000_000), // Convert ns to seconds
             checksum,
             reserved: [0; 32],
         }
@@ -227,7 +227,7 @@ impl PoolCacheJournalEntry {
     pub fn new_add(pool_info: PoolInfoTLV) -> Self {
         Self {
             operation: Self::OP_ADD,
-            timestamp: (fast_timestamp_ns() / 1_000_000_000),  // Convert ns to seconds
+            timestamp: (fast_timestamp_ns() / 1_000_000_000), // Convert ns to seconds
             pool_info,
             _padding: [0; 7],
         }
@@ -236,7 +236,7 @@ impl PoolCacheJournalEntry {
     pub fn new_update(pool_info: PoolInfoTLV) -> Self {
         Self {
             operation: Self::OP_UPDATE,
-            timestamp: (fast_timestamp_ns() / 1_000_000_000),  // Convert ns to seconds
+            timestamp: (fast_timestamp_ns() / 1_000_000_000), // Convert ns to seconds
             pool_info,
             _padding: [0; 7],
         }

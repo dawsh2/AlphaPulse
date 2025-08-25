@@ -141,7 +141,7 @@ impl TransportRouter {
     /// Route using default mode
     fn route_with_default_mode(
         &self,
-        target_node: &str,
+        _target_node: &str,
         priority: Priority,
     ) -> Result<RouteDecision> {
         match self.config.default_mode {
@@ -150,7 +150,7 @@ impl TransportRouter {
             TransportMode::MessageQueue => {
                 #[cfg(feature = "message-queues")]
                 {
-                    let queue_name = format!("node_{}", target_node);
+                    let queue_name = format!("node_{}", _target_node);
                     Ok(RouteDecision::MessageQueue { queue_name })
                 }
                 #[cfg(not(feature = "message-queues"))]
@@ -165,7 +165,7 @@ impl TransportRouter {
             TransportMode::MqWithDirectFallback => {
                 #[cfg(feature = "message-queues")]
                 {
-                    let queue_name = format!("node_{}", target_node);
+                    let queue_name = format!("node_{}", _target_node);
                     Ok(RouteDecision::MessageQueue { queue_name })
                 }
                 #[cfg(not(feature = "message-queues"))]
@@ -179,7 +179,7 @@ impl TransportRouter {
                     _ => {
                         #[cfg(feature = "message-queues")]
                         {
-                            let queue_name = format!("node_{}", target_node);
+                            let queue_name = format!("node_{}", _target_node);
                             Ok(RouteDecision::MessageQueue { queue_name })
                         }
                         #[cfg(not(feature = "message-queues"))]
@@ -241,8 +241,8 @@ impl TransportRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hybrid::config::{BridgeConfig, ChannelConfig, TransportConfig, TransportMode};
     use crate::{Criticality, Reliability};
-    use crate::hybrid::config::{BridgeConfig, TransportConfig, TransportMode, ChannelConfig};
     use std::collections::HashMap;
 
     fn create_test_config() -> TransportConfig {

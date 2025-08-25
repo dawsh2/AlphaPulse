@@ -194,6 +194,21 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// Convert hex string to 32-byte array
+fn hex_to_bytes32(hex_str: &str) -> Option<[u8; 32]> {
+    let hex_str = hex_str.strip_prefix("0x").unwrap_or(hex_str);
+    if hex_str.len() != 64 {
+        return None;
+    }
+
+    let mut bytes = [0u8; 32];
+    for i in 0..32 {
+        let hex_byte = &hex_str[i * 2..i * 2 + 2];
+        bytes[i] = u8::from_str_radix(hex_byte, 16).ok()?;
+    }
+    Some(bytes)
+}
+
 /// Get canonical event signatures from libs/dex
 fn get_canonical_signatures() -> HashSet<[u8; 32]> {
     let mut signatures = HashSet::new();
@@ -201,13 +216,19 @@ fn get_canonical_signatures() -> HashSet<[u8; 32]> {
     // Get all event signatures from the canonical source
     let all_sigs = alphapulse_dex::get_all_event_signatures();
     for sig in all_sigs {
-        signatures.insert(sig.0);
+        if let Some(bytes) = hex_to_bytes32(&sig) {
+            signatures.insert(bytes);
+        }
     }
 
     // Also specifically get swap signatures for validation
     let (v2_swap, v3_swap) = alphapulse_dex::get_swap_signatures();
-    signatures.insert(v2_swap.0);
-    signatures.insert(v3_swap.0);
+    if let Some(bytes) = hex_to_bytes32(&v2_swap) {
+        signatures.insert(bytes);
+    }
+    if let Some(bytes) = hex_to_bytes32(&v3_swap) {
+        signatures.insert(bytes);
+    }
 
     signatures
 }

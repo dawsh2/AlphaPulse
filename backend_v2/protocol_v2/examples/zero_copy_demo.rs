@@ -6,7 +6,9 @@
 use protocol_v2::tlv::address::{AddressConversion, AddressExtraction};
 use protocol_v2::tlv::market_data::{PoolSwapTLV, PoolSyncTLV, QuoteTLV, TradeTLV};
 use protocol_v2::tlv::pool_state::PoolStateTLV;
-use protocol_v2::tlv::{TLVMessageBuilder, TLVType, TrueZeroCopyBuilder, build_message_direct, with_hot_path_buffer};
+use protocol_v2::tlv::{
+    build_message_direct, with_hot_path_buffer, TLVMessageBuilder, TLVType, TrueZeroCopyBuilder,
+};
 use protocol_v2::{InstrumentId, RelayDomain, SourceType, VenueId};
 use std::time::Instant;
 use zerocopy::{AsBytes, FromBytes};
@@ -172,8 +174,9 @@ fn main() {
             RelayDomain::MarketData,
             SourceType::PolygonCollector,
             TLVType::Trade,
-            &trade
-        ).unwrap();
+            &trade,
+        )
+        .unwrap();
         std::hint::black_box(_message);
     }
     let zero_copy_duration = start.elapsed();
@@ -185,24 +188,30 @@ fn main() {
         "Benchmarking True Zero-Copy with Thread-Local Buffer ({} iterations)...",
         iterations
     );
-    
+
     // Warmup
     for _ in 0..1000 {
         let _ = with_hot_path_buffer(|buffer| {
-            let builder = TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
-            builder.build_into_buffer(buffer, TLVType::Trade, &trade)
+            let builder =
+                TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
+            builder
+                .build_into_buffer(buffer, TLVType::Trade, &trade)
                 .map(|size| (size, size))
         });
     }
-    
+
     let start = Instant::now();
     for _ in 0..iterations {
         let _ = with_hot_path_buffer(|buffer| {
-            let builder = TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
-            let size = builder.build_into_buffer(buffer, TLVType::Trade, &trade).unwrap();
+            let builder =
+                TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
+            let size = builder
+                .build_into_buffer(buffer, TLVType::Trade, &trade)
+                .unwrap();
             std::hint::black_box(size);
             Ok((size, size))
-        }).unwrap();
+        })
+        .unwrap();
     }
     let buffer_duration = start.elapsed();
     let buffer_ns_per_op = buffer_duration.as_nanos() as f64 / iterations as f64;

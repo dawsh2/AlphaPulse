@@ -153,8 +153,8 @@ impl TopologyIntegration {
 
     fn determine_channel_transport_mode(
         &self,
-        actor: &Actor,
-        node: &Node,
+        _actor: &Actor,
+        _node: &Node,
         channel: &str,
     ) -> Result<crate::hybrid::TransportMode> {
         let channel_config = self.transport_config.get_channel_config(channel);

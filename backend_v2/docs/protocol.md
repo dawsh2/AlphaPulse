@@ -19,7 +19,7 @@ A high-performance message protocol using bijective (reversible) IDs and univers
 
 The bijective ID system eliminates the need for centralized registries or ID mappings:
 
-1. **Producer serializes complete information**: 
+1. **Producer serializes complete information**:
    - DeFi: Pool data includes venue + all token IDs in the `PoolInstrumentId`
    - TradFi: Equity/options include exchange + symbol + expiry in the ID
    - Every entity is self-describing through its bijective ID
@@ -55,7 +55,7 @@ The bijective ID system eliminates the need for centralized registries or ID map
 fn process_trade(&mut self, trade: TradeTLV) {
     // trade.instrument_id is a PoolInstrumentId with venue + tokens
     // No registry lookup - the ID contains everything!
-    
+
     // Update local cache using fast_hash for O(1) access
     self.pool_states.entry(trade.instrument_id.fast_hash)
         .or_insert_with(|| PoolState::new())
@@ -69,7 +69,7 @@ fn process_trade(&mut self, trade: TradeTLV) {
 // Receives L2 delta or tick update with complete instrument identity
 fn process_market_update(&mut self, update: MarketUpdateTLV) {
     // update.instrument_id contains exchange + symbol + all identifying info
-    
+
     // Update local order book using same pattern
     self.order_books.entry(update.instrument_id.fast_hash)
         .or_insert_with(|| OrderBook::new())
@@ -124,7 +124,7 @@ Sequence numbers are **monotonic per source**, enabling:
 
 Each relay domain maintains separate sequence spaces:
 - MarketDataRelay (domain 1): Per-collector sequences for market data streams
-- SignalRelay (domain 2): Per-strategy sequences for signal generation  
+- SignalRelay (domain 2): Per-strategy sequences for signal generation
 - ExecutionRelay (domain 3): Per-service sequences for execution commands
 
 ### Source ID Registry
@@ -150,21 +150,21 @@ pub enum SourceType {
     KrakenCollector = 2,
     CoinbaseCollector = 3,
     PolygonCollector = 4,
-    
+
     // Strategy services (20-39)
     ArbitrageStrategy = 20,
     MarketMaker = 21,
     TrendFollower = 22,
-    
+
     // Execution services (40-59)
     PortfolioManager = 40,
     RiskManager = 41,
     ExecutionEngine = 42,
-    
+
     // System services (60-79)
     Dashboard = 60,
     MetricsCollector = 61,
-    
+
     // Relays themselves (80-99)
     MarketDataRelay = 80,
     SignalRelay = 81,
@@ -181,7 +181,7 @@ The `flags` field contains bitwise message attributes:
 | Flag | Value | Description |
 |------|-------|-------------|
 | MSG_FLAG_COMPRESSED | 0x01 | Payload is compressed |
-| MSG_FLAG_ENCRYPTED | 0x02 | Payload is encrypted | 
+| MSG_FLAG_ENCRYPTED | 0x02 | Payload is encrypted |
 | MSG_FLAG_PRIORITY_HIGH | 0x04 | High priority message |
 | MSG_FLAG_REQUIRES_ACK | 0x08 | Requires acknowledgment |
 | MSG_FLAG_TRACE_ENABLED | 0x10 | Contains TraceContextTLV |
@@ -210,7 +210,7 @@ Rather than forcing all data into a single precision format, TLVs are designed a
 /// Pool swap preserves EXACT native token amounts
 pub struct PoolSwapTLV {
     pub amount_in: i64,              // Native precision, no scaling
-    pub amount_out: i64,             // Native precision, no scaling  
+    pub amount_out: i64,             // Native precision, no scaling
     pub amount_in_decimals: u8,      // Decimals for amount_in (e.g., WMATIC=18)
     pub amount_out_decimals: u8,     // Decimals for amount_out (e.g., USDC=6)
     pub sqrt_price_x96_after: [u8; 20], // Full uint160 precision (20 bytes)
@@ -222,7 +222,7 @@ pub struct PoolSwapTLV {
 PoolSwapTLV {
     amount_in: 1_500_000_000_000_000_000,  // 1.5 WETH (18 decimals)
     amount_in_decimals: 18,
-    amount_out: 3_000_000_000,             // 3000 USDC (6 decimals)  
+    amount_out: 3_000_000_000,             // 3000 USDC (6 decimals)
     amount_out_decimals: 6,
 }
 ```
@@ -271,7 +271,7 @@ TradeTLV {
 // Production validation pipeline ensures data integrity
 let production_validator = ProductionPolygonValidator::new(
     rpc_url,
-    cache_dir, 
+    cache_dir,
     chain_id
 ).await?;
 
@@ -284,7 +284,7 @@ let pool_swap_tlv = PoolSwapTLV::from(validated_event);
 // Token decimals validated on-chain
 ```
 
-#### CEX Collector Converting Trade Data  
+#### CEX Collector Converting Trade Data
 ```rust
 // Convert USD price to consistent 8-decimal format
 let btc_price_str = "45123.50"; // From Kraken API
@@ -321,7 +321,7 @@ TLV types are organized by relay domain to maintain clean separation:
 All DeFi pool data undergoes comprehensive validation before TLV conversion:
 
 1. **ABI Event Decoding**: Ethereum event logs decoded using ethabi for structural validation
-2. **Pool Registry Validation**: Pool addresses validated against known factory deployments 
+2. **Pool Registry Validation**: Pool addresses validated against known factory deployments
 3. **Token Metadata Queries**: Token decimals and addresses queried from on-chain contracts
 4. **Four-Step Validation**: Parse → Serialize → Deserialize → Deep Equality verification
 5. **Production Safety**: Pool cache integration with persistent validation state
@@ -463,12 +463,12 @@ Reserved fields in TLV structures have standardized usage patterns for forward c
 - `reserved[0]`: Execution venue sub-type (0=spot, 1=perpetual, 2=option)
 - `reserved[1]`: Price precision indicator (number of decimal places)
 
-#### SignalIdentityTLV Reserved Field  
+#### SignalIdentityTLV Reserved Field
 - `reserved`: Strategy version number for backtesting compatibility
 
 #### EconomicsTLV Reserved Fields
 - `reserved[0-1]`: Confidence interval in basis points (little-endian u16)
-- `reserved[2-3]`: Market impact estimate in basis points (little-endian u16)  
+- `reserved[2-3]`: Market impact estimate in basis points (little-endian u16)
 - `reserved[4-5]`: Execution urgency level 0-65535 (little-endian u16)
 
 #### Future Reserved Field Usage
@@ -490,7 +490,7 @@ SignalRelay → Risk Manager → ExecutionRelay → Execution Engine
 [Economics]      [Position Size]         [Execution]
 ```
 
-#### Self-Contained Flash Loan Strategies  
+#### Self-Contained Flash Loan Strategies
 Execute entirely within the strategy, only report results:
 ```
 Market Data → Flash Loan Strategy → Blockchain
@@ -632,20 +632,20 @@ Header (relay_domain=1) + Quote TLV + InstrumentMeta TLV
 
 **Cross-DEX Arbitrage Signal:**
 ```
-Header (relay_domain=2) + 
-SignalIdentity TLV + 
-AssetCorrelation TLV + 
-Economics TLV + 
-ExecutionAddresses TLV + 
-VenueMetadata TLV + 
-StateReference TLV + 
+Header (relay_domain=2) +
+SignalIdentity TLV +
+AssetCorrelation TLV +
+Economics TLV +
+ExecutionAddresses TLV +
+VenueMetadata TLV +
+StateReference TLV +
 ExecutionControl TLV
 ```
 
 **With Optional Extensions:**
 ```
 + PoolAddresses TLV        (for UniV3 quoter calls)
-+ MEVBundle TLV           (for Flashbots submission)  
++ MEVBundle TLV           (for Flashbots submission)
 + TertiaryVenue TLV       (for triangular arbitrage)
 ```
 
@@ -653,17 +653,17 @@ ExecutionControl TLV
 
 **Order Request:**
 ```
-Header (relay_domain=3) + 
-OrderRequest TLV + 
-AssetCorrelation TLV + 
+Header (relay_domain=3) +
+OrderRequest TLV +
+AssetCorrelation TLV +
 ExecutionAddresses TLV
 ```
 
 **Fill Report:**
 ```
-Header (relay_domain=3) + 
-Fill TLV + 
-OrderStatus TLV + 
+Header (relay_domain=3) +
+Fill TLV +
+OrderStatus TLV +
 ExecutionReport TLV
 ```
 
@@ -775,7 +775,7 @@ use alphapulse_transport::Transport;
 pub struct Dashboard {
     // Dashboard connects to relays via the transport layer
     market_data_consumer: RelayConsumer,
-    signal_consumer: RelayConsumer,  
+    signal_consumer: RelayConsumer,
     execution_consumer: RelayConsumer,
 }
 
@@ -789,7 +789,7 @@ impl Dashboard {
             execution_consumer: RelayConsumer::connect_domain(3).await?,
         })
     }
-    
+
     pub async fn subscribe_topics(&mut self) -> Result<()> {
         // Subscribe to specific topics for efficient filtering
         self.market_data_consumer.subscribe(Topic::new("market_data_polygon")).await?;
@@ -798,7 +798,7 @@ impl Dashboard {
         self.execution_consumer.subscribe(Topic::new("execution_fills")).await?;
         Ok(())
     }
-    
+
     pub async fn run(&mut self) {
         // Poll ALL relay connections simultaneously for comprehensive view
         loop {
@@ -807,12 +807,12 @@ impl Dashboard {
                 msg = self.market_data_consumer.receive() => {
                     self.handle_market_data(msg)?;
                 }
-                
+
                 // Strategy signals for performance tracking
                 msg = self.signal_consumer.receive() => {
                     self.handle_strategy_signal(msg)?;
                 }
-                
+
                 // Execution updates for order tracking
                 msg = self.execution_consumer.receive() => {
                     self.handle_execution_update(msg)?;
@@ -838,8 +838,8 @@ struct RelayState {
 When consumers detect sequence number gaps, they initiate recovery:
 
 1. **Gap Detection**: Consumer compares received sequence with expected next sequence
-2. **Recovery Request**: Send `RecoveryRequest` TLV with last received sequence  
-3. **Relay Response**: 
+2. **Recovery Request**: Send `RecoveryRequest` TLV with last received sequence
+3. **Relay Response**:
    - **Small gap** (<100 messages): Retransmit missing range to that consumer
    - **Large gap**: Send `Snapshot` TLV + resume from current global sequence
 4. **Consumer Sync**: Apply snapshot and continue normal processing
@@ -902,7 +902,7 @@ The relay infrastructure supports mixed transport modes via configuration:
 transport = "unix_socket"
 path = "/tmp/alphapulse/market_data.sock"
 
-[relays.signals]  
+[relays.signals]
 transport = "message_bus"  # Next-gen transport for testing
 channel_capacity = 100000
 
@@ -948,7 +948,7 @@ impl EventArchiver {
         // Non-blocking: just push to ring buffer
         self.buffer.push(msg);
     }
-    
+
     async fn batch_writer_loop(&self) {
         loop {
             let batch = self.buffer.drain_batch(1000); // Up to 1K messages
@@ -993,7 +993,7 @@ For WebSocket-only market data sources, connection failures require immediate st
 
 1. **Immediate State Invalidation**
    - Collector detects WebSocket disconnect
-   - Sends `StateInvalidationTLV` for all affected instruments  
+   - Sends `StateInvalidationTLV` for all affected instruments
    - Consumers receive invalidation and **completely remove** those instruments from state
 
 2. **Reconnection Strategy**
@@ -1012,7 +1012,7 @@ For WebSocket-only market data sources, connection failures require immediate st
 ```rust
 pub struct StateInvalidationTLV {
     pub tlv_type: u8,           // 111
-    pub tlv_length: u8,         // 14  
+    pub tlv_length: u8,         // 14
     pub instrument_id: InstrumentId, // 12 bytes - affected pool/orderbook
     pub action: u8,             // 1=Reset (clear state completely)
     pub reserved: u8,           // Future use
@@ -1032,7 +1032,7 @@ match tlv_type {
 
 // Arbitrage logic - both pools must exist and be fresh
 fn can_arbitrage(&self, pool_a: &InstrumentId, pool_b: &InstrumentId) -> bool {
-    self.pool_states.contains_key(pool_a) && 
+    self.pool_states.contains_key(pool_a) &&
     self.pool_states.contains_key(pool_b)
     // No "stale" or "rebuilding" states to check
 }
@@ -1161,7 +1161,7 @@ pub enum TLVType {
 #[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct TradeTLV {
     pub venue_id: u16,          // VenueId as primitive
-    pub asset_type: u8,         // AssetType as primitive  
+    pub asset_type: u8,         // AssetType as primitive
     pub reserved: u8,           // Reserved byte for alignment
     pub asset_id: u64,          // Asset identifier
     pub price: i64,             // Fixed-point with 8 decimals
@@ -1172,15 +1172,15 @@ pub struct TradeTLV {
 
 impl TradeTLV {
     /// Create from high-level types
-    pub fn new(venue: VenueId, instrument_id: InstrumentId, 
+    pub fn new(venue: VenueId, instrument_id: InstrumentId,
                price: i64, volume: i64, side: u8, timestamp_ns: u64) -> Self;
-    
+
     /// Convert to InstrumentId
     pub fn instrument_id(&self) -> InstrumentId;
-    
-    /// Convert to VenueId  
+
+    /// Convert to VenueId
     pub fn venue(&self) -> Result<VenueId, ProtocolError>;
-    
+
     /// Parse from bytes with zero-copy deserialization
     pub fn from_bytes(data: &[u8]) -> Result<Self, String>;
 }
@@ -1328,19 +1328,19 @@ pub struct InstrumentId {
 impl InstrumentId {
     /// Size in bytes (12 bytes for efficient packing)
     pub const SIZE: usize = 12;
-    
+
     /// Create Ethereum token ID from contract address
     pub fn ethereum_token(address: &str) -> Result<Self>;
-    
+
     /// Create stock ID from exchange and symbol
     pub fn stock(exchange: VenueId, symbol: &str) -> Self;
-    
+
     /// Create DEX pool ID from constituent tokens
     pub fn pool(dex: VenueId, token0: InstrumentId, token1: InstrumentId) -> Self;
-    
+
     /// Convert to u64 for cache keys and lookups
     pub fn to_u64(&self) -> u64;
-    
+
     /// Reconstruct from u64 cache key (bijective)
     pub fn from_u64(value: u64) -> Self;
 }
@@ -1350,14 +1350,14 @@ impl InstrumentId {
 pub enum VenueId {
     // Generic venue for testing and legacy compatibility (0)
     Generic = 0,
-    
+
     // Traditional Exchanges (1-99)
     NYSE = 1,
     NASDAQ = 2,
     LSE = 3,           // London Stock Exchange
     TSE = 4,           // Tokyo Stock Exchange
     HKEX = 5,          // Hong Kong Exchange
-    
+
     // Cryptocurrency Centralized Exchanges (100-199)
     Binance = 100,
     Kraken = 101,
@@ -1368,7 +1368,7 @@ pub enum VenueId {
     Bybit = 106,
     KuCoin = 107,
     Gemini = 108,
-    
+
     // Layer 1 Blockchains (200-299)
     Ethereum = 200,
     Bitcoin = 201,
@@ -1382,7 +1382,7 @@ pub enum VenueId {
     Cardano = 209,
     Polkadot = 210,
     Cosmos = 211,
-    
+
     // DeFi Protocols on Ethereum (300-399)
     UniswapV2 = 300,
     UniswapV3 = 301,
@@ -1395,35 +1395,35 @@ pub enum VenueId {
     Yearn = 308,
     Synthetix = 309,
     dYdX = 310,
-    
+
     // DeFi Protocols on Polygon (400-499)
     QuickSwap = 400,
     SushiSwapPolygon = 401,
     CurvePolygon = 402,
     AavePolygon = 403,
     BalancerPolygon = 404,
-    
+
     // DeFi Protocols on BSC (500-599)
     PancakeSwap = 500,
     VenusProtocol = 501,
-    
+
     // DeFi Protocols on Arbitrum (600-699)
     UniswapV3Arbitrum = 600,
     SushiSwapArbitrum = 601,
     CurveArbitrum = 602,
-    
+
     // Options and Derivatives (700-799)
     Deribit = 700,
     BybitDerivatives = 701,
     OpynProtocol = 702,
     Hegic = 703,
-    
+
     // Commodities and Forex (800-899)
     COMEX = 800,       // Commodity Exchange
     CME = 801,         // Chicago Mercantile Exchange
     ICE = 802,         // Intercontinental Exchange
     ForexCom = 803,
-    
+
     // Test/Development Venues (65000+)
     TestVenue = 65000,
     MockExchange = 65001,
@@ -1439,19 +1439,19 @@ pub enum AssetType {
     Commodity = 4,
     Currency = 5,
     Index = 6,
-    
+
     // Cryptocurrency Assets (50-99)
     Token = 50,          // ERC-20, SPL, etc.
     Coin = 51,           // Native blockchain tokens (ETH, BTC, etc.)
     NFT = 52,            // Non-fungible tokens
     StableCoin = 53,     // USDC, USDT, DAI, etc.
-    
+
     // DeFi Assets (100-149)
     Pool = 100,          // DEX liquidity pools
     Vault = 101,         // Yield farming vaults
     Farm = 102,          // Liquidity mining farms
     Bond_Protocol = 103, // Protocol bonds (Olympus, etc.)
-    
+
     // Derivatives (150-199)
     Option = 150,
     Future = 151,
@@ -1467,7 +1467,7 @@ impl InstrumentId {
         let hex_clean = address.strip_prefix("0x").unwrap_or(address);
         let bytes = hex::decode(&hex_clean[..16])?; // First 8 bytes = 16 hex chars
         let asset_id = u64::from_be_bytes(bytes.try_into().unwrap());
-        
+
         Ok(Self {
             venue: VenueId::Ethereum as u16,
             asset_type: AssetType::Token as u8,
@@ -1566,7 +1566,7 @@ fn cantor_pairing(x: u64, y: u64) -> u64 {
     // Use 32-bit values to prevent overflow in 64-bit result
     let x32 = (x & 0xFFFFFFFF) as u32;
     let y32 = (y & 0xFFFFFFFF) as u32;
-    
+
     let sum = x32 as u64 + y32 as u64;
     (sum * (sum + 1) / 2 + y32 as u64) & 0xFFFFFFFFFF // Keep within 40 bits
 }
@@ -1616,7 +1616,7 @@ impl TLVMessageBuilder {
 
         // Serialize header + TLVs
         let mut message = Vec::with_capacity(32 + payload_size);
-        
+
         // Add header (will update checksum later)
         message.extend_from_slice(self.header.as_bytes());
 
@@ -1682,7 +1682,7 @@ let economics = EconomicsTLV {
 // Build message
 let message = TLVMessageBuilder::new(2, 40) // Signal domain, ArbitrageStrategy source
     .add_tlv(TLVType::SignalIdentity, &signal_identity)
-    .add_tlv(TLVType::AssetCorrelation, &asset_correlation)  
+    .add_tlv(TLVType::AssetCorrelation, &asset_correlation)
     .add_tlv(TLVType::Economics, &economics)
     .build();
 
@@ -1709,7 +1709,7 @@ let message_bytes = consumer.receive().await?;
 
 // Parse header
 let header = parse_header(&message_bytes)?;
-println!("Received {} bytes from relay domain {}", 
+println!("Received {} bytes from relay domain {}",
          header.payload_size, header.relay_domain);
 
 // Extract TLV payload
@@ -1743,7 +1743,7 @@ for tlv in tlvs {
 
 #### Measured Performance (Production Implementation)
 - **Message construction**: >1M msg/s (1,097,624 msg/s measured)
-- **Message parsing**: >1.6M msg/s (1,643,779 msg/s measured)  
+- **Message parsing**: >1.6M msg/s (1,643,779 msg/s measured)
 - **InstrumentId operations**: >19M ops/s (19,796,915 ops/s measured)
 - **Memory efficiency**: 32-byte header + minimal TLV overhead
 
@@ -1760,9 +1760,23 @@ for tlv in tlvs {
 - **Header validation**: Type/enum validation with error propagation
 
 **Checksum Policy by Relay Domain:**
-- **MarketDataRelay**: Optional checksums (prioritize speed for price ticks)
-- **SignalRelay**: Enforced checksums (balance speed/reliability for strategies)
-- **ExecutionRelay**: Always enforced (validate critical order flow)
+
+Protocol V2 explicitly supports **selective checksum validation** to optimize for different performance/safety trade-offs:
+
+- **MarketDataRelay**: **Checksum validation disabled** (prioritize speed for >1M msg/s price ticks)
+  - Risk: Corrupted market data could cause incorrect price calculations
+  - Mitigation: Source validation, redundant feeds, circuit breakers
+  - Justification: Market data is redundant and self-correcting
+
+- **SignalRelay**: **Checksum validation enabled** (balance speed/reliability for strategies)
+  - Critical: Trading signals must be accurate for execution decisions
+  - Performance: Can sustain 100K+ msg/s with validation overhead
+
+- **ExecutionRelay**: **Always enforced** (validate critical order flow)
+  - Critical: Order corruption could cause financial losses
+  - Zero tolerance: All execution messages must pass validation
+
+**Implementation:** Consumers use `parse_header_without_checksum()` for market data domains and `parse_header()` for signal/execution domains.
 
 #### Throughput Targets (Achieved)
 - **Market data**: 1M+ messages/second ✅ **ACHIEVED**
@@ -1791,25 +1805,25 @@ for tlv in tlvs {
 pub enum ProtocolError {
     #[error("Parse error: {0}")]
     Parse(#[from] ParseError),
-    
+
     #[error("Unknown TLV type: {0}")]
     UnknownTLV(u8),
-    
+
     #[error("Invalid instrument ID")]
     InvalidInstrument,
-    
+
     #[error("Checksum validation failed")]
     ChecksumFailed,
-    
+
     #[error("Message too large: {size} bytes")]
     MessageTooLarge { size: usize },
-    
+
     #[error("Invalid relay domain: {0}")]
     InvalidRelayDomain(u8),
-    
+
     #[error("Recovery error: {0}")]
     Recovery(String),
-    
+
     #[error("Transport error: {0}")]
     Transport(#[from] std::io::Error),
 }

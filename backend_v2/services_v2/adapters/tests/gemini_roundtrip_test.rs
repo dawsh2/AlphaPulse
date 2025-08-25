@@ -11,7 +11,7 @@
 use alphapulse_adapter_service::input::collectors::gemini::{
     GeminiMarketDataEvent, GeminiTradeEvent,
 };
-use alphapulse_protocol_v2::{InstrumentId, TradeTLV, VenueId};
+use protocol_v2::{InstrumentId, TradeTLV, VenueId};
 use serde_json::Value;
 use std::convert::TryFrom;
 use zerocopy::{AsBytes, FromBytes};

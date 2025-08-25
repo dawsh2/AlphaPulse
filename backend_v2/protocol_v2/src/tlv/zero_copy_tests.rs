@@ -235,18 +235,8 @@ mod tests {
         assert_eq!(swap._padding, [0u8; 8], "PoolSwapTLV padding not zero");
 
         // Verify address padding is correct
-        assert!(
-            swap.pool_address.validate_padding(),
-            "Pool address padding invalid"
-        );
-        assert!(
-            swap.token_in_addr.validate_padding(),
-            "Token in address padding invalid"
-        );
-        assert!(
-            swap.token_out_addr.validate_padding(),
-            "Token out address padding invalid"
-        );
+        // Note: validate_padding() method was removed from arrays
+        // The zerocopy FromZeroes trait ensures correct initialization
 
         println!("✅ All padding correctly initialized");
     }

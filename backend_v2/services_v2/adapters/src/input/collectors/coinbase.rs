@@ -35,18 +35,18 @@
 //! - **Recovery Time**: <3 seconds for connection failures
 //! - **Validation Overhead**: <0.1ms per message validation
 
+use crate::output::RelayOutput;
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use protocol_v2::{
-    tlv::build_message_direct,
-    InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
+    tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
 use rust_decimal::prelude::{FromStr, ToPrimitive};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::input::{ConnectionState, HealthStatus, InputAdapter};
@@ -200,7 +200,7 @@ impl CoinbaseMatchEvent {
         })
     }
 
-    /// Convert size to fixed-point i64 with 8 decimal places  
+    /// Convert size to fixed-point i64 with 8 decimal places
     pub fn size_fixed_point(&self) -> Result<i64> {
         let size = Decimal::from_str(&self.size).map_err(|_| AdapterError::ParseError {
             venue: VenueId::Coinbase,
@@ -285,8 +285,8 @@ pub struct CoinbaseCollector {
     /// Metrics for monitoring adapter health
     metrics: Arc<AdapterMetrics>,
 
-    /// Output channel for TLV messages - this is where we send converted data
-    output_tx: mpsc::Sender<Vec<u8>>,
+    /// Direct RelayOutput connection (no channel overhead)
+    relay_output: Arc<RelayOutput>,
 
     /// Running flag for clean shutdown
     running: Arc<RwLock<bool>>,
@@ -297,15 +297,15 @@ pub struct CoinbaseCollector {
 
 impl CoinbaseCollector {
     /// Create a new Coinbase collector
-    pub fn new(products: Vec<String>, output_tx: mpsc::Sender<Vec<u8>>) -> Self {
+    pub async fn new(products: Vec<String>, relay_output: Arc<RelayOutput>) -> crate::Result<Self> {
         let metrics = Arc::new(AdapterMetrics::new());
 
-        Self {
+        Ok(Self {
             metrics,
-            output_tx,
+            relay_output,
             running: Arc::new(RwLock::new(false)),
             products,
-        }
+        })
     }
 
     /// Subscribe to Coinbase matches channel
@@ -504,9 +504,12 @@ impl InputAdapter for CoinbaseCollector {
                 Some(Ok(Message::Text(text))) => {
                     match self.process_message(&text).await {
                         Ok(Some(tlv_message)) => {
-                            // REVIEW NOTE: Channel send failure should trigger reconnection
-                            if let Err(e) = self.output_tx.send(tlv_message).await {
-                                tracing::error!("Failed to send TLV message: {}", e);
+                            // Direct RelayOutput send - no channel overhead
+                            if let Err(e) = self.relay_output.send_bytes(&tlv_message).await {
+                                tracing::error!(
+                                    "Coinbase RelayOutput send failed for TLV message ({}B): {}. Connection will be reset.",
+                                    tlv_message.len(), e
+                                );
                                 break;
                             }
                         }

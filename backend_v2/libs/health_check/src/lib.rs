@@ -2,13 +2,13 @@
 //!
 //! Provides standardized health checking for all AlphaPulse services with support for:
 //! - Socket availability monitoring
-//! - Performance metrics tracking  
+//! - Performance metrics tracking
 //! - Service-specific health indicators
 //! - HTTP health endpoints
 //! - Deployment automation integration
 //!
 //! ## Architecture
-//! 
+//!
 //! Each service embeds a health check server that exposes:
 //! - `/health` - Basic liveness check
 //! - `/ready` - Readiness for traffic
@@ -27,7 +27,7 @@
 //!
 //! ```rust,no_run
 //! use alphapulse_health_check::{HealthCheckServer, ServiceHealth};
-//! 
+//!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut health = ServiceHealth::new("market_data_relay");
@@ -39,7 +39,7 @@
 //! # }
 //! ```
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -47,10 +47,9 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::fs;
+use std::time::SystemTime;
 use tracing::{debug, error, info};
 
 /// Service health status levels
@@ -71,7 +70,7 @@ pub enum HealthStatus {
 pub struct PerformanceMetrics {
     /// Messages processed per second
     pub messages_per_second: f64,
-    /// Average processing latency in microseconds  
+    /// Average processing latency in microseconds
     pub avg_latency_us: f64,
     /// P99 processing latency in microseconds
     pub p99_latency_us: f64,
@@ -254,10 +253,7 @@ impl ServiceHealth {
 
     /// Get uptime in seconds
     pub fn uptime_seconds(&self) -> u64 {
-        self.startup_time
-            .elapsed()
-            .unwrap_or_default()
-            .as_secs()
+        self.startup_time.elapsed().unwrap_or_default().as_secs()
     }
 }
 
@@ -314,7 +310,7 @@ impl HealthCheckServer {
         F: FnOnce(&mut ServiceHealth),
     {
         let mut health = self.health.lock().await;
-        updater(&mut *health);
+        updater(&mut health);
     }
 }
 
@@ -422,7 +418,9 @@ fn handle_metrics_endpoint(health: ServiceHealth) -> Result<Response<Body>, Infa
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header("content-type", "application/json")
-        .body(Body::from(serde_json::to_string_pretty(&health.metrics).unwrap()))
+        .body(Body::from(
+            serde_json::to_string_pretty(&health.metrics).unwrap(),
+        ))
         .unwrap())
 }
 
@@ -506,7 +504,7 @@ mod tests {
         let mut health = ServiceHealth::new("test_service");
         assert_eq!(health.service_name, "test_service");
         assert_eq!(health.status, HealthStatus::Starting);
-        
+
         health.set_socket_path("/tmp/test.sock");
         assert_eq!(health.socket_path, Some("/tmp/test.sock".to_string()));
     }
@@ -514,11 +512,11 @@ mod tests {
     #[test]
     fn test_metrics_collector() {
         let collector = MetricsCollector::new();
-        
+
         collector.increment_messages();
         collector.increment_messages();
         collector.set_active_connections(5);
-        
+
         let metrics = collector.get_metrics();
         assert_eq!(metrics.total_messages, 2);
         assert_eq!(metrics.active_connections, 5);

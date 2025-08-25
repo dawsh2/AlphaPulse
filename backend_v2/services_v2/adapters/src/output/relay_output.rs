@@ -48,22 +48,16 @@ impl RelayOutput {
                 // CORRECTED MessageHeader field order: magic(4), relay_domain(1), version(1), source(1), flags(1), sequence(8), timestamp(8), payload_size(4), checksum(4)
                 let identification_header = [
                     // magic: 0xDEADBEEF (4 bytes, little endian) - CRITICAL: FIRST 4 BYTES FOR IMMEDIATE PROTOCOL ID
-                    0xEF, 0xBE, 0xAD, 0xDE,
-                    // relay_domain: MarketData (1 byte)
-                    0x01,
-                    // version: 1 (1 byte)
-                    0x01,
-                    // source: PolygonCollector (1 byte)
-                    0x02,
-                    // flags: 0 (1 byte)
-                    0x00,
-                    // sequence: 0 (8 bytes)
+                    0xEF, 0xBE, 0xAD, 0xDE, // relay_domain: MarketData (1 byte)
+                    0x01, // version: 1 (1 byte)
+                    0x01, // source: PolygonCollector (1 byte)
+                    0x02, // flags: 0 (1 byte)
+                    0x00, // sequence: 0 (8 bytes)
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     // timestamp: 0 (8 bytes)
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     // payload_size: 0 (4 bytes)
-                    0x00, 0x00, 0x00, 0x00,
-                    // checksum: 0 (4 bytes)
+                    0x00, 0x00, 0x00, 0x00, // checksum: 0 (4 bytes)
                     0x00, 0x00, 0x00, 0x00,
                 ];
 
@@ -85,7 +79,7 @@ impl RelayOutput {
     /// Send a Protocol V2 binary message to the relay
     /// The message should be built using TLVMessageBuilder::build() which returns Vec<u8>
     /// This message already contains the complete Protocol V2 header and TLV payload
-    pub async fn send_bytes(&self, message_bytes: Vec<u8>) -> Result<()> {
+    pub async fn send_bytes(&self, message_bytes: &[u8]) -> Result<()> {
         // Ensure we're connected
         let mut stream_guard = self.stream.lock().await;
         if stream_guard.is_none() {

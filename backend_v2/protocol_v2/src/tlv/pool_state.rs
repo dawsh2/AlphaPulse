@@ -5,10 +5,10 @@
 // TLVType removed with legacy TLV system
 // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
 use super::market_data::PoolSwapTLV;
+use crate::define_tlv;
 use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use std::collections::HashMap;
 use zerocopy::AsBytes;
-use crate::define_tlv;
 
 // Pool state snapshot using macro for consistency
 define_tlv! {
@@ -92,22 +92,22 @@ pub struct V3PoolConfig {
 impl PoolStateTLV {
     /// Create from V2 pool reserves with native precision
     pub fn from_v2_reserves(config: V2PoolConfig) -> Self {
-        let timestamp_ns = fast_timestamp_ns();  // Ultra-fast ~5ns vs ~200ns
+        let timestamp_ns = fast_timestamp_ns(); // Ultra-fast ~5ns vs ~200ns
 
         Self::new_raw(
             config.reserve0,
             config.reserve1,
-            0,                      // sqrt_price_x96 (0 for V2)
-            0,                      // liquidity (V2 doesn't use this concept)
-            config.block,           // block_number
+            0,            // sqrt_price_x96 (0 for V2)
+            0,            // liquidity (V2 doesn't use this concept)
+            config.block, // block_number
             timestamp_ns,
-            0,                      // tick (0 for V2)
+            0, // tick (0 for V2)
             config.fee_rate,
             config.venue,
             DEXProtocol::UniswapV2 as u8,
             config.token0_decimals,
             config.token1_decimals,
-            [0u8; 3],               // _padding
+            [0u8; 3], // _padding
             config.pool_address,
             config.token0_addr,
             config.token1_addr,
@@ -121,14 +121,14 @@ impl PoolStateTLV {
         let (reserve0, reserve1) =
             calculate_v3_virtual_reserves(config.sqrt_price_x96, config.liquidity);
 
-        let timestamp_ns = fast_timestamp_ns();  // Ultra-fast ~5ns vs ~200ns
+        let timestamp_ns = fast_timestamp_ns(); // Ultra-fast ~5ns vs ~200ns
 
         Self::new_raw(
             reserve0,
             reserve1,
             config.sqrt_price_x96,
             config.liquidity,
-            config.block,           // block_number
+            config.block, // block_number
             timestamp_ns,
             config.tick,
             config.fee_rate,
@@ -136,7 +136,7 @@ impl PoolStateTLV {
             DEXProtocol::UniswapV3 as u8,
             config.token0_decimals,
             config.token1_decimals,
-            [0u8; 3],               // _padding
+            [0u8; 3], // _padding
             config.pool_address,
             config.token0_addr,
             config.token1_addr,
@@ -274,13 +274,13 @@ impl PoolStateTracker {
             // Calculate deltas (swap amounts affect reserves oppositely)
             // Compare full addresses to determine which token was swapped in
             // Use i128 for signed arithmetic with u128 values
-            let amount0_delta = if swap.token_in_addr == state.token0_addr {
+            let amount0_delta = if swap.token_in_addr == state.token0_addr[..20] {
                 swap.amount_in as i128 // Pool gains token0
             } else {
                 -(swap.amount_out as i128) // Pool loses token0
             };
 
-            let amount1_delta = if swap.token_in_addr == state.token1_addr {
+            let amount1_delta = if swap.token_in_addr == state.token1_addr[..20] {
                 swap.amount_in as i128 // Pool gains token1
             } else {
                 -(swap.amount_out as i128) // Pool loses token1

@@ -22,9 +22,9 @@
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use protocol_v2::{
-    parse_header, parse_tlv_extensions, tlv::build_message_direct, InstrumentId, RelayDomain, 
-    SourceType, TLVType, TradeTLV, VenueId,
-    tlv::fast_timestamp::init_timestamp_system,
+    parse_header, parse_tlv_extensions, tlv::build_message_direct,
+    tlv::fast_timestamp::init_timestamp_system, InstrumentId, RelayDomain, SourceType, TLVType,
+    TradeTLV, VenueId,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -338,7 +338,7 @@ impl UnifiedBinanceCollector {
 
             // Send directly to RelayOutput (no channel overhead)
             self.relay_output
-                .send_bytes(tlv_message)
+                .send_bytes(&tlv_message)
                 .await
                 .context("RelayOutput send failed - CRASHING as designed")?;
 
@@ -409,7 +409,8 @@ impl UnifiedBinanceCollector {
             TLVType::Trade,
             &trade_tlv,
         )
-        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("TLV build failed: {}", e))
+        .ok()?;
 
         debug!(
             "📈 Trade processed: {} @ {} ({})",
@@ -487,7 +488,7 @@ impl UnifiedBinanceCollector {
 async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt::init();
-    
+
     // ✅ CRITICAL: Initialize ultra-fast timestamp system
     init_timestamp_system();
     info!("✅ Ultra-fast timestamp system initialized (~5ns per timestamp)");

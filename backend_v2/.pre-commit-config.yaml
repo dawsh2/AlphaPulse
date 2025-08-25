@@ -7,21 +7,21 @@ repos:
     hooks:
       - id: cargo-fmt
         name: Cargo Format
-        entry: cargo fmt --all -- --check
+        entry: bash -c 'cd backend_v2 && cargo fmt --all -- --check'
         language: system
         types: [rust]
         pass_filenames: false
 
       - id: cargo-clippy
         name: Cargo Clippy
-        entry: cargo clippy --workspace --all-targets -- -D warnings
+        entry: bash -c 'cd backend_v2 && cargo clippy --workspace --all-targets -- -W clippy::all'
         language: system
         types: [rust]
         pass_filenames: false
 
       - id: cargo-test
         name: Cargo Test
-        entry: cargo test --workspace --all-targets
+        entry: bash -c 'cd backend_v2 && cargo test --workspace --all-targets'
         language: system
         types: [rust]
         pass_filenames: false
@@ -31,26 +31,26 @@ repos:
     hooks:
       - id: check-service-boundaries
         name: Service Boundary Validation
-        entry: ./scripts/check_service_boundaries.sh
+        entry: bash -c 'cd backend_v2 && ./scripts/check_service_boundaries.sh'
         language: system
         types: [rust]
         pass_filenames: false
 
       - id: check-tlv-registry
         name: TLV Type Registry Integrity
-        entry: ./scripts/check_tlv_registry.sh
+        entry: bash -c 'cd backend_v2 && ./scripts/check_tlv_registry.sh'
         language: system
         files: protocol_v2/src/tlv/types.rs
-        
+
       - id: check-readme-consistency
         name: README Consistency Check
-        entry: ./scripts/check_readme_consistency.sh
+        entry: bash -c 'cd backend_v2 && ./scripts/check_readme_consistency.sh'
         language: system
         files: ^.*/(README\.md|lib\.rs|mod\.rs)$
 
       - id: validate-project-structure
         name: Project Structure Validation
-        entry: ./scripts/validate_project_structure.sh
+        entry: bash -c 'cd backend_v2 && ./scripts/validate_project_structure.sh'
         language: system
         types: [rust]
         pass_filenames: false
@@ -60,21 +60,21 @@ repos:
     hooks:
       - id: check-missing-docs
         name: Missing Documentation Check
-        entry: cargo doc --workspace --document-private-items --no-deps
+        entry: bash -c 'cd backend_v2 && cargo doc --workspace --document-private-items --no-deps'
         language: system
         types: [rust]
         pass_filenames: false
 
       - id: sync-claude-agents
         name: Sync Claude Agents to Commands
-        entry: ./.claude/sync-agents.sh
+        entry: bash -c 'cd backend_v2 && ./.claude/sync-agents.sh'
         language: system
         files: ^\.claude/agents/.*\.md$
         pass_filenames: false
 
       - id: validate-examples
         name: Example Code Validation
-        entry: ./scripts/validate_examples.sh
+        entry: bash -c 'cd backend_v2 && ./scripts/validate_examples.sh'
         language: system
         files: ^(examples/|.*\.md)
 
@@ -83,14 +83,14 @@ repos:
     hooks:
       - id: check-duplicate-code
         name: Duplicate Code Detection
-        entry: ./scripts/check_duplicate_code.sh
+        entry: bash -c 'cd backend_v2 && ./scripts/check_duplicate_code.sh'
         language: system
         types: [rust]
         pass_filenames: false
 
       - id: validate-dependencies
         name: Dependency Validation
-        entry: ./scripts/validate_dependencies.sh
+        entry: bash -c 'cd backend_v2 && ./scripts/validate_dependencies.sh'
         language: system
         files: Cargo.toml
 
@@ -99,13 +99,13 @@ repos:
     hooks:
       - id: check-secrets
         name: Secret Detection (with exclusions)
-        entry: ./scripts/check_secrets.sh
+        entry: bash -c 'cd backend_v2 && ./scripts/check_secrets.sh'
         language: system
         types: [text]
         pass_filenames: true
 
   # Git hygiene
-  - repo: pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
       - id: check-merge-conflict

@@ -3,6 +3,7 @@
 //! Validates all major components: headers, TLV parsing, InstrumentIds, recovery protocol.
 //! This test binary demonstrates the protocol works before implementing relay servers.
 
+use protocol_v2::recovery::request::{RecoveryRequestTLV, RecoveryRequestType};
 use protocol_v2::*;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
@@ -241,38 +242,21 @@ fn test_bijective_id_properties() -> protocol_v2::Result<()> {
 }
 
 fn test_recovery_protocol() -> protocol_v2::Result<()> {
-    // Create a simple recovery data structure that matches the expected size (18 bytes)
-    #[repr(C)]
-    #[derive(Clone, Copy)] // Remove zerocopy derives for test struct
-    struct SimpleRecoveryData {
-        // Group u64 first for natural alignment
-        last_sequence: u64, // 8 bytes (aligned at 0)
-        // Then u32s
-        consumer_id: u32, // 4 bytes (aligned at 8)
-        gap_size: u32,    // 4 bytes (aligned at 12)
-        // Finally u16s
-        request_type: u16, // 2 bytes (aligned at 16)
-        _padding: u16,     // 2 bytes explicit padding to reach 20 bytes
-    } // Total: 20 bytes (was 24 with implicit padding, now 20 with explicit)
+    // Use the actual RecoveryRequestTLV struct
+    let recovery_request = RecoveryRequestTLV::new(
+        42,                              // consumer_id
+        100,                             // last_sequence
+        150,                             // current_sequence (gap detected)
+        RecoveryRequestType::Retransmit, // request_type
+    );
 
-    let recovery_data = SimpleRecoveryData {
-        last_sequence: 100,
-        consumer_id: 42,
-        gap_size: 50,
-        request_type: 1, // Retransmit
-        _padding: 0,
-    };
-
-    // Manually serialize the test struct (since it's not using zerocopy)
-    let recovery_bytes = unsafe {
-        std::slice::from_raw_parts(
-            &recovery_data as *const _ as *const u8,
-            std::mem::size_of::<SimpleRecoveryData>(),
-        )
-    };
+    println!(
+        "  🔍 RecoveryRequestTLV size: {} bytes",
+        std::mem::size_of::<RecoveryRequestTLV>()
+    );
 
     let message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::Dashboard)
-        .add_tlv_slice(TLVType::RecoveryRequest, recovery_bytes)
+        .add_tlv(TLVType::RecoveryRequest, &recovery_request)
         .build();
 
     println!("  📦 Built recovery request: {} bytes", message.len());
@@ -285,7 +269,7 @@ fn test_recovery_protocol() -> protocol_v2::Result<()> {
     match &tlvs[0] {
         TLVExtensionEnum::Standard(tlv_ext) => {
             assert_eq!(tlv_ext.header.tlv_type, TLVType::RecoveryRequest as u8);
-            assert_eq!(tlv_ext.payload.len(), 18); // Should match expected size
+            assert_eq!(tlv_ext.payload.len(), 24); // Should match expected size
             println!("  ✓ Recovery request TLV type and size correct");
         }
         _ => panic!("Expected standard TLV for recovery request"),

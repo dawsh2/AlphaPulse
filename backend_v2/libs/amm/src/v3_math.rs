@@ -7,6 +7,9 @@ use anyhow::{bail, Result};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
+/// Type alias for V3 swap calculation results: (amount_out, new_sqrt_price, new_tick)
+type SwapResult = (u128, u128, i32);
+
 /// V3 tick math constants
 pub const MIN_TICK: i32 = -887272;
 pub const MAX_TICK: i32 = 887272;
@@ -41,7 +44,7 @@ impl V3Math {
         amount_in: u128,
         pool: &V3PoolState,
         zero_for_one: bool, // true = token0 -> token1
-    ) -> Result<(u128, u128, i32)> {
+    ) -> Result<SwapResult> {
         // (amount_out, new_sqrt_price, new_tick)
         // For simplicity, assume swap stays within current tick
         // In production, would need to handle tick crossing

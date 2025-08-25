@@ -4,7 +4,7 @@
 //! must complete before production use:
 //!
 //! 1. Raw Data Parsing Validation - Ensure provider data is parsed correctly
-//! 2. TLV Serialization Validation - Ensure semantic mapping is correct  
+//! 2. TLV Serialization Validation - Ensure semantic mapping is correct
 //! 3. TLV Deserialization Validation - Ensure no corruption in binary format
 //! 4. Deep Equality Validation - Ensure perfect roundtrip with zero data loss
 //!
@@ -12,7 +12,7 @@
 
 use alphapulse_adapter_service::input::collectors::coinbase::CoinbaseMatchEvent;
 use alphapulse_adapter_service::AdapterError;
-use alphapulse_protocol_v2::{TradeTLV, VenueId};
+use protocol_v2::{TradeTLV, VenueId};
 use serde_json::Value;
 use std::fs;
 use zerocopy::AsBytes;
@@ -162,7 +162,7 @@ pub fn validate_coinbase_tlv_serialization(tlv: &TradeTLV) -> Result<Vec<u8>, St
     Ok(bytes)
 }
 
-/// STEP 3: Validate TLV deserialization  
+/// STEP 3: Validate TLV deserialization
 pub fn validate_coinbase_tlv_deserialization(bytes: &[u8]) -> Result<TradeTLV, String> {
     // 1. Deserialize from bytes
     let recovered =

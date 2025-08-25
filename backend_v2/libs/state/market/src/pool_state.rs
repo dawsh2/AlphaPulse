@@ -9,8 +9,8 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use protocol_v2::{
     tlv::{
-        AddressExtraction, DEXProtocol as PoolProtocol, PoolBurnTLV, PoolMintTLV, PoolStateTLV,
-        PoolSwapTLV, PoolSyncTLV,
+        DEXProtocol as PoolProtocol, PoolBurnTLV, PoolMintTLV, PoolStateTLV, PoolSwapTLV,
+        PoolSyncTLV,
     },
     InstrumentId, InstrumentId as PoolInstrumentId, VenueId,
 };
@@ -274,10 +274,10 @@ impl PoolStateManager {
 
     /// Process V2 Sync event - complete state update
     pub fn process_sync(&self, sync: &PoolSyncTLV) -> Result<()> {
-        // Extract 20-byte addresses from 32-byte padded format
-        let pool_address = sync.pool_address.to_eth_address();
-        let token0_addr = sync.token0_addr.to_eth_address();
-        let token1_addr = sync.token1_addr.to_eth_address();
+        // Use 20-byte addresses directly (no conversion needed)
+        let pool_address = sync.pool_address;
+        let token0_addr = sync.token0_addr;
+        let token1_addr = sync.token1_addr;
 
         // Get or create pool
         let pool_arc = self.pools.entry(pool_address).or_insert_with(|| {
@@ -353,10 +353,10 @@ impl PoolStateManager {
 
     /// Process V3 Swap event - contains state updates
     pub fn process_swap(&self, swap: &PoolSwapTLV) -> Result<()> {
-        // Extract 20-byte addresses from 32-byte padded format
-        let pool_address = swap.pool_address.to_eth_address();
-        let token_in_addr = swap.token_in_addr.to_eth_address();
-        let token_out_addr = swap.token_out_addr.to_eth_address();
+        // Use 20-byte addresses directly (no conversion needed)
+        let pool_address = swap.pool_address;
+        let token_in_addr = swap.token_in_addr;
+        let token_out_addr = swap.token_out_addr;
 
         // For V3 swaps, create/update pool with state
         // Check if this is a V3 swap based on available fields
@@ -435,8 +435,8 @@ impl PoolStateManager {
 
     /// Process Mint event - liquidity addition
     pub fn process_mint(&self, mint: &PoolMintTLV) -> Result<()> {
-        // Extract 20-byte address from 32-byte padded format
-        let pool_address = mint.pool_address.to_eth_address();
+        // Use 20-byte address directly (no conversion needed)
+        let pool_address = mint.pool_address;
 
         if let Some(pool_arc) = self.pools.get(&pool_address) {
             let mut pool = pool_arc.write();
@@ -459,8 +459,8 @@ impl PoolStateManager {
 
     /// Process Burn event - liquidity removal
     pub fn process_burn(&self, burn: &PoolBurnTLV) -> Result<()> {
-        // Extract 20-byte address from 32-byte padded format
-        let pool_address = burn.pool_address.to_eth_address();
+        // Use 20-byte address directly (no conversion needed)
+        let pool_address = burn.pool_address;
 
         if let Some(pool_arc) = self.pools.get(&pool_address) {
             let mut pool = pool_arc.write();
@@ -830,12 +830,14 @@ pub struct StrategyArbitragePair {
 pub enum StrategyPoolState {
     V2 {
         pool_id: PoolInstrumentId,
+        pool_address: [u8; 20],
         reserves: (Decimal, Decimal),
         fee_tier: u32,
         last_update_ns: u64,
     },
     V3 {
         pool_id: PoolInstrumentId,
+        pool_address: [u8; 20],
         liquidity: u128,
         sqrt_price_x96: u128,
         current_tick: i32,
@@ -850,6 +852,14 @@ impl StrategyPoolState {
         match self {
             StrategyPoolState::V2 { pool_id, .. } => pool_id,
             StrategyPoolState::V3 { pool_id, .. } => pool_id,
+        }
+    }
+
+    /// Get the pool's address
+    pub fn pool_address(&self) -> &[u8; 20] {
+        match self {
+            StrategyPoolState::V2 { pool_address, .. } => pool_address,
+            StrategyPoolState::V3 { pool_address, .. } => pool_address,
         }
     }
 
@@ -884,6 +894,7 @@ impl StrategyPoolState {
             // V3 pool
             StrategyPoolState::V3 {
                 pool_id: lib_state.pool_id,
+                pool_address: lib_state.pool_address,
                 liquidity: lib_state.liquidity.unwrap_or(0),
                 sqrt_price_x96: lib_state.sqrt_price_x96.unwrap_or(0),
                 current_tick: lib_state.tick.unwrap_or(0),
@@ -894,6 +905,7 @@ impl StrategyPoolState {
             // V2 pool
             StrategyPoolState::V2 {
                 pool_id: lib_state.pool_id,
+                pool_address: lib_state.pool_address,
                 reserves: (
                     lib_state.reserve0.unwrap_or(Decimal::ZERO),
                     lib_state.reserve1.unwrap_or(Decimal::ZERO),
@@ -1104,28 +1116,31 @@ mod tests {
         let mut manager = PoolStateManager::new();
 
         // Create a test sync event
-        let pool_id = InstrumentId {
+        let _pool_id = InstrumentId {
             venue: VenueId::Generic as u16,
             asset_type: 3, // Pool
             reserved: 0,
             asset_id: 1000_u64.wrapping_mul(31).wrapping_add(2000),
         };
-        let sync = PoolSyncTLV {
-            venue: VenueId::Generic,
-            pool_address: [0u8; 20],               // Mock pool address
-            token0_addr: [0u8; 20],                // Mock token0 address
-            token1_addr: [0u8; 20],                // Mock token1 address
-            reserve0: 1000_000000000000000000u128, // 1000 with 18 decimals
-            reserve1: 2000_000000u128,             // 2000 USDC with 6 decimals
-            timestamp_ns: 1234567890,
-            block_number: 100,
-        };
+        let sync = PoolSyncTLV::from_components(
+            [0u8; 20],                   // Mock pool address (20-byte)
+            [0u8; 20],                   // Mock token0 address (20-byte)
+            [0u8; 20],                   // Mock token1 address (20-byte)
+            VenueId::Generic,            // Venue ID
+            1000_000000000000000000u128, // 1000 with 18 decimals
+            2000_000000u128,             // 2000 USDC with 6 decimals
+            18u8,                        // token0_decimals
+            6u8,                         // token1_decimals
+            1234567890u64,               // timestamp_ns
+            100u64,                      // block_number
+        );
 
         // Apply event
         manager.apply_event(PoolEvent::Sync(sync.clone())).unwrap();
 
-        // Check state was updated
-        let pool = manager.get_pool(sync.pool_id.to_u64()).unwrap();
+        // Check state was updated using the pool address from the sync event
+        let test_pool_address = [0u8; 20]; // Same address used in sync creation
+        let pool = manager.get_pool(&test_pool_address).unwrap();
         let pool_state = pool.read();
         assert_eq!(pool_state.reserve0, Some(Decimal::from(1000)));
         assert_eq!(pool_state.reserve1, Some(Decimal::from(2000)));
@@ -1138,7 +1153,7 @@ mod tests {
         new_manager.restore(&snapshot).unwrap();
 
         // Verify restored state
-        let restored_pool = new_manager.get_pool(sync.pool_id.to_u64()).unwrap();
+        let restored_pool = new_manager.get_pool(&test_pool_address).unwrap();
         let restored_state = restored_pool.read();
         assert_eq!(restored_state.reserve0, Some(Decimal::from(1000)));
         assert_eq!(restored_state.reserve1, Some(Decimal::from(2000)));
@@ -1148,15 +1163,20 @@ mod tests {
     fn test_sequenced_stateful() {
         let mut manager = PoolStateManager::new();
 
-        let pool_id = PoolInstrumentId::from_pair(VenueId::Generic, 1000, 2000);
-        let sync = PoolSyncTLV {
-            venue: VenueId::Generic,
-            pool_id,
-            reserve0: 1000_00000000,
-            reserve1: 2000_00000000,
-            timestamp_ns: 1234567890,
-            block_number: 100,
-        };
+        let _test_pool_address = [1u8; 20]; // Same address used in sync creation below
+
+        let sync = PoolSyncTLV::from_components(
+            [1u8; 20],         // Mock pool address (20-byte)
+            [2u8; 20],         // Mock token0 address (20-byte)
+            [3u8; 20],         // Mock token1 address (20-byte)
+            VenueId::Generic,  // Venue ID
+            1000_00000000u128, // reserve0
+            2000_00000000u128, // reserve1
+            8u8,               // token0_decimals
+            8u8,               // token1_decimals
+            1234567890u64,     // timestamp_ns
+            100u64,            // block_number
+        );
 
         // Apply with sequence
         manager

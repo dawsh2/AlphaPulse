@@ -21,7 +21,7 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 ///
 /// Uses Q64.64 fixed-point encoding for all financial values to maintain precision.
 /// Fixed size with proper alignment for zero-copy serialization.
-#[repr(C, align(16))]  // ✅ FIXED: Proper alignment for i128/u128 fields
+#[repr(C, align(16))] // ✅ FIXED: Proper alignment for i128/u128 fields
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DemoDeFiArbitrageTLV {
     // Strategy Identity (12 bytes)

@@ -6,7 +6,7 @@
 use tokio::sync::mpsc;
 use tracing_subscriber;
 
-use alphapulse_protocol::{
+use protocol_v2::{
     TLVMessage, MessageHeader, RelayDomain,
     tlv::market_data::PoolSwapTLV,
 };
@@ -15,16 +15,16 @@ use alphapulse_protocol::{
 #[tokio::test]
 async fn test_polygon_tlv_message_creation() {
     println!("🧪 Testing Polygon TLV Message Creation");
-    
+
     // Create a realistic Polygon swap TLV message
     let swap_tlv = create_polygon_swap_tlv();
     let tlv_message = swap_tlv.to_tlv_message();
-    
+
     println!("✅ Created Polygon swap TLV: {} bytes", tlv_message.payload.len());
-    
+
     // Verify TLV message structure
     assert!(tlv_message.payload.len() > 0, "TLV payload should not be empty");
-    
+
     // Create relay message header (matching live_polygon_relay.rs format)
     let header = MessageHeader {
         magic: 0xDEADBEEF,
@@ -40,7 +40,7 @@ async fn test_polygon_tlv_message_creation() {
             .as_nanos() as u64,
         checksum: 0, // Performance mode
     };
-    
+
     // Serialize complete relay message
     let header_bytes = unsafe {
         std::slice::from_raw_parts(
@@ -48,23 +48,23 @@ async fn test_polygon_tlv_message_creation() {
             std::mem::size_of::<MessageHeader>()
         )
     };
-    
+
     let mut relay_message = Vec::with_capacity(header_bytes.len() + tlv_message.payload.len());
     relay_message.extend_from_slice(header_bytes);
     relay_message.extend_from_slice(&tlv_message.payload);
-    
+
     println!("✅ Created relay message: {} bytes total", relay_message.len());
-    
+
     // Verify relay message structure
     assert_eq!(relay_message.len(), 32 + tlv_message.payload.len(), "Relay message should be header + payload");
-    
+
     // Test header parsing
     let parsed_magic = u32::from_le_bytes([relay_message[0], relay_message[1], relay_message[2], relay_message[3]]);
     assert_eq!(parsed_magic, 0xDEADBEEF, "Magic number should be correctly parsed");
-    
+
     let parsed_payload_size = u32::from_le_bytes([relay_message[8], relay_message[9], relay_message[10], relay_message[11]]);
     assert_eq!(parsed_payload_size as usize, tlv_message.payload.len(), "Payload size should match");
-    
+
     println!("✅ Complete message structure validation passed: Polygon → Relay Message");
 }
 
@@ -72,34 +72,34 @@ async fn test_polygon_tlv_message_creation() {
 #[tokio::test]
 async fn test_tlv_compatibility_polygon_flash_arbitrage() {
     println!("🧪 Testing TLV Compatibility: Polygon ↔ Flash Arbitrage");
-    
+
     // Create TLV using Polygon DEX style
     let polygon_swap = create_polygon_swap_tlv();
     let polygon_bytes = polygon_swap.to_bytes().expect("TLV serialization should work");
-    
+
     println!("✅ Polygon TLV serialized: {} bytes", polygon_bytes.len());
-    
+
     // Parse using Flash Arbitrage consumer logic
     let parsed_swap = PoolSwapTLV::from_bytes(&polygon_bytes)
         .expect("Flash arbitrage should parse Polygon TLV");
-    
+
     println!("✅ Flash arbitrage parsed TLV successfully");
-    
+
     // Verify data integrity
     assert_eq!(polygon_swap.pool_address, parsed_swap.pool_address, "Pool address must match");
     assert_eq!(polygon_swap.amount_in, parsed_swap.amount_in, "Amount in must match");
     assert_eq!(polygon_swap.amount_out, parsed_swap.amount_out, "Amount out must match");
     assert_eq!(polygon_swap.amount_in_decimals, parsed_swap.amount_in_decimals, "Input decimals must match");
     assert_eq!(polygon_swap.amount_out_decimals, parsed_swap.amount_out_decimals, "Output decimals must match");
-    
+
     println!("✅ TLV data integrity verified across components");
-    
+
     // Test that both preserve native precision
     assert!(polygon_swap.amount_in > 0, "Amount in should be positive");
     assert!(polygon_swap.amount_out > 0, "Amount out should be positive");
     assert_eq!(polygon_swap.amount_in_decimals, 18, "WETH should have 18 decimals");
     assert_eq!(polygon_swap.amount_out_decimals, 6, "USDC should have 6 decimals");
-    
+
     println!("✅ Native precision preservation verified");
 }
 
@@ -107,7 +107,7 @@ async fn test_tlv_compatibility_polygon_flash_arbitrage() {
 #[tokio::test]
 async fn test_relay_header_parsing() {
     println!("🧪 Testing Relay Header Parsing Logic");
-    
+
     // Create minimal valid relay message
     let header = MessageHeader {
         magic: 0xDEADBEEF,
@@ -120,41 +120,41 @@ async fn test_relay_header_parsing() {
         timestamp: 1692715200000000000, // Fixed timestamp
         checksum: 0,
     };
-    
+
     let header_bytes = unsafe {
         std::slice::from_raw_parts(
             &header as *const MessageHeader as *const u8,
             std::mem::size_of::<MessageHeader>()
         )
     };
-    
+
     // Add minimal TLV payload
     let mut message = header_bytes.to_vec();
     message.extend_from_slice(&[11u8, 0u8, 2u8, 0u8]); // Type 11 (PoolSwap), Flags 0, Length 2, dummy data
-    
+
     // Test header parsing logic directly
     assert!(message.len() >= 32, "Message should have valid header size");
-    
+
     let parsed_magic = u32::from_le_bytes([message[0], message[1], message[2], message[3]]);
     assert_eq!(parsed_magic, 0xDEADBEEF, "Should parse valid magic number");
-    
+
     let parsed_payload_size = u32::from_le_bytes([message[8], message[9], message[10], message[11]]);
     assert_eq!(parsed_payload_size, 4, "Should parse correct payload size");
-    
+
     // Test invalid magic number handling
     let mut bad_message = message.clone();
     bad_message[0..4].copy_from_slice(&0x12345678u32.to_le_bytes());
-    
+
     let bad_magic = u32::from_le_bytes([bad_message[0], bad_message[1], bad_message[2], bad_message[3]]);
     assert_ne!(bad_magic, 0xDEADBEEF, "Should detect invalid magic number");
-    
+
     println!("✅ Relay header parsing logic verification complete");
 }
 
 /// Create a realistic Polygon swap TLV for testing
 fn create_polygon_swap_tlv() -> PoolSwapTLV {
-    use alphapulse_protocol::VenueId;
-    
+    use protocol_v2::VenueId;
+
     PoolSwapTLV {
         venue: VenueId::Polygon,
         pool_address: [0x45, 0xdd, 0xa9, 0xcb, 0x7c, 0x25, 0x13, 0x1d, 0xf2, 0x68, 0x51, 0x51, 0x31, 0xf6, 0x47, 0xd7, 0x26, 0xf5, 0x06, 0x08], // WETH/USDC pool

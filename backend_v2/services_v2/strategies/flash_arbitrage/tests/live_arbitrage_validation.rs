@@ -14,11 +14,11 @@ use tokio::net::UnixStream;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-use alphapulse_protocol::tlv::market_data::{
+use protocol_v2::tlv::market_data::{
     PoolBurnTLV, PoolLiquidityTLV, PoolMintTLV, PoolSwapTLV, PoolTickTLV,
 };
-use alphapulse_protocol::PoolInstrumentId;
-use alphapulse_protocol::{TLVType, VenueId};
+use protocol_v2::PoolInstrumentId;
+use protocol_v2::{TLVType, VenueId};
 
 use alphapulse_flash_arbitrage::detector::{
     ArbitrageOpportunity, DetectorConfig, StrategyType, TokenPriceOracle,

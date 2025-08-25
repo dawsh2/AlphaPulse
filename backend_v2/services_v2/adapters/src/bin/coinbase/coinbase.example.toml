@@ -1,0 +1,44 @@
+# Coinbase Collector Configuration
+# Copy this to coinbase.toml and modify as needed
+
+[websocket]
+url = "wss://ws-feed.exchange.coinbase.com"
+connection_timeout_ms = 30000
+message_timeout_ms = 120000
+max_reconnect_attempts = 10
+base_backoff_ms = 1000
+max_backoff_ms = 60000
+
+[relay]
+domain = "market_data"
+socket_path = "/tmp/alphapulse/market_data.sock"
+
+# List of products to subscribe to
+# Production environments should specify comprehensive lists
+products = [
+    "BTC-USD",
+    "ETH-USD",
+    "SOL-USD",
+    "ADA-USD",
+    "DOT-USD",
+    "AVAX-USD",
+    "LINK-USD",
+    "MATIC-USD"
+]
+
+# Channels to subscribe to on Coinbase WebSocket
+channels = ["matches", "level2"]
+
+[validation]
+runtime_validation_seconds = 60
+verbose_validation = false
+
+[monitoring]
+stats_interval_seconds = 30
+max_processing_latency_ms = 100
+
+# Environment Variable Override Examples:
+# COINBASE_WS_URL="wss://ws-feed.exchange.coinbase.com"
+# COINBASE_PRODUCTS="BTC-USD,ETH-USD,SOL-USD"
+# RELAY_SOCKET_PATH="/tmp/alphapulse/market_data.sock"
+# COINBASE_CONFIG_PATH="/path/to/custom/coinbase.toml"

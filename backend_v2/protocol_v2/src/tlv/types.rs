@@ -272,7 +272,7 @@ pub enum TLVSizeConstraint {
 ///
 /// Types are grouped by processing characteristics and routing destinations:
 /// - **Hot Path Types (1-19)**: Market data requiring <35μs processing
-/// - **Coordination Types (20-39)**: Strategy signals with medium latency tolerance  
+/// - **Coordination Types (20-39)**: Strategy signals with medium latency tolerance
 /// - **Execution Types (40-59)**: Order management with strict reliability requirements
 /// - **Analytics Types (60-79)**: Risk/portfolio monitoring with batch processing
 /// - **System Types (100-119)**: Infrastructure messaging with highest priority
@@ -328,7 +328,7 @@ pub enum TLVSizeConstraint {
 ///
 /// The type system provides comprehensive introspection for:
 /// - **IDE Integration**: Type information, usage examples, constraints
-/// - **Documentation Generation**: Auto-updating API references  
+/// - **Documentation Generation**: Auto-updating API references
 /// - **Testing Validation**: Ensure all types have proper test coverage
 /// - **Performance Monitoring**: Track processing characteristics per type
 /// - **Protocol Evolution**: Manage type additions without breaking existing code
@@ -386,7 +386,8 @@ pub enum TLVType {
     TertiaryVenue = 29,
     RiskParameters = 30,
     PerformanceMetrics = 31,
-    // Reserved 32-39 for future strategy signal types
+    ArbitrageSignal = 32, // Real arbitrage opportunity signal
+    // Reserved 33-39 for future strategy signal types
 
     // Execution Domain (40-59) - Routes through ExecutionRelay
     OrderRequest = 40,
@@ -519,6 +520,7 @@ impl TLVType {
             TLVType::TertiaryVenue => "TertiaryVenue",
             TLVType::RiskParameters => "RiskParameters",
             TLVType::PerformanceMetrics => "PerformanceMetrics",
+            TLVType::ArbitrageSignal => "ArbitrageSignal",
             TLVType::OrderRequest => "OrderRequest",
             TLVType::OrderStatus => "OrderStatus",
             TLVType::Fill => "Fill",
@@ -552,6 +554,9 @@ impl TLVType {
             TLVType::PoolSwap => "DEX swap event with V3 state updates and reserves",
             TLVType::SignalIdentity => "Strategy identification with signal ID and confidence",
             TLVType::Economics => "Profit estimates and capital requirements for execution",
+            TLVType::ArbitrageSignal => {
+                "Real arbitrage opportunity with pool addresses and profit metrics"
+            }
             TLVType::OrderRequest => "Order placement request with type, quantity, limits",
             TLVType::Fill => "Execution confirmation with actual price, quantity, fees",
             TLVType::Heartbeat => "Service health check with timestamp and status",
@@ -891,6 +896,7 @@ impl TLVType {
             TLVType::PoolAddresses => TLVSizeConstraint::Fixed(44),
             TLVType::MEVBundle => TLVSizeConstraint::Fixed(40),
             TLVType::TertiaryVenue => TLVSizeConstraint::Fixed(24),
+            TLVType::ArbitrageSignal => TLVSizeConstraint::Fixed(168),
             TLVType::OrderRequest => TLVSizeConstraint::Fixed(32),
             TLVType::OrderStatus => TLVSizeConstraint::Fixed(24),
             TLVType::Fill => TLVSizeConstraint::Fixed(32),
@@ -898,7 +904,7 @@ impl TLVType {
             TLVType::OrderModify => TLVSizeConstraint::Fixed(24),
             TLVType::ExecutionReport => TLVSizeConstraint::Fixed(48),
             TLVType::Heartbeat => TLVSizeConstraint::Fixed(16),
-            TLVType::RecoveryRequest => TLVSizeConstraint::Fixed(18),
+            TLVType::RecoveryRequest => TLVSizeConstraint::Fixed(24),
 
             // Pool TLVs - bounded size due to variable-length PoolInstrumentId
             TLVType::PoolSwap => TLVSizeConstraint::Bounded { min: 60, max: 200 }, // Base: ~60, Pool ID can vary

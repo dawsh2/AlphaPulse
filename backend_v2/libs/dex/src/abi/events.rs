@@ -527,7 +527,7 @@ impl BurnEventDecoder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use web3::types::Bytes;
+    use web3::types::{Bytes, H256};
 
     fn create_test_log(topics: Vec<H256>, data: Vec<u8>) -> Log {
         Log {

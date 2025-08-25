@@ -5,7 +5,7 @@
 
 #[cfg(test)]
 mod roundtrip_tests {
-    use alphapulse_protocol_v2::{
+    use protocol_v2::{
         build_instrument_id, InstrumentId, MessageHeader, PoolSwapTLV, QuoteTLV, RelayDomain,
         SourceType, TLVMessage, TLVType, TradeTLV, VenueId, MESSAGE_MAGIC, PROTOCOL_VERSION,
     };

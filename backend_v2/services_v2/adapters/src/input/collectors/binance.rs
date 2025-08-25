@@ -2,7 +2,7 @@
 //!
 //! Handles JSON WebSocket streams from Binance for:
 //! - Trade streams
-//! - Depth updates  
+//! - Depth updates
 //! - Ticker streams
 //!
 //! ## Data Format Reference
@@ -12,24 +12,26 @@
 use async_trait::async_trait;
 use protocol_v2::{
     tlv::market_data::{QuoteTLV, TradeTLV},
-    tlv::build_message_direct,
-    InstrumentId, RelayDomain, SourceType, TLVType, VenueId,
+    InstrumentId, RelayDomain, SourceType, VenueId,
 };
-use rust_decimal::prelude::ToPrimitive;
-use rust_decimal::Decimal;
 use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::Message;
 
+use crate::input::components::{parsing_utils::*, MessageSender, MessageSenderImpl, SymbolMapper};
 use crate::input::connection::ConnectionConfig;
 use crate::input::{ConnectionManager, ConnectionState, HealthLevel, HealthStatus, InputAdapter};
 use crate::{AdapterError, Result};
 use crate::{AdapterMetrics, AuthManager, ErrorType, RateLimiter};
 
-/// Binance WebSocket collector
+use crate::output::RelayOutput;
+
+/// Binance WebSocket collector with direct RelayOutput integration
+///
+/// Following the optimized pattern from Polygon - eliminates MPSC channel overhead
+/// by connecting WebSocket events directly to RelayOutput for maximum performance.
 pub struct BinanceCollector {
     /// Connection manager
     connection: Arc<ConnectionManager>,
@@ -43,23 +45,23 @@ pub struct BinanceCollector {
     /// Metrics
     metrics: Arc<AdapterMetrics>,
 
-    /// Symbol to InstrumentId mapping
-    symbol_map: Arc<RwLock<HashMap<String, InstrumentId>>>,
+    /// Symbol mapper for instrument ID management
+    symbol_mapper: SymbolMapper,
 
-    /// Output channel for TLV messages
-    output_tx: mpsc::Sender<Vec<u8>>,
+    /// Message sender for TLV relay output
+    message_sender: MessageSenderImpl,
 
     /// Running flag
     running: Arc<RwLock<bool>>,
 }
 
 impl BinanceCollector {
-    /// Create a new Binance collector
-    pub fn new(
+    /// Create a new Binance collector with direct RelayOutput integration
+    pub async fn new(
         api_key: Option<String>,
         api_secret: Option<String>,
-        output_tx: mpsc::Sender<Vec<u8>>,
-    ) -> Self {
+        relay_output: Arc<RelayOutput>,
+    ) -> crate::Result<Self> {
         let metrics = Arc::new(AdapterMetrics::new());
 
         let config = ConnectionConfig {
@@ -86,15 +88,18 @@ impl BinanceCollector {
         let mut rate_limiter = RateLimiter::new();
         rate_limiter.configure_venue(VenueId::Binance, 1200); // 1200 requests/min
 
-        Self {
+        let symbol_mapper = SymbolMapper::new(VenueId::Binance);
+        let message_sender = MessageSenderImpl::new(relay_output);
+
+        Ok(Self {
             connection,
             auth,
             rate_limiter,
             metrics,
-            symbol_map: Arc::new(RwLock::new(HashMap::new())),
-            output_tx,
+            symbol_mapper,
+            message_sender,
             running: Arc::new(RwLock::new(false)),
-        }
+        })
     }
 
     /// Process incoming WebSocket message
@@ -185,32 +190,29 @@ impl BinanceCollector {
                     error: "Missing symbol field".to_string(),
                 })?;
 
-        let instrument_id = self.get_or_create_instrument_id(symbol).await;
+        let instrument_id = self.symbol_mapper.get_instrument_id(symbol).await;
 
-        // Parse trade fields
+        // Parse trade fields using shared utilities
         let price =
-            parse_decimal_string(value.get("p")).ok_or_else(|| AdapterError::ParseError {
+            parse_decimal_from_json(value.get("p")).ok_or_else(|| AdapterError::ParseError {
                 venue: VenueId::Binance,
                 message: value.to_string(),
                 error: "Invalid price field".to_string(),
             })?;
 
         let quantity =
-            parse_decimal_string(value.get("q")).ok_or_else(|| AdapterError::ParseError {
+            parse_decimal_from_json(value.get("q")).ok_or_else(|| AdapterError::ParseError {
                 venue: VenueId::Binance,
                 message: value.to_string(),
                 error: "Invalid quantity field".to_string(),
             })?;
 
         let timestamp =
-            value
-                .get("T")
-                .and_then(|v| v.as_u64())
-                .ok_or_else(|| AdapterError::ParseError {
-                    venue: VenueId::Binance,
-                    message: value.to_string(),
-                    error: "Missing timestamp field".to_string(),
-                })?;
+            extract_timestamp_from_json(value, "T").map_err(|_| AdapterError::ParseError {
+                venue: VenueId::Binance,
+                message: value.to_string(),
+                error: "Missing timestamp field".to_string(),
+            })?;
 
         let is_buyer_maker = value.get("m").and_then(|v| v.as_bool()).unwrap_or(false);
 
@@ -221,22 +223,18 @@ impl BinanceCollector {
             price,
             quantity,
             if is_buyer_maker { 1 } else { 0 }, // 0 = buy, 1 = sell
-            timestamp * 1_000_000,              // Convert ms to ns
+            timestamp,                          // Already in nanoseconds
         );
 
-        // Convert to TLV message and send (true zero-copy)
-        let tlv_message = build_message_direct(
-            RelayDomain::MarketData,
-            SourceType::BinanceCollector,
-            TLVType::Trade,
-            &trade_tlv,
-        )
-        .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
-        
-        self.output_tx
-            .send(tlv_message)
+        // Send TLV message using MessageSender component
+        self.message_sender
+            .send_trade(
+                RelayDomain::MarketData,
+                SourceType::BinanceCollector,
+                &trade_tlv,
+            )
             .await
-            .map_err(|_| AdapterError::Internal("Output channel closed".to_string()))?;
+            .map_err(|e| AdapterError::Internal(format!("Trade TLV send failed: {}", e)))?;
 
         Ok(())
     }
@@ -253,7 +251,7 @@ impl BinanceCollector {
                     error: "Missing symbol field".to_string(),
                 })?;
 
-        let instrument_id = self.get_or_create_instrument_id(symbol).await;
+        let instrument_id = self.symbol_mapper.get_instrument_id(symbol).await;
 
         // Parse best bid
         if let Some(bids) = value.get("b").and_then(|v| v.as_array()) {
@@ -267,10 +265,8 @@ impl BinanceCollector {
                         let ask_price = parse_decimal_from_array(best_ask, 0)?;
                         let ask_size = parse_decimal_from_array(best_ask, 1)?;
 
-                        let timestamp = value
-                            .get("E")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or_else(current_millis);
+                        let timestamp = extract_timestamp_from_json(value, "E")
+                            .unwrap_or_else(|_| current_millis() * 1_000_000);
 
                         // Create QuoteTLV
                         let quote_tlv = QuoteTLV::from_instrument(
@@ -280,20 +276,20 @@ impl BinanceCollector {
                             bid_size,
                             ask_price,
                             ask_size,
-                            timestamp * 1_000_000,
+                            timestamp,
                         );
 
-                        let tlv_message = build_message_direct(
-                            RelayDomain::MarketData,
-                            SourceType::BinanceCollector,
-                            TLVType::Quote,
-                            &quote_tlv,
-                        )
-                        .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
-                        
-                        self.output_tx.send(tlv_message).await.map_err(|_| {
-                            AdapterError::Internal("Output channel closed".to_string())
-                        })?;
+                        // Send QuoteTLV using MessageSender component
+                        self.message_sender
+                            .send_quote(
+                                RelayDomain::MarketData,
+                                SourceType::BinanceCollector,
+                                &quote_tlv,
+                            )
+                            .await
+                            .map_err(|e| {
+                                AdapterError::Internal(format!("Quote TLV send failed: {}", e))
+                            })?;
                     }
                 }
             }
@@ -315,37 +311,35 @@ impl BinanceCollector {
                     error: "Missing symbol field".to_string(),
                 })?;
 
-        let instrument_id = self.get_or_create_instrument_id(symbol).await;
+        let instrument_id = self.symbol_mapper.get_instrument_id(symbol).await;
 
         let bid_price =
-            parse_decimal_string(value.get("b")).ok_or_else(|| AdapterError::ParseError {
+            parse_decimal_from_json(value.get("b")).ok_or_else(|| AdapterError::ParseError {
                 venue: VenueId::Binance,
                 message: value.to_string(),
                 error: "Invalid bid price".to_string(),
             })?;
         let bid_size =
-            parse_decimal_string(value.get("B")).ok_or_else(|| AdapterError::ParseError {
+            parse_decimal_from_json(value.get("B")).ok_or_else(|| AdapterError::ParseError {
                 venue: VenueId::Binance,
                 message: value.to_string(),
                 error: "Invalid bid size".to_string(),
             })?;
         let ask_price =
-            parse_decimal_string(value.get("a")).ok_or_else(|| AdapterError::ParseError {
+            parse_decimal_from_json(value.get("a")).ok_or_else(|| AdapterError::ParseError {
                 venue: VenueId::Binance,
                 message: value.to_string(),
                 error: "Invalid ask price".to_string(),
             })?;
         let ask_size =
-            parse_decimal_string(value.get("A")).ok_or_else(|| AdapterError::ParseError {
+            parse_decimal_from_json(value.get("A")).ok_or_else(|| AdapterError::ParseError {
                 venue: VenueId::Binance,
                 message: value.to_string(),
                 error: "Invalid ask size".to_string(),
             })?;
 
-        let timestamp = value
-            .get("E")
-            .and_then(|v| v.as_u64())
-            .unwrap_or_else(current_millis);
+        let timestamp = extract_timestamp_from_json(value, "E")
+            .unwrap_or_else(|_| current_millis() * 1_000_000);
 
         let quote_tlv = QuoteTLV::from_instrument(
             VenueId::Binance,
@@ -354,21 +348,18 @@ impl BinanceCollector {
             bid_size,
             ask_price,
             ask_size,
-            timestamp * 1_000_000,
+            timestamp,
         );
 
-        let tlv_message = build_message_direct(
-            RelayDomain::MarketData,
-            SourceType::BinanceCollector,
-            TLVType::Quote,
-            &quote_tlv,
-        )
-        .map_err(|e| AdapterError::Internal(format!("TLV build failed: {}", e)))?;
-        
-        self.output_tx
-            .send(tlv_message)
+        // Send QuoteTLV using MessageSender component
+        self.message_sender
+            .send_quote(
+                RelayDomain::MarketData,
+                SourceType::BinanceCollector,
+                &quote_tlv,
+            )
             .await
-            .map_err(|_| AdapterError::Internal("Output channel closed".to_string()))?;
+            .map_err(|e| AdapterError::Internal(format!("Ticker quote TLV send failed: {}", e)))?;
 
         Ok(())
     }
@@ -385,22 +376,7 @@ impl BinanceCollector {
         Ok(())
     }
 
-    /// Get or create instrument ID for symbol
-    async fn get_or_create_instrument_id(&self, symbol: &str) -> InstrumentId {
-        let mut map = self.symbol_map.write().await;
-
-        if let Some(&id) = map.get(symbol) {
-            id
-        } else {
-            // Generate deterministic ID from symbol
-            let id = InstrumentId::from_cache_key(hash_symbol(symbol) as u128);
-            map.insert(symbol.to_string(), id);
-
-            // Instrument tracking removed (no StateManager)
-
-            id
-        }
-    }
+    // Symbol mapping is now handled by SymbolMapper component
 
     /// Subscribe to streams for instruments
     async fn subscribe_to_streams(&self, symbols: Vec<String>) -> Result<()> {
@@ -467,8 +443,7 @@ impl BinanceCollector {
                     // State clearing removed (no StateManager)
 
                     // Resubscribe after reconnection
-                    let symbols: Vec<String> =
-                        self.symbol_map.read().await.keys().cloned().collect();
+                    let symbols: Vec<String> = self.symbol_mapper.get_mapped_symbols().await;
 
                     if !symbols.is_empty() {
                         if let Err(e) = self.subscribe_to_streams(symbols).await {
@@ -570,7 +545,7 @@ impl InputAdapter for BinanceCollector {
                 connection: state,
                 messages_per_minute: metrics.total_messages,
                 last_message_time: Some(current_nanos()),
-                instrument_count: self.symbol_map.read().await.len(),
+                instrument_count: self.symbol_mapper.get_mapped_symbols().await.len(),
                 error_count: metrics.total_messages - metrics.total_messages,
                 details: Some("High error rate or slow processing".to_string()),
             }
@@ -587,68 +562,14 @@ impl Clone for BinanceCollector {
             auth: self.auth.clone(),
             rate_limiter: self.rate_limiter.clone(),
             metrics: self.metrics.clone(),
-            symbol_map: self.symbol_map.clone(),
-            output_tx: self.output_tx.clone(),
+            symbol_mapper: self.symbol_mapper.clone(),
+            message_sender: self.message_sender.clone(),
             running: self.running.clone(),
         }
     }
 }
 
-// Helper functions
-
-/// Parse decimal from JSON string with proper precision
-fn parse_decimal_string(value: Option<&Value>) -> Option<i64> {
-    value.and_then(|v| v.as_str()).and_then(|s| {
-        let decimal: Decimal = s.parse().ok()?;
-        // Convert to fixed-point integer with 8 decimal places
-        let scaled = decimal * Decimal::from(100_000_000); // 1e8
-        scaled.to_i64()
-    })
-}
-
-/// Parse decimal from array element with proper precision
-fn parse_decimal_from_array(array: &Value, index: usize) -> Result<i64> {
-    array
-        .get(index)
-        .and_then(|v| v.as_str())
-        .and_then(|s| {
-            let decimal: Decimal = s.parse().ok()?;
-            // Convert to fixed-point integer with 8 decimal places
-            let scaled = decimal * Decimal::from(100_000_000); // 1e8
-            scaled.to_i64()
-        })
-        .ok_or_else(|| AdapterError::ParseError {
-            venue: VenueId::Binance,
-            message: array.to_string(),
-            error: format!("Invalid decimal at index {}", index),
-        })
-}
-
-/// Generate deterministic hash for symbol
-fn hash_symbol(symbol: &str) -> u64 {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-
-    let mut hasher = DefaultHasher::new();
-    symbol.hash(&mut hasher);
-    hasher.finish()
-}
-
-/// Get current time in milliseconds
-fn current_millis() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64
-}
-
-/// Get current time in nanoseconds
-fn current_nanos() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos() as u64
-}
+// Helper functions are now provided by parsing_utils module
 
 // Use the protocol's built-in TLV conversion methods
 

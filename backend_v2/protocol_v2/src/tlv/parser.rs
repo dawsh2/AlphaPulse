@@ -184,6 +184,62 @@ pub fn parse_header(data: &[u8]) -> ParseResult<&MessageHeader> {
     Ok(header)
 }
 
+/// Parse message header without checksum validation (for internal relay use only)
+///
+/// **WARNING**: This function bypasses checksum validation and should ONLY be used
+/// for messages that are guaranteed to be from trusted internal sources (e.g., relays
+/// that forward messages without recalculating checksums). Using this function with
+/// untrusted data could allow corrupted messages through.
+///
+/// For MarketData domain messages from relays, this can provide performance benefits
+/// on the hot path while maintaining safety through relay-level validation.
+///
+/// # Arguments
+/// * `data` - Raw message bytes (must be at least 32 bytes)
+///
+/// # Returns
+/// * `Ok(&MessageHeader)` - Zero-copy reference to header (checksum NOT validated)
+/// * `Err(ParseError)` - Size or magic number validation failure
+///
+/// # Safety Note
+/// Only use when:
+/// - Messages come from trusted internal relays
+/// - Relay has already validated integrity
+/// - Performance is critical (hot path)
+///
+/// # Examples
+/// ```rust
+/// // ONLY for trusted relay messages
+/// let header = parse_header_without_checksum(&relay_message)?;
+/// ```
+pub fn parse_header_without_checksum(data: &[u8]) -> ParseResult<&MessageHeader> {
+    if data.len() < size_of::<MessageHeader>() {
+        return Err(ParseError::MessageTooSmall {
+            need: size_of::<MessageHeader>(),
+            got: data.len(),
+        });
+    }
+
+    let header = Ref::<_, MessageHeader>::new(&data[..size_of::<MessageHeader>()])
+        .ok_or(ParseError::MessageTooSmall {
+            need: size_of::<MessageHeader>(),
+            got: data.len(),
+        })?
+        .into_ref();
+
+    if header.magic != MESSAGE_MAGIC {
+        return Err(ParseError::InvalidMagic {
+            expected: MESSAGE_MAGIC,
+            actual: header.magic,
+        });
+    }
+
+    // WARNING: Checksum validation intentionally skipped for performance
+    // This is safe ONLY for trusted internal relay messages
+
+    Ok(header)
+}
+
 /// Parse complete TLV payload with automatic format detection and validation
 ///
 /// Processes the variable-length TLV payload section of a Protocol V2 message,
