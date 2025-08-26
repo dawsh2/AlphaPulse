@@ -3,9 +3,8 @@
 //! Specialized TLV for dashboard demo of arbitrage opportunities.
 //! Uses vendor TLV type 200 for experimental/demo purposes.
 
-use super::address::AddressConversion;
+use super::address::{EthAddress, AddressPadding, ZERO_PADDING};
 use crate::VenueId;
-use std::convert::TryInto;
 #[allow(unused_imports)] // Used in manual trait implementations
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
@@ -35,11 +34,13 @@ pub struct DemoDeFiArbitrageTLV {
     pub required_capital_q: u128,   // Required capital in Q64.64 USD
     pub estimated_gas_cost_q: u128, // Estimated gas cost in Q64.64 ETH/MATIC
 
-    // Pool Information (68 bytes)
-    pub venue_a: u16,     // First pool venue as u16
-    pub venue_b: u16,     // Second pool venue as u16
-    pub pool_a: [u8; 32], // First pool address (20 bytes + 12 bytes padding)
-    pub pool_b: [u8; 32], // Second pool address (20 bytes + 12 bytes padding)
+    // Pool Information (72 bytes total)
+    pub venue_a: u16,                // First pool venue as u16
+    pub venue_b: u16,                // Second pool venue as u16
+    pub pool_a: EthAddress,          // First pool address (20 bytes)
+    pub pool_a_padding: AddressPadding, // Explicit padding (12 bytes)
+    pub pool_b: EthAddress,          // Second pool address (20 bytes)
+    pub pool_b_padding: AddressPadding, // Explicit padding (12 bytes)
 
     // Trade Execution (32 bytes)
     pub token_in: u64,          // Input token address (truncated to 64-bit)
@@ -56,7 +57,7 @@ pub struct DemoDeFiArbitrageTLV {
     // Timing (8 bytes)
     pub timestamp_ns: u64, // Nanoseconds since epoch when detected
 
-                           // Total: 12 + 48 + 68 + 32 + 12 + 8 = 180 bytes (packed, no padding)
+                           // Total: 12 + 48 + 72 + 32 + 12 + 8 = 184 bytes (packed, no padding)
 }
 
 // Manual implementation of zero-copy traits for packed struct
@@ -83,9 +84,9 @@ pub struct ArbitrageConfig {
     pub required_capital_q: u128,
     pub estimated_gas_cost_q: u128,
     pub venue_a: VenueId,
-    pub pool_a: [u8; 32],
+    pub pool_a: EthAddress,
     pub venue_b: VenueId,
-    pub pool_b: [u8; 32],
+    pub pool_b: EthAddress,
     pub token_in: u64,
     pub token_out: u64,
     pub optimal_amount_q: u128,
@@ -108,9 +109,9 @@ impl DemoDeFiArbitrageTLV {
         required_capital_q: u128,
         estimated_gas_cost_q: u128,
         venue_a: VenueId,
-        pool_a: [u8; 20],
+        pool_a: EthAddress,
         venue_b: VenueId,
-        pool_b: [u8; 20],
+        pool_b: EthAddress,
         token_in: u64,
         token_out: u64,
         optimal_amount_q: u128,
@@ -130,8 +131,10 @@ impl DemoDeFiArbitrageTLV {
             estimated_gas_cost_q,
             venue_a: venue_a as u16,
             venue_b: venue_b as u16,
-            pool_a: pool_a.to_padded(),
-            pool_b: pool_b.to_padded(),
+            pool_a,
+            pool_a_padding: ZERO_PADDING,
+            pool_b,
+            pool_b_padding: ZERO_PADDING,
             token_in,
             token_out,
             optimal_amount_q,
@@ -157,7 +160,9 @@ impl DemoDeFiArbitrageTLV {
             venue_a: config.venue_a as u16,
             venue_b: config.venue_b as u16,
             pool_a: config.pool_a,
+            pool_a_padding: ZERO_PADDING,
             pool_b: config.pool_b,
+            pool_b_padding: ZERO_PADDING,
             token_in: config.token_in,
             token_out: config.token_out,
             optimal_amount_q: config.optimal_amount_q,
@@ -177,7 +182,7 @@ impl DemoDeFiArbitrageTLV {
         // For Q64.64 format: divide by 2^64 to get decimal value
         const Q64_DIVISOR: f64 = (1u128 << 64) as f64;
         let decimal_value = q64_value as f64 / Q64_DIVISOR;
-        
+
         // Format with appropriate precision for financial values
         if decimal_value < 0.01 {
             format!("{:.6}", decimal_value) // Show more precision for small values
@@ -238,7 +243,8 @@ impl DemoDeFiArbitrageTLV {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{InstrumentId, VenueId};
+    use crate::VenueId;
+    use crate::tlv::address::AddressConversion;
 
     fn create_test_arbitrage_tlv() -> DemoDeFiArbitrageTLV {
         // Token IDs (simplified for demo - normally would be proper address mappings)
@@ -283,7 +289,7 @@ mod tests {
         let original = create_test_arbitrage_tlv();
 
         let bytes = original.as_bytes();
-        let recovered = *DemoDeFiArbitrageTLV::read_from_bytes(bytes).unwrap();
+        let recovered = *DemoDeFiArbitrageTLV::read_from(bytes).unwrap();
 
         assert_eq!(original, recovered);
     }
@@ -294,7 +300,7 @@ mod tests {
 
         // Legacy TLV message test removed - use Protocol V2 TLVMessageBuilder for testing
         let bytes = original.as_bytes();
-        let recovered = *DemoDeFiArbitrageTLV::read_from_bytes(bytes).unwrap();
+        let recovered = *DemoDeFiArbitrageTLV::read_from(bytes).unwrap();
 
         assert_eq!(original, recovered);
     }

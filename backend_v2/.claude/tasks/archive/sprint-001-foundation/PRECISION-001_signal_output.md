@@ -50,16 +50,16 @@ pub struct ArbitrageOpportunity {
     pub buy_pool: PoolInstrumentId,
     pub sell_pool: PoolInstrumentId,
     pub token_pair: (InstrumentId, InstrumentId),
-    
+
     // CHANGE THESE FROM f64 TO INTEGER REPRESENTATION
     pub expected_profit_cents: i64,     // Profit in cents (2 decimal precision)
     pub required_capital_cents: u64,    // Capital in cents
     pub spread_basis_points: i32,       // Spread in basis points (0.01%)
-    
+
     pub buy_price_q8: i64,              // Already in Q8 format
     pub sell_price_q8: i64,             // Already in Q8 format
     pub optimal_size_wei: u128,         // Keep in wei
-    
+
     pub timestamp_ns: u64,
     pub confidence: f32,                // OK to keep as float (0-1 range)
 }
@@ -85,19 +85,19 @@ impl SignalOutput {
         // NO FLOAT CONVERSION! Already in correct format
         let arbitrage_signal = ArbitrageSignalTLV {
             // ... other fields ...
-            
+
             // Direct integer scaling from cents to Q8
             expected_profit_q8: (opportunity.expected_profit_cents * 1_000_000) as i128,
             required_capital_q8: (opportunity.required_capital_cents * 1_000_000) as u128,
             spread_basis_points: opportunity.spread_basis_points as u32,
-            
+
             buy_price_q8: opportunity.buy_price_q8,
             sell_price_q8: opportunity.sell_price_q8,
             optimal_size_wei: opportunity.optimal_size_wei,
-            
+
             // ... rest of fields
         };
-        
+
         // ... rest of implementation
     }
 }
@@ -111,18 +111,18 @@ fn detect_arbitrage(&self, pool1: &PoolState, pool2: &PoolState) -> Option<Arbit
     // Calculate prices in Q8 format (8 decimals)
     let price1_q8 = calculate_price_q8(pool1);
     let price2_q8 = calculate_price_q8(pool2);
-    
+
     // Calculate spread in basis points (integer math)
     let spread_basis_points = ((price2_q8 - price1_q8) * 10000 / price1_q8) as i32;
-    
+
     // Calculate profit in cents (integer math throughout)
     let optimal_size_wei = calculate_optimal_size(pool1, pool2);
     let profit_wei = calculate_profit_wei(optimal_size_wei, price1_q8, price2_q8);
-    
+
     // Convert wei to cents (assuming ETH price available)
     let eth_price_cents = self.eth_price_cents; // e.g., 200000 for $2000
     let profit_cents = (profit_wei * eth_price_cents / 1_000_000_000_000_000_000) as i64;
-    
+
     Some(ArbitrageOpportunity {
         expected_profit_cents: profit_cents,
         required_capital_cents: (optimal_size_wei * eth_price_cents / 1_000_000_000_000_000_000) as u64,

@@ -57,7 +57,7 @@ impl PoolTLVBuilder {
     pub fn new(cache: Arc<PoolCache>) -> Self {
         Self { cache }
     }
-    
+
     /// Build PoolSwapTLV with real addresses from cache
     pub async fn build_pool_swap_tlv(
         &self,
@@ -79,7 +79,7 @@ impl PoolTLVBuilder {
                 return Ok(None); // Skip this message for now
             }
         };
-        
+
         // Build TLV with REAL addresses
         let tlv = PoolSwapTLV {
             timestamp,
@@ -97,10 +97,10 @@ impl PoolTLVBuilder {
             protocol: pool_info.pool_type as u8,
             reserved: [0u8; 3],
         };
-        
+
         Ok(Some(tlv))
     }
-    
+
     /// Build TradeTLV from swap event
     pub async fn build_trade_tlv(
         &self,
@@ -118,10 +118,10 @@ impl PoolTLVBuilder {
                 return Ok(None);
             }
         };
-        
+
         // Create instrument ID from pool
         let instrument_id = create_pool_instrument_id(&pool_info);
-        
+
         let tlv = TradeTLV {
             timestamp,
             instrument_id,
@@ -131,7 +131,7 @@ impl PoolTLVBuilder {
             venue: VenueId::Polygon as u8,
             flags: 0,
         };
-        
+
         Ok(Some(tlv))
     }
 }
@@ -158,31 +158,31 @@ impl UnifiedPolygonCollector {
     // Update the constructor
     pub async fn new(config: Config) -> Result<Self> {
         // ... existing code ...
-        
+
         // Initialize pool cache with persistence
         let cache_path = config.cache_dir.join("polygon_pools.tlv");
         let pool_cache = Arc::new(
             PoolCache::with_persistence(cache_path, 137) // 137 = Polygon chain ID
         );
-        
+
         // Load existing cache from disk
         if let Err(e) = pool_cache.load_from_disk().await {
             warn!("Failed to load pool cache: {}", e);
         }
-        
+
         // Create TLV builder
         let tlv_builder = Arc::new(PoolTLVBuilder::new(pool_cache.clone()));
-        
+
         // Initialize discovery queue (from POOL-003)
         let (discovery_queue, discovery_rx) = DiscoveryQueue::new(1000);
-        
+
         // Start discovery worker
         let worker_cache = pool_cache.clone();
         let worker_queue = Arc::new(discovery_queue.clone());
         tokio::spawn(async move {
             discovery_worker(discovery_rx, worker_queue, worker_cache).await;
         });
-        
+
         Ok(Self {
             // ... existing fields ...
             pool_cache,
@@ -190,16 +190,16 @@ impl UnifiedPolygonCollector {
             discovery_queue: Arc::new(discovery_queue),
         })
     }
-    
+
     // Update process_swap_event
     async fn process_swap_event(&self, log: &Log) -> Result<()> {
         let pool_address = log.address;
         let timestamp = self.get_block_timestamp(log.block_number).await?;
-        
+
         // Parse swap amounts based on protocol (from POOL-002)
-        let (amount0, amount1, sqrt_price, liquidity, tick) = 
+        let (amount0, amount1, sqrt_price, liquidity, tick) =
             self.parse_swap_data(log)?;
-        
+
         // Build TLV with real addresses
         match self.tlv_builder.build_pool_swap_tlv(
             pool_address,
@@ -213,7 +213,7 @@ impl UnifiedPolygonCollector {
             Some(tlv) => {
                 // Send to relay
                 self.send_tlv_message(TLVType::PoolSwap, &tlv)?;
-                
+
                 // Update metrics
                 self.messages_sent.fetch_add(1, Ordering::Relaxed);
             }
@@ -222,23 +222,23 @@ impl UnifiedPolygonCollector {
                 self.unknown_pools.fetch_add(1, Ordering::Relaxed);
             }
         }
-        
+
         Ok(())
     }
-    
+
     // Graceful shutdown
     pub async fn shutdown(self) -> Result<()> {
         info!("Shutting down Polygon collector...");
-        
+
         // Save cache to disk
         self.pool_cache.force_snapshot().await?;
-        
+
         // Shutdown discovery queue
         self.discovery_queue.shutdown().await?;
-        
+
         // Close WebSocket
         self.ws_stream.close().await?;
-        
+
         Ok(())
     }
 }
@@ -260,7 +260,7 @@ impl UnifiedPolygonCollector {
     pub fn get_metrics(&self) -> IntegrationMetrics {
         let cache_stats = self.pool_cache.get_stats();
         let queue_metrics = self.discovery_queue.metrics();
-        
+
         IntegrationMetrics {
             total_events: self.total_events.load(Ordering::Relaxed),
             tlv_messages_sent: self.messages_sent.load(Ordering::Relaxed),

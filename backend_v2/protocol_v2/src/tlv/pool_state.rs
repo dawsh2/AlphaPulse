@@ -5,6 +5,7 @@
 // TLVType removed with legacy TLV system
 // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
 use super::market_data::PoolSwapTLV;
+use super::address::{EthAddress, AddressPadding, AddressConversion, AddressExtraction, ZERO_PADDING};
 use crate::define_tlv;
 use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use std::collections::HashMap;
@@ -62,9 +63,9 @@ pub type PoolType = DEXProtocol;
 #[derive(Debug, Clone)]
 pub struct V2PoolConfig {
     pub venue: u16,
-    pub pool_address: [u8; 32],
-    pub token0_addr: [u8; 32],
-    pub token1_addr: [u8; 32],
+    pub pool_address: EthAddress,
+    pub token0_addr: EthAddress,
+    pub token1_addr: EthAddress,
     pub token0_decimals: u8,
     pub token1_decimals: u8,
     pub reserve0: u128,
@@ -77,12 +78,12 @@ pub struct V2PoolConfig {
 #[derive(Debug, Clone)]
 pub struct V3PoolConfig {
     pub venue: u16,
-    pub pool_address: [u8; 32],
-    pub token0_addr: [u8; 32],
-    pub token1_addr: [u8; 32],
+    pub pool_address: EthAddress,
+    pub token0_addr: EthAddress,
+    pub token1_addr: EthAddress,
     pub token0_decimals: u8,
     pub token1_decimals: u8,
-    pub sqrt_price_x96: u128,
+    sqrt_price_x96: u128,
     pub tick: i32,
     pub liquidity: u128,
     pub fee_rate: u32,
@@ -108,9 +109,9 @@ impl PoolStateTLV {
             config.token0_decimals,
             config.token1_decimals,
             [0u8; 3], // _padding
-            config.pool_address,
-            config.token0_addr,
-            config.token1_addr,
+            config.pool_address.to_padded(),
+            config.token0_addr.to_padded(),
+            config.token1_addr.to_padded(),
         )
     }
 
@@ -137,9 +138,9 @@ impl PoolStateTLV {
             config.token0_decimals,
             config.token1_decimals,
             [0u8; 3], // _padding
-            config.pool_address,
-            config.token0_addr,
-            config.token1_addr,
+            config.pool_address.to_padded(),
+            config.token0_addr.to_padded(),
+            config.token1_addr.to_padded(),
         )
     }
 
@@ -321,8 +322,10 @@ impl PoolStateTracker {
                     if spread_pct > 0.5 {
                         // 0.5% spread threshold
                         opportunities.push(ArbitrageOpportunity {
-                            pool1: *pool1_addr,
-                            pool2: *pool2_addr,
+                            pool1: pool1_addr.to_eth_address(),
+                            pool1_padding: ZERO_PADDING,
+                            pool2: pool2_addr.to_eth_address(),
+                            pool2_padding: ZERO_PADDING,
                             spread_pct,
                             estimated_profit: calculate_profit(state1, state2, spread_pct),
                         });
@@ -337,8 +340,10 @@ impl PoolStateTracker {
 
 #[derive(Debug)]
 pub struct ArbitrageOpportunity {
-    pub pool1: [u8; 32], // Pool 1 address (32-byte padded)
-    pub pool2: [u8; 32], // Pool 2 address (32-byte padded)
+    pub pool1: EthAddress,            // Pool 1 address (20 bytes)
+    pub pool1_padding: AddressPadding, // Pool 1 padding (12 bytes)
+    pub pool2: EthAddress,            // Pool 2 address (20 bytes)
+    pub pool2_padding: AddressPadding, // Pool 2 padding (12 bytes)
     pub spread_pct: f64,
     pub estimated_profit: u128,
 }

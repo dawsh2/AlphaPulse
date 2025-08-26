@@ -423,17 +423,31 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
 
     // Extract pool information using copied values
     let pool_a_venues = match venue_a {
-        x if x == protocol_v2::VenueId::UniswapV2 as u16 => "Uniswap V2",
-        x if x == protocol_v2::VenueId::UniswapV3 as u16 => "Uniswap V3",
-        x if x == protocol_v2::VenueId::SushiSwap as u16 => "SushiSwap V2",
-        _ => "Unknown DEX",
+        300 => "Uniswap V2",           // UniswapV2
+        301 => "Uniswap V3",           // UniswapV3
+        302 => "SushiSwap",            // SushiSwap (Ethereum)
+        400 => "QuickSwap",            // QuickSwap (Polygon)
+        401 => "SushiSwap",            // SushiSwapPolygon
+        402 => "Curve",                // CurvePolygon
+        404 => "Balancer",             // BalancerPolygon
+        500 => "PancakeSwap",          // PancakeSwap (BSC)
+        600 => "Uniswap V3",           // UniswapV3Arbitrum
+        601 => "SushiSwap",            // SushiSwapArbitrum
+        _ => &format!("DEX-{}", venue_a), // Show venue ID for unknown DEXs
     };
 
     let pool_b_venues = match venue_b {
-        x if x == protocol_v2::VenueId::UniswapV2 as u16 => "Uniswap V2",
-        x if x == protocol_v2::VenueId::UniswapV3 as u16 => "Uniswap V3",
-        x if x == protocol_v2::VenueId::SushiSwap as u16 => "SushiSwap V2",
-        _ => "Unknown DEX",
+        300 => "Uniswap V2",           // UniswapV2
+        301 => "Uniswap V3",           // UniswapV3
+        302 => "SushiSwap",            // SushiSwap (Ethereum)
+        400 => "QuickSwap",            // QuickSwap (Polygon)
+        401 => "SushiSwap",            // SushiSwapPolygon
+        402 => "Curve",                // CurvePolygon
+        404 => "Balancer",             // BalancerPolygon
+        500 => "PancakeSwap",          // PancakeSwap (BSC)
+        600 => "Uniswap V3",           // UniswapV3Arbitrum
+        601 => "SushiSwap",            // SushiSwapArbitrum
+        _ => &format!("DEX-{}", venue_b), // Show venue ID for unknown DEXs
     };
 
     // Pre-calculate Q64.64 values to avoid block expressions in json! macro
@@ -508,7 +522,7 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
         },
 
         // Pool Information with proper token mapping
-        "pair": format!("{}/{}", 
+        "pair": format!("{}/{}",
             map_token_symbol(token_in),
             map_token_symbol(token_out)
         ),

@@ -727,9 +727,9 @@ mod tests {
         sqrt_price_bytes[0..16].copy_from_slice(&1000000000000000000000000u128.to_le_bytes());
 
         let swap = PoolSwapTLV::from_addresses(
-            pool_address[0..20].try_into().unwrap(),
-            token_in_addr[0..20].try_into().unwrap(),
-            token_out_addr[0..20].try_into().unwrap(),
+            pool_address,
+            token_in_addr,
+            token_out_addr,
             VenueId::Polygon,
             1000000000000000000u128,       // 1 token (18 decimals)
             2000000000u128,                // 2000 tokens (6 decimals)
@@ -908,9 +908,9 @@ mod tests {
         sqrt_price_bytes[0..16].copy_from_slice(&1000000000000000000000000u128.to_le_bytes());
 
         let swap = PoolSwapTLV::from_addresses(
-            pool_address[0..20].try_into().unwrap(),
-            token_in_addr[0..20].try_into().unwrap(),
-            token_out_addr[0..20].try_into().unwrap(),
+            pool_address,
+            token_in_addr,
+            token_out_addr,
             VenueId::Polygon,
             1000000000000000000u128,
             2000000000u128,

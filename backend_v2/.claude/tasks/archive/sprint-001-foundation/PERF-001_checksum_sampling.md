@@ -38,11 +38,11 @@ git branch --show-current  # Should show: fix/checksum-sampling
 #[derive(Debug, Clone, Deserialize)]
 pub struct RelayConfig {
     // ... existing fields ...
-    
+
     /// How often to validate checksums (1 = every message, 100 = every 100th)
     #[serde(default = "default_checksum_sample_rate")]
     pub checksum_sample_rate: u32,
-    
+
     /// Whether to log checksum failures (for debugging)
     #[serde(default = "default_log_checksum_failures")]
     pub log_checksum_failures: bool,
@@ -65,7 +65,7 @@ use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 pub struct RelayConsumer {
     // ... existing fields ...
-    
+
     // ADD THESE:
     message_counter: AtomicU64,
     checksum_sample_rate: u32,
@@ -83,71 +83,71 @@ impl RelayConsumer {
             checksum_failures: AtomicU64::new(0),
         }
     }
-    
+
     /// Parse header with sampling-based checksum validation
     fn parse_header_with_sampling(&self, data: &[u8]) -> Result<&MessageHeader> {
         // Increment message counter
         let msg_count = self.message_counter.fetch_add(1, Ordering::Relaxed);
-        
+
         // Quick validation: always check magic and size
         if data.len() < 32 {
             return Err(ParseError::InsufficientData);
         }
-        
+
         let header = MessageHeader::ref_from_prefix(data)
             .ok_or(ParseError::InvalidHeader)?;
-        
+
         // Always validate magic byte (fast check)
         if header.magic != 0xDEADBEEF {
             return Err(ParseError::InvalidMagic);
         }
-        
+
         // Sample-based checksum validation
         if msg_count % self.checksum_sample_rate as u64 == 0 {
             self.validate_checksum_sampled(header, data)?;
         }
-        
+
         Ok(header)
     }
-    
+
     /// Validate checksum for sampled messages
     fn validate_checksum_sampled(
-        &self, 
-        header: &MessageHeader, 
+        &self,
+        header: &MessageHeader,
         data: &[u8]
     ) -> Result<()> {
         self.checksums_validated.fetch_add(1, Ordering::Relaxed);
-        
+
         // Calculate expected checksum
         let payload_end = 32 + header.payload_size as usize;
         if data.len() < payload_end {
             return Err(ParseError::TruncatedPayload);
         }
-        
+
         let calculated = calculate_checksum(&data[32..payload_end]);
-        
+
         if calculated != header.checksum {
             self.checksum_failures.fetch_add(1, Ordering::Relaxed);
-            
+
             if self.config.log_checksum_failures {
                 error!(
                     "Checksum validation failed! Expected: {}, Got: {}, Message: {}",
-                    header.checksum, 
+                    header.checksum,
                     calculated,
                     self.message_counter.load(Ordering::Relaxed)
                 );
             }
-            
+
             // In production, we might want to continue despite failure
             // and just increment metrics
             if self.config.strict_checksum_validation {
                 return Err(ParseError::ChecksumMismatch);
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Get sampling metrics
     pub fn get_checksum_metrics(&self) -> ChecksumMetrics {
         ChecksumMetrics {
@@ -175,7 +175,7 @@ impl ChecksumMetrics {
             (self.checksums_validated as f64 / self.total_messages as f64) * 100.0
         }
     }
-    
+
     pub fn failure_rate(&self) -> f64 {
         if self.checksums_validated == 0 {
             0.0
@@ -195,10 +195,10 @@ impl RelayConsumer {
         while let Some(data) = self.receive_message().await? {
             // Use sampling-based parsing
             let header = self.parse_header_with_sampling(&data)?;
-            
+
             // Rest of processing remains the same
             self.process_tlv_message(header, &data[32..])?;
-            
+
             // Periodically log metrics (every 10,000 messages)
             if self.message_counter.load(Ordering::Relaxed) % 10_000 == 0 {
                 let metrics = self.get_checksum_metrics();
@@ -210,7 +210,7 @@ impl RelayConsumer {
                 );
             }
         }
-        
+
         Ok(())
     }
 }

@@ -13,13 +13,13 @@ graph TD
     G --> D
     D --> H[POOL-005: TLV Builder]
     H --> I[Send TLV Message]
-    
+
     J[POOL-006: Integration Tests] -.->|Validates| B
     J -.->|Validates| D
     J -.->|Validates| E
     J -.->|Validates| F
     J -.->|Validates| H
-    
+
     K[PRECISION-001] -->|Parallel| L[Signal Output]
     M[PERF-001] -->|Parallel| N[Relay Performance]
 ```
@@ -128,11 +128,11 @@ match pool_cache.get(&pool_address).await {
 async fn process_swap_event(collector: &UnifiedPolygonCollector, log: &Log) {
     // POOL-002: Extract pool address (always available)
     let pool_address = log.address;
-    
+
     // POOL-001: Try cache first
     if let Some(pool_info) = collector.pool_cache.get(&pool_address).await {
         // Cache hit - we have everything!
-        
+
         // POOL-005: Build TLV with real addresses
         let tlv = PoolSwapTLV {
             pool_address: pool_info.pool_address,
@@ -142,19 +142,19 @@ async fn process_swap_event(collector: &UnifiedPolygonCollector, log: &Log) {
             token1_decimals: pool_info.token1_decimals,
             // ... parse amounts from event data
         };
-        
+
         // Send to relay
         collector.send_tlv(tlv).await;
-        
+
     } else {
         // Cache miss - need discovery
-        
+
         // POOL-003: Queue for background discovery
         collector.discovery_queue.queue_discovery(
             pool_address,
             DiscoveryPriority::Normal
         ).await?;
-        
+
         // Skip this event - we'll catch future events for this pool
         // once discovery completes
         return;
@@ -233,7 +233,7 @@ After full integration, expect:
 ```bash
 # Test each component individually
 cargo test --package services_v2 pool_cache_integration
-cargo test --package services_v2 event_extraction  
+cargo test --package services_v2 event_extraction
 cargo test --package services_v2 discovery_queue
 cargo test --package alphapulse-state-market rpc_discovery
 cargo test --package services_v2 tlv_builder

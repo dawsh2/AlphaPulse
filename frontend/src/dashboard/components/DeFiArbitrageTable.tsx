@@ -230,20 +230,22 @@ export const DeFiArbitrageTable: React.FC = () => {
             executable: metrics?.executable || message.executable
           };
 
-          // Update opportunities
+          // Update opportunities - use pool addresses for unique identification
           setOpportunities(prev => {
             const existingIndex = prev.findIndex(existing =>
               existing.pair === opp.pair &&
-              existing.buyExchange === opp.buyExchange &&
-              existing.sellExchange === opp.sellExchange
+              existing.buyPool === opp.buyPool &&
+              existing.sellPool === opp.sellPool
             );
 
             if (existingIndex >= 0) {
+              // Update existing opportunity from same pools
               const updated = [...prev];
               updated[existingIndex] = opp;
-              return updated;
+              return updated.sort((a, b) => b.netProfit - a.netProfit); // Keep sorted by profit
             } else {
-              return [opp, ...prev].slice(0, 20);
+              // Add new pool pair
+              return [opp, ...prev].slice(0, 20).sort((a, b) => b.netProfit - a.netProfit);
             }
           });
         }

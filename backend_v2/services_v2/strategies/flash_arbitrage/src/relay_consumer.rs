@@ -481,28 +481,26 @@ impl RelayConsumer {
                                 .await
                         }
                         Ok(None) => {
-                            // No opportunity detected but parsing succeeded - still send analysis
-                            info!("📊 No arbitrage opportunity, but creating analysis for display");
-                            self.create_analysis_from_raw_swap(tlv_payload, timestamp_ns)
-                                .await?
+                            // No opportunity detected - skip sending fake analysis
+                            info!("📊 No arbitrage opportunity detected, skipping analysis");
+                            continue;
                         }
                         Err(e) => {
-                            // PoolSwap parsing failed - create analysis from raw TLV data anyway
-                            info!("📊 PoolSwap parsing failed ({}), creating analysis from raw swap data", e);
-                            self.create_analysis_from_raw_swap(tlv_payload, timestamp_ns)
-                                .await?
+                            // PoolSwap parsing failed - log error and skip fake analysis
+                            error!("🚨 PoolSwap parsing failed: {}. Skipping analysis until parsing is fixed.", e);
+                            continue;
                         }
                     };
 
-                    // ALWAYS send analysis to show on arbitrage page (profitable or not)
+                    // Only send analysis if we have a real profitable opportunity
                     info!(
-                        "📤 Sending arbitrage analysis for pool {} to dashboard",
+                        "📤 Sending real arbitrage analysis for pool {} to dashboard",
                         analysis.pool_address
                     );
                     if let Err(e) = self.signal_output.send_arbitrage_analysis(&analysis).await {
                         error!("Failed to send arbitrage analysis to signal relay: {}", e);
                     } else {
-                        info!("✅ Successfully sent arbitrage analysis to signal relay");
+                        info!("✅ Successfully sent real arbitrage analysis to signal relay");
                     }
                 }
                 12 => {
@@ -587,27 +585,38 @@ impl RelayConsumer {
             required_size
         );
 
-        // Parse PoolSwapTLV using the macro-generated from_bytes method
-        // This provides zero-copy parsing when the data is properly aligned (best case)
-        // Note: PoolSwapTLV must derive FromBytes + AsBytes from the zerocopy crate
-        // Performance: Zero-copy in aligned case, single memcopy in unaligned case
-        // The from_bytes method is safe because it validates alignment and size constraints
-        let swap = match PoolSwapTLV::from_bytes(&payload[..required_size]) {
-            Ok(swap) => swap,
-            Err(e) => {
-                info!(
-                    "Failed to parse PoolSwapTLV: {} (payload size: {}, required: {})",
-                    e,
-                    payload.len(),
-                    required_size
-                );
-                info!(
-                    "First 32 bytes of payload: {:02x?}",
-                    &payload[..32.min(payload.len())]
-                );
-                // Don't return None - let caller handle fallback analysis
-                return Err(anyhow::anyhow!("PoolSwapTLV parsing failed: {}", e));
+        // Parse PoolSwapTLV with alignment handling
+        // Unix socket data might not be properly aligned, so we create an aligned buffer
+        let swap = if payload.len() == required_size {
+            // Try direct parsing first (zero-copy if aligned)
+            match PoolSwapTLV::from_bytes(&payload[..required_size]) {
+                Ok(swap) => swap,
+                Err(alignment_error) => {
+                    // Alignment failed - copy to aligned buffer and try again
+                    info!("Direct parsing failed due to alignment ({}), trying aligned copy", alignment_error);
+
+                    // Create properly aligned buffer
+                    let mut aligned_buffer = vec![0u8; required_size];
+                    aligned_buffer.copy_from_slice(&payload[..required_size]);
+
+                    match PoolSwapTLV::from_bytes(&aligned_buffer) {
+                        Ok(swap) => {
+                            info!("✅ Successfully parsed PoolSwapTLV using aligned buffer");
+                            swap
+                        },
+                        Err(e) => {
+                            error!(
+                                "PoolSwapTLV parsing failed even with aligned buffer: {} (payload size: {}, required: {})",
+                                e, payload.len(), required_size
+                            );
+                            info!("First 32 bytes of payload: {:02x?}", &payload[..32.min(payload.len())]);
+                            return Err(anyhow::anyhow!("PoolSwapTLV parsing failed: {}", e));
+                        }
+                    }
+                }
             }
+        } else {
+            return Err(anyhow::anyhow!("PoolSwapTLV size mismatch: got {} bytes, need {} bytes", payload.len(), required_size));
         };
 
         info!(
@@ -879,66 +888,8 @@ impl RelayConsumer {
         }
     }
 
-    /// Create analysis from raw swap data when PoolSwapTLV parsing fails
-    async fn create_analysis_from_raw_swap(
-        &self,
-        payload: &[u8],
-        timestamp_ns: u64,
-    ) -> Result<ArbitrageAnalysis> {
-        // Since PoolSwapTLV parsing is failing, extract what we can from raw bytes
-        debug!(
-            "🔧 Extracting swap info from {} bytes of raw TLV data",
-            payload.len()
-        );
-
-        // For now, create a placeholder analysis showing that we're processing the data
-        // In a real implementation, this would parse the specific TLV structure
-        // PoolSwapTLV structure has pool_address in the "special" section
-        // Based on the TLV structure: after u128 (48 bytes), u64 (16 bytes), u32 (4 bytes), u16 (2 bytes), u8 (10 bytes + padding)
-        // Total fixed fields before special section: approximately 80 bytes
-        let pool_address_offset = 80; // Starting offset for special section
-        
-        let pool_address = if payload.len() >= pool_address_offset + 20 {
-            // Extract 20-byte pool address from the correct offset
-            let pool_bytes = &payload[pool_address_offset..pool_address_offset + 20];
-            format!("0x{}", hex::encode(pool_bytes))
-        } else {
-            // Fallback for insufficient data
-            format!("0x{:02x}{:02x}...{:02x}{:02x}",
-                payload.get(0).unwrap_or(&0),
-                payload.get(1).unwrap_or(&0),
-                payload.get(payload.len().saturating_sub(2)).unwrap_or(&0),
-                payload.get(payload.len().saturating_sub(1)).unwrap_or(&0)
-            )
-        };
-        
-        // Generate more realistic demo values
-        let profit_amount = 50.0 + (timestamp_ns % 200) as f64; // $50-250 profit
-        let capital_amount = 1000.0 + (timestamp_ns % 4000) as f64; // $1000-5000 capital
-        let spread_pct = 2.0 + (timestamp_ns % 300) as f64 / 100.0; // 2.0-5.0% spread
-        
-        let analysis = ArbitrageAnalysis {
-            pool_address,
-            token_a_symbol: "USDC".to_string(),
-            token_b_symbol: "WMATIC".to_string(), 
-            token_a_amount: format!("{:.2} USDC", capital_amount),
-            token_b_amount: format!("{:.2} WMATIC", capital_amount * 0.45), // ~$0.45 per MATIC
-            current_price: "$0.4523".to_string(),
-            estimated_spread: format!("{:.2}%", spread_pct),
-            potential_profit: format!("${:.2}", profit_amount),
-            required_capital: format!("${:.2}", capital_amount),
-            gas_cost_estimate: "$0.05".to_string(), // Realistic Polygon gas cost
-            profitability_status: if profit_amount > 100.0 { 
-                "✅ Profitable" 
-            } else { 
-                "⚠️ Low profit" 
-            }.to_string(),
-            confidence: ((60 + (timestamp_ns % 40)) as u8).min(95), // 60-95% confidence
-            timestamp_ns,
-        };
-
-        Ok(analysis)
-    }
+    // REMOVED: create_analysis_from_raw_swap() - No more fake analysis generation.
+    // System now only processes real market data with proper TLV parsing.
 }
 
 /// Simplified arbitrage opportunity from detector

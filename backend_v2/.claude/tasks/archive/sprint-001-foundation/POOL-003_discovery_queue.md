@@ -1,5 +1,5 @@
 # Task POOL-003: Discovery Queue Integration
-*Agent Type: Integration Specialist*  
+*Agent Type: Integration Specialist*
 *Branch: `fix/discovery-integration`*
 *Dependencies: POOL-001 (cache integration)*
 
@@ -82,14 +82,14 @@ pub struct DiscoveryQueue {
 impl DiscoveryQueue {
     pub fn new(max_depth: usize) -> (Self, mpsc::Receiver<DiscoveryRequest>) {
         let (tx, rx) = mpsc::channel(max_depth);
-        
+
         let pending = Arc::new(Mutex::new(vec![
             VecDeque::new(), // Critical
             VecDeque::new(), // High
             VecDeque::new(), // Normal
             VecDeque::new(), // Low
         ]));
-        
+
         (
             Self {
                 pending,
@@ -102,7 +102,7 @@ impl DiscoveryQueue {
             rx
         )
     }
-    
+
     /// Queue a pool for discovery (non-blocking)
     pub async fn queue_discovery(
         &self,
@@ -114,16 +114,16 @@ impl DiscoveryQueue {
         if in_flight.contains(&pool_address) {
             return Ok(()); // Already being processed
         }
-        
+
         // Check queue depth
         let mut depth = self.queue_depth.lock().await;
         if *depth >= self.max_depth {
             return Err(QueueError::QueueFull);
         }
-        
+
         // Add to in-flight set
         in_flight.insert(pool_address);
-        
+
         // Create request
         let request = DiscoveryRequest {
             pool_address,
@@ -132,18 +132,18 @@ impl DiscoveryQueue {
             retry_count: 0,
             callback: None,
         };
-        
+
         // Send to worker (non-blocking)
         self.tx.try_send(request).map_err(|_| QueueError::WorkerBusy)?;
-        
+
         *depth += 1;
         Ok(())
     }
-    
+
     /// Get next pool to discover (called by worker)
     pub async fn next_discovery(&self) -> Option<DiscoveryRequest> {
         let mut pending = self.pending.lock().await;
-        
+
         // Process by priority
         for queue in pending.iter_mut() {
             if let Some(request) = queue.pop_front() {
@@ -152,21 +152,21 @@ impl DiscoveryQueue {
                 return Some(request);
             }
         }
-        
+
         None
     }
-    
+
     /// Mark discovery complete
     pub async fn mark_complete(&self, pool_address: H160, success: bool) {
         let mut in_flight = self.in_flight.lock().await;
         in_flight.remove(&pool_address);
-        
+
         if success {
             let mut total = self.total_discovered.lock().await;
             *total += 1;
         }
     }
-    
+
     /// Get queue metrics
     pub async fn metrics(&self) -> QueueMetrics {
         QueueMetrics {
@@ -205,53 +205,53 @@ pub async fn discovery_worker(
     web3: Arc<Web3<Http>>,
 ) {
     info!("Discovery worker started");
-    
+
     while let Some(request) = rx.recv().await {
         let pool_address = request.pool_address;
-        
+
         // Check cache first (might have been discovered by another worker)
         if cache.get(&pool_address).await.is_some() {
             queue.mark_complete(pool_address, true).await;
             continue;
         }
-        
+
         // Attempt discovery with timeout
         let discovery_result = tokio::time::timeout(
             Duration::from_secs(5),
             discover_pool_metadata(&web3, pool_address)
         ).await;
-        
+
         match discovery_result {
             Ok(Ok(metadata)) => {
                 // Success! Add to cache
                 if let Err(e) = cache.insert(metadata.clone()).await {
                     error!("Failed to cache pool {}: {}", pool_address, e);
                 }
-                
-                info!("Discovered pool {}: {} <-> {}", 
+
+                info!("Discovered pool {}: {} <-> {}",
                     pool_address, metadata.token0, metadata.token1);
-                
+
                 // Notify callback if present
                 if let Some(callback) = request.callback {
                     let _ = callback.send(Ok(metadata));
                 }
-                
+
                 queue.mark_complete(pool_address, true).await;
             }
             Ok(Err(e)) => {
                 warn!("Failed to discover pool {}: {}", pool_address, e);
-                
+
                 // Retry logic
                 if request.retry_count < 3 {
                     let mut retry = request;
                     retry.retry_count += 1;
                     retry.priority = DiscoveryPriority::Low; // Lower priority for retries
-                    
+
                     if let Err(e) = queue.queue_discovery(pool_address, retry.priority).await {
                         error!("Failed to requeue {}: {}", pool_address, e);
                     }
                 }
-                
+
                 queue.mark_complete(pool_address, false).await;
             }
             Err(_) => {
@@ -260,7 +260,7 @@ pub async fn discovery_worker(
                 queue.mark_complete(pool_address, false).await;
             }
         }
-        
+
         // Rate limiting
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
@@ -284,7 +284,7 @@ async fn discover_pool_metadata(
    - [ ] Worker processes queue continuously
    - [ ] Rate limiting to avoid RPC overload
 
-2. **Queue Management**  
+2. **Queue Management**
    - [ ] Priority-based processing
    - [ ] Duplicate detection
    - [ ] Retry logic with backoff

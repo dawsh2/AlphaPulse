@@ -88,7 +88,7 @@ lazy_static! {
     static ref V2_SWAP_SIGNATURE: H256 = H256::from_slice(
         &hex!("d78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822")
     );
-    
+
     // Swap(address,address,int256,int256,uint160,uint128,int24)
     static ref V3_SWAP_SIGNATURE: H256 = H256::from_slice(
         &hex!("c42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67")
@@ -99,20 +99,20 @@ fn extract_v3_tokens(log: &Log) -> Result<([u8; 20], [u8; 20]), ParseError> {
     // V3 specific: Parse from topics or data
     // Topics[1] = sender, Topics[2] = recipient
     // Need to determine token addresses from pool
-    
+
     // For now, return placeholder - will need cache/RPC
     Ok(([0u8; 20], [0u8; 20]))
 }
 
 async fn extract_v2_tokens(
-    log: &Log, 
+    log: &Log,
     pool_address: H160
 ) -> Result<([u8; 20], [u8; 20]), ParseError> {
     // V2: Tokens not in event, need from cache or RPC
-    
+
     // This is where POOL-001's cache will be used!
     // For now, implement temporary logic
-    
+
     // Temporary: Just note that we need the cache
     warn!("Pool {} needs token discovery", pool_address);
     Ok(([0u8; 20], [0u8; 20]))
@@ -190,7 +190,7 @@ git push -u origin fix/swap-event-extraction
 Fixed critical issue where swap events used placeholder addresses instead of real ones.
 
 ### Changes
-- Extract pool address from `log.address` 
+- Extract pool address from `log.address`
 - Implement V2/V3 protocol detection via event signatures
 - Add token extraction logic (pending cache integration)
 - Remove hardcoded `[0u8; 20]` placeholders
@@ -241,7 +241,7 @@ event Swap(
     address indexed to
 );
 
-// Uniswap V3 Swap Event  
+// Uniswap V3 Swap Event
 event Swap(
     address indexed sender,
     address indexed recipient,

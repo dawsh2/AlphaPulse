@@ -57,36 +57,36 @@ async fn test_complete_pool_discovery_flow() {
     // Setup
     let temp_dir = TempDir::new().unwrap();
     let config = create_test_config(temp_dir.path());
-    
+
     // Initialize collector with all components
     let collector = UnifiedPolygonCollector::new(config).await.unwrap();
-    
+
     // Test Case 1: Known pool (should hit cache)
     let known_pool = H160::from_str("0x45dda9cb7c25131df268515131f647d726f50608").unwrap();
     let event = create_mock_swap_event(known_pool);
-    
+
     // Process event
     collector.process_swap_event(&event).await.unwrap();
-    
+
     // Verify TLV sent with real addresses
     let sent_messages = collector.get_sent_messages();
     assert_eq!(sent_messages.len(), 1);
-    
+
     let tlv = parse_pool_swap_tlv(&sent_messages[0]);
     assert_ne!(tlv.token0, [0u8; 20], "Token0 should not be placeholder");
     assert_ne!(tlv.token1, [0u8; 20], "Token1 should not be placeholder");
-    
+
     // Test Case 2: Unknown pool (should queue for discovery)
     let unknown_pool = H160::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap();
     let event = create_mock_swap_event(unknown_pool);
-    
+
     let initial_queue_depth = collector.get_metrics().discovery_queue_depth;
     collector.process_swap_event(&event).await.unwrap();
-    
+
     // Verify queued for discovery
     let new_queue_depth = collector.get_metrics().discovery_queue_depth;
     assert_eq!(new_queue_depth, initial_queue_depth + 1, "Pool should be queued");
-    
+
     // Wait for discovery to complete (with timeout)
     let start = Instant::now();
     while collector.pool_cache.get(&unknown_pool.as_bytes()).await.is_none() {
@@ -95,28 +95,28 @@ async fn test_complete_pool_discovery_flow() {
         }
         sleep(Duration::from_millis(100)).await;
     }
-    
+
     // Verify pool now in cache
     let pool_info = collector.pool_cache.get(&unknown_pool.as_bytes()).await.unwrap();
     assert_eq!(pool_info.pool_address, unknown_pool.as_bytes());
-    
+
     // Test Case 3: High-volume scenario
     let pools = generate_random_pools(100);
     let mut events = Vec::new();
     for pool in &pools {
         events.push(create_mock_swap_event(*pool));
     }
-    
+
     // Process all events
     for event in events {
         collector.process_swap_event(&event).await.unwrap();
     }
-    
+
     // Verify metrics
     let metrics = collector.get_metrics();
     assert!(metrics.cache_hit_rate > 0.0, "Should have some cache hits");
     assert!(metrics.unknown_pools_queued > 0, "Should have queued some pools");
-    
+
     // Cleanup
     collector.shutdown().await.unwrap();
 }
@@ -125,32 +125,32 @@ async fn test_complete_pool_discovery_flow() {
 async fn test_cache_persistence_across_restarts() {
     let temp_dir = TempDir::new().unwrap();
     let cache_path = temp_dir.path().join("test_cache.tlv");
-    
+
     // Phase 1: Create cache and add pools
     {
         let cache = PoolCache::with_persistence(cache_path.clone(), 137);
-        
+
         // Add some pools
         for i in 0..10 {
             let pool_info = create_test_pool_info(i);
             cache.insert(pool_info).await.unwrap();
         }
-        
+
         // Force snapshot
         cache.force_snapshot().await.unwrap();
-        
+
         // Verify pools in cache
         assert_eq!(cache.size(), 10);
     }
-    
+
     // Phase 2: Restart and verify persistence
     {
         let cache = PoolCache::with_persistence(cache_path.clone(), 137);
-        
+
         // Load from disk
         let loaded = cache.load_from_disk().await.unwrap();
         assert_eq!(loaded, 10, "Should load 10 pools from disk");
-        
+
         // Verify pools still accessible
         for i in 0..10 {
             let pool_address = create_test_address(i);
@@ -165,14 +165,14 @@ async fn test_concurrent_discovery_handling() {
     let cache = Arc::new(PoolCache::with_default_config());
     let (queue, rx) = DiscoveryQueue::new(1000);
     let queue = Arc::new(queue);
-    
+
     // Start discovery worker
     let worker_cache = cache.clone();
     let worker_queue = queue.clone();
     tokio::spawn(async move {
         discovery_worker(rx, worker_queue, worker_cache).await;
     });
-    
+
     // Queue many pools concurrently
     let mut handles = Vec::new();
     for i in 0..100 {
@@ -186,17 +186,17 @@ async fn test_concurrent_discovery_handling() {
         });
         handles.push(handle);
     }
-    
+
     // Wait for all queuing to complete
     for handle in handles {
         handle.await.unwrap().unwrap();
     }
-    
+
     // Verify queue metrics
     let metrics = queue.metrics().await;
-    assert!(metrics.queue_depth > 0 || metrics.in_flight > 0, 
+    assert!(metrics.queue_depth > 0 || metrics.in_flight > 0,
             "Should have pools queued or in flight");
-    
+
     // No duplicates should be queued
     assert!(metrics.queue_depth + metrics.in_flight <= 100,
             "Should not have duplicates");
@@ -205,32 +205,32 @@ async fn test_concurrent_discovery_handling() {
 #[tokio::test]
 async fn test_performance_requirements() {
     let cache = PoolCache::with_default_config();
-    
+
     // Pre-populate cache
     for i in 0..10000 {
         let pool_info = create_test_pool_info(i);
         cache.insert(pool_info).await.unwrap();
     }
-    
+
     // Test cache lookup performance
     let start = Instant::now();
     let iterations = 100_000;
-    
+
     for i in 0..iterations {
         let pool_address = create_test_address(i % 10000);
         let _ = cache.get(&pool_address).await;
     }
-    
+
     let elapsed = start.elapsed();
     let per_lookup = elapsed / iterations;
-    
-    assert!(per_lookup < Duration::from_micros(1), 
+
+    assert!(per_lookup < Duration::from_micros(1),
             "Cache lookup should be <1μs, was {:?}", per_lookup);
-    
+
     // Test TLV construction performance
     let builder = PoolTLVBuilder::new(Arc::new(cache));
     let start = Instant::now();
-    
+
     for i in 0..iterations {
         let pool = H160::from_slice(&create_test_address(i % 10000));
         let _ = builder.build_pool_swap_tlv(
@@ -243,10 +243,10 @@ async fn test_performance_requirements() {
             None,
         ).await;
     }
-    
+
     let elapsed = start.elapsed();
     let per_build = elapsed / iterations;
-    
+
     assert!(per_build < Duration::from_micros(35),
             "TLV build should be <35μs, was {:?}", per_build);
 }

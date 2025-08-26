@@ -134,9 +134,9 @@ impl PoolCache {
     ) -> Result<PoolInfo, PoolCacheError> {
         let web3 = self.web3.as_ref()
             .ok_or_else(|| PoolCacheError::RpcDiscoveryFailed("Web3 not configured".into()))?;
-        
+
         let pool_h160 = H160::from_slice(&pool_address);
-        
+
         // Try V3 first (has fee() method), then V2
         match self.try_discover_v3_pool(web3, pool_h160).await {
             Ok(info) => {
@@ -158,7 +158,7 @@ impl PoolCache {
             }
         }
     }
-    
+
     /// Try to discover as V3 pool
     async fn try_discover_v3_pool(
         &self,
@@ -170,7 +170,7 @@ impl PoolCache {
             pool_address,
             V3_POOL_ABI.as_bytes(),
         )?;
-        
+
         // Get token addresses
         let token0: H160 = pool_contract
             .query("token0", (), None, Options::default(), None)
@@ -178,16 +178,16 @@ impl PoolCache {
         let token1: H160 = pool_contract
             .query("token1", (), None, Options::default(), None)
             .await?;
-        
+
         // Get fee tier
         let fee: U256 = pool_contract
             .query("fee", (), None, Options::default(), None)
             .await?;
-        
+
         // Get decimals for each token
         let token0_decimals = self.get_token_decimals(web3, token0).await?;
         let token1_decimals = self.get_token_decimals(web3, token1).await?;
-        
+
         Ok(PoolInfo {
             pool_address: pool_address.as_bytes().try_into()?,
             token0: token0.as_bytes().try_into()?,
@@ -201,7 +201,7 @@ impl PoolCache {
             last_seen: crate::utils::fast_timestamp(),
         })
     }
-    
+
     /// Try to discover as V2 pool
     async fn try_discover_v2_pool(
         &self,
@@ -213,7 +213,7 @@ impl PoolCache {
             pool_address,
             V2_PAIR_ABI.as_bytes(),
         )?;
-        
+
         // Get token addresses
         let token0: H160 = pool_contract
             .query("token0", (), None, Options::default(), None)
@@ -221,11 +221,11 @@ impl PoolCache {
         let token1: H160 = pool_contract
             .query("token1", (), None, Options::default(), None)
             .await?;
-        
+
         // Get decimals for each token
         let token0_decimals = self.get_token_decimals(web3, token0).await?;
         let token1_decimals = self.get_token_decimals(web3, token1).await?;
-        
+
         Ok(PoolInfo {
             pool_address: pool_address.as_bytes().try_into()?,
             token0: token0.as_bytes().try_into()?,
@@ -239,7 +239,7 @@ impl PoolCache {
             last_seen: crate::utils::fast_timestamp(),
         })
     }
-    
+
     /// Get token decimals via RPC
     async fn get_token_decimals(
         &self,
@@ -256,19 +256,19 @@ impl PoolCache {
             b"\xc2\x13\x2d\x05\xd3\x17\x62\xb0\xd4\x1e\xaa\x5f\x5b\xc2\x29\xc3\x66\xb1\x23\x5f" => return Ok(6),
             _ => {}
         }
-        
+
         // Query contract for decimals
         let token_contract = Contract::from_json(
             web3.eth(),
             token_address,
             ERC20_ABI.as_bytes(),
         )?;
-        
+
         let decimals: u8 = token_contract
             .query("decimals", (), None, Options::default(), None)
             .await
             .unwrap_or(18); // Default to 18 if call fails
-        
+
         Ok(decimals)
     }
 }

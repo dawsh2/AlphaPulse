@@ -194,19 +194,15 @@ impl SignalOutput {
         let capital_q64 = (capital_usd * Q64_SCALE) as u128;
         debug!("🔍 SIGNAL: Capital Q64.64 raw: {}", capital_q64);
 
-        // Extend pool address to 32 bytes (pad with zeros)
-        let mut pool_32 = [0u8; 32];
-        pool_32[12..32].copy_from_slice(&pool_addr); // Place 20-byte address in last 20 bytes
-
         // Create DemoDeFiArbitrageTLV with analysis data
         let gas_cost_q64 = (2.50 * Q64_SCALE) as u128; // $2.50 gas cost
         debug!("🔍 SIGNAL: Gas cost Q64.64 raw: {}", gas_cost_q64);
-        
+
         debug!("🔍 SIGNAL: Creating DemoDeFiArbitrageTLV with:");
         debug!("  - Profit Q64.64: {}", profit_q64);
         debug!("  - Capital Q64.64: {}", capital_q64);
         debug!("  - Optimal amount Q64.64: {}", capital_q64);
-        
+
         let demo_tlv = DemoDeFiArbitrageTLV::new(ArbitrageConfig {
             strategy_id: FLASH_ARBITRAGE_STRATEGY_ID,
             signal_id: signal_nonce as u64,
@@ -216,9 +212,9 @@ impl SignalOutput {
             required_capital_q: capital_q64,
             estimated_gas_cost_q: gas_cost_q64,
             venue_a: VenueId::QuickSwap,
-            pool_a: pool_32,
+            pool_a: pool_addr,
             venue_b: VenueId::SushiSwapPolygon,
-            pool_b: pool_32,                  // Same pool for now  
+            pool_b: pool_addr,                  // Same pool for now
             token_in: 0x2791bca1f2de4661u64,  // USDC on Polygon: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
             token_out: 0x0d500b1d8e8ef31eu64, // WMATIC on Polygon: 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
             optimal_amount_q: capital_q64,
@@ -233,12 +229,13 @@ impl SignalOutput {
             timestamp_ns: analysis.timestamp_ns,
         });
 
-        // Build complete TLV message with proper Extended TLV format
-        // Use TLVMessageBuilder with Extended TLV 
+        // Build complete TLV message with proper format
+        // DemoDeFiArbitrageTLV uses TLV type 255 (as expected by dashboard converter)
+        // Since it's exactly 180 bytes, it fits in standard TLV (<=255 bytes)
         let message_bytes = TLVMessageBuilder::new(RelayDomain::Signal, SourceType::ArbitrageStrategy)
-            .add_extended_tlv(TLVType::ExtendedTLV, &demo_tlv) // Pass the struct directly
+            .add_tlv_slice(TLVType::ExtendedTLV, demo_tlv.as_bytes()) // Use ExtendedTLV type with raw struct bytes
             .build();
-            
+
         debug!("Built Extended TLV message: {} bytes", message_bytes.len());
 
         self.relay_output

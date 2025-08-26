@@ -57,7 +57,7 @@ use alphapulse_state_market::pool_state::PoolStateManager;
 // Update UnifiedPolygonCollector struct
 pub struct UnifiedPolygonCollector {
     // ... existing fields ...
-    
+
     // ADD THESE:
     pool_cache: Arc<PoolCache>,
     pool_state_manager: Arc<PoolStateManager>,
@@ -67,7 +67,7 @@ pub struct UnifiedPolygonCollector {
 impl UnifiedPolygonCollector {
     pub async fn new(config: Config) -> Result<Self> {
         // ... existing code ...
-        
+
         // Initialize pool cache with persistence
         let cache_path = config.cache_dir.join("pool_cache.tlv");
         let pool_cache = Arc::new(
@@ -77,12 +77,12 @@ impl UnifiedPolygonCollector {
                 web3.clone(),
             ).await?
         );
-        
+
         // Initialize pool state manager
         let pool_state_manager = Arc::new(
             PoolStateManager::new(Some(pool_cache.clone()))
         );
-        
+
         Ok(Self {
             // ... existing fields ...
             pool_cache,
@@ -95,22 +95,22 @@ impl UnifiedPolygonCollector {
 async fn process_swap_event(&self, log: &Log) -> Result<()> {
     // Extract REAL pool address
     let pool_address = log.address;
-    
+
     // Try to get from cache first (fast path)
     let pool_info = match self.pool_cache.get(&pool_address).await {
         Some(info) => info,
         None => {
             // Queue for discovery (don't block!)
             self.pool_cache.queue_discovery(pool_address).await?;
-            
+
             // Use temporary placeholder but log warning
             warn!("Unknown pool {} queued for discovery", pool_address);
-            
+
             // Return early or use partial data
             return Ok(()); // Skip this event for now
         }
     };
-    
+
     // Now we have REAL addresses!
     let pool_swap_tlv = PoolSwapTLV {
         timestamp,
@@ -121,10 +121,10 @@ async fn process_swap_event(&self, log: &Log) -> Result<()> {
         token1_decimals: pool_info.token1_decimals,
         // ... rest of fields
     };
-    
+
     // Update pool state
     self.pool_state_manager.update_from_swap(&pool_swap_tlv).await?;
-    
+
     // ... rest of processing
 }
 ```
@@ -203,7 +203,7 @@ git add services_v2/adapters/src/polygon/types.rs
 git commit -m "feat(pool): implement high-performance pool metadata cache
 
 - Add PoolCache with LRU eviction and hit rate tracking
-- Support atomic persistence for crash recovery  
+- Support atomic persistence for crash recovery
 - Maintain <1μs lookup performance with RwLock
 - Add comprehensive unit tests for cache operations"
 

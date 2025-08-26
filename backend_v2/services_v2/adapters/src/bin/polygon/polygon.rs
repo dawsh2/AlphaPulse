@@ -1363,21 +1363,9 @@ impl UnifiedPolygonCollector {
 
         let v3_config = V3PoolConfig {
             venue: VenueId::Polygon as u16,
-            pool_address: {
-                let mut padded = [0u8; 32];
-                padded[..20].copy_from_slice(&pool_addr);
-                padded
-            },
-            token0_addr: {
-                let mut padded = [0u8; 32];
-                padded[..20].copy_from_slice(&token0_addr);
-                padded
-            },
-            token1_addr: {
-                let mut padded = [0u8; 32];
-                padded[..20].copy_from_slice(&token1_addr);
-                padded
-            },
+            pool_address: pool_addr,
+            token0_addr: token0_addr,
+            token1_addr: token1_addr,
             token0_decimals,
             token1_decimals,
             sqrt_price_x96: 792281625142643375u128,

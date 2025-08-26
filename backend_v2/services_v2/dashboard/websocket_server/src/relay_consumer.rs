@@ -589,15 +589,24 @@ impl RelayConsumer {
                         offset, total_message_size, header.payload_size
                     );
 
-                    // Validate expected message size for DemoDeFiArbitrageTLV
-                    if total_message_size == 258 {
-                        debug!("Standard DemoDeFiArbitrageTLV message detected");
-                    } else if total_message_size == 516 || total_message_size == 774 {
+                    // Validate expected message sizes for DemoDeFiArbitrageTLV (remove hardcoded magic numbers)
+                    let expected_sizes = [214, 217, 258, 261]; // Correct (214), Extended (217), Legacy (258), Observed (261)
+                    if expected_sizes.contains(&total_message_size) {
+                        debug!("Valid DemoDeFiArbitrageTLV message: {} bytes", total_message_size);
+                    } else if total_message_size % 214 == 0 && total_message_size > 214 {
                         warn!(
-                            "⚠️ Unexpected concatenated size: {} bytes ({}x258)",
+                            "⚠️ Concatenated correct messages: {} bytes ({}×214)",
                             total_message_size,
-                            total_message_size / 258
+                            total_message_size / 214
                         );
+                    } else if total_message_size % 261 == 0 && total_message_size > 261 {
+                        warn!(
+                            "⚠️ Concatenated legacy messages: {} bytes ({}×261)",
+                            total_message_size,
+                            total_message_size / 261
+                        );
+                    } else {
+                        warn!("🚨 Unexpected message size: {} bytes", total_message_size);
                     }
 
                     // Validate complete message availability

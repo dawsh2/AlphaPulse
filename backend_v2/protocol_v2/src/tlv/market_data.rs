@@ -5,6 +5,7 @@
 use crate::{InstrumentId, VenueId}; // TLVType removed with legacy TLV system
                                     // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
 use super::dynamic_payload::{DynamicPayload, FixedVec};
+use super::address::{EthAddress, AddressPadding, ZERO_PADDING};
 use crate::{define_tlv, define_tlv_with_padding};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
@@ -609,14 +610,15 @@ pub struct PoolLiquidityTLV {
     pub reserves:
         super::dynamic_payload::FixedVec<u128, { super::dynamic_payload::MAX_POOL_TOKENS }>, // Token reserves (native precision)
 
-    // Pool address (32 bytes - padded from 20-byte Ethereum address)
-    pub pool_address: [u8; 32], // Full pool contract address (20 bytes + 12 padding)
+    // Pool address (32 bytes total - explicit padding)
+    pub pool_address: EthAddress,       // Pool contract address (20 bytes)
+    pub pool_address_padding: AddressPadding, // Explicit padding (12 bytes)
 
     // Then smaller fields (8 bytes total to align properly)
     pub venue: u16, // VenueId as u16 (2 bytes)
     pub _padding: [u8; 6], // Explicit padding for alignment
 
-                    // Total: 8 + (2 + 6 + 8*16) + 32 + 8 = 176 bytes (maintaining same size)
+                    // Total: 8 + (2 + 6 + 8*16) + 20 + 12 + 8 = 184 bytes (explicit padding)
 }
 
 // Manual zerocopy implementations for PoolLiquidityTLV
@@ -721,9 +723,9 @@ impl PoolSwapTLV {
     /// Create a new PoolSwapTLV from Ethereum addresses
     #[allow(clippy::too_many_arguments)]
     pub fn from_addresses(
-        pool: [u8; 20],
-        token_in: [u8; 20],
-        token_out: [u8; 20],
+        pool: EthAddress,
+        token_in: EthAddress,
+        token_out: EthAddress,
         venue_id: VenueId,
         amount_in: u128,
         amount_out: u128,
@@ -1146,7 +1148,7 @@ impl PoolLiquidityTLV {
     /// Create new liquidity update with FixedVec reserves
     pub fn new(
         venue: VenueId,
-        pool_address: [u8; 20], // Input as 20-byte address
+        pool_address: EthAddress, // Input as 20-byte address
         reserves: &[u128],      // Pass slice of reserves
         timestamp_ns: u64,
     ) -> Result<Self, String> {
@@ -1158,14 +1160,11 @@ impl PoolLiquidityTLV {
         let reserves_vec = FixedVec::from_slice(reserves)
             .map_err(|e| format!("Failed to create reserves FixedVec: {}", e))?;
 
-        // Convert 20-byte address to 32-byte padded format
-        use super::address::AddressConversion;
-        let pool_address_32 = pool_address.to_padded();
-
         Ok(Self {
             timestamp_ns,
             reserves: reserves_vec,
-            pool_address: pool_address_32,
+            pool_address,
+            pool_address_padding: ZERO_PADDING,
             venue: venue as u16,
             _padding: [0u8; 6],
         })
@@ -1176,10 +1175,9 @@ impl PoolLiquidityTLV {
         self.reserves.as_slice()
     }
 
-    /// Get the 20-byte pool address (extracting from 32-byte padded format)
-    pub fn get_pool_address(&self) -> [u8; 20] {
-        use super::address::AddressExtraction;
-        self.pool_address.to_eth_address()
+    /// Get the 20-byte pool address
+    pub fn get_pool_address(&self) -> EthAddress {
+        self.pool_address
     }
 
     /// Convert valid reserves to Vec (perfect bijection preservation)
@@ -1196,7 +1194,7 @@ impl PoolLiquidityTLV {
     /// Validates perfect roundtrip: original_vec == tlv.to_reserves_vec()
     pub fn from_reserves_vec(
         venue: VenueId,
-        pool_address: [u8; 20],
+        pool_address: EthAddress,
         reserves: Vec<u128>,
         timestamp_ns: u64,
     ) -> Result<Self, String> {
