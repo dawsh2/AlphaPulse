@@ -7,6 +7,15 @@ assigned_branch: fix/specific-issue-name
 assignee: TBD
 created: YYYY-MM-DD
 completed: null
+# Dependencies: task IDs that must be COMPLETE before this can start
+depends_on: []
+  # Example: [S010-T002, S007-T001]
+# Blocks: task IDs that cannot start until this is COMPLETE
+blocks: []
+  # Example: [S014-T001, S014-T002]
+# Scope: files/directories this task modifies (for conflict detection)
+scope: []
+  # Example: ["relays/src/common/*.rs", "libs/types/src/protocol/"]
 ---
 
 # TASK-XXX: [Clear Task Description]
