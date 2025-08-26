@@ -1,12 +1,18 @@
 ---
 task_id: OPT-001
-status: COMPLETED
+status: COMPLETE
 priority: CRITICAL
 estimated_hours: 4
 branch: perf/orderbook-fixedvec
 assignee: Claude Code Review
 created: 2025-08-26
 completed: 2025-08-26
+depends_on:
+  - CODEC-001  # Need codec foundation for protocol types
+blocks: []
+scope:
+  - "protocol_v2/src/tlv/orderbook.rs"  # Modified orderbook TLV implementation
+  - "protocol_v2/tests/orderbook_fixedvec_tests.rs"  # Added performance tests
 ---
 
 # Task OPT-001: OrderBookTLV True Zero-Copy with FixedVec

@@ -1,12 +1,21 @@
 ---
+task_id: TASK-005
 status: BLOCKED
 priority: HIGH  
 assigned_branch: feat/performance-validation
 created: 2025-08-26
 estimated_hours: 4
-depends_on: TASK-002, TASK-003, TASK-004
+depends_on:
+  - TASK-002  # Need generic engine
+  - TASK-003  # Need domain implementations
+  - TASK-004  # Need binary entry points
+blocks:
+  - TASK-006  # Migration testing depends on performance baseline
 blocked_reason: "alphapulse-types compilation failures prevent performance testing"
 blocked_by: "OPT-004 migration issues"
+scope:
+  - "relays/benches/"  # Performance benchmark tests
+  - "tests/integration/relay_performance.rs"  # Integration performance tests
 ---
 
 # TASK-005: Performance Validation and Comparison Testing

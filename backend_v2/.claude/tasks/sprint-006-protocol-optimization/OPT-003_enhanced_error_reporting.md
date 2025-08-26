@@ -1,3 +1,21 @@
+---
+task_id: OPT-003
+status: TODO
+priority: HIGH
+estimated_hours: 3
+assigned_branch: feat/enhanced-error-context
+assignee: TBD
+created: 2025-08-26
+completed: null
+depends_on:
+  - CODEC-001  # Need codec foundation with basic error types
+blocks: []
+scope:
+  - "libs/alphapulse_codec/src/errors.rs"  # Enhance error definitions
+  - "protocol_v2/src/validation/*.rs"  # Add contextual validation errors
+  - "libs/types/src/common/errors.rs"  # Common error patterns
+---
+
 # Task OPT-003: Enhanced Error Reporting with Context
 
 **Branch**: `feat/enhanced-error-context`  

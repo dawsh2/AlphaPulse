@@ -7,6 +7,12 @@ assigned_branch: fix/relay-binary-compilation
 assignee: TBD
 created: 2025-01-08
 completed: null
+depends_on:
+  - TASK-002  # Need generic relay engine working first
+blocks: []
+scope:
+  - "relays/src/bin/*.rs"  # Fix binary entry points
+  - "relays/tests/*.rs"  # Fix test code compilation errors
 ---
 
 # RELAY-007: Fix Binary Entry Point Compilation Issues

@@ -7,6 +7,13 @@ assigned_branch: test/e2e-golden-path
 assignee: TBD
 created: 2025-01-27
 completed: null
+depends_on:
+  - TEST-001  # Need unit test framework first
+blocks: []
+scope:
+  - "tests/e2e/golden_path/"  # New E2E golden path tests
+  - "tests/e2e/src/scenarios/"  # Update existing E2E scenarios
+  - ".github/workflows/"  # CI integration for golden path tests
 ---
 
 # TEST-003: E2E Golden Path Test (Full Pipeline)

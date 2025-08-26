@@ -1,3 +1,23 @@
+---
+task_id: ARCH-002
+status: TODO
+priority: HIGH
+estimated_hours: 6
+assigned_branch: feat/generic-relay-engine
+assignee: TBD
+created: 2025-08-26
+completed: null
+depends_on:
+  - ARCH-001  # Need RelayLogic trait first
+blocks:
+  - TASK-003  # Domain implementations need generic engine
+  - TASK-004  # Binary entry points need generic engine
+scope:
+  - "relays/src/common/engine.rs"  # Generic Relay<T> implementation
+  - "relays/src/common/client.rs"  # RelayClient management
+  - "relays/src/common/mod.rs"  # Export generic engine
+---
+
 # ARCH-002: Build Generic Relay Engine
 
 **Sprint**: 007 - Generic Relay Engine Refactor  

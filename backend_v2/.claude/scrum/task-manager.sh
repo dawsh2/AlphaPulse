@@ -24,7 +24,7 @@ show_usage() {
     echo "  status          - Show current sprint status (dynamic)"
     echo "  sprint-XXX      - Show detailed status for specific sprint"
     echo "  kanban          - Show tasks in visual kanban board with colors"
-    echo "  next            - Show next priority task based on current files"
+    echo "  next            - Show ready tasks with satisfied dependencies (JIT queue)"
     echo "  list            - List all active tasks across all sprints"
     echo "  sprints         - Show all available sprints"
     echo "  scan            - Scan task files and show current state"
@@ -33,13 +33,22 @@ show_usage() {
     echo "  check-complete <sprint-name> - Check if sprint is ready for archiving"
     echo "  archive-sprint <sprint-name> - Archive a completed sprint"
     echo "  auto-archive    - Check all sprints and archive completed ones"
+    echo "  validate-plan   - Check entire project for circular dependencies"
+    echo "  find-conflicts <file> - Find scope conflicts for a task file"
+    echo "  graph           - Generate dependency visualization graph"
+    echo "  migrate-critical - Migrate critical sprints to new format"
+    echo "  lint <file|dir>  - Validate task metadata format"
+    echo "  lint-all        - Validate all task files"
+    echo "  health          - Generate task metadata health report"
     echo "  help            - Show this help"
     echo ""
     echo "Examples:"
     echo "  $0 status           # Show all sprint progress"
     echo "  $0 sprint-006       # Show detailed Sprint 006 status"
     echo "  $0 kanban           # Show visual kanban board"
-    echo "  $0 next             # Get next task assignment"
+    echo "  $0 next             # Get JIT ready task queue"
+    echo "  $0 validate-plan    # Check for circular dependencies"
+    echo "  $0 graph            # Generate dependency graph"
 }
 
 # Extract task status from markdown files
@@ -400,76 +409,41 @@ show_current_status() {
 }
 
 show_next_task() {
-    echo -e "${BLUE}🎯 Next Priority Task (Dynamic Detection)${NC}"
+    echo -e "${BLUE}🎯 JIT Task Queue (Ready to Start)${NC}"
     echo "========================================="
     echo ""
+    echo -e "${CYAN}Tasks with all dependencies satisfied:${NC}"
+    echo ""
     
-    # Find highest priority incomplete task
-    local highest_priority_task=""
-    local highest_priority_file=""
-    local highest_priority_level=999
+    # Use Python YAML parser to find ready tasks
+    local ready_tasks=$(python3 "$SCRIPT_DIR/yaml_parser.py" ready 2>/dev/null)
     
-    # Priority levels for sorting (bash 3 compatible)
-    get_priority_level() {
-        case "$1" in
-            "CRITICAL") echo "1" ;;
-            "HIGH") echo "2" ;;
-            "MEDIUM") echo "3" ;;
-            "LOW") echo "4" ;;
-            *) echo "999" ;;
-        esac
-    }
-    
-    for sprint_dir in "$TASK_DIR"/sprint-*/; do
-        if [[ -d "$sprint_dir" ]] && [[ "$(basename "$sprint_dir")" != *"archive"* ]]; then
-            for task_file in "$sprint_dir"*.md; do
-                if [[ -f "$task_file" ]] && [[ $(basename "$task_file") != "SPRINT_PLAN.md" ]] && [[ $(basename "$task_file") != "README.md" ]] && [[ $(basename "$task_file") != "TEST_RESULTS.md" ]] && [[ $(basename "$task_file") != *"rename_me"* ]]; then
-                    local status=$(get_task_status "$task_file")
-                    local priority=$(get_task_priority "$task_file")
-                    
-                    # Only consider TODO or BLOCKED tasks
-                    if [[ "$status" == "TODO" ]] || [[ "$status" == "BLOCKED" ]]; then
-                        local priority_level=$(get_priority_level "$priority")
-                        
-                        if [[ $priority_level -lt $highest_priority_level ]]; then
-                            highest_priority_level=$priority_level
-                            highest_priority_task=$(get_task_description "$task_file")
-                            highest_priority_file="$task_file"
-                        fi
-                    fi
-                fi
-            done
-        fi
-    done
-    
-    if [[ -n "$highest_priority_file" ]]; then
-        echo -e "${RED}🚨 HIGHEST PRIORITY TASK:${NC}"
-        echo "$highest_priority_task"
+    if [[ -z "$ready_tasks" ]] || [[ "$ready_tasks" == "" ]]; then
+        echo -e "${GREEN}✅ No tasks ready! Either all dependencies unsatisfied or all work in progress/complete.${NC}"
         echo ""
-        
-        # Show task details
-        echo -e "${YELLOW}📋 Task Details:${NC}"
-        echo "File: $(basename "$highest_priority_file")"
-        echo "Location: $(realpath "$highest_priority_file")"
-        
-        # Extract problem summary
-        if grep -q "^## Problem" "$highest_priority_file"; then
-            echo ""
-            echo -e "${YELLOW}Problem Summary:${NC}"
-            sed -n '/^## Problem/,/^##/p' "$highest_priority_file" | sed '$d' | tail -n +2 | head -3
-        fi
-        
-        # Extract branch suggestion if available
-        task_id=$(basename "$highest_priority_file" .md | cut -d'_' -f1)
-        branch_name=$(echo "$task_id" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
-        
-        echo ""
-        echo -e "${GREEN}🚀 To Start:${NC}"
-        echo "git checkout -b $branch_name-fix"
-        echo "# Edit: $(realpath "$highest_priority_file")"
-        
+        echo "Run '$0 validate-plan' to check for dependency issues."
     else
-        echo -e "${GREEN}✅ No pending tasks found! All tasks completed or in progress.${NC}"
+        echo "$ready_tasks" | while IFS= read -r task; do
+            if [[ -n "$task" ]]; then
+                # Extract task ID and priority from output
+                local task_id=$(echo "$task" | cut -d: -f1)
+                local filename=$(echo "$task" | cut -d: -f2 | tr -d ' ')
+                local priority=$(echo "$task" | grep -o '\[.*\]' | tr -d '[]')
+                
+                # Color code by priority
+                case "$priority" in
+                    "CRITICAL") echo -e "  ${RED}🔴 $task_id${NC} - $filename" ;;
+                    "HIGH") echo -e "  ${YELLOW}🟡 $task_id${NC} - $filename" ;;
+                    "MEDIUM") echo -e "  ${CYAN}🔵 $task_id${NC} - $filename" ;;
+                    "LOW") echo -e "  ${GREEN}🟢 $task_id${NC} - $filename" ;;
+                    *) echo -e "  $task" ;;
+                esac
+            fi
+        done
+        
+        echo ""
+        echo -e "${GREEN}💡 Pick any task above to start working!${NC}"
+        echo -e "Remember to update status to IN_PROGRESS when you begin."
     fi
 }
 
@@ -959,6 +933,114 @@ case "$1" in
         ;;
     "auto-archive")
         auto_archive
+        ;;
+    "validate-plan")
+        echo -e "${BLUE}🔍 Validating Project Dependencies${NC}"
+        echo "===================================="
+        echo ""
+        validation_result=$(python3 "$SCRIPT_DIR/yaml_parser.py" validate 2>/dev/null)
+        if [[ $? -eq 0 ]]; then
+            echo "$validation_result" | python3 -m json.tool
+            
+            # Check if valid
+            if echo "$validation_result" | grep -q '"valid": true'; then
+                echo ""
+                echo -e "${GREEN}✅ All dependencies valid! No circular dependencies detected.${NC}"
+            else
+                echo ""
+                echo -e "${RED}❌ Dependency issues detected! Review above for details.${NC}"
+            fi
+        else
+            echo -e "${RED}Error running dependency validation${NC}"
+        fi
+        ;;
+    "find-conflicts")
+        if [[ -z "$2" ]]; then
+            echo -e "${RED}Error: Task file required${NC}"
+            echo "Usage: $0 find-conflicts <task-file>"
+            exit 1
+        fi
+        echo -e "${BLUE}🔍 Checking Scope Conflicts${NC}"
+        echo "============================"
+        conflicts=$(python3 "$SCRIPT_DIR/yaml_parser.py" conflicts "$2" 2>/dev/null)
+        if [[ -n "$conflicts" ]] && [[ "$conflicts" != "No conflicts detected" ]]; then
+            echo -e "${RED}$conflicts${NC}"
+        else
+            echo -e "${GREEN}✅ No scope conflicts detected${NC}"
+        fi
+        ;;
+    "graph")
+        echo -e "${BLUE}🗺️ Generating Dependency Graph${NC}"
+        echo "================================"
+        echo ""
+        
+        # Use Python to generate dot file
+        python3 "$SCRIPT_DIR/dependency_analyzer.py" graph > "$TASK_DIR/dependencies.dot" 2>/dev/null
+        
+        if [[ -f "$TASK_DIR/dependencies.dot" ]]; then
+            # Generate PNG using Graphviz
+            dot -Tpng "$TASK_DIR/dependencies.dot" -o "$TASK_DIR/dependencies.png" 2>/dev/null
+            
+            if [[ -f "$TASK_DIR/dependencies.png" ]]; then
+                echo -e "${GREEN}✅ Dependency graph generated:${NC}"
+                echo "  DOT file: $TASK_DIR/dependencies.dot"
+                echo "  PNG file: $TASK_DIR/dependencies.png"
+                echo ""
+                echo "Open the PNG file to visualize task dependencies."
+            else
+                echo -e "${YELLOW}⚠️ Could not generate PNG. Is Graphviz installed?${NC}"
+                echo "  DOT file available at: $TASK_DIR/dependencies.dot"
+            fi
+        else
+            echo -e "${RED}❌ Failed to generate dependency graph${NC}"
+            echo "Ensure dependency_analyzer.py exists and is executable."
+        fi
+        ;;
+    "migrate-critical")
+        echo -e "${BLUE}🔄 Migrating Critical Sprints${NC}"
+        echo "=============================="
+        echo ""
+        python3 "$SCRIPT_DIR/migrate_tasks.py" critical
+        echo ""
+        echo -e "${GREEN}✅ Migration complete. Run '$0 validate-plan' to verify.${NC}"
+        ;;
+    "lint")
+        if [[ -z "$2" ]]; then
+            echo -e "${RED}Error: File or directory required${NC}"
+            echo "Usage: $0 lint <file|directory>"
+            exit 1
+        fi
+        echo -e "${BLUE}🔍 Linting Task Metadata${NC}"
+        echo "========================"
+        
+        if [[ -f "$2" ]]; then
+            # Single file
+            python3 "$SCRIPT_DIR/task_linter.py" lint "$2"
+        elif [[ -d "$2" ]]; then
+            # Directory
+            python3 "$SCRIPT_DIR/task_linter.py" lint-dir "$2"
+        else
+            echo -e "${RED}Error: '$2' is not a valid file or directory${NC}"
+            exit 1
+        fi
+        ;;
+    "lint-all")
+        echo -e "${BLUE}🔍 Linting All Task Files${NC}"
+        echo "=========================="
+        python3 "$SCRIPT_DIR/task_linter.py" lint-dir "$TASK_DIR"
+        if [[ $? -eq 0 ]]; then
+            echo ""
+            echo -e "${GREEN}✅ All task files are valid!${NC}"
+        else
+            echo ""
+            echo -e "${RED}❌ Some task files have errors. Fix them before committing.${NC}"
+            exit 1
+        fi
+        ;;
+    "health")
+        echo -e "${BLUE}📋 Task Metadata Health Report${NC}"
+        echo "==============================="
+        python3 "$SCRIPT_DIR/task_linter.py" report
         ;;
     "help"|"--help"|"-h")
         show_usage

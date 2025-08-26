@@ -1,11 +1,20 @@
 ---
+task_id: TASK-003
 status: COMPLETE
 priority: HIGH
 assigned_branch: feat/domain-implementations
 created: 2025-08-26
 estimated_hours: 4
-depends_on: TASK-001, TASK-002
+depends_on:
+  - TASK-001  # Need RelayLogic trait first
+  - TASK-002  # Need generic engine implementation
+blocks:
+  - TASK-004  # Binary entry points depend on domain implementations
 completed: 2025-08-26
+scope:
+  - "relays/src/market_data.rs"  # Market data relay implementation
+  - "relays/src/signal.rs"  # Signal relay implementation
+  - "relays/src/execution.rs"  # Execution relay implementation
 ---
 
 # TASK-003: Create Domain-Specific RelayLogic Implementations

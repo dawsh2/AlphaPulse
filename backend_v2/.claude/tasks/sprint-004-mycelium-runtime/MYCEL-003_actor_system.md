@@ -1,3 +1,22 @@
+---
+task_id: MYCEL-003
+status: TODO
+priority: HIGH
+estimated_hours: 12
+assigned_branch: feat/mycelium-actor-system
+assignee: TBD
+created: 2025-08-26
+completed: null
+depends_on:
+  - MYCEL-001  # Need transport layer first
+  - MYCEL-002  # Need message types first
+blocks:
+  - MYCEL-007  # Proof of concept needs actor system
+scope:
+  - "network/transport/src/actor/system.rs"  # Actor system core
+  - "network/transport/src/actor/runtime.rs"  # Runtime management
+---
+
 # MYCEL-003: Actor System Core
 
 ## Task Overview

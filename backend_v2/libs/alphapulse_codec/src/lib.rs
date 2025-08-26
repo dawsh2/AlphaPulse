@@ -49,8 +49,10 @@
 pub mod instrument_id;
 pub mod tlv_types;
 pub mod constants;
+pub mod parser;
 
 // Re-export key types for convenience
 pub use instrument_id::{InstrumentId, VenueId, AssetType, CodecError};
 pub use tlv_types::{TLVType, TlvTypeRegistry, TLVSizeConstraint};
+pub use parser::{parse_header, parse_tlv_extensions, validate_tlv_size, TlvExtension, ParseResult};
 pub use constants::*;

@@ -1,3 +1,23 @@
+---
+task_id: MYCEL-007
+status: TODO
+priority: CRITICAL
+estimated_hours: 12
+assigned_branch: feat/mycelium-poc-migration
+assignee: TBD
+created: 2025-08-26
+completed: null
+depends_on:
+  - MYCEL-001  # Need transport layer
+  - MYCEL-002  # Need message types
+  - MYCEL-003  # Need actor system
+blocks: []
+scope:
+  - "services_v2/adapters/src/"  # MarketDataProcessor modifications
+  - "services_v2/strategies/src/"  # SignalGenerator modifications
+  - "tests/integration/"  # Performance validation tests
+---
+
 # MYCEL-007: Proof-of-Concept Migration
 
 ## Task Overview

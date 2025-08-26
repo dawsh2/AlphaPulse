@@ -57,9 +57,13 @@ vim TASK-001_implement_relay_engine.md
 Every task MUST include:
 ```yaml
 ---
+task_id: SXXX-TXXX
 status: TODO          # TODO|IN_PROGRESS|COMPLETE|BLOCKED
 priority: CRITICAL    # CRITICAL|HIGH|MEDIUM|LOW
 assigned_branch: fix/specific-issue
+depends_on: []        # Task IDs that must complete first
+blocks: []            # Task IDs this task blocks
+scope: []             # Files/directories this task modifies
 ---
 ```
 
@@ -133,6 +137,7 @@ Without accurate file inventory:
 2. **NEVER delete `rename_me.md` templates** (these are intentional, managed by scripts)
 3. **Copy templates to create tasks** (don't create files from scratch)
 4. **Let task-manager.sh handle cleanup** (it detects templates vs real tasks)
+5. **ENFORCE task metadata validation** - All tasks MUST have complete YAML frontmatter
 
 **Task Structure Requirements**: EVERY task you create MUST include:
 1. **🚨 STATUS TRACKING INSTRUCTIONS** - Agent must mark IN_PROGRESS immediately when starting
@@ -159,9 +164,11 @@ Without accurate file inventory:
 ```
 
 **Always Have an Answer**: When asked "what's next?", immediately check:
-1. Current sprint STATUS.md for in-progress work
-2. DEPENDENCY_GRAPH.md for unblocked tasks
-3. Roadmap for next priorities
+1. Run `task-manager.sh next` for JIT ready task queue
+2. Current sprint STATUS.md for in-progress work
+3. DEPENDENCY_GRAPH.md for unblocked tasks
+4. Roadmap for next priorities
+5. Use `task-manager.sh validate-plan` to ensure no circular dependencies
 
 **Maintain Clean State**: Regularly clean up completed items, outdated priorities, and stale branches from tracking files. Keep roadmaps focused and actionable.
 
@@ -403,17 +410,26 @@ If any metric drops below 80%, immediate intervention required.
 # Sprint Management (USE THESE, DON'T MANUALLY CREATE FILES)
 ./create-sprint.sh 007 "name" "description"  # Create new sprint
 ./task-manager.sh status                      # Check current status
-./task-manager.sh next                        # Get next priority task
+./task-manager.sh next                        # Get JIT ready task queue
 ./task-manager.sh auto-archive               # Archive completed sprints
+
+# Dependency Management (NEW SELF-ORGANIZING SYSTEM)
+./task-manager.sh validate-plan              # Check for circular dependencies
+./task-manager.sh find-conflicts <file>      # Check scope conflicts
+./task-manager.sh graph                      # Generate dependency visualization
+./task-manager.sh lint-all                   # Validate all task metadata
+./task-manager.sh health                     # Task metadata health report
 
 # Task Creation (PROPER WORKFLOW)
 cd .claude/tasks/sprint-XXX/
 cp TASK-001_rename_me.md TASK-001_real_name.md  # Copy template (DON'T DELETE ORIGINAL)
-vim TASK-001_real_name.md                       # Edit the copy
+vim TASK-001_real_name.md                       # Edit with FULL metadata
+./task-manager.sh lint TASK-001_real_name.md   # Validate before committing
 
 # Maintenance
 ./maintenance.sh                              # Weekly health check
 ./update-agent-docs.sh                        # Update this documentation
+./hooks/install-hooks.sh                      # Install pre-commit validation
 
 # Templates (leave rename_me.md files alone!)
 cp templates/TEST_RESULTS.md ../tasks/sprint-XXX/

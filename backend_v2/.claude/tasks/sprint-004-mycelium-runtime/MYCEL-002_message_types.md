@@ -1,3 +1,21 @@
+---
+task_id: MYCEL-002
+status: TODO
+priority: CRITICAL
+estimated_hours: 6
+assigned_branch: feat/mycelium-message-types
+assignee: TBD
+created: 2025-08-26
+completed: null
+depends_on:
+  - MYCEL-001  # Need transport layer first
+blocks:
+  - MYCEL-003  # Actor system depends on message types
+scope:
+  - "network/transport/src/actor/messages.rs"  # Message type definitions
+  - "libs/types/src/common/messages.rs"  # Shared message types
+---
+
 # MYCEL-002: Message Type System
 
 ## Task Overview

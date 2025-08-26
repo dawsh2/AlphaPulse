@@ -7,6 +7,16 @@ assigned_branch: feat/messagesink-trait-core
 assignee: TBD
 created: 2025-08-26
 completed: null
+depends_on:
+  - CODEC-002  # Need protocol refactoring complete
+  - TASK-002   # Need relay refactor complete
+blocks:
+  - SINK-002  # Lazy wrapper needs trait definition
+  - SINK-003  # SinkFactory needs trait definition
+scope:
+  - "network/transport/src/messagesink/"
+  - "network/transport/src/lib.rs"
+  - "libs/types/src/common/traits.rs"
 ---
 
 # SINK-001: Define MessageSink Trait and Core Abstractions

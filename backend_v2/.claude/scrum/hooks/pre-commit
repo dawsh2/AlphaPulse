@@ -1,0 +1,87 @@
+#!/bin/bash
+# Pre-commit hook for AlphaPulse Task Validation
+# Ensures all task files have valid metadata before allowing commit
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Get the root directory of the git repository
+GIT_ROOT=$(git rev-parse --show-toplevel)
+SCRUM_DIR="$GIT_ROOT/.claude/scrum"
+TASK_DIR="$GIT_ROOT/.claude/tasks"
+
+# Check if task linter exists
+if [[ ! -f "$SCRUM_DIR/task_linter.py" ]]; then
+    echo -e "${YELLOW}⚠️  Task linter not found. Skipping task validation.${NC}"
+    exit 0
+fi
+
+echo -e "${YELLOW}🔍 Validating task metadata...${NC}"
+
+# Get all staged task files
+staged_tasks=$(git diff --cached --name-only --diff-filter=ACM | grep "^\.claude/tasks/.*\.md$")
+
+if [[ -z "$staged_tasks" ]]; then
+    # No task files staged, nothing to check
+    exit 0
+fi
+
+# Track validation results
+has_errors=false
+error_files=()
+
+# Validate each staged task file
+while IFS= read -r task_file; do
+    if [[ -n "$task_file" ]]; then
+        # Skip non-task files
+        basename=$(basename "$task_file")
+        if [[ "$basename" == "SPRINT_PLAN.md" ]] || \
+           [[ "$basename" == "README.md" ]] || \
+           [[ "$basename" == "TEST_RESULTS.md" ]] || \
+           [[ "$basename" == "STATUS.md" ]] || \
+           [[ "$basename" == "ARCHIVED.md" ]]; then
+            continue
+        fi
+        
+        # Run linter on the file
+        output=$(python3 "$SCRUM_DIR/task_linter.py" lint "$GIT_ROOT/$task_file" 2>&1)
+        exit_code=$?
+        
+        if [[ $exit_code -ne 0 ]]; then
+            has_errors=true
+            error_files+=("$task_file")
+            echo -e "${RED}❌ Validation failed for: $task_file${NC}"
+            echo "$output" | grep -E "ERROR:|WARN:" | sed 's/^/   /'
+        fi
+    fi
+done <<< "$staged_tasks"
+
+# Summary and decision
+echo ""
+if [[ "$has_errors" == true ]]; then
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${RED}❌ COMMIT BLOCKED: Task validation failed${NC}"
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "The following task files have invalid metadata:"
+    for file in "${error_files[@]}"; do
+        echo "  • $file"
+    done
+    echo ""
+    echo "To fix:"
+    echo "1. Review the errors above"
+    echo "2. Edit the task files to add missing fields"
+    echo "3. Required fields: task_id, status, priority, depends_on, blocks, scope"
+    echo "4. Run: ./task-manager.sh lint <file> to verify"
+    echo "5. Stage the fixes and commit again"
+    echo ""
+    echo "For help, see: .claude/scrum/DEPENDENCY_SYSTEM.md"
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    exit 1
+else
+    echo -e "${GREEN}✅ All task files have valid metadata${NC}"
+    exit 0
+fi

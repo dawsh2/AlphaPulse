@@ -1,3 +1,22 @@
+---
+task_id: MYCEL-001
+status: IN_PROGRESS
+priority: CRITICAL
+estimated_hours: 8
+assigned_branch: feat/mycelium-actor-transport
+assignee: TBD
+created: 2025-08-26
+completed: null
+depends_on:
+  - CODEC-002  # Need protocol refactoring for shared types
+blocks:
+  - MYCEL-002  # Message types depend on transport
+  - MYCEL-003  # Actor system depends on transport
+scope:
+  - "network/transport/src/actor/"  # New actor transport module
+  - "libs/types/src/common/traits.rs"  # Actor trait definitions
+---
+
 # MYCEL-001: Actor Transport Abstraction
 
 ## Task Overview

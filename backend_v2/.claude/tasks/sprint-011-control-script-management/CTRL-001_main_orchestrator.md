@@ -7,6 +7,14 @@ assigned_branch: feat/control-script-orchestrator
 assignee: TBD
 created: 2025-08-26
 completed: null
+depends_on:
+  - CODEC-002  # Need protocol refactoring complete
+  - TASK-002   # Need relay refactor complete
+blocks: []
+scope:
+  - "manage.sh"  # Main orchestrator script
+  - "scripts/start_*.sh"  # Integration with existing scripts
+  - ".claude/scrum/task-manager.sh"  # Integration with task management
 ---
 
 # CTRL-001: Main Orchestrator Script (manage.sh)

@@ -1,11 +1,19 @@
 ---
+task_id: TASK-004
 status: COMPLETE
 priority: HIGH
-assigned_branch: feat/binary-entry-points
+assigned_branch: feat-binary-entry-points
 created: 2025-08-26
 estimated_hours: 3
-depends_on: TASK-002, TASK-003
+depends_on:
+  - TASK-002  # Need generic engine
+  - TASK-003  # Need domain implementations
+blocks:
+  - TASK-005  # Performance validation depends on binaries
 completed: 2025-08-26
+scope:
+  - "relays/src/bin/"  # All relay binary entry points
+  - "relays/Cargo.toml"  # Updated binary definitions
 ---
 
 # TASK-004: Update Binary Entry Points to Use New Architecture

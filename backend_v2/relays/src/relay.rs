@@ -6,6 +6,7 @@ use crate::{
 };
 use bytes::Bytes;
 use alphapulse_types::protocol::{MessageHeader, RelayDomain};
+use alphapulse_codec::{parse_header, CodecError};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
@@ -125,7 +126,7 @@ impl Relay {
             };
 
             // Parse header
-            let header = match Self::parse_header(&message_bytes) {
+            let header = match parse_header(&message_bytes) {
                 Ok(h) => h,
                 Err(e) => {
                     debug!("Failed to parse header: {}", e);
@@ -181,24 +182,6 @@ impl Relay {
         }
     }
 
-    /// Parse message header
-    fn parse_header(data: &[u8]) -> RelayResult<&MessageHeader> {
-        if data.len() < std::mem::size_of::<MessageHeader>() {
-            return Err(RelayError::Validation(
-                "Message too small for header".to_string(),
-            ));
-        }
-
-        // Use zero-copy parsing
-        let header = unsafe { &*(data.as_ptr() as *const MessageHeader) };
-
-        // Validate magic number
-        if header.magic != alphapulse_types::protocol::MESSAGE_MAGIC {
-            return Err(RelayError::Validation("Invalid magic number".to_string()));
-        }
-
-        Ok(header)
-    }
 
     /// Check if message is for this relay's domain
     fn is_my_domain(&self, domain: u8) -> bool {

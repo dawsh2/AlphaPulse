@@ -1,3 +1,21 @@
+---
+task_id: ARCH-001
+status: TODO
+priority: HIGH
+estimated_hours: 3
+assigned_branch: feat/relay-logic-trait
+assignee: TBD
+created: 2025-08-26
+completed: null
+depends_on: []  # Foundation task - no dependencies
+blocks:
+  - TASK-002  # Generic relay engine needs this trait
+  - TASK-003  # Domain implementations need this trait
+scope:
+  - "relays/src/common/relay_logic.rs"  # New trait definition
+  - "relays/src/common/mod.rs"  # Export new trait
+---
+
 # ARCH-001: Create RelayLogic Trait Foundation
 
 **Sprint**: 007 - Generic Relay Engine Refactor  

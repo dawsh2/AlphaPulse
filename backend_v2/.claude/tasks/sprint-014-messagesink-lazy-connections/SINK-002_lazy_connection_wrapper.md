@@ -7,6 +7,13 @@ assigned_branch: feat/lazy-connection-wrapper
 assignee: TBD
 created: 2025-08-26
 completed: null
+depends_on:
+  - SINK-001  # Need MessageSink trait first
+blocks:
+  - SINK-003  # SinkFactory uses lazy wrapper
+scope:
+  - "network/transport/src/lazy/"
+  - "network/transport/src/messagesink/lazy_wrapper.rs"
 ---
 
 # SINK-002: Implement Lazy Connection Wrapper

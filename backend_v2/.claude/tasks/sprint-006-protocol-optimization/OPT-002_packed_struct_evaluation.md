@@ -1,3 +1,20 @@
+---
+task_id: OPT-002
+status: TODO
+priority: HIGH
+estimated_hours: 2
+assigned_branch: feat/packed-struct-evaluation
+assignee: TBD
+created: 2025-08-26
+completed: null
+depends_on:
+  - CODEC-001  # Need codec foundation before protocol optimization
+blocks: []
+scope:
+  - "protocol_v2/src/tlv/*.rs"  # Will analyze TLV structs for padding
+  - "libs/types/src/protocol/*.rs"  # May suggest struct modifications
+---
+
 # Task OPT-002: Evaluate packed_struct Library for Automatic Padding
 
 **Branch**: `feat/packed-struct-evaluation`  

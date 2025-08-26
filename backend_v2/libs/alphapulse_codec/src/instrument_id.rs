@@ -334,6 +334,7 @@ impl Hash for InstrumentId {
 /// Errors that can occur during codec operations
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum CodecError {
+    // Instrument ID errors
     #[error("Invalid address format")]
     InvalidAddress,
 
@@ -348,6 +349,22 @@ pub enum CodecError {
 
     #[error("Invalid asset type")]
     InvalidAssetType,
+
+    // Message parsing errors
+    #[error("Message too small: need {need} bytes, got {got}")]
+    MessageTooSmall { need: usize, got: usize },
+
+    #[error("Invalid magic number: expected {expected:#x}, got {actual:#x}")]
+    InvalidMagic { expected: u32, actual: u32 },
+
+    #[error("Unknown TLV type: {0}")]
+    UnknownTLVType(u8),
+
+    #[error("Invalid payload size for TLV type {tlv_type}: expected {expected}, got {actual}")]
+    InvalidPayloadSize { tlv_type: u8, expected: String, actual: usize },
+
+    #[error("Truncated TLV at offset {offset}: need {need} bytes, {available} available")]
+    TruncatedTLV { offset: usize, need: usize, available: usize },
 }
 
 #[cfg(test)]

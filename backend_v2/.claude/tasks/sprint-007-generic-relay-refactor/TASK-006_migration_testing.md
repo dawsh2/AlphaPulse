@@ -1,12 +1,18 @@
 ---
+task_id: TASK-006
 status: BLOCKED
 priority: MEDIUM
 assigned_branch: feat/migration-testing
 created: 2025-08-26
 estimated_hours: 3  
-depends_on: TASK-005
+depends_on:
+  - TASK-005  # Need performance validation first
+blocks: []
 blocked_reason: "Depends on TASK-005 performance validation which is blocked"
 blocked_by: "OPT-004 migration issues (transitively)"
+scope:
+  - "tests/integration/migration/"  # Migration test suite
+  - "scripts/migrate_relays.sh"  # Migration deployment script
 ---
 
 # TASK-006: Migration Testing and Deployment Preparation

@@ -7,6 +7,13 @@ assigned_branch: refactor/adapters-cleanup
 assignee: TBD
 created: 2025-08-26
 completed: null
+depends_on:
+  - TEST-001  # Need unit test framework for adapter testing
+blocks: []
+scope:
+  - "services_v2/adapters/src/"  # Cleanup adapter implementations
+  - "tests/unit/adapters/"  # Add comprehensive adapter unit tests
+  - "services_v2/adapters/tests/"  # Standardize adapter integration tests
 ---
 
 # TEST-004: Adapters Module Cleanup & Standardization

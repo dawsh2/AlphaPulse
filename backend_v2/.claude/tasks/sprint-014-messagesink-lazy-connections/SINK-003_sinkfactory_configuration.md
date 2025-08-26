@@ -7,6 +7,14 @@ assigned_branch: feat/sinkfactory-stage1
 assignee: TBD
 created: 2025-08-26
 completed: null
+depends_on:
+  - SINK-001  # Need MessageSink trait
+  - SINK-002  # Need lazy wrapper implementation
+blocks: []
+scope:
+  - "network/transport/src/factory/"  # SinkFactory implementation
+  - "network/transport/src/config.rs"  # Configuration support
+  - "services_v2/*/Cargo.toml"  # Update service dependencies
 ---
 
 # SINK-003: Build SinkFactory with Configuration Support

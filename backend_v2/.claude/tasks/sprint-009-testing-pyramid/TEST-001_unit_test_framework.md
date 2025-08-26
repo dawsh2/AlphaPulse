@@ -7,6 +7,14 @@ assigned_branch: test/unit-test-framework
 assignee: TBD
 created: 2025-01-27
 completed: null
+depends_on: []  # Foundation task
+blocks:
+  - TEST-003  # E2E tests need unit framework
+  - TEST-004  # Adapter tests need unit framework
+scope:
+  - "libs/*/src/lib.rs"  # Add unit test modules
+  - "tests/unit/"  # New unit test directory structure
+  - "Cargo.toml"  # Add test dependencies
 ---
 
 # TEST-001: Unit Test Framework for Protocol V2

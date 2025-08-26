@@ -1,3 +1,24 @@
+---
+task_id: OPT-004
+status: TODO
+priority: HIGH
+estimated_hours: 6
+assigned_branch: refactor/protocol-to-libs-types
+assignee: TBD
+created: 2025-08-26
+completed: null
+depends_on:
+  - CODEC-001  # Need codec separation first
+  - CODEC-002  # Need core protocol logic moved
+blocks:
+  - MACRO-001  # Macro system needs types in final location
+scope:
+  - "protocol_v2/src/"  # Source directory to migrate from
+  - "libs/types/src/protocol/"  # Target directory for protocol types
+  - "Cargo.toml"  # Update workspace dependencies
+  - "*/Cargo.toml"  # Update all crate dependencies on protocol_v2
+---
+
 # Task OPT-004: Migrate protocol_v2 to libs/types Directory
 
 **Branch**: `refactor/protocol-to-libs-types`  

@@ -1,6 +1,6 @@
 ---
 task_id: AUDIT-001
-status: TODO
+status: IN_PROGRESS
 priority: CRITICAL
 estimated_hours: 4
 assigned_branch: fix/relay-codec-integration
