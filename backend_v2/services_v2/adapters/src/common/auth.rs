@@ -6,27 +6,27 @@ use std::collections::HashMap;
 /// API credentials for a venue
 #[derive(Debug, Clone)]
 pub struct ApiCredentials {
-    /// API key
-    pub api_key: String,
-    /// API secret (optional for some venues)
-    pub api_secret: Option<String>,
+    /// Primary authentication token
+    pub primary_token: String,
+    /// Secondary authentication token (optional for some venues)
+    pub secondary_token: Option<String>,
     /// Additional headers required by the venue
     pub headers: HashMap<String, String>,
 }
 
 impl ApiCredentials {
-    /// Create new credentials with just an API key
-    pub fn new(api_key: impl Into<String>) -> Self {
+    /// Create new credentials with just a primary token
+    pub fn new(token: impl Into<String>) -> Self {
         Self {
-            api_key: api_key.into(),
-            api_secret: None,
+            primary_token: token.into(),
+            secondary_token: None,
             headers: HashMap::new(),
         }
     }
 
-    /// Add an API secret
-    pub fn with_secret(mut self, secret: impl Into<String>) -> Self {
-        self.api_secret = Some(secret.into());
+    /// Add a secondary token
+    pub fn with_secondary(mut self, token: impl Into<String>) -> Self {
+        self.secondary_token = Some(token.into());
         self
     }
 

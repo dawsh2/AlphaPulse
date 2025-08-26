@@ -55,7 +55,7 @@ path = "test_pool_cache_simple.rs"
 [dependencies]
 # Core protocol
 alphapulse-types = { workspace = true }
-alphapulse_codec = { path = "../../libs/alphapulse_codec" }
+# alphapulse_codec = { path = "../../libs/alphapulse_codec" }  # Temporarily disabled for AUDIT-003
 alphapulse-state-market = { workspace = true }
 alphapulse-dex = { workspace = true }
 async-trait = { workspace = true }

@@ -189,10 +189,11 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
+// Common adapter infrastructure and shared utilities
+pub mod common;
+
 // Core utilities (formerly in libs/adapters)
-pub mod auth;
 pub mod circuit_breaker;
-pub mod metrics;
 pub mod rate_limit;
 
 // Adapter implementations
@@ -203,10 +204,16 @@ pub mod latency_instrumentation;
 pub mod output;
 pub mod validation;
 
+// Re-export common adapter infrastructure
+pub use common::{
+    Adapter, AdapterFactory, AdapterHealth, AdapterOutput, BaseAdapterConfig, ChannelOutput,
+    ConfigurableAdapter, ConnectionStatus, InstrumentType,
+};
+
 // Re-export core utilities for adapter developers
-pub use auth::{ApiCredentials, AuthManager};
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
-pub use metrics::{AdapterMetrics, ErrorType};
+pub use common::auth::{ApiCredentials, AuthManager};
+pub use common::metrics::{AdapterMetrics, ErrorType};
 pub use rate_limit::{RateLimitConfig, RateLimiter};
 
 // Re-export existing adapter types
@@ -236,7 +243,13 @@ pub use input::collectors::{
 
 // Re-export protocol types for convenience
 pub use alphapulse_types::{
-    InstrumentId, QuoteTLV, StateInvalidationTLV, TLVMessageBuilder, TLVType, TradeTLV, VenueId,
+    InstrumentId,
+    QuoteTLV,
+    StateInvalidationTLV,
+    TLVType,
+    TradeTLV,
+    VenueId,
+    // TLVMessageBuilder, // Temporarily disabled due to codec compilation issues
 };
 
 /// Architecture diagram showing adapter service data flow and component relationships
