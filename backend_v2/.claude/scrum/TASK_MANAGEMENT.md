@@ -44,6 +44,17 @@ Centralized task management for arbitrage production deployment using atomic dev
 
 ## Task Directories
 
+### `.claude/tasks/sprint-004-mycelium-runtime/` 🚀 PERFORMANCE REVOLUTION
+Contains actor runtime implementation for zero-cost communication:
+- `MYCEL-001_actor_transport.md` - Zero-serialization transport layer
+- `MYCEL-002_message_types.md` - Type-safe message system
+- `MYCEL-003_actor_system.md` - Actor lifecycle management
+- `MYCEL-004_bundle_config.md` - Bundle configuration
+- `MYCEL-005_discovery.md` - Actor discovery & routing
+- `MYCEL-006_migration_wrapper.md` - Service migration adapter
+- `MYCEL-007_proof_of_concept.md` - Market→Signal migration
+- `MYCEL-008_performance.md` - Performance validation
+
 ### `.claude/tasks/sprint-003-data-integrity/` 🚨 ACTIVE CRISIS
 Contains emergency data integrity fixes:
 - `INTEGRITY-001_fix_hardcoded_signals.md` - Remove fake dashboard data
