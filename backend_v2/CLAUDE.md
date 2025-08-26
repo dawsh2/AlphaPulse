@@ -16,10 +16,10 @@ AlphaPulse is a high-performance cryptocurrency trading system built on Protocol
 Exchanges → Collectors (Rust) → Domain Relays → Consumers
          WebSocket         32-byte header +    Unix Socket/
                           Variable TLV payload  Message Bus
-                          
+
 Domain Relays:
 ├── MarketDataRelay (Types 1-19)   → Strategies, Portfolio, Dashboard
-├── SignalRelay (Types 20-39)      → Portfolio, Dashboard, RiskManager  
+├── SignalRelay (Types 20-39)      → Portfolio, Dashboard, RiskManager
 └── ExecutionRelay (Types 40-79)   → Execution Engine, Dashboard
 ```
 
@@ -222,12 +222,25 @@ cargo clippy --workspace -- -D warnings
 4. **TLV Changes**: Always update `expected_payload_size()` when structs change
 5. **Never**: Reuse TLV type numbers or break message header format
 
+## Task Management & Scrum Framework
+**📋 All task coordination and scrum documentation is in `.claude/scrum/`**
+- Start here: `.claude/scrum/README.md` - Complete index and quick start
+- Current tasks: `.claude/scrum/TASK_MANAGEMENT.md` - Active sprint priorities
+- Use tool: `.claude/scrum/task-manager.sh status` - Check what needs work
+
+## Task Management & Scrum Framework
+**📋 All task coordination is in `.claude/scrum/`**
+- Quick start: `.claude/scrum/README.md`
+- Active tasks: `.claude/scrum/TASK_MANAGEMENT.md`
+- Check status: `.claude/scrum/task-manager.sh status`
+
 ## AI Assistant Tips
 1. **Quality First**: Never rush - build robust, validated solutions
 2. **Ask Clarifying Questions**: Present questions before starting work
 3. **Use rq for Discovery**: Leverage `rq docs` and `rq check`
 4. **No Shortcuts**: Take time to validate and ensure safety
-5. **Check .claude/docs/ directory**: Reference detailed guides for specific tasks
+5. **Check .claude/scrum/**: Task management and sprint coordination
+6. **Check .claude/docs/**: Reference detailed guides for specific tasks
 
 For detailed information on:
 - **AlphaPulse practices** → `.claude/docs/practices.md` (CRITICAL: zero-copy, precision, TLV)

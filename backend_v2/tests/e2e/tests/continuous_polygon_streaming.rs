@@ -1,14 +1,12 @@
 //! Continuous Live Polygon Streaming Test
-//! 
+//!
 //! Creates a persistent connection to Polygon WebSocket that continuously processes
 //! live DEX events as they happen in real-time, not just historical data.
 
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use protocol_v2::{
-    parse_header, parse_tlv_extensions,
-    tlv::build_message_direct,
-    tlv::market_data::PoolSwapTLV,
+    parse_header, parse_tlv_extensions, tlv::build_message_direct, tlv::market_data::PoolSwapTLV,
     RelayDomain, SourceType, TLVType, VenueId,
 };
 use serde_json::Value;
@@ -18,7 +16,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tokio::process::{Child, Command};
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::{mpsc, RwLock};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 use web3::types::{Log, H160, H256};
@@ -117,7 +115,10 @@ impl ContinuousPolygonValidator {
         info!("🚀 Starting Continuous Polygon Streaming Test");
         info!("   Duration: {} seconds", self.config.test_duration_secs);
         info!("   WebSocket: {}", self.config.polygon_websocket_url);
-        info!("   Expected: {} events/minute minimum", self.config.min_events_per_minute);
+        info!(
+            "   Expected: {} events/minute minimum",
+            self.config.min_events_per_minute
+        );
 
         // Start Market Data Relay
         self.start_market_data_relay().await?;
@@ -125,7 +126,7 @@ impl ContinuousPolygonValidator {
 
         // Start WebSocket connection and processing
         let websocket_handle = self.start_websocket_stream().await?;
-        
+
         // Start relay consumer to validate messages
         let relay_consumer_handle = self.start_relay_consumer().await?;
 
@@ -133,7 +134,10 @@ impl ContinuousPolygonValidator {
         let monitoring_handle = self.start_continuous_monitoring().await;
 
         // Run for configured duration
-        info!("✅ All components started - running continuous test for {} seconds", self.config.test_duration_secs);
+        info!(
+            "✅ All components started - running continuous test for {} seconds",
+            self.config.test_duration_secs
+        );
         tokio::time::sleep(Duration::from_secs(self.config.test_duration_secs)).await;
 
         // Stop all tasks
@@ -180,13 +184,16 @@ impl ContinuousPolygonValidator {
 
         let handle = tokio::spawn(async move {
             info!("🔌 Connecting to Polygon WebSocket for continuous streaming");
-            
+
             // Connect to WebSocket
             let (ws_stream, _) = connect_async(&config.polygon_websocket_url)
                 .await
                 .context("Failed to connect to Polygon WebSocket")?;
 
-            info!("✅ Connected to Polygon WebSocket: {}", config.polygon_websocket_url);
+            info!(
+                "✅ Connected to Polygon WebSocket: {}",
+                config.polygon_websocket_url
+            );
 
             let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
@@ -212,7 +219,9 @@ impl ContinuousPolygonValidator {
                 ]
             });
 
-            ws_sender.send(Message::Text(subscription.to_string())).await
+            ws_sender
+                .send(Message::Text(subscription.to_string()))
+                .await
                 .context("Failed to send subscription message")?;
 
             info!("📊 Subscribed to live Polygon DEX events - waiting for real-time data...");
@@ -238,24 +247,30 @@ impl ContinuousPolygonValidator {
                                 // Successfully converted to TLV message
                                 let mut stats_write = stats.write().await;
                                 stats_write.events_processed += 1;
-                                
+
                                 // Send to relay (simulated for test)
                                 stats_write.messages_sent_to_relay += 1;
-                                
+
                                 let processing_time = processing_start.elapsed().as_millis() as u64;
                                 stats_write.total_processing_time_ms += processing_time;
-                                
+
                                 if config.verbose_logging {
-                                    info!("⚡ Processed event #{} → {} byte TLV message ({}ms)", 
-                                          stats_write.events_processed, tlv_message.len(), processing_time);
+                                    info!(
+                                        "⚡ Processed event #{} → {} byte TLV message ({}ms)",
+                                        stats_write.events_processed,
+                                        tlv_message.len(),
+                                        processing_time
+                                    );
                                 }
-                                
+
                                 drop(stats_write);
 
                                 // Validate processing latency
                                 if processing_time > config.max_processing_latency_ms {
-                                    warn!("🐌 High processing latency: {}ms (max: {}ms)", 
-                                          processing_time, config.max_processing_latency_ms);
+                                    warn!(
+                                        "🐌 High processing latency: {}ms (max: {}ms)",
+                                        processing_time, config.max_processing_latency_ms
+                                    );
                                 }
                             }
                             Ok(None) => {
@@ -296,8 +311,8 @@ impl ContinuousPolygonValidator {
 
     /// Process WebSocket message and convert to TLV if it's a DEX event
     async fn process_websocket_message(
-        message: &str, 
-        config: &ContinuousStreamingConfig
+        message: &str,
+        config: &ContinuousStreamingConfig,
     ) -> Result<Option<Vec<u8>>> {
         let json_value: Value = serde_json::from_str(message)?;
 
@@ -308,7 +323,7 @@ impl ContinuousPolygonValidator {
                     if let Some(result) = params.get("result") {
                         // This is a live DEX event!
                         let log = Self::json_to_web3_log(result)?;
-                        
+
                         if config.verbose_logging {
                             info!("🔄 Processing live swap from pool: {:?}", log.address);
                         }
@@ -334,22 +349,25 @@ impl ContinuousPolygonValidator {
 
     /// Convert JSON log to Web3 Log format
     fn json_to_web3_log(json_log: &Value) -> Result<Log> {
-        let address = json_log.get("address")
+        let address = json_log
+            .get("address")
             .and_then(|v| v.as_str())
             .context("Missing address")?
             .parse::<H160>()?;
 
-        let topics = json_log.get("topics")
+        let topics = json_log
+            .get("topics")
             .and_then(|v| v.as_array())
             .context("Missing topics")?
             .iter()
             .filter_map(|t| t.as_str()?.parse::<H256>().ok())
             .collect();
 
-        let data = json_log.get("data")
+        let data = json_log
+            .get("data")
             .and_then(|v| v.as_str())
             .unwrap_or("0x");
-        
+
         let data_bytes = if data.starts_with("0x") {
             hex::decode(&data[2..]).unwrap_or_default()
         } else {
@@ -360,9 +378,15 @@ impl ContinuousPolygonValidator {
             address,
             topics,
             data: web3::types::Bytes(data_bytes),
-            block_hash: json_log.get("blockHash").and_then(|v| v.as_str()?.parse().ok()),
-            block_number: json_log.get("blockNumber").and_then(|v| v.as_str()?.parse().ok()),
-            transaction_hash: json_log.get("transactionHash").and_then(|v| v.as_str()?.parse().ok()),
+            block_hash: json_log
+                .get("blockHash")
+                .and_then(|v| v.as_str()?.parse().ok()),
+            block_number: json_log
+                .get("blockNumber")
+                .and_then(|v| v.as_str()?.parse().ok()),
+            transaction_hash: json_log
+                .get("transactionHash")
+                .and_then(|v| v.as_str()?.parse().ok()),
             transaction_index: None,
             log_index: None,
             transaction_log_index: None,
@@ -378,14 +402,18 @@ impl ContinuousPolygonValidator {
         pool_addr.copy_from_slice(&log.address.0);
 
         // Mock token addresses (would extract from actual event data in production)
-        let token_in_addr = [0x7c, 0xeb, 0x23, 0xf0, 0xbe, 0x9f, 0xaf, 0xdb, 0x2c, 0x43, 
-                            0xa4, 0xe2, 0xd1, 0x98, 0xc8, 0xd6, 0x2e, 0x53, 0xe1, 0x9e]; // WETH
-        let token_out_addr = [0x27, 0x91, 0xbc, 0x1d, 0xc4, 0x11, 0xd6, 0x56, 0xd5, 0xf2,
-                             0x6a, 0x2e, 0x91, 0x98, 0xc8, 0xd6, 0x2e, 0x53, 0xe1, 0x9e]; // USDC
+        let token_in_addr = [
+            0x7c, 0xeb, 0x23, 0xf0, 0xbe, 0x9f, 0xaf, 0xdb, 0x2c, 0x43, 0xa4, 0xe2, 0xd1, 0x98,
+            0xc8, 0xd6, 0x2e, 0x53, 0xe1, 0x9e,
+        ]; // WETH
+        let token_out_addr = [
+            0x27, 0x91, 0xbc, 0x1d, 0xc4, 0x11, 0xd6, 0x56, 0xd5, 0xf2, 0x6a, 0x2e, 0x91, 0x98,
+            0xc8, 0xd6, 0x2e, 0x53, 0xe1, 0x9e,
+        ]; // USDC
 
         // Mock swap amounts (1 ETH → 3,500 USDC)
-        let amount_in = 1_000_000_000_000_000_000u128;  // 1 WETH (18 decimals)
-        let amount_out = 3_500_000_000u128;             // 3,500 USDC (6 decimals)
+        let amount_in = 1_000_000_000_000_000_000u128; // 1 WETH (18 decimals)
+        let amount_out = 3_500_000_000u128; // 3,500 USDC (6 decimals)
 
         let swap_tlv = PoolSwapTLV::new(
             pool_addr,
@@ -397,9 +425,9 @@ impl ContinuousPolygonValidator {
             1000000000000000000u128, // liquidity_after
             SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64,
             log.block_number.map(|n| n.as_u64()).unwrap_or(0),
-            0, // tick_after
-            18, // amount_in_decimals (WETH)
-            6,  // amount_out_decimals (USDC)
+            0,                      // tick_after
+            18,                     // amount_in_decimals (WETH)
+            6,                      // amount_out_decimals (USDC)
             792281625142643375u128, // sqrt_price_x96_after
         );
 
@@ -423,13 +451,13 @@ impl ContinuousPolygonValidator {
             tokio::time::sleep(Duration::from_secs(3)).await;
 
             info!("🔍 Starting relay consumer validation");
-            
+
             // Connect to relay socket
             let mut stream = match UnixStream::connect(&relay_socket_path).await {
                 Ok(s) => {
                     info!("✅ Connected to Market Data Relay for validation");
                     s
-                },
+                }
                 Err(e) => {
                     warn!("⚠️ Could not connect to relay socket: {}", e);
                     return Ok(());
@@ -440,15 +468,19 @@ impl ContinuousPolygonValidator {
             let mut messages_validated = 0u64;
 
             while let Ok(n) = stream.read(&mut buffer).await {
-                if n == 0 { break; }
-                
+                if n == 0 {
+                    break;
+                }
+
                 // Validate received TLV message
                 if n >= 32 {
                     match parse_header(&buffer[..32]) {
                         Ok(header) => {
                             messages_validated += 1;
-                            debug!("✅ Validated TLV message #{}: {} bytes, magic=0x{:08X}", 
-                                   messages_validated, n, header.magic);
+                            debug!(
+                                "✅ Validated TLV message #{}: {} bytes, magic=0x{:08X}",
+                                messages_validated, n, header.magic
+                            );
                         }
                         Err(e) => {
                             error!("❌ Invalid TLV header: {}", e);
@@ -457,7 +489,10 @@ impl ContinuousPolygonValidator {
                 }
             }
 
-            info!("🔍 Relay consumer validated {} messages", messages_validated);
+            info!(
+                "🔍 Relay consumer validated {} messages",
+                messages_validated
+            );
             Ok(())
         });
 
@@ -476,17 +511,34 @@ impl ContinuousPolygonValidator {
 
                 let stats_read = stats.read().await;
                 let elapsed_minutes = stats_read.start_time.elapsed().as_secs_f64() / 60.0;
-                
-                info!("📊 Continuous Streaming Progress ({:.1}min elapsed):", elapsed_minutes);
-                info!("   Events Received: {} ({:.1}/min)", 
-                      stats_read.events_received, stats_read.events_per_minute());
-                info!("   Events Processed: {} ({:.1}% success)", 
-                      stats_read.events_processed, 
-                      if stats_read.events_received > 0 { 
-                          stats_read.events_processed as f64 / stats_read.events_received as f64 * 100.0 
-                      } else { 0.0 });
-                info!("   Messages to Relay: {}", stats_read.messages_sent_to_relay);
-                info!("   Avg Processing Latency: {:.1}ms", stats_read.avg_processing_latency_ms());
+
+                info!(
+                    "📊 Continuous Streaming Progress ({:.1}min elapsed):",
+                    elapsed_minutes
+                );
+                info!(
+                    "   Events Received: {} ({:.1}/min)",
+                    stats_read.events_received,
+                    stats_read.events_per_minute()
+                );
+                info!(
+                    "   Events Processed: {} ({:.1}% success)",
+                    stats_read.events_processed,
+                    if stats_read.events_received > 0 {
+                        stats_read.events_processed as f64 / stats_read.events_received as f64
+                            * 100.0
+                    } else {
+                        0.0
+                    }
+                );
+                info!(
+                    "   Messages to Relay: {}",
+                    stats_read.messages_sent_to_relay
+                );
+                info!(
+                    "   Avg Processing Latency: {:.1}ms",
+                    stats_read.avg_processing_latency_ms()
+                );
                 info!("   Processing Failures: {}", stats_read.processing_failures);
 
                 if let Some(last_event) = stats_read.last_event_time {
@@ -520,42 +572,68 @@ impl ContinuousPolygonValidator {
         let elapsed_minutes = stats.start_time.elapsed().as_secs_f64() / 60.0;
         let success_rate = if stats.events_received > 0 {
             stats.events_processed as f64 / stats.events_received as f64 * 100.0
-        } else { 0.0 };
+        } else {
+            0.0
+        };
 
         info!("📊 CONTINUOUS STREAMING SUMMARY:");
         info!("   Duration: {:.1} minutes", elapsed_minutes);
         info!("   Events Received: {}", stats.events_received);
-        info!("   Events Processed: {} ({:.1}%)", stats.events_processed, success_rate);
+        info!(
+            "   Events Processed: {} ({:.1}%)",
+            stats.events_processed, success_rate
+        );
         info!("   Messages to Relay: {}", stats.messages_sent_to_relay);
         info!("   Processing Failures: {}", stats.processing_failures);
-        info!("   Event Rate: {:.1} events/minute", stats.events_per_minute());
-        info!("   Avg Processing Latency: {:.1}ms", stats.avg_processing_latency_ms());
+        info!(
+            "   Event Rate: {:.1} events/minute",
+            stats.events_per_minute()
+        );
+        info!(
+            "   Avg Processing Latency: {:.1}ms",
+            stats.avg_processing_latency_ms()
+        );
 
-        let meets_rate_requirement = stats.events_per_minute() >= self.config.min_events_per_minute as f64;
-        let meets_latency_requirement = stats.avg_processing_latency_ms() <= self.config.max_processing_latency_ms as f64;
+        let meets_rate_requirement =
+            stats.events_per_minute() >= self.config.min_events_per_minute as f64;
+        let meets_latency_requirement =
+            stats.avg_processing_latency_ms() <= self.config.max_processing_latency_ms as f64;
         let has_minimal_failures = stats.processing_failures < stats.events_received / 10; // <10% failure rate
 
         info!("\n🎯 CONTINUOUS STREAMING ASSESSMENT:");
-        info!("   Event Rate: {} {:.1} >= {} events/min",
-              if meets_rate_requirement { "✅" } else { "❌" },
-              stats.events_per_minute(),
-              self.config.min_events_per_minute);
-        info!("   Processing Latency: {} {:.1} <= {}ms avg",
-              if meets_latency_requirement { "✅" } else { "❌" },
-              stats.avg_processing_latency_ms(),
-              self.config.max_processing_latency_ms);
-        info!("   Reliability: {} {} failures (<10% of events)",
-              if has_minimal_failures { "✅" } else { "❌" },
-              stats.processing_failures);
+        info!(
+            "   Event Rate: {} {:.1} >= {} events/min",
+            if meets_rate_requirement { "✅" } else { "❌" },
+            stats.events_per_minute(),
+            self.config.min_events_per_minute
+        );
+        info!(
+            "   Processing Latency: {} {:.1} <= {}ms avg",
+            if meets_latency_requirement {
+                "✅"
+            } else {
+                "❌"
+            },
+            stats.avg_processing_latency_ms(),
+            self.config.max_processing_latency_ms
+        );
+        info!(
+            "   Reliability: {} {} failures (<10% of events)",
+            if has_minimal_failures { "✅" } else { "❌" },
+            stats.processing_failures
+        );
 
-        let overall_success = meets_rate_requirement && meets_latency_requirement && has_minimal_failures;
-        
-        info!("\n🏆 CONTINUOUS STREAMING RESULT: {}",
-              if overall_success { 
-                  "✅ SUCCESS - Real-time streaming pipeline operational!" 
-              } else { 
-                  "❌ NEEDS IMPROVEMENT - Check event rates and processing latency" 
-              });
+        let overall_success =
+            meets_rate_requirement && meets_latency_requirement && has_minimal_failures;
+
+        info!(
+            "\n🏆 CONTINUOUS STREAMING RESULT: {}",
+            if overall_success {
+                "✅ SUCCESS - Real-time streaming pipeline operational!"
+            } else {
+                "❌ NEEDS IMPROVEMENT - Check event rates and processing latency"
+            }
+        );
 
         if overall_success {
             info!("\n🎉 CONTINUOUS STREAMING VALIDATED:");
@@ -576,8 +654,8 @@ async fn test_continuous_polygon_streaming() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let config = ContinuousStreamingConfig {
-        test_duration_secs: 120, // 2 minute test
-        min_events_per_minute: 3, // Expect at least 3 DEX events per minute
+        test_duration_secs: 120,       // 2 minute test
+        min_events_per_minute: 3,      // Expect at least 3 DEX events per minute
         max_processing_latency_ms: 50, // 50ms max processing time
         verbose_logging: true,
         ..Default::default()
@@ -587,15 +665,28 @@ async fn test_continuous_polygon_streaming() -> Result<()> {
     let results = validator.run_continuous_test().await?;
 
     // Assert continuous streaming functionality
-    assert!(results.events_received > 0, "No live events received during continuous test");
-    assert!(results.events_per_minute() >= 3.0, "Event rate too low: {:.1}/min", results.events_per_minute());
-    assert!(results.avg_processing_latency_ms() <= 50.0, "Processing too slow: {:.1}ms", results.avg_processing_latency_ms());
+    assert!(
+        results.events_received > 0,
+        "No live events received during continuous test"
+    );
+    assert!(
+        results.events_per_minute() >= 3.0,
+        "Event rate too low: {:.1}/min",
+        results.events_per_minute()
+    );
+    assert!(
+        results.avg_processing_latency_ms() <= 50.0,
+        "Processing too slow: {:.1}ms",
+        results.avg_processing_latency_ms()
+    );
 
     Ok(())
 }
 
 /// Run continuous streaming test with custom configuration
-pub async fn run_continuous_streaming_test(config: ContinuousStreamingConfig) -> Result<ContinuousStats> {
+pub async fn run_continuous_streaming_test(
+    config: ContinuousStreamingConfig,
+) -> Result<ContinuousStats> {
     let mut validator = ContinuousPolygonValidator::new(config);
     validator.run_continuous_test().await
 }

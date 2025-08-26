@@ -45,6 +45,10 @@ test-case = "3.1"
 mockall = "0.12"
 
 
+[[bin]]
+name = "flash_arbitrage_service"
+path = "src/bin/flash_arbitrage_service.rs"
+
 [[bench]]
 name = "amm_math"
 harness = false

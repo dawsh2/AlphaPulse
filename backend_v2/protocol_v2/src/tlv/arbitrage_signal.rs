@@ -2,6 +2,7 @@
 //!
 //! This replaces the demo TLV with actual arbitrage opportunity data
 
+use alphapulse_types::fixed_point::UsdFixedPoint8;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 /// Real arbitrage signal with actual pool and token data
@@ -141,6 +142,59 @@ impl ArbitrageSignalTLV {
         }
     }
 
+    /// Create a new arbitrage signal from fixed-point types (preserves precision)
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_fixed_point(
+        source_pool: [u8; 20],
+        target_pool: [u8; 20],
+        source_venue: u16,
+        target_venue: u16,
+        token_in: [u8; 20],
+        token_out: [u8; 20],
+        expected_profit_usd: UsdFixedPoint8,
+        required_capital_usd: UsdFixedPoint8,
+        spread_bps: u16,
+        dex_fees_usd: UsdFixedPoint8,
+        gas_cost_usd: UsdFixedPoint8,
+        slippage_usd: UsdFixedPoint8,
+        timestamp_ns: u64,
+    ) -> Self {
+        // Use raw fixed-point values directly (no precision loss)
+        let expected_profit_usd_q8 = expected_profit_usd.raw_value();
+        let required_capital_usd_q8 = required_capital_usd.raw_value();
+        let dex_fees_usd_q8 = dex_fees_usd.raw_value();
+        let gas_cost_usd_q8 = gas_cost_usd.raw_value();
+        let slippage_usd_q8 = slippage_usd.raw_value();
+        let net_profit_usd_q8 =
+            expected_profit_usd_q8 - dex_fees_usd_q8 - gas_cost_usd_q8 - slippage_usd_q8;
+
+        Self {
+            strategy_id: 21,         // Flash arbitrage strategy
+            signal_id: timestamp_ns, // Use timestamp as unique ID for now
+            chain_id: 137,           // Polygon
+            source_pool,
+            target_pool,
+            source_venue,
+            target_venue,
+            token_in,
+            token_out,
+            expected_profit_usd_q8,
+            required_capital_usd_q8,
+            spread_bps,
+            dex_fees_usd_q8,
+            gas_cost_usd_q8,
+            slippage_usd_q8,
+            net_profit_usd_q8,
+            slippage_tolerance_bps: 50, // 0.5% default
+            max_gas_price_gwei: 100,    // 100 gwei max
+            valid_until: (timestamp_ns / 1_000_000_000) as u32 + 300, // Valid for 5 minutes
+            priority: ((spread_bps as f64 * 10.0).min(65535.0)) as u16, // Priority based on spread
+            reserved: [0u8; 2],
+            timestamp_ns,
+        }
+    }
+
     /// Get expected profit in USD
     pub fn expected_profit_usd(&self) -> f64 {
         self.expected_profit_usd_q8 as f64 / 100_000_000.0
@@ -227,5 +281,78 @@ mod tests {
         assert_eq!(signal.expected_profit_usd(), 100.50);
         assert_eq!(signal.net_profit_usd(), 100.50 - 60.0 - 3.0 - 5.0);
         assert_eq!(signal.spread_percent(), 1.5);
+    }
+
+    #[test]
+    fn test_fixed_point_precision_preservation() {
+        let source_pool = [1u8; 20];
+        let target_pool = [2u8; 20];
+        let token_in = [3u8; 20];
+        let token_out = [4u8; 20];
+
+        // Test high-precision values that would lose precision via f64
+        let profit_fp = UsdFixedPoint8::try_from_f64(100.12345678).unwrap();
+        let capital_fp = UsdFixedPoint8::try_from_f64(10000.87654321).unwrap();
+        let fees_fp = UsdFixedPoint8::try_from_f64(60.11111111).unwrap();
+        let gas_fp = UsdFixedPoint8::try_from_f64(5.22222222).unwrap();
+        let slippage_fp = UsdFixedPoint8::try_from_f64(10.33333333).unwrap();
+
+        let signal_fp = ArbitrageSignalTLV::from_fixed_point(
+            source_pool,
+            target_pool,
+            300, // UniswapV2
+            301, // UniswapV3
+            token_in,
+            token_out,
+            profit_fp,
+            capital_fp,
+            150, // 1.5% spread
+            fees_fp,
+            gas_fp,
+            slippage_fp,
+            1234567890_000_000_000,
+        );
+
+        // Verify precision is preserved exactly (copy packed fields to avoid alignment issues)
+        let actual_profit = signal_fp.expected_profit_usd_q8;
+        let actual_capital = signal_fp.required_capital_usd_q8;
+        let actual_fees = signal_fp.dex_fees_usd_q8;
+        let actual_gas = signal_fp.gas_cost_usd_q8;
+        let actual_slippage = signal_fp.slippage_usd_q8;
+
+        assert_eq!(actual_profit, profit_fp.raw_value());
+        assert_eq!(actual_capital, capital_fp.raw_value());
+        assert_eq!(actual_fees, fees_fp.raw_value());
+        assert_eq!(actual_gas, gas_fp.raw_value());
+        assert_eq!(actual_slippage, slippage_fp.raw_value());
+
+        // Compare with f64 version - should have identical structure except precision
+        let signal_f64 = ArbitrageSignalTLV::new(
+            source_pool,
+            target_pool,
+            300,
+            301,
+            token_in,
+            token_out,
+            profit_fp.to_f64(),
+            capital_fp.to_f64(),
+            150,
+            fees_fp.to_f64(),
+            gas_fp.to_f64(),
+            slippage_fp.to_f64(),
+            1234567890_000_000_000,
+        );
+
+        // Fixed-point version preserves more precision than f64 version
+        let fp_profit = signal_fp.expected_profit_usd_q8;
+        let f64_profit = signal_f64.expected_profit_usd_q8;
+
+        assert_eq!(fp_profit, profit_fp.raw_value());
+        // f64 version may have rounding differences due to double conversion
+        let f64_precision_diff = (fp_profit - f64_profit).abs();
+        assert!(
+            f64_precision_diff <= 1,
+            "Fixed-point should preserve precision better than f64 conversion"
+        );
     }
 }

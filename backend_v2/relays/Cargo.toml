@@ -41,7 +41,7 @@ thiserror = "1.0"
 dashmap = "5.5"                                    # Always needed for connection management
 bytes = "1.5"                                      # Always needed for message handling
 futures = "0.3"                                    # Always needed for async operations
-bincode = { version = "1.3", optional = true }     # Only needed for binary serialization
+bincode = "1.3"                                    # Binary serialization for signal relay
 chrono = { version = "0.4", features = ["serde"], optional = true }  # Only needed for timestamps
 
 # Command line - always required for binaries
@@ -62,11 +62,10 @@ toml-config = ["dep:toml"]
 
 # Performance and security features
 checksum-validation = ["dep:crc32fast"]          # Required for execution relay
-binary-serialization = ["dep:bincode"]          # For high-performance serialization
 timestamps = ["dep:chrono"]                      # For message timestamps and tracing
 
 # Relay-specific feature combinations
-market-data-relay = ["binary-serialization", "timestamps"]  # Speed-focused
+market-data-relay = ["timestamps"]                          # Speed-focused
 signal-relay = ["config-files", "timestamps"]               # Balanced features
 execution-relay = ["checksum-validation", "config-files", "timestamps"]  # Security-focused
 

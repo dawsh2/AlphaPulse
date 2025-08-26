@@ -45,8 +45,13 @@ use tracing::{debug, error, info, warn};
 
 use crate::relay_consumer::ArbitrageOpportunity;
 use alphapulse_adapter_service::output::RelayOutput;
+use alphapulse_types::fixed_point::UsdFixedPoint8;
 use protocol_v2::{
-    tlv::{build_message_direct, ArbitrageSignalTLV},
+    tlv::{
+        demo_defi::{ArbitrageConfig, DemoDeFiArbitrageTLV},
+        zero_copy_builder_v2::build_message_direct,
+        ArbitrageSignalTLV,
+    },
     RelayDomain, SourceType, TLVType, VenueId,
 };
 
@@ -149,6 +154,94 @@ impl SignalOutput {
         Ok(())
     }
 
+    /// Send formatted arbitrage analysis for dashboard display using DemoDeFiArbitrageTLV
+    pub async fn send_arbitrage_analysis(
+        &self,
+        analysis: &crate::relay_consumer::ArbitrageAnalysis,
+    ) -> Result<()> {
+        let mut nonce = self.signal_nonce.lock().await;
+        *nonce += 1;
+        let signal_nonce = *nonce;
+
+        // Parse pool address with proper error propagation
+        let pool_addr = parse_hex_address(&analysis.pool_address)
+            .context("Invalid pool address in arbitrage analysis")?;
+
+        // Extract and validate potential profit
+        let profit_usd = analysis
+            .potential_profit
+            .strip_prefix('$')
+            .and_then(|s| s.parse::<f64>().ok())
+            .context("Failed to parse profit amount from analysis")?;
+
+        let profit_fp = UsdFixedPoint8::try_from_f64(profit_usd)
+            .context("Invalid profit amount - outside fixed-point range")?;
+
+        // Extract and validate required capital
+        let capital_usd = analysis
+            .required_capital
+            .strip_prefix('$')
+            .and_then(|s| s.parse::<f64>().ok())
+            .context("Failed to parse capital requirement from analysis")?;
+
+        let capital_fp = UsdFixedPoint8::try_from_f64(capital_usd)
+            .context("Invalid capital amount - outside fixed-point range")?;
+
+        // Extend pool address to 32 bytes (pad with zeros)
+        let mut pool_32 = [0u8; 32];
+        pool_32[12..32].copy_from_slice(&pool_addr); // Place 20-byte address in last 20 bytes
+
+        // Create DemoDeFiArbitrageTLV with analysis data
+        let demo_tlv = DemoDeFiArbitrageTLV::new(ArbitrageConfig {
+            strategy_id: FLASH_ARBITRAGE_STRATEGY_ID,
+            signal_id: signal_nonce as u64,
+            confidence: analysis.confidence,
+            chain_id: 137, // Polygon
+            expected_profit_q: profit_fp.raw_value() as i128,
+            required_capital_q: capital_fp.raw_value() as u128,
+            estimated_gas_cost_q: UsdFixedPoint8::try_from_f64(2.50)
+                .context("Invalid gas cost amount")?
+                .raw_value() as u128,
+            venue_a: VenueId::QuickSwap,
+            pool_a: pool_32,
+            venue_b: VenueId::SushiSwapPolygon,
+            pool_b: pool_32,                  // Same pool for now
+            token_in: 0x2791bca1f2de4661u64,  // USDC on Polygon (real address truncated)
+            token_out: 0x0d500b1d8e8ef31eu64, // WMATIC on Polygon (real address truncated)
+            optimal_amount_q: capital_fp.raw_value() as u128,
+            slippage_tolerance: 100, // 1% in basis points
+            max_gas_price_gwei: 20,
+            valid_until: (std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                + 300) as u32, // 5 minutes
+            priority: if profit_usd > 0.0 { 1 } else { 5 }, // High priority if profitable
+            timestamp_ns: analysis.timestamp_ns,
+        });
+
+        // Build complete TLV message with extended TLV format (type 255)
+        let message_bytes = build_message_direct(
+            RelayDomain::Signal,
+            SourceType::ArbitrageStrategy,
+            TLVType::ExtendedTLV,
+            &demo_tlv,
+        )
+        .map_err(|e| anyhow::anyhow!("DemoDeFiArbitrageTLV build failed: {}", e))?;
+
+        self.relay_output
+            .send_bytes(&message_bytes)
+            .await
+            .context("Failed to send arbitrage analysis to relay")?;
+
+        debug!(
+            "Sent DemoDeFiArbitrageTLV analysis #{} for pool {} to relay",
+            signal_nonce, analysis.pool_address
+        );
+
+        Ok(())
+    }
+
     fn build_arbitrage_signal(
         &self,
         opportunity: &ArbitrageOpportunity,
@@ -166,22 +259,24 @@ impl SignalOutput {
         let source_venue = infer_dex_venue_from_pool(&source_pool) as u16;
         let target_venue = infer_dex_venue_from_pool(&target_pool) as u16;
 
-        // Calculate realistic costs using type-safe fixed-point values
-        let required_capital_f64 = opportunity.required_capital_usd.to_f64();
-        let dex_fees_usd = required_capital_f64 * 0.006; // 0.3% each side
-        let gas_cost_usd = 0.10; // Realistic for Polygon: 300k gas @ 30 gwei @ $0.33 MATIC
-        let slippage_usd = required_capital_f64 * 0.001; // 0.1% slippage estimate
+        // Calculate realistic costs using precise fixed-point arithmetic
+        let capital_fp = opportunity.required_capital_usd;
+        let dex_fees_usd = UsdFixedPoint8::try_from_f64(capital_fp.to_f64() * 0.006)
+            .unwrap_or(UsdFixedPoint8::ZERO); // 0.3% each side
+        let gas_cost_usd = UsdFixedPoint8::try_from_f64(0.10).unwrap_or(UsdFixedPoint8::ZERO); // Realistic for Polygon
+        let slippage_usd = UsdFixedPoint8::try_from_f64(capital_fp.to_f64() * 0.001)
+            .unwrap_or(UsdFixedPoint8::ZERO); // 0.1% slippage estimate
 
-        // Create real ArbitrageSignalTLV with actual data
-        let arbitrage_tlv = ArbitrageSignalTLV::new(
+        // Create ArbitrageSignalTLV preserving full fixed-point precision
+        let arbitrage_tlv = ArbitrageSignalTLV::from_fixed_point(
             source_pool,
             target_pool,
             source_venue,
             target_venue,
             token_in,
             token_out,
-            opportunity.expected_profit_usd.to_f64(), // Convert from type-safe fixed-point
-            opportunity.required_capital_usd.to_f64(), // Convert from type-safe fixed-point
+            opportunity.expected_profit_usd, // Direct fixed-point, no conversion
+            opportunity.required_capital_usd, // Direct fixed-point, no conversion
             (opportunity.spread_percentage.0 / 100) as u16, // Convert from 4 decimal to basis points
             dex_fees_usd,
             gas_cost_usd,

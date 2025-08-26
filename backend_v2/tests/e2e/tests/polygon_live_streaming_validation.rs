@@ -21,9 +21,8 @@
 
 use anyhow::{Context, Result};
 use protocol_v2::{
-    parse_header, parse_tlv_extensions,
-    tlv::market_data::{PoolSwapTLV},
-    InstrumentId, RelayDomain, SourceType, TLVType, VenueId,
+    parse_header, parse_tlv_extensions, tlv::market_data::PoolSwapTLV, InstrumentId, RelayDomain,
+    SourceType, TLVType, VenueId,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -31,7 +30,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tokio::process::{Child, Command};
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::{mpsc, RwLock};
 use tracing::{debug, error, info, warn};
 use zerocopy::AsBytes;
 
@@ -151,14 +150,16 @@ impl PolygonStreamingValidator {
         *self.running.write().await = true;
 
         // Step 1: Start Market Data Relay
-        self.start_market_data_relay().await
+        self.start_market_data_relay()
+            .await
             .context("Failed to start Market Data Relay")?;
 
         // Step 2: Wait for relay to be ready
         tokio::time::sleep(Duration::from_secs(2)).await;
 
         // Step 3: Start Polygon Collector
-        self.start_polygon_collector().await
+        self.start_polygon_collector()
+            .await
             .context("Failed to start Polygon Collector")?;
 
         // Step 4: Wait for collector to connect to WebSocket
@@ -171,7 +172,10 @@ impl PolygonStreamingValidator {
         let monitoring_handle = self.start_progress_monitoring().await;
 
         // Step 7: Run test for specified duration
-        info!("✅ All services started - beginning {} second validation test", self.config.test_duration_secs);
+        info!(
+            "✅ All services started - beginning {} second validation test",
+            self.config.test_duration_secs
+        );
         tokio::time::sleep(Duration::from_secs(self.config.test_duration_secs)).await;
 
         // Step 8: Stop test
@@ -196,8 +200,7 @@ impl PolygonStreamingValidator {
         info!("📡 Starting Market Data Relay");
 
         // Ensure socket directory exists
-        std::fs::create_dir_all("/tmp/alphapulse")
-            .context("Failed to create socket directory")?;
+        std::fs::create_dir_all("/tmp/alphapulse").context("Failed to create socket directory")?;
 
         // Remove existing socket
         if std::path::Path::new(&self.config.relay_socket_path).exists() {
@@ -223,9 +226,16 @@ impl PolygonStreamingValidator {
 
         // Start collector process
         let mut cmd = Command::new("cargo");
-        cmd.args(&["run", "--release", "--bin", "polygon", "--", &self.config.polygon_config_path])
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        cmd.args(&[
+            "run",
+            "--release",
+            "--bin",
+            "polygon",
+            "--",
+            &self.config.polygon_config_path,
+        ])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
 
         let collector = cmd.spawn().context("Failed to spawn Polygon Collector")?;
         self.polygon_collector = Some(collector);
@@ -255,7 +265,10 @@ impl PolygonStreamingValidator {
                         continue;
                     }
                     Err(e) => {
-                        error!("Failed to connect to relay after {} attempts: {}", retry_count, e);
+                        error!(
+                            "Failed to connect to relay after {} attempts: {}",
+                            retry_count, e
+                        );
                         return Err(e.into());
                     }
                 }
@@ -268,10 +281,9 @@ impl PolygonStreamingValidator {
 
             while *running.read().await {
                 // Read from relay with timeout
-                match tokio::time::timeout(
-                    Duration::from_millis(100),
-                    stream.read(&mut buffer)
-                ).await {
+                match tokio::time::timeout(Duration::from_millis(100), stream.read(&mut buffer))
+                    .await
+                {
                     Ok(Ok(0)) => {
                         warn!("Market Data Relay connection closed");
                         break;
@@ -286,18 +298,21 @@ impl PolygonStreamingValidator {
                             match parse_header(&partial_message[..32]) {
                                 Ok(header) => {
                                     let total_length = 32 + header.payload_size as usize;
-                                    
+
                                     if partial_message.len() >= total_length {
                                         // Extract complete message
-                                        let message = partial_message.drain(..total_length).collect::<Vec<u8>>();
-                                        
+                                        let message = partial_message
+                                            .drain(..total_length)
+                                            .collect::<Vec<u8>>();
+
                                         // Validate message
                                         Self::validate_tlv_message(
                                             &message,
                                             receive_time,
                                             &stats,
-                                            &config
-                                        ).await;
+                                            &config,
+                                        )
+                                        .await;
                                     } else {
                                         // Not enough data for complete message
                                         break;
@@ -359,8 +374,10 @@ impl PolygonStreamingValidator {
             match parse_header(&message[..32]) {
                 Ok(header) => {
                     if config.verbose_validation {
-                        debug!("📨 Header: magic=0x{:08X}, domain={}, source={}, seq={}",
-                               header.magic, header.relay_domain, header.source, header.sequence);
+                        debug!(
+                            "📨 Header: magic=0x{:08X}, domain={}, source={}, seq={}",
+                            header.magic, header.relay_domain, header.source, header.sequence
+                        );
                     }
 
                     // Validate magic number
@@ -389,14 +406,16 @@ impl PolygonStreamingValidator {
                     let payload_end = 32 + payload_size as usize;
                     if message.len() >= payload_end {
                         let tlv_payload = &message[32..payload_end];
-                        
+
                         match parse_tlv_extensions(tlv_payload) {
                             Ok(tlvs) => {
                                 for tlv in tlvs {
                                     // Validate specific TLV types
                                     match TLVType::try_from(tlv.header.tlv_type) {
                                         Ok(TLVType::PoolSwap) => {
-                                            if !Self::validate_pool_swap_precision(&tlv.payload).await {
+                                            if !Self::validate_pool_swap_precision(&tlv.payload)
+                                                .await
+                                            {
                                                 precision_error = true;
                                                 is_valid = false;
                                             }
@@ -419,7 +438,11 @@ impl PolygonStreamingValidator {
                             }
                         }
                     } else {
-                        error!("Payload truncated: expected {} bytes, got {}", payload_end, message.len());
+                        error!(
+                            "Payload truncated: expected {} bytes, got {}",
+                            payload_end,
+                            message.len()
+                        );
                         format_error = true;
                         is_valid = false;
                     }
@@ -430,12 +453,15 @@ impl PolygonStreamingValidator {
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
                         .as_nanos() as u64;
-                    
+
                     let latency_ns = current_timestamp.saturating_sub(message_timestamp);
                     let latency_us = latency_ns / 1_000;
-                    
+
                     if latency_us > config.max_latency_us {
-                        warn!("High latency: {} μs (max: {} μs)", latency_us, config.max_latency_us);
+                        warn!(
+                            "High latency: {} μs (max: {} μs)",
+                            latency_us, config.max_latency_us
+                        );
                         let mut stats_write = stats.write().await;
                         stats_write.latency_violations += 1;
                     }
@@ -484,9 +510,7 @@ impl PolygonStreamingValidator {
         }
 
         // Parse PoolSwapTLV
-        let swap_tlv = unsafe {
-            std::ptr::read(payload.as_ptr() as *const PoolSwapTLV)
-        };
+        let swap_tlv = unsafe { std::ptr::read(payload.as_ptr() as *const PoolSwapTLV) };
 
         // Validate precision preservation
         let amount_in = swap_tlv.amount_in;
@@ -501,7 +525,10 @@ impl PolygonStreamingValidator {
         // Check for reasonable swap ratios (basic sanity check)
         let ratio = amount_out as f64 / amount_in as f64;
         if ratio > 1000000.0 || ratio < 0.000001 {
-            warn!("Suspicious swap ratio: {} (in: {}, out: {})", ratio, amount_in, amount_out);
+            warn!(
+                "Suspicious swap ratio: {} (in: {}, out: {})",
+                ratio, amount_in, amount_out
+            );
             return false;
         }
 
@@ -598,30 +625,38 @@ impl PolygonStreamingValidator {
         let precision_ok = stats.precision_errors == 0;
         let format_ok = stats.format_errors == 0;
 
-        info!("   Message Rate: {} {:.1} >= {} msg/s",
-              if rate_ok { "✅" } else { "❌" },
-              message_rate,
-              self.config.min_message_rate
+        info!(
+            "   Message Rate: {} {:.1} >= {} msg/s",
+            if rate_ok { "✅" } else { "❌" },
+            message_rate,
+            self.config.min_message_rate
         );
-        info!("   Latency: {} {:.1} <= {} μs",
-              if latency_ok { "✅" } else { "❌" },
-              stats.avg_latency_us(),
-              self.config.max_latency_us
+        info!(
+            "   Latency: {} {:.1} <= {} μs",
+            if latency_ok { "✅" } else { "❌" },
+            stats.avg_latency_us(),
+            self.config.max_latency_us
         );
-        info!("   Precision: {} {} errors",
-              if precision_ok { "✅" } else { "❌" },
-              stats.precision_errors
+        info!(
+            "   Precision: {} {} errors",
+            if precision_ok { "✅" } else { "❌" },
+            stats.precision_errors
         );
-        info!("   Format: {} {} errors",
-              if format_ok { "✅" } else { "❌" },
-              stats.format_errors
+        info!(
+            "   Format: {} {} errors",
+            if format_ok { "✅" } else { "❌" },
+            stats.format_errors
         );
 
         let overall_success = rate_ok && latency_ok && precision_ok && format_ok;
-        
-        info!("\n🏆 OVERALL RESULT: {}",
-              if overall_success { "✅ PASS - System ready for production" } 
-              else { "❌ FAIL - System needs improvement" }
+
+        info!(
+            "\n🏆 OVERALL RESULT: {}",
+            if overall_success {
+                "✅ PASS - System ready for production"
+            } else {
+                "❌ FAIL - System needs improvement"
+            }
         );
 
         if overall_success {
@@ -667,8 +702,15 @@ async fn test_live_polygon_streaming_basic() -> Result<()> {
     let results = validator.run_validation_test().await?;
 
     // Assert basic functionality
-    assert!(results.messages_received > 0, "No messages received from live stream");
-    assert!(results.success_rate() > 0.8, "Success rate too low: {:.1}%", results.success_rate() * 100.0);
+    assert!(
+        results.messages_received > 0,
+        "No messages received from live stream"
+    );
+    assert!(
+        results.success_rate() > 0.8,
+        "Success rate too low: {:.1}%",
+        results.success_rate() * 100.0
+    );
     assert_eq!(results.precision_errors, 0, "Precision errors detected");
 
     Ok(())
@@ -690,10 +732,16 @@ async fn test_live_polygon_streaming_performance() -> Result<()> {
     let results = validator.run_validation_test().await?;
 
     // Assert performance requirements
-    assert!(results.message_rate() >= 50.0, 
-            "Message rate too low: {:.1} msg/s", results.message_rate());
-    assert!(results.avg_latency_us() <= 10_000.0,
-            "Average latency too high: {:.1} μs", results.avg_latency_us());
+    assert!(
+        results.message_rate() >= 50.0,
+        "Message rate too low: {:.1} msg/s",
+        results.message_rate()
+    );
+    assert!(
+        results.avg_latency_us() <= 10_000.0,
+        "Average latency too high: {:.1} μs",
+        results.avg_latency_us()
+    );
     assert_eq!(results.precision_errors, 0, "Precision errors detected");
     assert_eq!(results.format_errors, 0, "Format errors detected");
 
@@ -707,7 +755,7 @@ async fn test_live_polygon_streaming_extended() -> Result<()> {
     let config = StreamingTestConfig {
         test_duration_secs: 300, // 5 minute extended test
         min_message_rate: 10,
-        max_latency_us: 20_000,  // 20ms max latency
+        max_latency_us: 20_000, // 20ms max latency
         verbose_validation: false,
         ..Default::default()
     };
@@ -716,18 +764,29 @@ async fn test_live_polygon_streaming_extended() -> Result<()> {
     let results = validator.run_validation_test().await?;
 
     // Extended test assertions
-    assert!(results.messages_received > 100, 
-            "Insufficient messages for extended test: {}", results.messages_received);
-    assert!(results.success_rate() > 0.95, 
-            "Success rate should be very high in extended test: {:.1}%", results.success_rate() * 100.0);
-    assert!(results.latency_violations < results.messages_received / 20,
-            "Too many latency violations: {}", results.latency_violations);
+    assert!(
+        results.messages_received > 100,
+        "Insufficient messages for extended test: {}",
+        results.messages_received
+    );
+    assert!(
+        results.success_rate() > 0.95,
+        "Success rate should be very high in extended test: {:.1}%",
+        results.success_rate() * 100.0
+    );
+    assert!(
+        results.latency_violations < results.messages_received / 20,
+        "Too many latency violations: {}",
+        results.latency_violations
+    );
 
     Ok(())
 }
 
 /// Convenience function to run validation with custom configuration
-pub async fn run_polygon_streaming_validation(config: StreamingTestConfig) -> Result<StreamingStats> {
+pub async fn run_polygon_streaming_validation(
+    config: StreamingTestConfig,
+) -> Result<StreamingStats> {
     let mut validator = PolygonStreamingValidator::new(config);
     validator.run_validation_test().await
 }

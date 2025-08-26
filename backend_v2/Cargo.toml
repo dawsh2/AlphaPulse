@@ -24,6 +24,8 @@ members = [
     "libs/state/market",
     "libs/state/execution",
     "libs/state/portfolio",
+    # Tests
+    "tests/e2e",
 ]
 
 exclude = ["temp_test", "tools/rq"]

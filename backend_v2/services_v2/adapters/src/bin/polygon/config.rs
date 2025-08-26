@@ -183,6 +183,10 @@ impl PolygonConfig {
             self.websocket.url = url;
         }
 
+        if let Ok(rpc_url) = env::var("POLYGON_RPC_URL") {
+            self.websocket.rpc_url = Some(rpc_url);
+        }
+
         if let Ok(timeout) = env::var("POLYGON_WS_TIMEOUT_MS") {
             if let Ok(timeout) = timeout.parse() {
                 self.websocket.connection_timeout_ms = timeout;

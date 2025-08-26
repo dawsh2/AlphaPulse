@@ -1,18 +1,18 @@
-//! Production Signal Relay
-//! Real Unix socket server for Protocol V2 signal messages
+//! Fixed Signal Relay - Properly handles bidirectional message forwarding
+//! Fixes the stream locking issue in the original implementation
 
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::{mpsc, RwLock};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
-    info!("🚀 Starting Production Signal Relay");
+    info!("🚀 Starting Fixed Signal Relay");
 
     // Create directory
     std::fs::create_dir_all("/tmp/alphapulse")?;
@@ -27,10 +27,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = UnixListener::bind(socket_path)?;
     info!("✅ Signal Relay listening on: {}", socket_path);
 
-    // Create message broadcast channel
-    let (broadcast_tx, _) = mpsc::unbounded_channel::<Vec<u8>>();
-    let broadcast_tx = Arc::new(broadcast_tx);
-
     // Track connected consumers with their channels
     let consumers: Arc<RwLock<HashMap<u64, mpsc::UnboundedSender<Vec<u8>>>>> =
         Arc::new(RwLock::new(HashMap::new()));
@@ -39,12 +35,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Accept connections
     loop {
         match listener.accept().await {
-            Ok((mut stream, _)) => {
+            Ok((stream, _)) => {
                 let id = consumer_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 info!("📡 Signal consumer {} connected", id);
 
                 let consumers_clone = consumers.clone();
-                let broadcast_tx_clone = broadcast_tx.clone();
+
+                // Split the stream into read and write halves - THIS IS THE FIX!
+                let (read_half, write_half) = stream.into_split();
 
                 // Create a channel for this specific consumer
                 let (consumer_tx, mut consumer_rx) = mpsc::unbounded_channel::<Vec<u8>>();
@@ -52,19 +50,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Track this consumer
                 consumers.write().await.insert(id, consumer_tx);
 
-                // Task for receiving messages from this connection and broadcasting to others
-                let stream_clone = Arc::new(tokio::sync::Mutex::new(stream));
-                let read_stream = stream_clone.clone();
-                let write_stream = stream_clone.clone();
-
-                // Read task: receive from this consumer and broadcast to all others
+                // Spawn read task - reads from this consumer and broadcasts to others
+                let consumers_for_read = consumers_clone.clone();
                 tokio::spawn(async move {
-                    let mut buffer = vec![0u8; 65536]; // 64KB buffer for TLV messages
+                    let mut reader = tokio::io::BufReader::new(read_half);
+                    let mut buffer = vec![0u8; 65536]; // 64KB buffer
                     let mut message_count = 0u64;
 
                     loop {
-                        let mut stream = read_stream.lock().await;
-                        match stream.read(&mut buffer).await {
+                        match reader.read(&mut buffer).await {
                             Ok(0) => {
                                 info!(
                                     "📡 Consumer {} disconnected after {} messages",
@@ -75,16 +69,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             Ok(n) => {
                                 message_count += 1;
 
-                                // Log message info
-                                if message_count % 1000 == 0 {
-                                    info!(
-                                        "📊 Consumer {}: {} messages processed",
-                                        id, message_count
-                                    );
-                                }
-
-                                // Log first few messages for debugging
-                                if message_count <= 5 {
+                                // Log message details for debugging
+                                if message_count <= 5 || message_count % 100 == 0 {
                                     let preview = &buffer[..std::cmp::min(32, n)];
                                     info!(
                                         "📨 Consumer {} message {}: {} bytes, preview: {:02x?}",
@@ -92,21 +78,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     );
                                 }
 
-                                // Forward message to all OTHER consumers (not back to sender)
+                                // Forward message to all OTHER consumers
                                 let message_data = buffer[..n].to_vec();
-                                let consumers_read = consumers_clone.read().await;
+                                let consumers_read = consumers_for_read.read().await;
                                 let mut forwarded_count = 0;
 
                                 for (other_id, other_tx) in consumers_read.iter() {
                                     if *other_id != id {
                                         // Don't send back to sender
-                                        if let Err(_) = other_tx.send(message_data.clone()) {
+                                        if let Err(e) = other_tx.send(message_data.clone()) {
                                             warn!(
-                                                "Failed to forward message to consumer {}",
-                                                other_id
+                                                "Failed to forward to consumer {}: {:?}",
+                                                other_id, e
                                             );
                                         } else {
                                             forwarded_count += 1;
+                                            debug!(
+                                                "Forwarded {} bytes to consumer {}",
+                                                n, other_id
+                                            );
                                         }
                                     }
                                 }
@@ -116,6 +106,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         "📡 Forwarded message from consumer {} to {} others",
                                         id, forwarded_count
                                     );
+                                } else if consumers_read.len() > 1 {
+                                    debug!(
+                                        "No other consumers to forward to (total consumers: {})",
+                                        consumers_read.len()
+                                    );
                                 }
                             }
                             Err(e) => {
@@ -123,23 +118,53 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 break;
                             }
                         }
-                        drop(stream); // Release lock
                     }
 
-                    // Clean up consumer
-                    consumers_clone.write().await.remove(&id);
+                    // Clean up consumer on disconnect
+                    consumers_for_read.write().await.remove(&id);
+                    info!("🔌 Consumer {} removed from registry", id);
                 });
 
-                // Write task: send messages from other consumers to this one
+                // Spawn write task - writes messages from other consumers to this one
                 tokio::spawn(async move {
+                    let mut writer = tokio::io::BufWriter::new(write_half);
+                    let mut write_count = 0u64;
+
                     while let Some(message_data) = consumer_rx.recv().await {
-                        let mut stream = write_stream.lock().await;
-                        if let Err(e) = stream.write_all(&message_data).await {
+                        write_count += 1;
+
+                        // Debug logging for write operations
+                        if write_count <= 5 || write_count % 100 == 0 {
+                            debug!(
+                                "Writing message {} ({} bytes) to consumer {}",
+                                write_count,
+                                message_data.len(),
+                                id
+                            );
+                        }
+
+                        if let Err(e) = writer.write_all(&message_data).await {
                             error!("Failed to write to consumer {}: {}", id, e);
                             break;
                         }
+
+                        // IMPORTANT: Flush the writer to ensure data is sent immediately!
+                        if let Err(e) = writer.flush().await {
+                            error!("Failed to flush writer for consumer {}: {}", id, e);
+                            break;
+                        }
+
+                        debug!(
+                            "Successfully wrote and flushed {} bytes to consumer {}",
+                            message_data.len(),
+                            id
+                        );
                     }
-                    info!("📡 Consumer {} write task ended", id);
+
+                    info!(
+                        "📡 Consumer {} write task ended after {} messages",
+                        id, write_count
+                    );
                 });
             }
             Err(e) => {

@@ -1,18 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { resolveSymbolHash, addSymbolMapping } from '../utils/symbolHash';
-import type { 
-  Trade, 
-  OrderBook, 
+import type {
+  Trade,
+  OrderBook,
   L2Delta,
   L2Snapshot,
   SymbolMapping,
-  Metrics, 
+  Metrics,
   SystemStatus,
   StatusUpdate,
   WebSocketMessage
 } from '../types';
 
-// Add PoolEvent interface  
+// Add PoolEvent interface
 interface PoolEvent {
   id: string;
   type: 'sync' | 'swap';
@@ -37,6 +37,7 @@ export function useWebSocketFirehose(endpoint: string) {
   const [orderbooks, setOrderbooks] = useState<Record<string, OrderBook>>({});
   const [symbolMappings, setSymbolMappings] = useState<Map<string, string>>(new Map());
   const [poolEvents, setPoolEvents] = useState<PoolEvent[]>([]);
+  const [arbitrageOpportunities, setArbitrageOpportunities] = useState<any[]>([]);
   const [metrics, setMetrics] = useState<Metrics>({
     trades_per_second: 0,
     orderbook_updates_per_second: 0,
@@ -56,7 +57,7 @@ export function useWebSocketFirehose(endpoint: string) {
   });
   const [statusUpdate, setStatusUpdate] = useState<StatusUpdate | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  
+
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<NodeJS.Timeout>();
   const pingInterval = useRef<NodeJS.Timeout>();
@@ -86,17 +87,17 @@ export function useWebSocketFirehose(endpoint: string) {
       [orderbook.symbol_hash]: orderbook
     }));
   }, []);
-  
+
   const handleSymbolMapping = useCallback((mapping: SymbolMapping) => {
     setSymbolMappings(prev => new Map(prev.set(mapping.symbol_hash, mapping.symbol)));
   }, []);
-  
+
   const handleL2Delta = useCallback((delta: L2Delta) => {
     // Apply L2 delta updates to existing orderbook
     if (delta.symbol_hash && delta.updates && delta.updates.length > 0) {
       setOrderbooks(prev => {
         const existing = prev[delta.symbol_hash];
-        
+
         // If no existing orderbook, create an empty one and let it build from deltas
         const baseOrderbook = existing || {
           symbol_hash: delta.symbol_hash,
@@ -134,7 +135,7 @@ export function useWebSocketFirehose(endpoint: string) {
               levels[levelIndex] = newLevel;
             } else {
               // Insert and maintain sorted order
-              const insertIndex = levels.findIndex(level => 
+              const insertIndex = levels.findIndex(level =>
                 isBid ? level.price < price : level.price > price
               );
               if (insertIndex >= 0) {
@@ -157,7 +158,7 @@ export function useWebSocketFirehose(endpoint: string) {
       });
     }
   }, []);
-  
+
   const handleL2Snapshot = useCallback((snapshot: L2Snapshot) => {
     // Convert L2Snapshot to OrderBook format for compatibility
     const orderbook: OrderBook = {
@@ -177,7 +178,7 @@ export function useWebSocketFirehose(endpoint: string) {
       const wsBase = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws';
       // Connect to dashboard WebSocket endpoint
       const wsUrl = wsBase;
-      
+
       console.log('Connecting to WebSocket:', wsUrl);
       ws.current = new WebSocket(wsUrl);
 
@@ -185,7 +186,7 @@ export function useWebSocketFirehose(endpoint: string) {
         console.log('WebSocket connected');
         setIsConnected(true);
         reconnectAttempt.current = 0; // Reset reconnect counter on successful connection
-        
+
         // Subscribe to ALL data streams with new Rust bridge format
         setTimeout(() => {
           if (ws.current?.readyState === WebSocket.OPEN) {
@@ -195,21 +196,21 @@ export function useWebSocketFirehose(endpoint: string) {
               channels: ['trades', 'orderbook', 'l2_updates', 'status_updates', 'pool_swap'],
               symbols: [] // Empty array = subscribe to ALL symbols
             }));
-            
+
             console.log('🔔 Subscribed to ALL WebSocket channels and symbols');
           }
         }, 100);
-        
+
         // Start keepalive monitoring
         const startKeepAlive = () => {
           if (pingInterval.current) {
             clearInterval(pingInterval.current);
           }
-          
+
           pingInterval.current = setInterval(() => {
             const now = Date.now();
             const timeSinceLastMessage = now - lastMessageTime.current;
-            
+
             if (timeSinceLastMessage > MESSAGE_TIMEOUT) {
               console.warn(`⚠️ No WebSocket messages for ${timeSinceLastMessage}ms, reconnecting...`);
               if (ws.current) {
@@ -217,7 +218,7 @@ export function useWebSocketFirehose(endpoint: string) {
               }
               return;
             }
-            
+
             // Send ping if connection is open
             if (ws.current?.readyState === WebSocket.OPEN) {
               try {
@@ -228,7 +229,7 @@ export function useWebSocketFirehose(endpoint: string) {
             }
           }, PING_INTERVAL);
         };
-        
+
         startKeepAlive();
       };
 
@@ -236,16 +237,16 @@ export function useWebSocketFirehose(endpoint: string) {
         try {
           // Update last message time for keepalive monitoring
           lastMessageTime.current = Date.now();
-          
+
           const message: any = JSON.parse(event.data);
           // Debug logging removed - messages processed silently
-          
-          
+
+
           // Handle ws-bridge's tagged enum format with msg_type
           if (message.msg_type === 'trade') {
             // Resolve symbol using client-side hash lookup
             const resolvedSymbol = resolveSymbolHash(message.symbol_hash) || message.symbol;
-            
+
             const trade: Trade = {
               timestamp: message.timestamp,
               symbol_hash: message.symbol_hash,
@@ -261,7 +262,7 @@ export function useWebSocketFirehose(endpoint: string) {
             handleTrade(trade);
           } else if (message.msg_type === 'orderbook') {
             const resolvedSymbol = resolveSymbolHash(message.symbol_hash) || message.symbol;
-            
+
             const orderbook: OrderBook = {
               timestamp: message.timestamp,
               symbol_hash: message.symbol_hash,
@@ -273,7 +274,7 @@ export function useWebSocketFirehose(endpoint: string) {
           } else if (message.msg_type === 'l2_snapshot') {
             console.log('Received L2 snapshot for symbol_hash:', message.symbol_hash);
             const resolvedSymbol = resolveSymbolHash(message.symbol_hash) || message.symbol;
-            
+
             const snapshot: L2Snapshot = {
               symbol_hash: message.symbol_hash,
               symbol: resolvedSymbol,
@@ -285,15 +286,15 @@ export function useWebSocketFirehose(endpoint: string) {
             handleL2Snapshot(snapshot);
           } else if (message.msg_type === 'l2_delta') {
             const resolvedSymbol = resolveSymbolHash(message.symbol_hash) || message.symbol;
-            
+
             // Filter out L2 delta messages for exchanges that don't provide L2 data
             // Alpaca provides trade data only, not L2 order book data
-            if (resolvedSymbol && (resolvedSymbol.includes('alpaca:') || 
+            if (resolvedSymbol && (resolvedSymbol.includes('alpaca:') ||
                 ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'SPY', 'QQQ', 'NVDA', 'META', 'AMD'].includes(resolvedSymbol))) {
               // Silently skip L2 delta for stock symbols from Alpaca
               return;
             }
-            
+
             const delta: L2Delta = {
               symbol_hash: message.symbol_hash,
               symbol: resolvedSymbol,
@@ -305,7 +306,7 @@ export function useWebSocketFirehose(endpoint: string) {
           } else if (message.msg_type === 'symbol_mapping') {
             // Add to client-side symbol cache
             addSymbolMapping(message.symbol_hash, message.symbol);
-            
+
             const mapping: SymbolMapping = {
               symbol_hash: message.symbol_hash,
               symbol: message.symbol
@@ -359,6 +360,33 @@ export function useWebSocketFirehose(endpoint: string) {
             // Handle heartbeat - update connection status
             console.log(`💗 Heartbeat: ${message.client_count} clients connected`);
             setIsConnected(true);
+          } else if (message.msg_type === 'arbitrage_opportunity') {
+            // Handle arbitrage opportunity message
+            console.log('💰 ARBITRAGE OPPORTUNITY DETECTED:', {
+              profit: message.estimated_profit,
+              pair: message.pair,
+              confidence: message.confidence_score
+            });
+
+            // Add to arbitrage opportunities list
+            const opportunity = {
+              id: message.signal_id || Date.now().toString(),
+              timestamp: message.timestamp || Date.now(),
+              pair: message.pair || 'Unknown',
+              buyExchange: message.dex_buy || 'Unknown',
+              sellExchange: message.dex_sell || 'Unknown',
+              buyPrice: message.price_buy || 0,
+              sellPrice: message.price_sell || 0,
+              spread: parseFloat(message.net_profit_usd || '0'),
+              spreadPercent: message.profit_percent || 0,
+              estimatedProfit: parseFloat(message.estimated_profit || '0'),
+              confidence: message.confidence_score || 0
+            };
+
+            setArbitrageOpportunities(prev => [
+              opportunity,
+              ...prev.slice(0, 99) // Keep last 100 opportunities
+            ]);
           } else {
             console.log('Unknown message format:', message);
           }
@@ -374,14 +402,14 @@ export function useWebSocketFirehose(endpoint: string) {
       ws.current.onclose = () => {
         console.log('WebSocket disconnected');
         setIsConnected(false);
-        
+
         // Exponential backoff reconnection with maximum attempts
         if (reconnectAttempt.current < MAX_RECONNECT_ATTEMPTS) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempt.current), 30000); // Cap at 30 seconds
           reconnectAttempt.current += 1;
-          
+
           console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempt.current}/${MAX_RECONNECT_ATTEMPTS})`);
-          
+
           reconnectTimeout.current = setTimeout(() => {
             connect();
           }, delay);
@@ -396,7 +424,7 @@ export function useWebSocketFirehose(endpoint: string) {
 
   useEffect(() => {
     let isActive = true;
-    
+
     // Delay connection to avoid React StrictMode double execution
     const connectTimer = setTimeout(() => {
       if (isActive) {
@@ -424,6 +452,7 @@ export function useWebSocketFirehose(endpoint: string) {
     orderbooks,
     symbolMappings,
     poolEvents,
+    arbitrageOpportunities,
     metrics,
     status,
     statusUpdate,

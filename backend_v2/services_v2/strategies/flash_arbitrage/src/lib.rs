@@ -179,6 +179,8 @@ pub use alphapulse_state_market::{
 pub use detector::OpportunityDetector;
 pub use executor::Executor;
 pub use gas_price::GasPriceFetcher;
+pub use relay_consumer::RelayConsumer;
+pub use signal_output::SignalOutput;
 pub use strategy_engine::{StrategyConfig, StrategyEngine};
 
 /// Strategy configuration

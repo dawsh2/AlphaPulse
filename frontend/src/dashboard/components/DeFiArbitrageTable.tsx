@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './DeFiArbitrageTable.css';
+import { useWebSocketFirehose } from '../hooks/useWebSocketFirehose';
 
 interface ArbitrageOpportunity {
   id: string;
@@ -52,12 +53,14 @@ export const DeFiArbitrageTable: React.FC = () => {
   const [opportunities, setOpportunities] = useState<ArbitrageOpportunity[]>([]);
   const [poolSwaps, setPoolSwaps] = useState<PoolSwap[]>([]);
   const [tokenActivities, setTokenActivities] = useState<TokenPairActivity[]>([]);
-  const [socket, setSocket] = useState<WebSocket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
   const [groupByPool, setGroupByPool] = useState(false);
   const [showPoolSwaps, setShowPoolSwaps] = useState(true); // Default to true for token metadata
   const [viewMode, setViewMode] = useState<'token_activity' | 'arbitrage' | 'raw_swaps'>('token_activity');
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(0);
+
+  // Use shared WebSocket hook instead of creating duplicate connection
+  const wsEndpoint = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws';
+  const { isConnected, poolEvents, arbitrageOpportunities } = useWebSocketFirehose(wsEndpoint);
 
   // Demo data generator - DISABLED to show real market data
   // useEffect(() => {
@@ -133,140 +136,129 @@ export const DeFiArbitrageTable: React.FC = () => {
   //   return () => clearInterval(interval);
   // }, []);
 
+  // Update arbitrage opportunities from WebSocket
   useEffect(() => {
-    const connectToScanner = () => {
+    if (arbitrageOpportunities && arbitrageOpportunities.length > 0) {
+      setOpportunities(arbitrageOpportunities as ArbitrageOpportunity[]);
+    }
+  }, [arbitrageOpportunities]);
+
+  // Process pool events from shared WebSocket connection
+  useEffect(() => {
+    if (!poolEvents || poolEvents.length === 0) return;
+
+    // Get the latest pool event
+    const latestEvent = poolEvents[0];
+    if (!latestEvent) return;
+
+    // Process pool swaps
+    if (latestEvent.type === 'swap') {
+      const swap: PoolSwap = {
+        pool_id: latestEvent.pool_address || 'Unknown',
+        pool_address: latestEvent.pool_address || 'Unknown',
+        venue_name: latestEvent.venue_name || 'Unknown',
+        token_in: latestEvent.token_in || 'Unknown',
+        token_out: latestEvent.token_out || 'Unknown',
+        token_in_symbol: latestEvent.token_in || 'TokenIn',
+        token_out_symbol: latestEvent.token_out || 'TokenOut',
+        amount_in: latestEvent.amount_in || { raw: '0', normalized: 0, decimals: 18 },
+        amount_out: latestEvent.amount_out || { raw: '0', normalized: 0, decimals: 18 },
+        timestamp: latestEvent.timestamp,
+        block_number: latestEvent.block_number || 0
+      };
+
+      // Update pool swaps with sliding window
+      setPoolSwaps(prev => {
+        // Check if this swap already exists
+        const exists = prev.some(s =>
+          s.pool_address === swap.pool_address &&
+          s.timestamp === swap.timestamp
+        );
+        if (exists) return prev;
+        return [swap, ...prev].slice(0, 100);
+      });
+
+      // Update token pair activities (throttled)
+      const now = Date.now();
+      if (now - lastUpdateTime > 200) { // Throttle to 200ms
+        setLastUpdateTime(now);
+        updateTokenActivities(swap);
+      }
+    }
+  }, [poolEvents, lastUpdateTime]);
+
+  // Listen for arbitrage signals via WebSocket message events
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
       try {
-        const ws = new WebSocket('ws://localhost:8080/ws');
+        const message = JSON.parse(event.data);
 
-        ws.onopen = () => {
-          console.log('Connected to arbitrage scanner');
-          setIsConnected(true);
-        };
+        // Log signal events for debugging
+        if (message.msg_type === 'signal' || message.tlv_type === 255 || message.tlv_type === 22) {
+          console.log('🚨 SIGNAL EVENT RECEIVED:', {
+            msg_type: message.msg_type,
+            tlv_type: message.tlv_type,
+            type: message.type,
+            timestamp: new Date(message.timestamp).toISOString(),
+            data: message
+          });
+        }
 
-        ws.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            console.log('📨 Received WebSocket message:', message);
+        // Process arbitrage opportunities
+        if (message.msg_type === 'arbitrage_opportunity' || message.type === 'demo_defi_arbitrage') {
+          console.log('💰 ARBITRAGE OPPORTUNITY:', message);
 
-            // Debug specific message types
-            if (message.msg_type) {
-              console.log(`🔍 Message type: ${message.msg_type} | TLV type: ${message.tlv_type || 'unknown'}`);
+          const metrics = message.arbitrage_metrics;
+          const opp: ArbitrageOpportunity = {
+            id: message.id || `${message.pair}-${message.timestamp}-${Math.random()}`,
+            timestamp: message.timestamp > 1e15 ? Math.floor(message.timestamp / 1e6) : message.timestamp || Date.now(),
+            pair: message.pair,
+            buyExchange: message.buyExchange || message.dex_buy,
+            sellExchange: message.sellExchange || message.dex_sell,
+            buyPrice: message.buyPrice || message.price_buy,
+            sellPrice: message.sellPrice || message.price_sell,
+            spread: metrics?.spread_percent || ((message.sellPrice - message.buyPrice) / message.buyPrice * 100) || message.profitPercent,
+            tradeSize: metrics?.optimal_size_usd || message.tradeSize || message.max_trade_size,
+            grossProfit: metrics?.net_calculation?.gross_profit || message.grossProfit || message.estimated_profit,
+            gasFee: metrics?.gas_estimate?.cost_usd || message.gasFee || message.gas_fee_usd || 0,
+            dexFees: metrics?.dex_fees?.total_fee_usd || message.dexFees || message.dex_fees_usd || 0,
+            slippage: metrics?.slippage_estimate?.impact_usd || message.slippageCost || message.slippage_cost_usd || 0,
+            netProfit: metrics?.net_calculation?.net_profit || message.netProfit || message.net_profit_usd,
+            netProfitPercent: message.netProfitPercent || message.net_profit_percent || 0,
+            buyPool: message.buyPool || message.pool_a,
+            sellPool: message.sellPool || message.pool_b,
+            executable: metrics?.executable || message.executable
+          };
+
+          // Update opportunities
+          setOpportunities(prev => {
+            const existingIndex = prev.findIndex(existing =>
+              existing.pair === opp.pair &&
+              existing.buyExchange === opp.buyExchange &&
+              existing.sellExchange === opp.sellExchange
+            );
+
+            if (existingIndex >= 0) {
+              const updated = [...prev];
+              updated[existingIndex] = opp;
+              return updated;
+            } else {
+              return [opp, ...prev].slice(0, 20);
             }
-
-            if (message.msg_type === 'arbitrage_opportunity' || message.type === 'demo_defi_arbitrage') {
-              // Use enhanced metrics if available
-              const metrics = message.arbitrage_metrics;
-
-              const opp: ArbitrageOpportunity = {
-                id: message.id || `${message.pair}-${message.timestamp}-${Math.random()}`,
-                // Convert nanoseconds to milliseconds if needed
-                timestamp: message.timestamp > 1e15 ? Math.floor(message.timestamp / 1e6) : message.timestamp || Date.now(),
-                pair: message.pair,
-                buyExchange: message.buyExchange || message.dex_buy,
-                sellExchange: message.sellExchange || message.dex_sell,
-                buyPrice: message.buyPrice || message.price_buy,
-                sellPrice: message.sellPrice || message.price_sell,
-                spread: metrics?.spread_percent || ((message.sellPrice - message.buyPrice) / message.buyPrice * 100) || message.profitPercent,
-                tradeSize: metrics?.optimal_size_usd || message.tradeSize || message.max_trade_size,
-                grossProfit: metrics?.net_calculation?.gross_profit || message.grossProfit || message.estimated_profit,
-                gasFee: metrics?.gas_estimate?.cost_usd || message.gasFee || message.gas_fee_usd || 0,
-                dexFees: metrics?.dex_fees?.total_fee_usd || message.dexFees || message.dex_fees_usd || 0,
-                slippage: metrics?.slippage_estimate?.impact_usd || message.slippageCost || message.slippage_cost_usd || 0,
-                netProfit: metrics?.net_calculation?.net_profit || message.netProfit || message.net_profit_usd,
-                netProfitPercent: message.netProfitPercent || message.net_profit_percent || 0,
-                buyPool: message.buyPool || message.pool_a,
-                sellPool: message.sellPool || message.pool_b,
-                executable: metrics?.executable || message.executable
-              };
-
-              // Update existing opportunity or add new one
-              setOpportunities(prev => {
-                const existingIndex = prev.findIndex(existing =>
-                  existing.pair === opp.pair &&
-                  existing.buyExchange === opp.buyExchange &&
-                  existing.sellExchange === opp.sellExchange
-                );
-
-                if (existingIndex >= 0) {
-                  // Update existing opportunity
-                  const updated = [...prev];
-                  updated[existingIndex] = opp;
-                  return updated;
-                } else {
-                  // Add new opportunity
-                  return [opp, ...prev].slice(0, 20);
-                }
-              });
-            } else if (message.msg_type === 'pool_swap') {
-              // Process pool swap for token activity view
-              const swap: PoolSwap = {
-                pool_id: message.pool_address || message.pool_id || 'Unknown',
-                pool_address: message.pool_address || 'Unknown',
-                venue_name: message.venue_name || 'Unknown',
-                token_in: message.token_in || 'Unknown',
-                token_out: message.token_out || 'Unknown',
-                token_in_symbol: message.token_in_symbol || message.token_in || 'TokenIn',
-                token_out_symbol: message.token_out_symbol || message.token_out || 'TokenOut',
-                amount_in: message.amount_in || { raw: '0', normalized: 0, decimals: 18 },
-                amount_out: message.amount_out || { raw: '0', normalized: 0, decimals: 18 },
-                sqrt_price_x96_after: message.sqrt_price_x96_after,
-                tick_after: message.tick_after,
-                liquidity_after: message.liquidity_after,
-                // Convert nanoseconds to milliseconds if needed
-                timestamp: message.timestamp > 1e15 ? Math.floor(message.timestamp / 1e6) : message.timestamp || Date.now(),
-                block_number: message.block_number
-              };
-
-              console.log('🔄 Received pool swap:', swap);
-              console.log('📊 Raw message amounts:', {
-                amount_in_from_message: message.amount_in,
-                amount_out_from_message: message.amount_out,
-                amount_in_raw: message.amount_in?.raw,
-                amount_out_raw: message.amount_out?.raw,
-                amount_in_normalized: message.amount_in?.normalized,
-                amount_out_normalized: message.amount_out?.normalized
-              });
-
-              // Update pool swaps with sliding window
-              setPoolSwaps(prev => [swap, ...prev].slice(0, 100));
-
-              // Update token pair activities (throttled)
-              const now = Date.now();
-              if (now - lastUpdateTime > 200) { // Throttle to 200ms
-                setLastUpdateTime(now);
-                updateTokenActivities(swap);
-              }
-            }
-          } catch (error) {
-            console.error('Failed to parse message:', error);
-          }
-        };
-
-        ws.onclose = () => {
-          console.log('Disconnected from scanner');
-          setIsConnected(false);
-          setTimeout(connectToScanner, 5000);
-        };
-
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-        };
-
-        setSocket(ws);
+          });
+        }
       } catch (error) {
-        console.error('Failed to connect:', error);
-        setTimeout(connectToScanner, 5000);
+        // Silent error handling - already logged by main WebSocket hook
       }
     };
 
-    connectToScanner();
-
-    return () => {
-      if (socket) {
-        socket.close();
-      }
-    };
-  }, [lastUpdateTime]);
+    // Listen to native WebSocket message events if connection exists
+    const ws = document.querySelector('script')?.textContent?.includes('WebSocket') ? window : null;
+    if (ws) {
+      window.addEventListener('message', handleMessage);
+      return () => window.removeEventListener('message', handleMessage);
+    }
+  }, []);
 
   // Function to update token pair activities
   const updateTokenActivities = (swap: PoolSwap) => {

@@ -188,7 +188,10 @@ impl RelayConsumer {
         loop {
             match Self::connect_to_relay(&relay_path).await {
                 Ok(mut stream) => {
-                    info!("Connected to {:?} relay", domain);
+                    info!("✅ Connected to {:?} relay", domain);
+                    if matches!(domain, RelayDomain::Signal) {
+                        info!("🎯 Signal relay consumer ready to receive arbitrage signals");
+                    }
 
                     let mut buffer = vec![0u8; 8192];
                     let mut message_buffer = Vec::new(); // Accumulate partial messages
@@ -207,6 +210,10 @@ impl RelayConsumer {
                                 break;
                             }
                             Ok(Ok(bytes_read)) => {
+                                // Extra debugging for Signal relay
+                                if matches!(domain, RelayDomain::Signal) {
+                                    info!("🔍 Signal relay: Read {} bytes", bytes_read);
+                                }
                                 debug!("Read {} bytes from {:?} relay", bytes_read, domain);
 
                                 // Log first 32 bytes in hex for debugging
@@ -246,6 +253,16 @@ impl RelayConsumer {
                             Err(_timeout) => {
                                 // Timeout occurred - no data available, continue polling
                                 // This prevents infinite blocking and enables continuous streaming
+                                // Log timeouts for Signal relay debugging
+                                if matches!(domain, RelayDomain::Signal) {
+                                    static mut TIMEOUT_COUNT: u32 = 0;
+                                    unsafe {
+                                        TIMEOUT_COUNT += 1;
+                                        if TIMEOUT_COUNT % 100 == 0 {
+                                            debug!("Signal relay: {} read timeouts (normal during idle)", TIMEOUT_COUNT);
+                                        }
+                                    }
+                                }
                                 continue;
                             }
                         }
@@ -273,21 +290,27 @@ impl RelayConsumer {
         domain: RelayDomain,
         signal_buffer: &mut HashMap<u64, (Option<Value>, Option<Value>)>,
     ) -> Result<()> {
+        info!(
+            "🔍 Processing relay data: {} bytes, domain={:?}",
+            data.len(),
+            domain
+        );
         // Use appropriate parsing based on domain policy:
-        // MarketDataRelay: Skip checksum validation for performance
-        // SignalRelay, ExecutionRelay: Enforce checksum validation
+        // MarketDataRelay & SignalRelay: Skip checksum validation for performance
+        // ExecutionRelay: Enforce checksum validation for security
         let header = match domain {
-            RelayDomain::MarketData => {
+            RelayDomain::MarketData | RelayDomain::Signal => {
                 // Fast parsing without checksum validation (performance optimization)
+                // Signal domain also skips checksum as messages have checksum=0
                 match Self::parse_header_fast(data) {
                     Ok(header) => header,
                     Err(e) => {
-                        debug!("Failed to parse MarketData header (fast): {}", e);
+                        debug!("Failed to parse {:?} header (fast): {}", domain, e);
                         return Ok(()); // Skip malformed messages
                     }
                 }
             }
-            RelayDomain::Signal | RelayDomain::Execution | RelayDomain::System => {
+            RelayDomain::Execution | RelayDomain::System => {
                 // Full parsing with checksum validation (reliability/security)
                 match parse_header(data) {
                     Ok(header) => header,
@@ -339,9 +362,21 @@ impl RelayConsumer {
     ) -> Result<()> {
         // Use protocol's TLV parser
         let tlvs = match parse_tlv_extensions(tlv_data) {
-            Ok(tlvs) => tlvs,
+            Ok(tlvs) => {
+                info!(
+                    "✅ Parsed {} TLV extensions from {} bytes",
+                    tlvs.len(),
+                    tlv_data.len()
+                );
+                tlvs
+            }
             Err(e) => {
-                debug!("Failed to parse TLV data: {}", e);
+                error!(
+                    "❌ TLV parsing failed: {:?} (data_len={}, first_bytes={:02x?})",
+                    e,
+                    tlv_data.len(),
+                    &tlv_data[..std::cmp::min(32, tlv_data.len())]
+                );
                 return Ok(()); // Skip malformed TLV data
             }
         };
@@ -352,11 +387,24 @@ impl RelayConsumer {
             // Extract TLV data based on variant
             let (tlv_type, tlv_payload) = match &tlv {
                 TLVExtensionEnum::Standard(std_tlv) => (std_tlv.header.tlv_type, &std_tlv.payload),
-                TLVExtensionEnum::Extended(ext_tlv) => (ext_tlv.header.tlv_type, &ext_tlv.payload),
+                TLVExtensionEnum::Extended(ext_tlv) => {
+                    info!(
+                        "📦 Extended TLV detected: type={}, payload_size={}",
+                        ext_tlv.header.tlv_type,
+                        ext_tlv.payload.len()
+                    );
+                    (ext_tlv.header.tlv_type, &ext_tlv.payload)
+                }
             };
 
             // Convert TLV to JSON using protocol parsing
             let json_message = convert_tlv_to_json(tlv_type, tlv_payload, timestamp)?;
+
+            // Log TLV type for debugging
+            if tlv_type == 255 {
+                info!("🔍 Processing TLV type 255 (DemoDeFiArbitrageTLV)");
+                info!("📊 JSON message created: {:?}", json_message);
+            }
 
             match tlv_type {
                 1 => {
@@ -450,8 +498,13 @@ impl RelayConsumer {
                 255 => {
                     // ExtendedTLV - DemoDeFiArbitrageTLV
                     // The converter already creates the full arbitrage opportunity message
-                    client_manager.broadcast(json_message).await;
-                    debug!("Broadcasted DemoDeFiArbitrageTLV message");
+                    client_manager.broadcast(json_message.clone()).await;
+                    info!(
+                        "🎯 Broadcasted DemoDeFiArbitrageTLV signal with profit: {}",
+                        json_message
+                            .get("expected_profit_usd")
+                            .unwrap_or(&serde_json::Value::Null)
+                    );
                 }
                 _ => {
                     // Broadcast other message types immediately
@@ -522,15 +575,30 @@ impl RelayConsumer {
             // Parse header at exact offset
             let header_slice = &message_buffer[offset..offset + 32];
             let header = match domain {
-                RelayDomain::MarketData => Self::parse_header_fast(header_slice),
+                RelayDomain::MarketData | RelayDomain::Signal => {
+                    Self::parse_header_fast(header_slice)
+                }
                 _ => parse_header(header_slice),
             };
 
             match header {
                 Ok(header) => {
                     let total_message_size = 32 + header.payload_size as usize;
-                    debug!("Found valid message: payload_size={}, total_size={} at offset={}, magic=0x{:08X}",
-                           header.payload_size, total_message_size, offset, header.magic);
+                    info!(
+                        "📦 Found message at offset {}: size={} (header=32 + payload={})",
+                        offset, total_message_size, header.payload_size
+                    );
+
+                    // Validate expected message size for DemoDeFiArbitrageTLV
+                    if total_message_size == 258 {
+                        debug!("Standard DemoDeFiArbitrageTLV message detected");
+                    } else if total_message_size == 516 || total_message_size == 774 {
+                        warn!(
+                            "⚠️ Unexpected concatenated size: {} bytes ({}x258)",
+                            total_message_size,
+                            total_message_size / 258
+                        );
+                    }
 
                     // Validate complete message availability
                     if offset + total_message_size > message_buffer.len() {

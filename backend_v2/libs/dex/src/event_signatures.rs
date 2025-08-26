@@ -111,7 +111,7 @@ pub const ERC20_APPROVAL: H256 = H256([
 pub const fn get_all_dex_signatures() -> [H256; 7] {
     [
         UNISWAP_V2_SWAP,
-        UNISWAP_V2_MINT, 
+        UNISWAP_V2_MINT,
         UNISWAP_V2_BURN,
         UNISWAP_V2_SYNC,
         UNISWAP_V3_SWAP,
@@ -127,7 +127,12 @@ pub const fn get_swap_signatures() -> [H256; 2] {
 
 /// Get mint/burn signatures for liquidity monitoring
 pub const fn get_liquidity_signatures() -> [H256; 4] {
-    [UNISWAP_V2_MINT, UNISWAP_V2_BURN, UNISWAP_V3_MINT, UNISWAP_V3_BURN]
+    [
+        UNISWAP_V2_MINT,
+        UNISWAP_V2_BURN,
+        UNISWAP_V3_MINT,
+        UNISWAP_V3_BURN,
+    ]
 }
 
 /// Convert H256 to hex string for JSON-RPC use
@@ -217,7 +222,7 @@ mod tests {
     #[test]
     fn verify_signature_uniqueness() {
         let signatures = get_all_dex_signatures();
-        
+
         // Ensure all signatures are unique
         for (i, sig1) in signatures.iter().enumerate() {
             for (j, sig2) in signatures.iter().enumerate() {
@@ -239,7 +244,7 @@ mod tests {
             swap_str,
             "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67"
         );
-        
+
         let mint_str = to_hex_string(UNISWAP_V2_MINT);
         assert_eq!(
             mint_str,
@@ -251,12 +256,12 @@ mod tests {
     fn verify_constant_arrays() {
         let all_sigs = get_all_dex_signatures();
         assert_eq!(all_sigs.len(), 7);
-        
+
         let swap_sigs = get_swap_signatures();
         assert_eq!(swap_sigs.len(), 2);
         assert_eq!(swap_sigs[0], UNISWAP_V2_SWAP);
         assert_eq!(swap_sigs[1], UNISWAP_V3_SWAP);
-        
+
         let liquidity_sigs = get_liquidity_signatures();
         assert_eq!(liquidity_sigs.len(), 4);
     }
@@ -279,11 +284,26 @@ mod tests {
         let v3_mint_parsed: H256 = v3_mint_str.parse().expect("Failed to parse V3 mint");
         let v2_burn_parsed: H256 = v2_burn_str.parse().expect("Failed to parse V2 burn");
 
-        assert_eq!(v2_swap_parsed, UNISWAP_V2_SWAP, "V2 Swap hardcoded signature mismatch");
-        assert_eq!(v3_swap_parsed, UNISWAP_V3_SWAP, "V3 Swap hardcoded signature mismatch");
-        assert_eq!(v2_mint_parsed, UNISWAP_V2_MINT, "V2 Mint hardcoded signature mismatch");
-        assert_eq!(v3_mint_parsed, UNISWAP_V3_MINT, "V3 Mint hardcoded signature mismatch");
-        assert_eq!(v2_burn_parsed, UNISWAP_V2_BURN, "V2 Burn hardcoded signature mismatch");
+        assert_eq!(
+            v2_swap_parsed, UNISWAP_V2_SWAP,
+            "V2 Swap hardcoded signature mismatch"
+        );
+        assert_eq!(
+            v3_swap_parsed, UNISWAP_V3_SWAP,
+            "V3 Swap hardcoded signature mismatch"
+        );
+        assert_eq!(
+            v2_mint_parsed, UNISWAP_V2_MINT,
+            "V2 Mint hardcoded signature mismatch"
+        );
+        assert_eq!(
+            v3_mint_parsed, UNISWAP_V3_MINT,
+            "V3 Mint hardcoded signature mismatch"
+        );
+        assert_eq!(
+            v2_burn_parsed, UNISWAP_V2_BURN,
+            "V2 Burn hardcoded signature mismatch"
+        );
     }
 
     /// Test that verifies the mathematical relationship between event signatures
@@ -297,7 +317,7 @@ mod tests {
 
         // Swap signatures should be different for V2 vs V3
         assert_ne!(UNISWAP_V2_SWAP, UNISWAP_V3_SWAP);
-        
+
         // Same event types should be different between protocols
         assert_ne!(UNISWAP_V2_MINT, UNISWAP_V3_MINT);
         assert_ne!(UNISWAP_V2_BURN, UNISWAP_V3_BURN);
