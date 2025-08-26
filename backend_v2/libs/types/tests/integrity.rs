@@ -8,7 +8,6 @@
 
 mod common;
 
-use common::*;
 use alphapulse_types::protocol::{
     current_timestamp_ns, parse_header,
     tlv::{ParseError, TLVMessageBuilder},
@@ -18,6 +17,7 @@ use alphapulse_types::protocol::{
     },
     InstrumentId, MessageHeader, RelayDomain, SourceType, TLVType, VenueId, MESSAGE_MAGIC,
 };
+use common::*;
 use std::time::Instant;
 
 #[test]

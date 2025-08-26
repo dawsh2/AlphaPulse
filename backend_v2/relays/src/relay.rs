@@ -4,9 +4,9 @@ use crate::{
     create_transport_from_config, InfraTransportAdapter, MessageValidator, RelayConfig, RelayError,
     RelayResult, TopicRegistry, TransportAdapterConfig,
 };
-use bytes::Bytes;
-use alphapulse_types::protocol::{MessageHeader, RelayDomain};
 use alphapulse_codec::{parse_header, CodecError};
+use alphapulse_types::protocol::{MessageHeader, RelayDomain};
+use bytes::Bytes;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
@@ -181,7 +181,6 @@ impl Relay {
             ))
         }
     }
-
 
     /// Check if message is for this relay's domain
     fn is_my_domain(&self, domain: u8) -> bool {

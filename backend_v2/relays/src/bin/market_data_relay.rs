@@ -49,12 +49,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create market data logic
     let logic = MarketDataLogic;
-    info!("✅ Market Data Logic: domain={:?}, socket={}", 
-          logic.domain(), logic.socket_path());
+    info!(
+        "✅ Market Data Logic: domain={:?}, socket={}",
+        logic.domain(),
+        logic.socket_path()
+    );
 
     // Create and start relay
     let mut relay = Relay::new(logic);
-    
+
     match relay.run().await {
         Ok(()) => {
             info!("✅ Market Data Relay completed successfully");

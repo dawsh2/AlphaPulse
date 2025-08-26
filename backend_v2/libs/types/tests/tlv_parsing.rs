@@ -8,12 +8,12 @@
 
 mod common;
 
-use common::*;
 use alphapulse_types::protocol::{
     parse_header, parse_tlv_extensions,
     tlv::{parse_tlv_extensions_for_relay, ParseError, TLVMessageBuilder},
     InstrumentId, MessageHeader, RelayDomain, SourceType, TLVType, VenueId,
 };
+use common::*;
 
 #[test]
 fn test_fragmented_network_packet() {

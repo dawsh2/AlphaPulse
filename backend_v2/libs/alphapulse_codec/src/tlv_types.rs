@@ -75,7 +75,6 @@ pub enum TLVType {
     // ═══════════════════════════════════════════════════════════════════════
     // Market Data Domain (1-19) - Routes through MarketDataRelay
     // ═══════════════════════════════════════════════════════════════════════
-
     /// Individual trade execution with price, volume, side, timestamp (40 bytes)
     Trade = 1,
 
@@ -104,7 +103,6 @@ pub enum TLVType {
     // ═══════════════════════════════════════════════════════════════════════
     // Strategy Signal Domain (20-39) - Routes through SignalRelay
     // ═══════════════════════════════════════════════════════════════════════
-
     /// Strategy identification with signal ID and confidence (16 bytes)
     SignalIdentity = 20,
 
@@ -124,7 +122,6 @@ pub enum TLVType {
     // ═══════════════════════════════════════════════════════════════════════
     // Execution Domain (40-59) - Routes through ExecutionRelay
     // ═══════════════════════════════════════════════════════════════════════
-
     OrderRequest = 40,
     OrderStatus = 41,
     Fill = 42,
@@ -139,7 +136,6 @@ pub enum TLVType {
     // ═══════════════════════════════════════════════════════════════════════
     // System Domain (100-119) - Routes through SystemRelay
     // ═══════════════════════════════════════════════════════════════════════
-
     Heartbeat = 100,
     Snapshot = 101,
     Error = 102,
@@ -209,10 +205,14 @@ impl TLVType {
     pub fn is_implemented(&self) -> bool {
         // For now, mark core types as implemented
         match *self {
-            TLVType::Trade | TLVType::Quote | TLVType::SignalIdentity |
-            TLVType::Economics | TLVType::Heartbeat | TLVType::GasPrice => true,
+            TLVType::Trade
+            | TLVType::Quote
+            | TLVType::SignalIdentity
+            | TLVType::Economics
+            | TLVType::Heartbeat
+            | TLVType::GasPrice => true,
             TLVType::ExtendedTLV => false, // Special marker type
-            _ => false, // Most types are still reserved
+            _ => false,                    // Most types are still reserved
         }
     }
 

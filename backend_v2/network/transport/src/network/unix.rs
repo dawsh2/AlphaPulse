@@ -124,8 +124,9 @@ impl UnixSocketTransport {
 
         // Clean up socket file
         if self.config.cleanup_on_drop && self.config.path.exists() {
-            std::fs::remove_file(&self.config.path)
-                .map_err(|e| TransportError::network_with_source("Failed to remove socket file", e))?;
+            std::fs::remove_file(&self.config.path).map_err(|e| {
+                TransportError::network_with_source("Failed to remove socket file", e)
+            })?;
         }
 
         info!("Unix socket transport shut down");

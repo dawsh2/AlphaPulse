@@ -33,15 +33,18 @@ status: TODO → status: IN_PROGRESS
 # This makes the kanban board show you're working on it!
 ```
 
-### 1. Git Branch Safety
+### 1. Git Worktree Setup (REQUIRED)
 ```bash
-# BEFORE STARTING - VERIFY YOU'RE NOT ON MAIN:
-git branch --show-current
+# NEVER use git checkout - it changes all sessions!
+# ALWAYS use git worktree for isolated development:
+git worktree add -b fix/specific-issue-name ../task-xxx-worktree
+cd ../task-xxx-worktree
 
-# If you see "main", IMMEDIATELY run:
-git checkout -b fix/specific-issue-name
+# Verify you're in the correct worktree:
+git branch --show-current  # Should show: fix/specific-issue-name
+pwd  # Should show: ../task-xxx-worktree
 
-# NEVER commit directly to main!
+# NEVER work directly in main repository!
 ```
 
 ### 2. 🧪 TEST-DRIVEN DEVELOPMENT MANDATORY
@@ -59,7 +62,7 @@ git checkout -b fix/specific-issue-name
 ## Status
 **Status**: TODO (⚠️ CHANGE TO IN_PROGRESS WHEN YOU START!)
 **Priority**: CRITICAL
-**Branch**: `fix/specific-issue-name`
+**Worktree**: `../task-xxx-worktree` (Branch: `fix/specific-issue-name`)
 **Estimated**: 3 hours
 
 ## Problem Statement
@@ -100,7 +103,7 @@ git checkout -b fix/specific-issue-name
 echo "Write failing test in src/lib.rs #[cfg(test)] block"
 cargo test specific_test_name  # Should FAIL
 
-# Step 2: Minimal implementation 
+# Step 2: Minimal implementation
 echo "Add just enough code to make test pass"
 cargo test specific_test_name  # Should PASS
 
@@ -116,8 +119,8 @@ cargo test specific_test_name  # Should still PASS
 Following idiomatic Rust testing practices, implement **both** test types:
 
 #### 1. Unit Tests (REQUIRED) - White-Box Testing
-**Location**: Inside `src/` files in `#[cfg(test)] mod tests {}` blocks  
-**Access**: Can test private and public functions  
+**Location**: Inside `src/` files in `#[cfg(test)] mod tests {}` blocks
+**Access**: Can test private and public functions
 **Purpose**: Test internal algorithms, edge cases, private function logic
 
 ```rust
@@ -138,24 +141,24 @@ pub fn public_api(data: Data) -> Result<ProcessedData, Error> {
 #[cfg(test)]
 mod tests {
     use super::*; // Import everything from parent module
-    
+
     #[test]
     fn test_internal_helper() {
         // We CAN test private functions in unit tests!
         let valid_data = Data { size: 10, ..Default::default() };
         assert!(internal_helper(&valid_data));
-        
+
         let invalid_data = Data { size: 0, ..Default::default() };
         assert!(!internal_helper(&invalid_data));
     }
-    
+
     #[test]
     fn test_public_api_success() {
         let data = Data { size: 10, ..Default::default() };
         let result = public_api(data);
         assert!(result.is_ok());
     }
-    
+
     #[test]
     fn test_public_api_edge_cases() {
         // Test edge cases and error conditions
@@ -163,7 +166,7 @@ mod tests {
         let result = public_api(invalid_data);
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_precision_preservation() {
         // Critical for financial data
@@ -176,8 +179,8 @@ mod tests {
 ```
 
 #### 2. Integration Tests (REQUIRED if multiple components) - Black-Box Testing
-**Location**: In `tests/` directory (separate files)  
-**Access**: Only public API (what external users see)  
+**Location**: In `tests/` directory (separate files)
+**Access**: Only public API (what external users see)
 **Purpose**: Test component interactions, full workflows
 
 ```rust
@@ -188,7 +191,7 @@ use my_crate::{public_api, Data}; // Only import public items
 fn test_full_workflow_integration() {
     // This tests how external users would use our crate
     // We CANNOT call internal_helper() here - it's private!
-    
+
     let data = Data::new(10);
     let result = public_api(data).unwrap();
     assert_eq!(result.status, ProcessingStatus::Complete);
@@ -199,11 +202,11 @@ fn test_multi_component_integration() {
     // Test that different public components work together
     let processor = DataProcessor::new();
     let validator = DataValidator::new();
-    
+
     let data = Data::new(10);
     let validated = validator.validate(data).unwrap();
     let processed = processor.process(validated).unwrap();
-    
+
     assert!(processed.is_complete());
 }
 ```
@@ -244,30 +247,36 @@ grep -r "hardcoded_pattern" src/
 
 ## Git Workflow
 ```bash
-# 1. Start on your branch
-git checkout -b fix/specific-issue-name
+# 1. Create worktree (already done in step 1)
+git worktree add -b fix/specific-issue-name ../task-xxx-worktree
+cd ../task-xxx-worktree
 
 # 2. Make changes and commit
 git add -A
 git commit -m "fix: clear description of change"
 
-# 3. Push to your branch
+# 3. Push to origin
 git push origin fix/specific-issue-name
 
 # 4. Create PR
 gh pr create --title "Fix: Clear description" --body "Closes TASK-XXX"
+
+# 5. Clean up worktree after PR merge
+cd ../backend_v2  # Return to main repository
+git worktree remove ../task-xxx-worktree
+git branch -D fix/specific-issue-name  # Delete local branch if desired
 ```
 
 ## ✅ Before Marking Complete
 - [ ] All acceptance criteria met
-- [ ] Code committed to branch
+- [ ] Code committed in worktree
 - [ ] Tests passing (if applicable)
 - [ ] **UPDATE: Change `status: TODO` to `status: COMPLETE` in YAML frontmatter above**
 - [ ] Run: `../../../scrum/task-manager.sh sprint-XXX` to verify status
 
 ## Completion Checklist
 - [ ] **🚨 STEP 0: Changed status to IN_PROGRESS when starting** ← AGENTS MUST DO THIS!
-- [ ] Working on correct branch (not main)
+- [ ] Working in correct worktree (not main repository)
 - [ ] **🚨 TDD FOLLOWED: Tests written BEFORE implementation**
 - [ ] All tests pass (unit + integration)
 - [ ] All acceptance criteria met
@@ -278,7 +287,7 @@ gh pr create --title "Fix: Clear description" --body "Closes TASK-XXX"
 
 ## 📋 Sprint Task Workflow
 1. Pick task from TODO status
-2. **IMMEDIATELY**: Change status: TODO → IN_PROGRESS  
+2. **IMMEDIATELY**: Change status: TODO → IN_PROGRESS
 3. Do the work
 4. **BEFORE COMMITTING**: Change status: IN_PROGRESS → COMPLETE
 5. Verify with: `task-manager.sh sprint-XXX`
@@ -289,7 +298,7 @@ gh pr create --title "Fix: Clear description" --body "Closes TASK-XXX"
 2. This makes the kanban board show you're working on it
 
 **When you FINISH this task, you MUST:**
-1. Change `status: IN_PROGRESS` to `status: COMPLETE` in the YAML frontmatter above  
+1. Change `status: IN_PROGRESS` to `status: COMPLETE` in the YAML frontmatter above
 2. This is NOT optional - the task-manager.sh depends on accurate status
 3. If you forget, the task will show as incomplete forever
 4. Update immediately after PR is merged, not before
@@ -298,7 +307,7 @@ gh pr create --title "Fix: Clear description" --body "Closes TASK-XXX"
 
 ## Task Completion Protocol
 - [ ] Technical work completed
-- [ ] Code committed to branch
+- [ ] Code committed in worktree
 - [ ] Tests passing (if applicable)
 - [ ] **CRITICAL**: Update YAML status to COMPLETE
 - [ ] Verify status with task manager script

@@ -5,7 +5,7 @@
 use crate::{InstrumentId, VenueId}; // TLVType removed with legacy TLV system
                                     // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
 use super::address::{AddressPadding, EthAddress, ZERO_PADDING};
-use super::dynamic_payload::{DynamicPayload, FixedVec, MAX_ORDER_LEVELS, PayloadError};
+use super::dynamic_payload::{DynamicPayload, FixedVec, PayloadError, MAX_ORDER_LEVELS};
 use crate::{define_tlv, define_tlv_with_padding};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
@@ -82,7 +82,9 @@ impl TradeTLV {
 
     /// Convert to VenueId
     pub fn venue(&self) -> Result<VenueId, crate::ProtocolError> {
-        VenueId::try_from(self.venue_id).map_err(|_| super::super::ProtocolError::InvalidInstrument("Invalid venue_id".to_string()))
+        VenueId::try_from(self.venue_id).map_err(|_| {
+            super::super::ProtocolError::InvalidInstrument("Invalid venue_id".to_string())
+        })
     }
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
@@ -174,7 +176,9 @@ impl QuoteTLV {
 
     /// Convert to VenueId
     pub fn venue(&self) -> Result<VenueId, crate::ProtocolError> {
-        VenueId::try_from(self.venue_id).map_err(|_| super::super::ProtocolError::InvalidInstrument("Invalid venue_id".to_string()))
+        VenueId::try_from(self.venue_id).map_err(|_| {
+            super::super::ProtocolError::InvalidInstrument("Invalid venue_id".to_string())
+        })
     }
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
@@ -242,19 +246,19 @@ define_tlv! {
     /// OrderBook TLV structure for complete order book snapshots
     ///
     /// ## Performance Characteristics
-    /// - Zero-copy serialization via FixedVec (>1M msg/s target)  
+    /// - Zero-copy serialization via FixedVec (>1M msg/s target)
     /// - Bounded memory: ~2.4KB per OrderBook (50 levels × 2 sides × 24 bytes + overhead)
     /// - Trade-off: Fixed capacity may truncate deep order books
     /// - Memory layout optimized for cache efficiency via define_tlv! macro
     ///
     /// ## Memory Layout (Cache-Optimized Field Order)
-    /// 
+    ///
     /// The define_tlv! macro automatically orders fields by alignment for optimal cache performance:
     /// ```
     /// Offset | Size | Field            | Type                              | Notes
     /// -------|------|------------------|-----------------------------------|------------------
     /// 0      | 8    | timestamp_ns     | u64                               | Nanosecond timestamp
-    /// 8      | 8    | sequence         | u64                               | Gap detection sequence  
+    /// 8      | 8    | sequence         | u64                               | Gap detection sequence
     /// 16     | 8    | precision_factor | i64                               | Price/size conversion factor
     /// 24     | 8    | asset_id         | u64                               | From InstrumentId
     /// 32     | 2    | venue_id         | u16                               | Venue as primitive u16
@@ -268,7 +272,7 @@ define_tlv! {
     ///
     /// ## Field Access Notes for Debugging
     /// - All u64/i64 fields are at 8-byte aligned offsets (0, 8, 16, 24)
-    /// - u16 fields follow immediately (32)  
+    /// - u16 fields follow immediately (32)
     /// - u8 fields are packed together (34, 35)
     /// - FixedVec fields maintain their internal alignment
     /// - No padding between consecutive fields of same alignment class
@@ -278,7 +282,7 @@ define_tlv! {
     OrderBookTLV {
         u64: {
             timestamp_ns: u64,     // Nanosecond timestamp when snapshot was taken (offset 0)
-            sequence: u64,         // Sequence number for gap detection (offset 8) 
+            sequence: u64,         // Sequence number for gap detection (offset 8)
             precision_factor: i64, // Precision factor: 100_000_000 for 8-decimal, varies for DEX (offset 16)
             asset_id: u64         // Asset identifier from InstrumentId (offset 24)
         }
@@ -318,71 +322,89 @@ impl OrderBookTLV {
             FixedVec::new(),
             FixedVec::new(),
         );
-        
+
         // Debug assertions to verify field order assumptions match documentation
         #[cfg(debug_assertions)]
         Self::validate_field_layout(&order_book);
-        
+
         order_book
     }
-    
+
     /// Validate field layout assumptions in debug mode
-    /// 
+    ///
     /// This ensures the macro-generated field ordering matches our documented layout.
     /// Only compiled in debug mode to avoid runtime overhead in production.
     #[cfg(debug_assertions)]
     fn validate_field_layout(order_book: &Self) {
         // Verify u64 fields are at expected 8-byte aligned offsets
         debug_assert_eq!(
-            std::mem::offset_of!(OrderBookTLV, timestamp_ns), 0,
+            std::mem::offset_of!(OrderBookTLV, timestamp_ns),
+            0,
             "timestamp_ns should be at offset 0 (first u64 field)"
         );
         debug_assert_eq!(
-            std::mem::offset_of!(OrderBookTLV, sequence), 8,
+            std::mem::offset_of!(OrderBookTLV, sequence),
+            8,
             "sequence should be at offset 8 (second u64 field)"
         );
         debug_assert_eq!(
-            std::mem::offset_of!(OrderBookTLV, precision_factor), 16,
+            std::mem::offset_of!(OrderBookTLV, precision_factor),
+            16,
             "precision_factor should be at offset 16 (third u64/i64 field)"
         );
         debug_assert_eq!(
-            std::mem::offset_of!(OrderBookTLV, asset_id), 24,
+            std::mem::offset_of!(OrderBookTLV, asset_id),
+            24,
             "asset_id should be at offset 24 (fourth u64 field)"
         );
-        
+
         // Verify u16 fields follow u64 fields
         debug_assert_eq!(
-            std::mem::offset_of!(OrderBookTLV, venue_id), 32,
+            std::mem::offset_of!(OrderBookTLV, venue_id),
+            32,
             "venue_id should be at offset 32 (first u16 field after u64s)"
         );
-        
+
         // Verify u8 fields are packed after u16 fields
         debug_assert_eq!(
-            std::mem::offset_of!(OrderBookTLV, asset_type), 34,
+            std::mem::offset_of!(OrderBookTLV, asset_type),
+            34,
             "asset_type should be at offset 34 (first u8 field)"
         );
         debug_assert_eq!(
-            std::mem::offset_of!(OrderBookTLV, reserved), 35,
+            std::mem::offset_of!(OrderBookTLV, reserved),
+            35,
             "reserved should be at offset 35 (second u8 field)"
         );
-        
+
         // Verify FixedVec fields start after u8 fields (with alignment)
         debug_assert_eq!(
-            std::mem::offset_of!(OrderBookTLV, bids), 36,
+            std::mem::offset_of!(OrderBookTLV, bids),
+            36,
             "bids FixedVec should start at offset 36"
         );
-        
+
         // Verify total structure size matches expectations (~2.4KB)
         let actual_size = std::mem::size_of::<OrderBookTLV>();
         debug_assert!(
             actual_size >= 2400 && actual_size <= 2500,
-            "OrderBookTLV size {} should be around 2.4KB (2400-2500 bytes)", actual_size
+            "OrderBookTLV size {} should be around 2.4KB (2400-2500 bytes)",
+            actual_size
         );
-        
+
         // Verify field values are correctly set (basic sanity check)
-        debug_assert_eq!(order_book.timestamp_ns, order_book.timestamp_ns, "timestamp_ns field access works");
-        debug_assert_eq!(order_book.sequence, order_book.sequence, "sequence field access works");
-        debug_assert_eq!(order_book.asset_id, order_book.asset_id, "asset_id field access works");
+        debug_assert_eq!(
+            order_book.timestamp_ns, order_book.timestamp_ns,
+            "timestamp_ns field access works"
+        );
+        debug_assert_eq!(
+            order_book.sequence, order_book.sequence,
+            "sequence field access works"
+        );
+        debug_assert_eq!(
+            order_book.asset_id, order_book.asset_id,
+            "asset_id field access works"
+        );
     }
 
     /// Create new OrderBook with initial levels (bulk constructor)
@@ -396,10 +418,10 @@ impl OrderBookTLV {
         sequence: u64,
         precision_factor: i64,
     ) -> Self {
-        // Create FixedVecs, truncating if necessary  
+        // Create FixedVecs, truncating if necessary
         let bids_vec = Self::truncate_to_fixed_vec(bids);
         let asks_vec = Self::truncate_to_fixed_vec(asks);
-        
+
         // Use macro-generated constructor with proper field order
         let order_book = Self::new_raw(
             timestamp_ns,
@@ -412,16 +434,16 @@ impl OrderBookTLV {
             bids_vec,
             asks_vec,
         );
-        
-        // Debug assertions to verify field order assumptions  
+
+        // Debug assertions to verify field order assumptions
         #[cfg(debug_assertions)]
         Self::validate_field_layout(&order_book);
-        
+
         order_book
     }
 
     /// Helper method to truncate slice to FixedVec capacity with logging
-    /// 
+    ///
     /// Emits warning when truncation occurs to help monitor data loss in production
     fn truncate_to_fixed_vec(slice: &[OrderLevel]) -> FixedVec<OrderLevel, MAX_ORDER_LEVELS> {
         if slice.len() > MAX_ORDER_LEVELS {
@@ -434,7 +456,7 @@ impl OrderBookTLV {
                 MAX_ORDER_LEVELS,
                 slice.len() - MAX_ORDER_LEVELS
             );
-            
+
             FixedVec::from_slice(&slice[..MAX_ORDER_LEVELS]).unwrap()
         } else {
             FixedVec::from_slice(slice).unwrap()
@@ -553,7 +575,9 @@ impl OrderBookTLV {
 
     /// Convert to VenueId
     pub fn venue(&self) -> Result<VenueId, crate::ProtocolError> {
-        VenueId::try_from(self.venue_id).map_err(|_| super::super::ProtocolError::InvalidInstrument("Invalid venue_id".to_string()))
+        VenueId::try_from(self.venue_id).map_err(|_| {
+            super::super::ProtocolError::InvalidInstrument("Invalid venue_id".to_string())
+        })
     }
 
     /// Calculate total byte size for TLV payload
@@ -607,15 +631,15 @@ impl OrderBookTLV {
     }
 
     /// Zero-copy serialization using AsBytes trait (recommended)
-    /// 
+    ///
     /// This is the preferred way to serialize OrderBookTLV for maximum performance.
     /// The entire structure is serialized as a single memory block with no allocations.
-    /// 
+    ///
     /// # Performance
     /// - Zero allocations  
     /// - Direct memory access
     /// - Cache-friendly due to optimal field ordering by define_tlv! macro
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let order_book = OrderBookTLV::from_instrument(/*...*/);
@@ -629,10 +653,10 @@ impl OrderBookTLV {
     ///  
     /// This uses the macro-generated from_bytes() method for maximum performance.
     /// The structure is parsed directly from memory with no allocations.
-    /// 
+    ///
     /// Note: The macro-generated from_bytes() method is already available on OrderBookTLV.
     /// This convenience method adds validation on top of the zero-copy deserialization.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// let bytes: &[u8] = /* serialized data */;
@@ -641,10 +665,10 @@ impl OrderBookTLV {
     pub fn deserialize_zero_copy(bytes: &[u8]) -> Result<Self, String> {
         // Use the macro-generated zero-copy from_bytes method
         let order_book = Self::from_bytes(bytes)?;
-        
+
         // Add validation on top of zero-copy parsing
         order_book.validate()?;
-        
+
         Ok(order_book)
     }
 }
@@ -968,7 +992,9 @@ impl PoolSyncTLV {
     /// Get the venue as VenueId enum
     #[inline(always)]
     pub fn venue_id(&self) -> Result<VenueId, crate::ProtocolError> {
-        VenueId::try_from(self.venue).map_err(|_| super::super::ProtocolError::InvalidInstrument("Invalid venue".to_string()))
+        VenueId::try_from(self.venue).map_err(|_| {
+            super::super::ProtocolError::InvalidInstrument("Invalid venue".to_string())
+        })
     }
 
     // Manual serialization methods removed - use zero-copy AsBytes trait:

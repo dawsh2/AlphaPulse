@@ -25,10 +25,6 @@
 //! - **No retry logic**: Let external supervision handle restarts
 //! - **Complete transparency**: Log everything, hide nothing
 
-use anyhow::{Context, Result};
-use ethabi::{Event, EventParam, ParamType, RawLog};
-use futures_util::{SinkExt, StreamExt};
-use once_cell::sync::Lazy;
 use alphapulse_types::{
     parse_header, parse_tlv_extensions,
     tlv::build_message_direct,
@@ -37,6 +33,10 @@ use alphapulse_types::{
     tlv::pool_state::{PoolStateTLV, V2PoolConfig, V3PoolConfig},
     SourceType, TLVType, VenueId,
 };
+use anyhow::{Context, Result};
+use ethabi::{Event, EventParam, ParamType, RawLog};
+use futures_util::{SinkExt, StreamExt};
+use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};

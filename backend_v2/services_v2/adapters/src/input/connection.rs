@@ -1,7 +1,7 @@
 //! WebSocket connection management with automatic reconnection
 
-use futures_util::{SinkExt, StreamExt};
 use alphapulse_types::VenueId;
+use futures_util::{SinkExt, StreamExt};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;

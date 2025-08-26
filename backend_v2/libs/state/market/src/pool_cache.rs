@@ -9,15 +9,15 @@
 //! Uses Protocol V2 with full 20-byte addresses for execution compatibility.
 
 use alphapulse_state_core::{StateError, Stateful};
-use anyhow::Result;
-use crossbeam_channel::{bounded, Receiver, Sender};
-use dashmap::DashMap;
-use memmap2::MmapOptions;
 use alphapulse_types::{
     tlv::pool_cache::{CachePoolType, PoolCacheFileHeader, PoolCacheJournalEntry, PoolInfoTLV},
     tlv::DEXProtocol,
     VenueId,
 };
+use anyhow::Result;
+use crossbeam_channel::{bounded, Receiver, Sender};
+use dashmap::DashMap;
+use memmap2::MmapOptions;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
@@ -61,18 +61,20 @@ pub struct PoolInfo {
 impl PoolInfo {
     /// Convert to TLV format for persistence
     pub fn to_tlv(&self) -> PoolInfoTLV {
-        PoolInfoTLV::from_config(alphapulse_types::protocol::tlv::pool_cache::PoolInfoConfig {
-            pool_address: self.pool_address,
-            token0_address: self.token0,
-            token1_address: self.token1,
-            token0_decimals: self.token0_decimals,
-            token1_decimals: self.token1_decimals,
-            pool_type: pool_type_to_cache_type(self.pool_type),
-            fee_tier: self.fee_tier.unwrap_or(0),
-            venue: self.venue,
-            discovered_at: self.discovered_at,
-            last_seen: self.last_seen,
-        })
+        PoolInfoTLV::from_config(
+            alphapulse_types::protocol::tlv::pool_cache::PoolInfoConfig {
+                pool_address: self.pool_address,
+                token0_address: self.token0,
+                token1_address: self.token1,
+                token0_decimals: self.token0_decimals,
+                token1_decimals: self.token1_decimals,
+                pool_type: pool_type_to_cache_type(self.pool_type),
+                fee_tier: self.fee_tier.unwrap_or(0),
+                venue: self.venue,
+                discovered_at: self.discovered_at,
+                last_seen: self.last_seen,
+            },
+        )
     }
 
     /// Create from TLV format

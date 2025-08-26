@@ -1,7 +1,7 @@
 //! Configuration for Kraken unified collector
 
-use anyhow::{Context, Result};
 use alphapulse_types::RelayDomain;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 

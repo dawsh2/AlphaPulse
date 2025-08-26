@@ -1,9 +1,9 @@
 //! Performance benchmarks for typed ID system
-//! 
+//!
 //! Verifies zero-cost abstraction property of typed IDs
 
+use alphapulse_types::{OrderId, PoolId, SignalId, StrategyId};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use alphapulse_types::{OrderId, SignalId, StrategyId, PoolId};
 
 fn bench_raw_u64_operations(c: &mut Criterion) {
     c.bench_function("raw_u64_creation", |b| {
@@ -72,13 +72,13 @@ fn bench_mixed_typed_ids(c: &mut Criterion) {
             let signal = SignalId::new(criterion::black_box(2));
             let strategy = StrategyId::new(criterion::black_box(3));
             let pool = PoolId::new(criterion::black_box(4));
-            
+
             // Simulate some operations
             let order_next = order.next();
             let signal_inner = signal.inner();
             let strategy_null = strategy.is_null();
             let pool_display = format!("{}", pool);
-            
+
             criterion::black_box((order_next, signal_inner, strategy_null, pool_display))
         })
     });
@@ -109,10 +109,10 @@ fn bench_memory_layout(c: &mut Criterion) {
             let raw_size = std::mem::size_of::<u64>();
             let typed_size = std::mem::size_of::<OrderId>();
             let align_size = std::mem::align_of::<OrderId>();
-            
+
             assert_eq!(raw_size, typed_size);
             assert_eq!(align_size, std::mem::align_of::<u64>());
-            
+
             criterion::black_box((raw_size, typed_size, align_size))
         })
     });

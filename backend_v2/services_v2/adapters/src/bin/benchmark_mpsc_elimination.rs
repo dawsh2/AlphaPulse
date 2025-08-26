@@ -10,10 +10,10 @@
 //! - Removal of channel allocation/send overhead
 //! - Reduced backpressure management complexity
 
-use anyhow::Result;
 use alphapulse_types::{
     tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
+use anyhow::Result;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;

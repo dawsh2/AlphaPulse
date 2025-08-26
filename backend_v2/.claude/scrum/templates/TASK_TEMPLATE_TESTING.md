@@ -5,16 +5,29 @@ task_id: [CATEGORY]-[NUMBER]
 status: TODO
 priority: [CRITICAL|HIGH|MEDIUM|LOW]
 estimated_hours: [1-8]
-branch: [branch-name]
+assigned_branch: [branch-name]
+worktree_path: ../task-worktree
 dependencies: [list dependencies if any]
 ---
+
+## Git Worktree Setup (REQUIRED)
+```bash
+# NEVER use git checkout - it changes all sessions!
+# Create isolated worktree for this task:
+git worktree add -b [branch-name] ../task-worktree
+cd ../task-worktree
+
+# Verify setup:
+git branch --show-current  # Should show: [branch-name]
+pwd  # Should show: ../task-worktree
+```
 
 ## Task Description
 [Clear, concise description of what needs to be done]
 
 ## Definition of Done
 - [ ] **Unit Tests**: All new functions have comprehensive unit tests (Layer 1)
-- [ ] **Integration Tests**: Component interactions are tested (Layer 2) 
+- [ ] **Integration Tests**: Component interactions are tested (Layer 2)
 - [ ] **Property Tests**: Mathematical properties validated where applicable
 - [ ] **Fuzz Tests**: Input validation and security testing for parsers
 - [ ] **E2E Tests**: Golden path test added if changing core pipeline
@@ -34,19 +47,19 @@ dependencies: [list dependencies if any]
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_[specific_behavior]() {
         // Given: Setup conditions
         let input = create_test_input();
-        
+
         // When: Execute function
         let result = function_under_test(input);
-        
+
         // Then: Assert expected outcome
         assert_eq!(result, expected_value);
     }
-    
+
     #[test]
     fn test_[edge_case]() {
         // Test boundary conditions, error cases, etc.
@@ -144,7 +157,7 @@ fn test_message_roundtrip() {
     let mut builder = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::Dashboard);
     builder.add_tlv(1, &test_data);
     let message = builder.build();
-    
+
     let header = parse_header(&message).expect("Should parse header");
     assert_eq!(header.relay_domain, RelayDomain::MarketData);
 }
@@ -156,13 +169,13 @@ fn test_message_roundtrip() {
 fn test_arbitrage_profit_calculation() {
     let pool_a = create_pool_state(reserve0, reserve1, fee);
     let pool_b = create_pool_state(reserve0_b, reserve1_b, fee_b);
-    
+
     let result = calculate_arbitrage_profit(&pool_a, &pool_b);
-    
+
     // NEVER hardcode expected profit - calculate it
     let expected = calculate_expected_profit_manually(&pool_a, &pool_b);
     let tolerance = expected * 0.01; // 1% tolerance
-    
+
     assert!((result.profit - expected).abs() < tolerance,
            "Profit calculation mismatch: got {}, expected {}", result.profit, expected);
 }
@@ -174,12 +187,12 @@ fn test_arbitrage_profit_calculation() {
 async fn test_relay_message_routing() {
     let relay = start_test_relay().await;
     let consumer = connect_test_consumer(&relay).await;
-    
+
     relay.send_message(test_tlv_message).await;
-    
+
     let received = consumer.receive_message().await.expect("Should receive message");
     let parsed = parse_tlv_message(&received).expect("Should parse TLV");
-    
+
     assert_eq!(parsed.message_type, expected_type);
 }
 ```
@@ -191,7 +204,7 @@ async fn test_relay_message_routing() {
 │   └── lib.rs
 ├── tests/
 │   ├── unit/           # Layer 1: Fast, isolated tests
-│   ├── integration/    # Layer 2: Component interaction  
+│   ├── integration/    # Layer 2: Component interaction
 │   └── e2e/           # Layer 3: Full pipeline tests
 ├── benches/           # Performance benchmarks
 └── fuzz/             # Fuzz testing targets

@@ -55,6 +55,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tracing::{debug, error, info, warn};
 
+use alphapulse_types::protocol::tlv::system::TraceId;
 use alphapulse_types::{
     parse_header_without_checksum,
     PoolSwapTLV,
@@ -63,7 +64,6 @@ use alphapulse_types::{
     TraceEvent,
     TraceEventType,
 };
-use alphapulse_types::protocol::tlv::system::TraceId;
 
 // Import from shared types library for financial calculations
 use alphapulse_types::common::errors::FixedPointError;

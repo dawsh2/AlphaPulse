@@ -7,9 +7,9 @@ use crate::{
     TraceCollectorStats, TraceError, TraceEventProcessor, TraceId, TraceTimeline,
 };
 
+use alphapulse_types::TraceEvent;
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use alphapulse_types::TraceEvent;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 use std::path::Path;
 use std::sync::Arc;

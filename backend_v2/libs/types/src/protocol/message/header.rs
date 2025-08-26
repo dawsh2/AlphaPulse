@@ -2,8 +2,8 @@
 //!
 //! The header is identical for all messages and contains routing and validation information.
 
-use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use super::super::{ProtocolError, RelayDomain, SourceType, MESSAGE_MAGIC};
+use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use std::time::{SystemTime, UNIX_EPOCH};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 

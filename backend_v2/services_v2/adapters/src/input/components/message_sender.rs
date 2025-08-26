@@ -17,7 +17,6 @@
 //!
 //! Supports Protocol V2 performance targets through optimized message building pipeline.
 
-use async_trait::async_trait;
 use alphapulse_types::{
     tlv::build_message_direct,
     tlv::market_data::{
@@ -26,6 +25,7 @@ use alphapulse_types::{
     },
     RelayDomain, SourceType, TLVType,
 };
+use async_trait::async_trait;
 use std::sync::Arc;
 
 use crate::output::RelayOutput;

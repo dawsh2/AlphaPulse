@@ -6,8 +6,8 @@ pub mod connection;
 pub mod state_manager;
 
 use crate::Result;
-use async_trait::async_trait;
 use alphapulse_types::{InstrumentId, VenueId};
+use async_trait::async_trait;
 
 pub use connection::{ConnectionManager, ConnectionState};
 pub use state_manager::StateManager;

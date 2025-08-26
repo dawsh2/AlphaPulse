@@ -8,12 +8,12 @@
 
 mod common;
 
-use common::*;
 use alphapulse_types::protocol::{
     recovery::{RecoveryRequestBuilder, RecoveryRequestTLV, RecoveryRequestType},
     tlv::TLVMessageBuilder,
     MessageHeader, RelayDomain, SourceType, TLVType,
 };
+use common::*;
 use std::collections::HashMap;
 
 #[test]

@@ -36,11 +36,11 @@
 //! - **Validation Overhead**: <0.1ms per message validation
 
 use crate::output::RelayOutput;
-use async_trait::async_trait;
-use futures_util::{SinkExt, StreamExt};
 use alphapulse_types::{
     tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
+use async_trait::async_trait;
+use futures_util::{SinkExt, StreamExt};
 use rust_decimal::prelude::{FromStr, ToPrimitive};
 use rust_decimal::Decimal;
 use serde::Deserialize;

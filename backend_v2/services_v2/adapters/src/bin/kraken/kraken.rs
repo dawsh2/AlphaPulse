@@ -24,13 +24,13 @@
 //! - **Throughput**: Designed for >1M msg/s TLV construction
 //! - **Memory**: <50MB steady state with multiple pair subscriptions
 
-use anyhow::{Context, Result};
-use futures_util::{SinkExt, StreamExt};
 use alphapulse_types::{
     parse_header, parse_tlv_extensions, tlv::build_message_direct,
     tlv::fast_timestamp::init_timestamp_system, InstrumentId, QuoteTLV, RelayDomain, SourceType,
     TLVType, TradeTLV, VenueId,
 };
+use anyhow::{Context, Result};
+use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};

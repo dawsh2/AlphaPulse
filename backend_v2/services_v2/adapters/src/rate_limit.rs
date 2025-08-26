@@ -1,7 +1,7 @@
 //! Rate limiting for API requests
 
-use governor::{DefaultDirectRateLimiter, Quota};
 use alphapulse_types::VenueId;
+use governor::{DefaultDirectRateLimiter, Quota};
 use std::collections::HashMap;
 use std::sync::Arc;
 

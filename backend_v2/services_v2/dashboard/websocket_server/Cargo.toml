@@ -13,6 +13,7 @@ serde_json = "1.0"
 
 # Protocol dependencies
 alphapulse-types = { path = "../../../libs/types" }
+alphapulse_codec = { path = "../../../libs/alphapulse_codec" }
 
 # WebSocket server
 tokio-tungstenite = "0.24"

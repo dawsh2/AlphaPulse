@@ -42,12 +42,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create execution logic
     let logic = ExecutionLogic;
-    info!("✅ Execution Logic: domain={:?}, socket={}", 
-          logic.domain(), logic.socket_path());
+    info!(
+        "✅ Execution Logic: domain={:?}, socket={}",
+        logic.domain(),
+        logic.socket_path()
+    );
 
     // Create and start relay
     let mut relay = Relay::new(logic);
-    
+
     match relay.run().await {
         Ok(()) => {
             info!("✅ Execution Relay completed successfully");

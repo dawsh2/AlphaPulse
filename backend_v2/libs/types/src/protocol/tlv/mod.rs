@@ -312,7 +312,8 @@ pub use address::{AddressConversion, AddressExtraction, PaddedAddress};
 pub use arbitrage_signal::{ArbitrageSignalTLV, ARBITRAGE_SIGNAL_TLV_SIZE};
 pub use builder::*;
 pub use dynamic_payload::{
-    DynamicPayload, FixedStr, FixedVec, PayloadError, MAX_INSTRUMENTS, MAX_POOL_TOKENS, MAX_ORDER_LEVELS,
+    DynamicPayload, FixedStr, FixedVec, PayloadError, MAX_INSTRUMENTS, MAX_ORDER_LEVELS,
+    MAX_POOL_TOKENS,
 };
 pub use extended::*;
 pub use fast_timestamp::{fast_timestamp_ns, init_timestamp_system, precise_timestamp_ns};

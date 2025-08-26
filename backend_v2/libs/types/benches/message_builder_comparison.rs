@@ -1,14 +1,19 @@
-//! Benchmark comparing legacy TLVMessageBuilder vs TrueZeroCopyBuilder
+//! Benchmark for TLVMessageBuilder performance with typed IDs
+//!
+//! Tests TLV message construction performance and compares raw vs typed ID usage
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use alphapulse_types::{
-    protocol::tlv::{
-        builder::TLVMessageBuilder,
-        market_data::TradeTLV,
-        zero_copy_builder_v2::{build_message_direct, TrueZeroCopyBuilder},
-    },
-    InstrumentId, VenueId, RelayDomain, SourceType, TLVType,
+    protocol::tlv::{builder::TLVMessageBuilder, market_data::TradeTLV},
+    InstrumentId,
+    OrderId,
+    RelayDomain,
+    SignalId,
+    SourceType,
+    StrategyId, // Add typed IDs for testing
+    TLVType,
+    VenueId,
 };
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 fn create_trade_tlv() -> TradeTLV {
     TradeTLV::new(
@@ -26,10 +31,10 @@ fn create_trade_tlv() -> TradeTLV {
     )
 }
 
-fn bench_legacy_builder(c: &mut Criterion) {
+fn bench_tlv_builder_single_message(c: &mut Criterion) {
     let trade = create_trade_tlv();
 
-    c.bench_function("legacy_builder_single_tlv", |b| {
+    c.bench_function("tlv_builder_single_message", |b| {
         b.iter(|| {
             let message =
                 TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector)
@@ -40,49 +45,38 @@ fn bench_legacy_builder(c: &mut Criterion) {
     });
 }
 
-fn bench_true_zero_copy_builder(c: &mut Criterion) {
+fn bench_tlv_builder_multiple_messages(c: &mut Criterion) {
     let trade = create_trade_tlv();
 
-    c.bench_function("true_zero_copy_builder_single_tlv", |b| {
+    c.bench_function("tlv_builder_multiple_messages", |b| {
         b.iter(|| {
-            let message = build_message_direct(
-                RelayDomain::MarketData,
-                SourceType::PolygonCollector,
-                TLVType::Trade,
-                &trade,
-            )
-            .unwrap();
-            criterion::black_box(message);
+            let message1 =
+                TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector)
+                    .add_tlv(TLVType::Trade, &trade)
+                    .build();
+            let message2 =
+                TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
+                    .add_tlv(TLVType::Trade, &trade)
+                    .build();
+            criterion::black_box((message1, message2));
         })
     });
 }
 
-fn bench_true_zero_copy_with_thread_local_buffer(c: &mut Criterion) {
-    let trade = create_trade_tlv();
-
-    // Warmup the thread-local buffer
-    for _ in 0..100 {
-        let _ = with_hot_path_buffer(|buffer| {
-            let builder =
-                TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
-            builder
-                .build_into_buffer(buffer, TLVType::Trade, &trade)
-                .map(|size| (size, size))
-        });
-    }
-
-    c.bench_function("true_zero_copy_with_thread_local_buffer", |b| {
+fn bench_typed_id_operations(c: &mut Criterion) {
+    c.bench_function("typed_id_operations_in_context", |b| {
         b.iter(|| {
-            let size = with_hot_path_buffer(|buffer| {
-                let builder =
-                    TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
-                let size = builder
-                    .build_into_buffer(buffer, TLVType::Trade, &trade)
-                    .unwrap();
-                Ok((size, size))
-            })
-            .unwrap();
-            criterion::black_box(size);
+            // Simulate using typed IDs in message construction context
+            let order = OrderId::new(criterion::black_box(12345));
+            let signal = SignalId::new(criterion::black_box(67890));
+            let strategy = StrategyId::new(criterion::black_box(1001));
+
+            // Simulate operations that would be used with TLV messages
+            let order_inner = order.inner();
+            let signal_next = signal.next();
+            let strategy_display = format!("{}", strategy);
+
+            criterion::black_box((order_inner, signal_next, strategy_display));
         })
     });
 }
@@ -110,29 +104,10 @@ fn bench_multiple_tlvs(c: &mut Criterion) {
 
     for tlv_count in [1, 5, 10] {
         group.bench_with_input(
-            BenchmarkId::new("legacy_builder", tlv_count),
+            BenchmarkId::new("tlv_builder", tlv_count),
             &tlv_count,
             |b, &count| {
                 b.iter(|| {
-                    let mut builder = TLVMessageBuilder::new(
-                        RelayDomain::MarketData,
-                        SourceType::PolygonCollector,
-                    );
-                    for i in 0..count {
-                        builder = builder.add_tlv(TLVType::Trade, &trades[i]);
-                    }
-                    let message = builder.build();
-                    criterion::black_box(message);
-                });
-            },
-        );
-
-        group.bench_with_input(
-            BenchmarkId::new("true_zero_copy_builder", tlv_count),
-            &tlv_count,
-            |b, &count| {
-                b.iter(|| {
-                    // For multiple TLVs, use standard builder since TrueZeroCopyBuilder handles single TLV
                     let mut builder = TLVMessageBuilder::new(
                         RelayDomain::MarketData,
                         SourceType::PolygonCollector,
@@ -152,9 +127,9 @@ fn bench_multiple_tlvs(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    bench_legacy_builder,
-    bench_true_zero_copy_builder,
-    bench_true_zero_copy_with_thread_local_buffer,
+    bench_tlv_builder_single_message,
+    bench_tlv_builder_multiple_messages,
+    bench_typed_id_operations,
     bench_multiple_tlvs
 );
 criterion_main!(benches);

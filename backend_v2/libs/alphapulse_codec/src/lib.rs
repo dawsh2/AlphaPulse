@@ -46,13 +46,15 @@
 //! - **Cache Efficiency**: u64/u128 keys maximize CPU cache utilization
 //! - **Zero-Copy Operations**: zerocopy traits for minimal allocation overhead
 
-pub mod instrument_id;
-pub mod tlv_types;
 pub mod constants;
+pub mod instrument_id;
 pub mod parser;
+pub mod tlv_types;
 
 // Re-export key types for convenience
-pub use instrument_id::{InstrumentId, VenueId, AssetType, CodecError};
-pub use tlv_types::{TLVType, TlvTypeRegistry, TLVSizeConstraint};
-pub use parser::{parse_header, parse_tlv_extensions, validate_tlv_size, TlvExtension, ParseResult};
 pub use constants::*;
+pub use instrument_id::{AssetType, CodecError, InstrumentId, VenueId};
+pub use parser::{
+    parse_header, parse_tlv_extensions, validate_tlv_size, ParseResult, TlvExtension,
+};
+pub use tlv_types::{TLVSizeConstraint, TLVType, TlvTypeRegistry};

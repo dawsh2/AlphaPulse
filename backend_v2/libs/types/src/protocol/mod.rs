@@ -11,11 +11,11 @@ pub mod tlv;
 pub mod validation;
 
 // Re-export key types for convenience
-pub use tlv::*;
 pub use identifiers::*;
 pub use message::*;
-pub use validation::*;
 pub use recovery::*;
+pub use tlv::*;
+pub use validation::*;
 
 // Protocol-level error type
 #[derive(Debug, thiserror::Error)]
@@ -59,15 +59,7 @@ pub type Result<T> = std::result::Result<T, ProtocolError>;
 
 /// Relay domains for message routing
 #[repr(u8)]
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    num_enum::TryFromPrimitive,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, num_enum::TryFromPrimitive)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RelayDomain {
     MarketData = 1,
@@ -78,15 +70,7 @@ pub enum RelayDomain {
 
 /// Source types for message attribution
 #[repr(u8)]
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    num_enum::TryFromPrimitive,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, num_enum::TryFromPrimitive)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SourceType {
     // Exchange collectors (1-19)
@@ -121,7 +105,7 @@ pub enum SourceType {
 // Re-export commonly needed types at protocol level
 pub use tlv::types::TLVType;
 
-// Domain constants  
+// Domain constants
 pub const MESSAGE_MAGIC: u32 = 0xDEADBEEF;
 pub const PROTOCOL_VERSION: u8 = 1;
 

@@ -100,26 +100,42 @@ fn parse_real_swap_event(log: &Log) -> Option<PoolSwapTLV> {
 
     // Create dummy pool/token addresses for testing
     let pool_addr = [0x42; 20]; // Dummy pool address
-    let token_in_addr = if amount0 > 0 { [0x0d, 0x50, 0x0b, 0x1d, 0x8e, 0x8e, 0xf3, 0x1e, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } else { [0x27, 0x91, 0xbc, 0xa1, 0xf2, 0xde, 0x46, 0x61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
-    let token_out_addr = if amount0 > 0 { [0x27, 0x91, 0xbc, 0xa1, 0xf2, 0xde, 0x46, 0x61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } else { [0x0d, 0x50, 0x0b, 0x1d, 0x8e, 0x8e, 0xf3, 0x1e, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
-    
+    let token_in_addr = if amount0 > 0 {
+        [
+            0x0d, 0x50, 0x0b, 0x1d, 0x8e, 0x8e, 0xf3, 0x1e, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]
+    } else {
+        [
+            0x27, 0x91, 0xbc, 0xa1, 0xf2, 0xde, 0x46, 0x61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]
+    };
+    let token_out_addr = if amount0 > 0 {
+        [
+            0x27, 0x91, 0xbc, 0xa1, 0xf2, 0xde, 0x46, 0x61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]
+    } else {
+        [
+            0x0d, 0x50, 0x0b, 0x1d, 0x8e, 0x8e, 0xf3, 0x1e, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]
+    };
+
     Some(PoolSwapTLV::new(
         pool_addr,
         token_in_addr,
         token_out_addr,
         VenueId::Polygon,
-        amount_in.try_into().unwrap(), // Native precision, no scaling!
+        amount_in.try_into().unwrap(),  // Native precision, no scaling!
         amount_out.try_into().unwrap(), // Native precision, no scaling!
-        0, // liquidity_after - V2 pool
+        0,                              // liquidity_after - V2 pool
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos() as u64,
-        1000, // block_number
-        0, // tick_after - V2 pool
-        in_decimals, // amount_in_decimals
+        1000,         // block_number
+        0,            // tick_after - V2 pool
+        in_decimals,  // amount_in_decimals
         out_decimals, // amount_out_decimals
-        0, // sqrt_price_x96_after - V2 pool
+        0,            // sqrt_price_x96_after - V2 pool
     ))
 }
 
@@ -291,7 +307,9 @@ async fn test_real_polygon_swaps() -> Result<(), Box<dyn std::error::Error + Sen
         let total_volume: i64 = all_swaps
             .iter()
             .map(|s| s.amount_in) // u128 is always positive
-            .fold(0i64, |acc, x| acc.saturating_add(x.try_into().unwrap_or(i64::MAX)));
+            .fold(0i64, |acc, x| {
+                acc.saturating_add(x.try_into().unwrap_or(i64::MAX))
+            });
         // Note: fees are now calculated from pool state, not stored per swap
         let estimated_total_fees = all_swaps.len() as i64 * 3_00000000; // $3 per swap estimate
 
@@ -305,8 +323,11 @@ async fn test_real_polygon_swaps() -> Result<(), Box<dyn std::error::Error + Sen
         println!("\n🔬 Pool Bijection Test:");
         let swap = &all_swaps[0];
         let pool_addr = &swap.pool_address;
-        println!("  Pool address: {:02x}{:02x}...{:02x}{:02x}", pool_addr[0], pool_addr[1], pool_addr[18], pool_addr[19]);
-        
+        println!(
+            "  Pool address: {:02x}{:02x}...{:02x}{:02x}",
+            pool_addr[0], pool_addr[1], pool_addr[18], pool_addr[19]
+        );
+
         // Verify pool address is properly stored (no reconstruction needed for addresses)
         assert_eq!(swap.pool_address.len(), 20); // Valid Ethereum address length
         println!("  ✅ Pool bijection verified!");

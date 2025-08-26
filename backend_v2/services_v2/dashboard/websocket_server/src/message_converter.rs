@@ -1,12 +1,12 @@
 //! TLV to JSON message conversion for dashboard
 
 use crate::error::{DashboardError, Result};
-use base64::prelude::*;
 use alphapulse_types::InstrumentId;
 use alphapulse_types::{
     tlv::{types::DeprecatedTLVType, ArbitrageSignalTLV, PoolSyncTLV},
     ParseError, PoolSwapTLV, QuoteTLV, VenueId,
 };
+use base64::prelude::*;
 use serde_json::{json, Value};
 use std::time::SystemTime;
 
@@ -48,9 +48,12 @@ pub fn convert_tlv_to_json(tlv_type: u8, payload: &[u8], timestamp_ns: u64) -> R
 
 fn convert_trade_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     if payload.len() < 22 {
-        return Err(DashboardError::Protocol(alphapulse_types::protocol::ProtocolError::Parse(
-            ParseError::MessageTooSmall { need: 22, got: 0 },
-        )));
+        return Err(DashboardError::Protocol(
+            alphapulse_types::protocol::ProtocolError::Parse(ParseError::MessageTooSmall {
+                need: 22,
+                got: 0,
+            }),
+        ));
     }
 
     // Parse instrument ID
@@ -145,12 +148,12 @@ fn convert_state_invalidation_tlv(payload: &[u8], timestamp_ns: u64) -> Result<V
     // Simple parsing for StateInvalidationTLV - extract basic fields
     if payload.len() < 12 {
         // minimum: venue(2) + sequence(8) + count(2)
-        return Err(DashboardError::Protocol(alphapulse_types::protocol::ProtocolError::Parse(
-            ParseError::MessageTooSmall {
+        return Err(DashboardError::Protocol(
+            alphapulse_types::protocol::ProtocolError::Parse(ParseError::MessageTooSmall {
                 need: 12,
                 got: payload.len(),
-            },
-        )));
+            }),
+        ));
     }
 
     let venue_id = u16::from_le_bytes([payload[0], payload[1]]);

@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 # Protocol
 alphapulse-types = { workspace = true }
+alphapulse_codec = { path = "../../../libs/alphapulse_codec" }
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }

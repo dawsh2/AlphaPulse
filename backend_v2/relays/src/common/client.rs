@@ -16,11 +16,11 @@
 //! - **Async tasks**: Read and write tasks run concurrently
 //! - **Graceful cleanup**: Proper connection cleanup on disconnect
 
-use crate::common::{RelayLogic, error::RelayEngineError};
+use crate::common::{error::RelayEngineError, RelayLogic};
 use alphapulse_types::protocol::MessageHeader;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tokio::sync::{broadcast, RwLock};
@@ -54,7 +54,10 @@ impl ClientManager {
     /// Add a new connection and return its ID
     pub async fn add_connection(&self) -> ConnectionId {
         let id = self.connection_counter.fetch_add(1, Ordering::SeqCst);
-        self.active_connections.write().await.insert(id, std::time::Instant::now());
+        self.active_connections
+            .write()
+            .await
+            .insert(id, std::time::Instant::now());
         id
     }
 
@@ -113,11 +116,14 @@ pub async fn handle_connection<T: RelayLogic>(
     logic: Arc<T>,
     client_manager: ClientManager,
 ) {
-    info!("🔗 Handling connection {} with bidirectional forwarding", connection_id);
+    info!(
+        "🔗 Handling connection {} with bidirectional forwarding",
+        connection_id
+    );
 
     // Split stream for concurrent read/write
     let (mut read_stream, mut write_stream) = stream.into_split();
-    
+
     // Subscribe to broadcast channel for writing
     let mut consumer_rx = client_manager.subscribe();
 
@@ -125,7 +131,7 @@ pub async fn handle_connection<T: RelayLogic>(
     let read_task = {
         let logic_clone = logic.clone();
         let client_manager_clone = client_manager.clone();
-        
+
         tokio::spawn(async move {
             let mut read_buffer = vec![0u8; 65536]; // 64KB buffer
             let mut read_count = 0u64;
@@ -141,19 +147,22 @@ pub async fn handle_connection<T: RelayLogic>(
 
                         // Parse Protocol V2 header for filtering
                         if let Some(should_forward) = validate_and_check_message(
-                            &read_buffer[..n], 
+                            &read_buffer[..n],
                             &logic_clone,
                             connection_id,
-                            read_count
+                            read_count,
                         ) {
                             if should_forward {
                                 // Forward to broadcast channel
                                 let message_data = read_buffer[..n].to_vec();
-                                
+
                                 match client_manager_clone.broadcast_message(message_data) {
                                     Ok(receiver_count) => {
                                         if read_count <= 10 || read_count % 100 == 0 {
-                                            info!("✅ Broadcast message {} to {} receivers", read_count, receiver_count);
+                                            info!(
+                                                "✅ Broadcast message {} to {} receivers",
+                                                read_count, receiver_count
+                                            );
                                         }
                                     }
                                     Err(e) => {
@@ -170,7 +179,10 @@ pub async fn handle_connection<T: RelayLogic>(
                 }
             }
 
-            info!("📤 Connection {} read task ended after {} messages", connection_id, read_count);
+            info!(
+                "📤 Connection {} read task ended after {} messages",
+                connection_id, read_count
+            );
         })
     };
 
@@ -201,17 +213,26 @@ pub async fn handle_connection<T: RelayLogic>(
                         }
                     }
                     Err(broadcast::error::RecvError::Lagged(dropped)) => {
-                        warn!("Connection {} lagged, dropped {} messages", connection_id, dropped);
+                        warn!(
+                            "Connection {} lagged, dropped {} messages",
+                            connection_id, dropped
+                        );
                         continue;
                     }
                     Err(broadcast::error::RecvError::Closed) => {
-                        info!("📥 Broadcast channel closed for connection {}", connection_id);
+                        info!(
+                            "📥 Broadcast channel closed for connection {}",
+                            connection_id
+                        );
                         break;
                     }
                 }
             }
 
-            info!("📥 Connection {} write task ended after {} messages", connection_id, write_count);
+            info!(
+                "📥 Connection {} write task ended after {} messages",
+                connection_id, write_count
+            );
         })
     };
 
@@ -231,7 +252,7 @@ pub async fn handle_connection<T: RelayLogic>(
 }
 
 /// Validate message and check if it should be forwarded
-/// 
+///
 /// Returns Some(true) if message should be forwarded, Some(false) if valid but shouldn't forward,
 /// None if message is invalid (logs error but continues processing)
 fn validate_and_check_message<T: RelayLogic>(
@@ -242,7 +263,10 @@ fn validate_and_check_message<T: RelayLogic>(
 ) -> Option<bool> {
     // Basic size check
     if buffer.len() < std::mem::size_of::<MessageHeader>() {
-        debug!("Connection {} message {} too small for header", connection_id, message_count);
+        debug!(
+            "Connection {} message {} too small for header",
+            connection_id, message_count
+        );
         return None;
     }
 
@@ -251,7 +275,10 @@ fn validate_and_check_message<T: RelayLogic>(
 
     // Validate magic number
     if header.magic != alphapulse_types::protocol::MESSAGE_MAGIC {
-        debug!("Connection {} message {} invalid magic: 0x{:x}", connection_id, message_count, header.magic);
+        debug!(
+            "Connection {} message {} invalid magic: 0x{:x}",
+            connection_id, message_count, header.magic
+        );
         return None;
     }
 
@@ -278,12 +305,12 @@ mod tests {
     use alphapulse_types::RelayDomain;
 
     struct TestLogic;
-    
+
     impl RelayLogic for TestLogic {
         fn domain(&self) -> RelayDomain {
             RelayDomain::MarketData
         }
-        
+
         fn socket_path(&self) -> &'static str {
             "/tmp/test.sock"
         }
@@ -292,17 +319,17 @@ mod tests {
     #[tokio::test]
     async fn test_client_manager() {
         let manager = ClientManager::new();
-        
+
         // Test connection management
         let conn1 = manager.add_connection().await;
         let conn2 = manager.add_connection().await;
-        
+
         assert!(conn1 != conn2);
         assert_eq!(manager.connection_count().await, 2);
-        
+
         manager.remove_connection(conn1).await;
         assert_eq!(manager.connection_count().await, 1);
-        
+
         // Test broadcasting
         let result = manager.broadcast_message(vec![1, 2, 3, 4]);
         assert!(result.is_ok());
@@ -312,7 +339,7 @@ mod tests {
     #[test]
     fn test_message_validation() {
         let logic = Arc::new(TestLogic);
-        
+
         // Test with valid header
         let mut header = MessageHeader {
             magic: alphapulse_types::protocol::MESSAGE_MAGIC,
@@ -325,38 +352,38 @@ mod tests {
             payload_size: 0,
             checksum: 0,
         };
-        
+
         let header_bytes = unsafe {
             std::slice::from_raw_parts(
                 &header as *const MessageHeader as *const u8,
-                std::mem::size_of::<MessageHeader>()
+                std::mem::size_of::<MessageHeader>(),
             )
         };
-        
+
         let result = validate_and_check_message(header_bytes, &logic, 1, 1);
         assert_eq!(result, Some(true));
-        
+
         // Test with wrong domain
         header.relay_domain = RelayDomain::Signal as u8;
         let header_bytes = unsafe {
             std::slice::from_raw_parts(
                 &header as *const MessageHeader as *const u8,
-                std::mem::size_of::<MessageHeader>()
+                std::mem::size_of::<MessageHeader>(),
             )
         };
-        
+
         let result = validate_and_check_message(header_bytes, &logic, 1, 1);
         assert_eq!(result, Some(false));
-        
+
         // Test with invalid magic
         header.magic = 0x12345678;
         let header_bytes = unsafe {
             std::slice::from_raw_parts(
                 &header as *const MessageHeader as *const u8,
-                std::mem::size_of::<MessageHeader>()
+                std::mem::size_of::<MessageHeader>(),
             )
         };
-        
+
         let result = validate_and_check_message(header_bytes, &logic, 1, 1);
         assert_eq!(result, None);
     }

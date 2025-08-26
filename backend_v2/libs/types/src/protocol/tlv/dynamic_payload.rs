@@ -213,7 +213,7 @@ unsafe impl FromZeroes for FixedVec<crate::InstrumentId, MAX_INSTRUMENTS> {
 //
 // SAFETY: FixedVec has a well-defined memory layout with #[repr(C)]:
 // - count: u16 (2 bytes)
-// - _padding: [u8; 6] (6 bytes)  
+// - _padding: [u8; 6] (6 bytes)
 // - elements: [OrderLevel; 50] (1200 bytes: 50 * 24 bytes each)
 // Total: 1208 bytes with proper alignment
 //

@@ -6,7 +6,9 @@
 //! - End-to-end identifier construction and validation
 //! - Performance characteristics and error handling
 
-use alphapulse_codec::{InstrumentId, VenueId, AssetType, TLVType, MESSAGE_MAGIC, PROTOCOL_VERSION, CodecError};
+use alphapulse_codec::{
+    AssetType, CodecError, InstrumentId, TLVType, VenueId, MESSAGE_MAGIC, PROTOCOL_VERSION,
+};
 use zerocopy::{AsBytes, FromBytes};
 
 #[test]
@@ -16,7 +18,8 @@ fn test_codec_public_api_basic_functionality() {
     assert!(!btc_id.debug_info().is_empty());
     assert_eq!(btc_id.symbol_str(), "BTC");
 
-    let eth_token = InstrumentId::ethereum_token("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2").unwrap();
+    let eth_token =
+        InstrumentId::ethereum_token("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2").unwrap();
     assert_eq!(eth_token.venue().unwrap(), VenueId::Ethereum);
     assert_eq!(eth_token.asset_type_enum().unwrap(), AssetType::Token);
     assert_eq!(eth_token.chain_id(), Some(1));
@@ -69,7 +72,11 @@ fn test_performance_critical_paths() {
     let construction_time = start.elapsed();
 
     // Basic performance assertions (not strict benchmarks)
-    assert!(construction_time.as_micros() < 50000, "ID construction too slow: {:?}", construction_time);
+    assert!(
+        construction_time.as_micros() < 50000,
+        "ID construction too slow: {:?}",
+        construction_time
+    );
 
     println!("Performance test results:");
     println!("  1000 InstrumentId constructions: {:?}", construction_time);
@@ -91,15 +98,20 @@ fn test_zero_copy_compatibility() {
 
     // Test that all fields are preserved through zero-copy
     assert_eq!(recovered.venue().unwrap(), id.venue().unwrap());
-    assert_eq!(recovered.asset_type_enum().unwrap(), id.asset_type_enum().unwrap());
+    assert_eq!(
+        recovered.asset_type_enum().unwrap(),
+        id.asset_type_enum().unwrap()
+    );
     assert_eq!(recovered.symbol_str(), id.symbol_str());
 }
 
 #[test]
 fn test_multi_chain_routing() {
     // Test that different chains are handled correctly
-    let eth_usdc = InstrumentId::ethereum_token("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48").unwrap();
-    let poly_usdc = InstrumentId::polygon_token("0x2791Bca1f2de4661Ed88A30DC4175f623Ccc1b78").unwrap();
+    let eth_usdc =
+        InstrumentId::ethereum_token("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48").unwrap();
+    let poly_usdc =
+        InstrumentId::polygon_token("0x2791Bca1f2de4661Ed88A30DC4175f623Ccc1b78").unwrap();
 
     // Different chain IDs
     assert_eq!(eth_usdc.chain_id(), Some(1));
@@ -123,8 +135,8 @@ fn test_multi_chain_routing() {
     assert!(quickswap.supports_pools());
 
     // Different chains for DeFi
-    assert_eq!(uniswap_v3.chain_id(), Some(1));    // Ethereum
-    assert_eq!(quickswap.chain_id(), Some(137));   // Polygon
+    assert_eq!(uniswap_v3.chain_id(), Some(1)); // Ethereum
+    assert_eq!(quickswap.chain_id(), Some(137)); // Polygon
 }
 
 #[test]
@@ -132,7 +144,7 @@ fn test_error_handling() {
     // Test invalid address handling
     assert!(InstrumentId::ethereum_token("invalid").is_err());
     assert!(InstrumentId::ethereum_token("0x123").is_err()); // Too short
-    
+
     // Note: Our current implementation truncates addresses to 16 bytes, so this won't error
     // In production, we'd want stricter validation
 
@@ -193,7 +205,7 @@ fn test_venue_validation() {
     // Test that invalid venue IDs are caught
     let mut invalid_id = InstrumentId::default();
     invalid_id.venue = 9999; // Invalid venue ID
-    
+
     match invalid_id.venue() {
         Err(CodecError::InvalidVenue(9999)) => (), // Expected
         _ => panic!("Expected InvalidVenue error"),
@@ -201,7 +213,7 @@ fn test_venue_validation() {
 
     // Test that invalid asset types are caught
     invalid_id.asset_type = 255; // Invalid asset type
-    
+
     match invalid_id.asset_type_enum() {
         Err(CodecError::InvalidAssetType) => (), // Expected
         _ => panic!("Expected InvalidAssetType error"),

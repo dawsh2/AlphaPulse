@@ -4,9 +4,6 @@
 //! Implements the Stateful trait for integration with the state management framework.
 
 use alphapulse_state_core::{SequenceTracker, SequencedStateful, StateError, Stateful};
-use anyhow::Result;
-use dashmap::DashMap;
-use parking_lot::RwLock;
 use alphapulse_types::{
     tlv::{
         DEXProtocol as PoolProtocol, PoolBurnTLV, PoolMintTLV, PoolStateTLV, PoolSwapTLV,
@@ -14,6 +11,9 @@ use alphapulse_types::{
     },
     InstrumentId, InstrumentId as PoolInstrumentId, VenueId,
 };
+use anyhow::Result;
+use dashmap::DashMap;
+use parking_lot::RwLock;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

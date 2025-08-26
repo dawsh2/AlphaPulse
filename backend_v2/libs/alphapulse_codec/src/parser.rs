@@ -1,28 +1,33 @@
-//! # TLV Message Parser - Core Protocol Codec
+//! # TLV Message Parser - Protocol V2 Parsing System
 //!
 //! ## Purpose
 //!
 //! High-performance zero-copy parser for Protocol V2 TLV messages with comprehensive validation,
 //! bounds checking, and support for both standard (≤255 bytes) and extended (>255 bytes) formats.
-//! This is the central codec implementation that all services should use for message parsing.
+//! The parser enforces message integrity through checksum validation and strict size constraints
+//! while maintaining >1.6M messages/second parsing throughput.
 //!
 //! ## Integration Points
 //!
 //! - **Input**: Raw binary message bytes from Unix sockets, shared memory, or network transports
 //! - **Output**: Parsed MessageHeader and typed TLV extensions ready for business logic
 //! - **Validation**: Checksum verification, size constraints, and payload integrity checking
-//! - **Error Handling**: Comprehensive CodecError reporting with context for debugging
+//! - **Error Handling**: Comprehensive ProtocolError reporting with context for debugging
 //! - **Zero-Copy**: Direct memory references via zerocopy::Ref without allocation overhead
 //!
 //! ## Architecture Role
 //!
 //! ```text
-//! Services (relays, adapters) → [alphapulse_codec] → libs/types
-//!         ↑                           ↓                   ↓
-//!    Message Parsing              Codec Functions      Raw Types
-//!    parse_header()               TLVMessageBuilder    MessageHeader
-//!    parse_tlv_extensions()       validate_tlv()       TradeTLV
+//! Transport Layer → [TLV Parser] → Business Logic
+//!       ↑              ↓               ↓
+//!   Raw Binary    Zero-Copy        Typed TLV
+//!   Messages      Parsing          Extensions
+//!                                      ↓
+//!                                Service Handlers
 //! ```
+//!
+//! The parser sits at the critical boundary between binary transport and typed business logic,
+//! providing safe deserialization with comprehensive validation and performance optimization.
 //!
 //! ## Performance Profile
 //!
@@ -33,8 +38,12 @@
 //! - **Error Path Cost**: Detailed error reporting only when validation fails
 //! - **Thread Safety**: Immutable parsing - safe for concurrent access
 
-use crate::{CodecError, TLVType, TlvTypeRegistry};
-use alphapulse_types::protocol::{MessageHeader, MESSAGE_MAGIC};
+use crate::error::{ProtocolError, ProtocolResult};
+use crate::tlv_types::TLVType;
+use alphapulse_types::protocol::message::header::MessageHeader;
+use alphapulse_types::MESSAGE_MAGIC;
+use std::mem::size_of;
+use zerocopy::Ref;
 
 /// Result type for codec parsing operations
 pub type ParseResult<T> = Result<T, CodecError>;
@@ -130,8 +139,8 @@ pub fn parse_header(data: &[u8]) -> ParseResult<&MessageHeader> {
 /// validate_tlv_size(TLVType::Trade as u8, 39)?; // Error - too small
 /// ```
 pub fn validate_tlv_size(tlv_type: u8, payload_size: usize) -> ParseResult<()> {
-    let tlv_type_enum = TLVType::try_from(tlv_type)
-        .map_err(|_| CodecError::UnknownTLVType(tlv_type))?;
+    let tlv_type_enum =
+        TLVType::try_from(tlv_type).map_err(|_| CodecError::UnknownTLVType(tlv_type))?;
 
     if !TlvTypeRegistry::validate_size(tlv_type_enum, payload_size) {
         return Err(CodecError::InvalidPayloadSize {
@@ -194,7 +203,7 @@ pub fn parse_tlv_extensions(payload: &[u8]) -> ParseResult<Vec<TlvExtension<'_>>
 
         let tlv_type = payload[offset];
         let length = u16::from_le_bytes([payload[offset + 1], payload[offset + 2]]) as usize;
-        
+
         // Check if we have enough data for the payload
         if offset + 3 + length > payload.len() {
             return Err(CodecError::TruncatedTLV {
@@ -239,8 +248,7 @@ pub struct TlvExtension<'a> {
 impl<'a> TlvExtension<'a> {
     /// Get TLV type as enum if known
     pub fn get_tlv_type(&self) -> Result<TLVType, CodecError> {
-        TLVType::try_from(self.tlv_type)
-            .map_err(|_| CodecError::UnknownTLVType(self.tlv_type))
+        TLVType::try_from(self.tlv_type).map_err(|_| CodecError::UnknownTLVType(self.tlv_type))
     }
 
     /// Decode payload as specific TLV structure with comprehensive validation
@@ -294,13 +302,14 @@ impl<'a> TlvExtension<'a> {
     {
         // Validate TLV type if provided
         if let Some(expected) = expected_tlv_type {
-            let actual_type = self.get_tlv_type()
+            let actual_type = self
+                .get_tlv_type()
                 .map_err(|_| CodecError::InvalidPayloadSize {
                     tlv_type: self.tlv_type,
                     expected: format!("valid TLV type for {}", std::any::type_name::<T>()),
                     actual: self.payload.len(),
                 })?;
-            
+
             if actual_type != expected {
                 return Err(CodecError::InvalidPayloadSize {
                     tlv_type: self.tlv_type,
@@ -315,14 +324,18 @@ impl<'a> TlvExtension<'a> {
         if self.payload.len() < required_size {
             return Err(CodecError::InvalidPayloadSize {
                 tlv_type: self.tlv_type,
-                expected: format!("at least {} bytes for {}", required_size, std::any::type_name::<T>()),
+                expected: format!(
+                    "at least {} bytes for {}",
+                    required_size,
+                    std::any::type_name::<T>()
+                ),
                 actual: self.payload.len(),
             });
         }
 
         // Safe zero-copy deserialization with alignment checking
-        let result = T::ref_from_prefix(self.payload)
-            .ok_or_else(|| CodecError::InvalidPayloadSize {
+        let result =
+            T::ref_from_prefix(self.payload).ok_or_else(|| CodecError::InvalidPayloadSize {
                 tlv_type: self.tlv_type,
                 expected: format!("properly aligned {} structure", std::any::type_name::<T>()),
                 actual: self.payload.len(),
@@ -371,12 +384,11 @@ impl<'a> TlvExtension<'a> {
             });
         }
 
-        T::ref_from_prefix(self.payload)
-            .ok_or_else(|| CodecError::InvalidPayloadSize {
-                tlv_type: self.tlv_type,
-                expected: format!("valid alignment for {}", std::any::type_name::<T>()),
-                actual: self.payload.len(),
-            })
+        T::ref_from_prefix(self.payload).ok_or_else(|| CodecError::InvalidPayloadSize {
+            tlv_type: self.tlv_type,
+            expected: format!("valid alignment for {}", std::any::type_name::<T>()),
+            actual: self.payload.len(),
+        })
     }
 }
 
@@ -400,9 +412,12 @@ mod tests {
         };
 
         let header_bytes = unsafe {
-            std::slice::from_raw_parts(&header as *const _ as *const u8, std::mem::size_of::<MessageHeader>())
+            std::slice::from_raw_parts(
+                &header as *const _ as *const u8,
+                std::mem::size_of::<MessageHeader>(),
+            )
         };
-        
+
         // Create message with header + payload
         let mut message = Vec::with_capacity(32 + 100);
         message.extend_from_slice(header_bytes);
@@ -429,7 +444,10 @@ mod tests {
         };
 
         let header_bytes = unsafe {
-            std::slice::from_raw_parts(&header as *const _ as *const u8, std::mem::size_of::<MessageHeader>())
+            std::slice::from_raw_parts(
+                &header as *const _ as *const u8,
+                std::mem::size_of::<MessageHeader>(),
+            )
         };
 
         match parse_header(header_bytes) {
@@ -470,7 +488,7 @@ mod tests {
 
         let extensions = parse_tlv_extensions(&payload).unwrap();
         assert_eq!(extensions.len(), 1);
-        
+
         let ext = &extensions[0];
         assert_eq!(ext.tlv_type, 1);
         assert_eq!(ext.length, 40);

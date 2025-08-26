@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 # Protocol dependencies
 alphapulse-types = { workspace = true }
+alphapulse_codec = { path = "../../../libs/alphapulse_codec" }
 alphapulse-adapter-service = { path = "../../adapters" }
 alphapulse-amm = { path = "../../../libs/amm" }
 # State management - embedded for microsecond latency

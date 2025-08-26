@@ -67,8 +67,12 @@ impl VenueId {
     /// Check if venue supports liquidity pools
     pub fn supports_pools(&self) -> bool {
         match self {
-            VenueId::UniswapV2 | VenueId::UniswapV3 | VenueId::SushiSwap |
-            VenueId::Curve | VenueId::QuickSwap | VenueId::PancakeSwap => true,
+            VenueId::UniswapV2
+            | VenueId::UniswapV3
+            | VenueId::SushiSwap
+            | VenueId::Curve
+            | VenueId::QuickSwap
+            | VenueId::PancakeSwap => true,
             _ => false,
         }
     }
@@ -76,11 +80,14 @@ impl VenueId {
     /// Get blockchain chain ID if applicable
     pub fn chain_id(&self) -> Option<u32> {
         match self {
-            VenueId::Ethereum | VenueId::UniswapV2 | VenueId::UniswapV3 |
-            VenueId::SushiSwap | VenueId::Curve => Some(1), // Ethereum mainnet
+            VenueId::Ethereum
+            | VenueId::UniswapV2
+            | VenueId::UniswapV3
+            | VenueId::SushiSwap
+            | VenueId::Curve => Some(1), // Ethereum mainnet
             VenueId::Polygon | VenueId::QuickSwap => Some(137), // Polygon
             VenueId::BinanceSmartChain | VenueId::PancakeSwap => Some(56), // BSC
-            VenueId::Arbitrum => Some(42161), // Arbitrum
+            VenueId::Arbitrum => Some(42161),                   // Arbitrum
             _ => None,
         }
     }
@@ -88,7 +95,9 @@ impl VenueId {
     /// Get underlying blockchain for DeFi protocols
     pub fn blockchain(&self) -> Option<VenueId> {
         match self {
-            VenueId::UniswapV2 | VenueId::UniswapV3 | VenueId::SushiSwap | VenueId::Curve => Some(VenueId::Ethereum),
+            VenueId::UniswapV2 | VenueId::UniswapV3 | VenueId::SushiSwap | VenueId::Curve => {
+                Some(VenueId::Ethereum)
+            }
             VenueId::QuickSwap => Some(VenueId::Polygon),
             VenueId::PancakeSwap => Some(VenueId::BinanceSmartChain),
             _ => None,
@@ -151,17 +160,17 @@ impl AssetType {
 #[repr(C, packed)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes, FromZeroes)]
 pub struct InstrumentId {
-    pub symbol: [u8; 16],  // Fixed-size symbol field (16 bytes)
-    pub venue: u16,        // VenueId enum (2 bytes)
-    pub asset_type: u8,    // AssetType enum (1 byte)
-    pub reserved: u8,      // Future use/flags (1 byte)
+    pub symbol: [u8; 16], // Fixed-size symbol field (16 bytes)
+    pub venue: u16,       // VenueId enum (2 bytes)
+    pub asset_type: u8,   // AssetType enum (1 byte)
+    pub reserved: u8,     // Future use/flags (1 byte)
                           // Total: exactly 20 bytes with no padding
 }
 
 impl InstrumentId {
     /// Size in bytes (20 bytes for efficient packing)
     pub const SIZE: usize = 20;
-    
+
     /// Maximum symbol length in bytes
     pub const MAX_SYMBOL_LEN: usize = 16;
 
@@ -170,10 +179,10 @@ impl InstrumentId {
         if symbol.len() > Self::MAX_SYMBOL_LEN {
             return Err(CodecError::SymbolTooLong);
         }
-        
+
         let mut symbol_bytes = [0u8; 16];
         symbol_bytes[..symbol.len()].copy_from_slice(symbol.as_bytes());
-        
+
         Ok(Self {
             symbol: symbol_bytes,
             venue: venue as u16,
@@ -203,17 +212,21 @@ impl InstrumentId {
     }
 
     /// Create pool instrument ID from two tokens
-    pub fn pool(venue: VenueId, token_a: InstrumentId, token_b: InstrumentId) -> Result<Self, CodecError> {
+    pub fn pool(
+        venue: VenueId,
+        token_a: InstrumentId,
+        token_b: InstrumentId,
+    ) -> Result<Self, CodecError> {
         // Create deterministic pool symbol from sorted token symbols
         let symbol_a = token_a.symbol_str();
         let symbol_b = token_b.symbol_str();
-        
+
         let pool_symbol = if symbol_a <= symbol_b {
             format!("{}/{}", symbol_a, symbol_b)
         } else {
             format!("{}/{}", symbol_b, symbol_a)
         };
-        
+
         Self::new(venue, AssetType::Pool, &pool_symbol)
     }
 
@@ -238,7 +251,11 @@ impl InstrumentId {
 
     /// Get symbol as string, trimming null bytes
     pub fn symbol_str(&self) -> String {
-        let end = self.symbol.iter().position(|&b| b == 0).unwrap_or(self.symbol.len());
+        let end = self
+            .symbol
+            .iter()
+            .position(|&b| b == 0)
+            .unwrap_or(self.symbol.len());
         String::from_utf8_lossy(&self.symbol[..end]).to_string()
     }
 
@@ -310,18 +327,26 @@ impl InstrumentId {
     /// Get debug information string
     pub fn debug_info(&self) -> String {
         let symbol = self.symbol_str();
-        format!("{:?} {:?} Symbol:{}",
-                self.venue().unwrap_or(VenueId::NYSE), // Default for display
-                self.asset_type_enum().unwrap_or(AssetType::Stock), // Default for display
-                symbol)
+        format!(
+            "{:?} {:?} Symbol:{}",
+            self.venue().unwrap_or(VenueId::NYSE), // Default for display
+            self.asset_type_enum().unwrap_or(AssetType::Stock), // Default for display
+            symbol
+        )
     }
 
     /// Check if can pair with another instrument for pools
     pub fn can_pair_with(&self, other: &InstrumentId) -> bool {
         // Must be same venue and both fungible
-        self.venue == other.venue &&
-        self.asset_type_enum().map(|at| at.is_fungible()).unwrap_or(false) &&
-        other.asset_type_enum().map(|at| at.is_fungible()).unwrap_or(false)
+        self.venue == other.venue
+            && self
+                .asset_type_enum()
+                .map(|at| at.is_fungible())
+                .unwrap_or(false)
+            && other
+                .asset_type_enum()
+                .map(|at| at.is_fungible())
+                .unwrap_or(false)
     }
 }
 
@@ -361,10 +386,18 @@ pub enum CodecError {
     UnknownTLVType(u8),
 
     #[error("Invalid payload size for TLV type {tlv_type}: expected {expected}, got {actual}")]
-    InvalidPayloadSize { tlv_type: u8, expected: String, actual: usize },
+    InvalidPayloadSize {
+        tlv_type: u8,
+        expected: String,
+        actual: usize,
+    },
 
     #[error("Truncated TLV at offset {offset}: need {need} bytes, {available} available")]
-    TruncatedTLV { offset: usize, need: usize, available: usize },
+    TruncatedTLV {
+        offset: usize,
+        need: usize,
+        available: usize,
+    },
 }
 
 #[cfg(test)]
@@ -386,7 +419,8 @@ mod tests {
 
     #[test]
     fn test_ethereum_token_construction() {
-        let usdc = InstrumentId::ethereum_token("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48").unwrap();
+        let usdc =
+            InstrumentId::ethereum_token("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48").unwrap();
         assert_eq!(usdc.venue().unwrap(), VenueId::Ethereum);
         assert_eq!(usdc.asset_type_enum().unwrap(), AssetType::Token);
         assert_eq!(usdc.chain_id(), Some(1));
@@ -404,7 +438,7 @@ mod tests {
         assert_eq!(pool.asset_type_enum().unwrap(), AssetType::Pool);
         assert!(pool.is_defi());
         assert_eq!(pool.chain_id(), Some(1));
-        
+
         // Pool symbol should be deterministic and sorted
         let pool_symbol = pool.symbol_str();
         assert!(pool_symbol.contains("USDC"));
@@ -426,8 +460,10 @@ mod tests {
 
     #[test]
     fn test_pairing_logic() {
-        let usdc = InstrumentId::ethereum_token("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48").unwrap();
-        let weth = InstrumentId::ethereum_token("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2").unwrap();
+        let usdc =
+            InstrumentId::ethereum_token("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48").unwrap();
+        let weth =
+            InstrumentId::ethereum_token("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2").unwrap();
         let aapl = InstrumentId::stock(VenueId::NYSE, "AAPL").unwrap();
 
         // Same venue, different tokens - can pair
@@ -460,11 +496,17 @@ mod tests {
         // Test invalid venue ID
         let mut invalid_id = InstrumentId::default();
         invalid_id.venue = 999; // Invalid venue ID
-        assert!(matches!(invalid_id.venue(), Err(CodecError::InvalidVenue(999))));
+        assert!(matches!(
+            invalid_id.venue(),
+            Err(CodecError::InvalidVenue(999))
+        ));
 
         // Test invalid asset type
         invalid_id.asset_type = 200; // Invalid asset type
-        assert!(matches!(invalid_id.asset_type_enum(), Err(CodecError::InvalidAssetType)));
+        assert!(matches!(
+            invalid_id.asset_type_enum(),
+            Err(CodecError::InvalidAssetType)
+        ));
     }
 
     #[test]

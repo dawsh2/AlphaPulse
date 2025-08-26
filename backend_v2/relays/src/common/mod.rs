@@ -21,7 +21,7 @@
 //!     
 //!     subgraph "Domain Implementations"
 //!         MDL[MarketDataLogic]
-//!         SL[SignalLogic] 
+//!         SL[SignalLogic]
 //!         EL[ExecutionLogic]
 //!     end
 //!     
@@ -65,7 +65,7 @@ use tracing::{error, info, warn};
 /// - Optional message filtering logic
 ///
 /// ## Design Philosophy
-/// 
+///
 /// **Minimal Interface**: Only 3 required methods keep implementation simple
 /// **Performance First**: `should_forward()` has efficient default for 99% of cases
 /// **Type Safety**: Uses Protocol V2 RelayDomain enum for compile-time validation
@@ -74,7 +74,7 @@ use tracing::{error, info, warn};
 /// ## Usage Pattern
 /// ```rust
 /// pub struct MarketDataLogic;
-/// 
+///
 /// impl RelayLogic for MarketDataLogic {
 ///     fn domain(&self) -> RelayDomain { RelayDomain::MarketData }
 ///     fn socket_path(&self) -> &'static str { "/tmp/alphapulse/market_data.sock" }
@@ -83,7 +83,7 @@ use tracing::{error, info, warn};
 /// ```
 pub trait RelayLogic: Send + Sync + 'static {
     /// Get the relay domain this logic handles
-    /// 
+    ///
     /// Used for message routing and validation. The generic engine will only
     /// process messages where `header.relay_domain == self.domain()`.
     fn domain(&self) -> RelayDomain;
@@ -100,7 +100,7 @@ pub trait RelayLogic: Send + Sync + 'static {
     ///
     /// **Default Implementation**: Forward all messages matching our domain.
     /// This covers 99% of use cases with optimal performance.
-    /// 
+    ///
     /// **Custom Logic**: Override for domain-specific filtering:
     /// - Signal relay: Check TLV types 20-39 only
     /// - Execution relay: Validate security/permissions
@@ -169,26 +169,31 @@ impl<T: RelayLogic> Relay<T> {
     /// that caused race conditions in the original implementation.
     pub async fn run(&mut self) -> Result<(), RelayEngineError> {
         let socket_path = self.logic.socket_path();
-        
-        info!("🚀 Starting Generic Relay for domain: {:?}", self.logic.domain());
+
+        info!(
+            "🚀 Starting Generic Relay for domain: {:?}",
+            self.logic.domain()
+        );
         info!("📋 Socket path: {}", socket_path);
 
         // Create directory
         if let Some(parent) = std::path::Path::new(socket_path).parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| RelayEngineError::Setup(format!("Failed to create directory: {}", e)))?;
+            std::fs::create_dir_all(parent).map_err(|e| {
+                RelayEngineError::Setup(format!("Failed to create directory: {}", e))
+            })?;
         }
 
         // Remove existing socket
         if std::path::Path::new(socket_path).exists() {
-            std::fs::remove_file(socket_path)
-                .map_err(|e| RelayEngineError::Setup(format!("Failed to remove existing socket: {}", e)))?;
+            std::fs::remove_file(socket_path).map_err(|e| {
+                RelayEngineError::Setup(format!("Failed to remove existing socket: {}", e))
+            })?;
         }
 
         // Create Unix socket listener
         let listener = UnixListener::bind(socket_path)
             .map_err(|e| RelayEngineError::Transport(format!("Failed to bind socket: {}", e)))?;
-        
+
         info!("✅ Relay listening on: {}", socket_path);
         self.listener = Some(listener);
 
@@ -204,7 +209,13 @@ impl<T: RelayLogic> Relay<T> {
                     let client_manager_clone = self.client_manager.clone();
 
                     tokio::spawn(async move {
-                        client::handle_connection(stream, connection_id, logic_clone, client_manager_clone).await;
+                        client::handle_connection(
+                            stream,
+                            connection_id,
+                            logic_clone,
+                            client_manager_clone,
+                        )
+                        .await;
                     });
                 }
                 Err(e) => {
@@ -220,12 +231,12 @@ mod tests {
     use super::*;
 
     struct TestLogic;
-    
+
     impl RelayLogic for TestLogic {
         fn domain(&self) -> RelayDomain {
             RelayDomain::MarketData
         }
-        
+
         fn socket_path(&self) -> &'static str {
             "/tmp/test_relay.sock"
         }
@@ -241,7 +252,7 @@ mod tests {
     #[test]
     fn test_trait_default_implementation() {
         let logic = TestLogic;
-        
+
         // Create a mock header
         let header = MessageHeader {
             magic: alphapulse_types::protocol::MESSAGE_MAGIC,

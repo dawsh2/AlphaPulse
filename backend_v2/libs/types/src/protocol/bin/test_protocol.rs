@@ -286,7 +286,6 @@ fn test_recovery_protocol() -> alphapulse_types::Result<()> {
 }
 
 fn test_selective_checksums() -> alphapulse_types::Result<()> {
-    
     #[repr(C)]
     #[derive(AsBytes, FromBytes, FromZeroes)]
     struct DummyData {

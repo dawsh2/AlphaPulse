@@ -1,7 +1,7 @@
 //! Shared metrics for adapter monitoring
 
-use dashmap::DashMap;
 use alphapulse_types::VenueId;
+use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};

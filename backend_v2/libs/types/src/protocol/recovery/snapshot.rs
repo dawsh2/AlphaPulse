@@ -2,8 +2,8 @@
 //!
 //! Handles Snapshot TLV (Type 101) for large gap recovery
 
-use crate::tlv::{TLVMessageBuilder, TLVType};
 use super::super::{ProtocolError, RelayDomain, SourceType};
+use crate::tlv::{TLVMessageBuilder, TLVType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};

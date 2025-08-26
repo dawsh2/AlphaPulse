@@ -37,12 +37,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create signal logic
     let logic = SignalLogic;
-    info!("✅ Signal Logic: domain={:?}, socket={}", 
-          logic.domain(), logic.socket_path());
+    info!(
+        "✅ Signal Logic: domain={:?}, socket={}",
+        logic.domain(),
+        logic.socket_path()
+    );
 
     // Create and start relay
     let mut relay = Relay::new(logic);
-    
+
     match relay.run().await {
         Ok(()) => {
             info!("✅ Signal Relay completed successfully");

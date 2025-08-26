@@ -8,13 +8,13 @@
 
 mod common;
 
-use common::*;
 use alphapulse_types::protocol::{
     parse_header,
     tlv::{ParseError, TLVMessageBuilder},
     validation::calculate_crc32_excluding_checksum,
     MessageHeader, RelayDomain, SourceType, MESSAGE_MAGIC as MAGIC_NUMBER, PROTOCOL_VERSION,
 };
+use common::*;
 
 #[test]
 fn test_message_size_constraint() {

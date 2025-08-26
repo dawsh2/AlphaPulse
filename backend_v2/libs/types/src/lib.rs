@@ -89,13 +89,33 @@ pub use common::fixed_point::{PercentageFixedPoint4, UsdFixedPoint8};
 // Re-export common identifier types
 #[cfg(feature = "common")]
 pub use common::identifiers::{
-    // Typed ID system
-    OrderId, PositionId, StrategyId, SignalId, OpportunityId,
-    TradeId, PortfolioId, SessionId, ActorId, RelayId, SequenceId,
-    PoolId, PoolPairId, SimpleInstrumentId, ChainId, SimpleVenueId,
+    ActorId,
+    BlockHash,
+    ChainId,
     // Typed byte array wrappers
-    EthAddress, TxHash, BlockHash, Hash256, PoolAddress, TokenAddress,
-    EthSignature, PublicKey, PrivateKey,
+    EthAddress,
+    EthSignature,
+    Hash256,
+    OpportunityId,
+    // Typed ID system
+    OrderId,
+    PoolAddress,
+    PoolId,
+    PoolPairId,
+    PortfolioId,
+    PositionId,
+    PrivateKey,
+    PublicKey,
+    RelayId,
+    SequenceId,
+    SessionId,
+    SignalId,
+    SimpleInstrumentId,
+    SimpleVenueId,
+    StrategyId,
+    TokenAddress,
+    TradeId,
+    TxHash,
 };
 
 // Re-export protocol types for backward compatibility
@@ -108,10 +128,13 @@ pub use protocol::identifiers::{AssetType, InstrumentId, VenueId};
 
 // Re-export core protocol types that are commonly used in imports
 #[cfg(feature = "protocol")]
-pub use protocol::{RelayDomain, SourceType, ProtocolError, Result, TLVType};
-#[cfg(feature = "protocol")]
 pub use protocol::message::header::MessageHeader;
+#[cfg(feature = "protocol")]
+pub use protocol::{ProtocolError, RelayDomain, Result, SourceType, TLVType};
 
 // Re-export protocol constants
 #[cfg(feature = "protocol")]
-pub use protocol::{MESSAGE_MAGIC, PROTOCOL_VERSION, MARKET_DATA_RELAY_PATH, SIGNAL_RELAY_PATH, EXECUTION_RELAY_PATH};
+pub use protocol::{
+    EXECUTION_RELAY_PATH, MARKET_DATA_RELAY_PATH, MESSAGE_MAGIC, PROTOCOL_VERSION,
+    SIGNAL_RELAY_PATH,
+};

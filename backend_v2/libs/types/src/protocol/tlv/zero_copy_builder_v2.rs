@@ -3,9 +3,9 @@
 //! This implementation writes directly to the buffer without any intermediate
 //! allocations, achieving true zero-copy message construction.
 
-use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use super::super::{MessageHeader, RelayDomain, SourceType};
 use super::TLVType;
+use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use std::io;
 use std::sync::atomic::{AtomicU64, Ordering};
 use zerocopy::AsBytes;

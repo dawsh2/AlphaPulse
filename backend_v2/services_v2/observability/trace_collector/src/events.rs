@@ -3,9 +3,9 @@
 //! Handles incoming trace events and updates trace timelines.
 
 use crate::{trace_id_to_hex, Result, TraceCollectorStats, TraceError, TraceId, TraceTimeline};
+use alphapulse_types::TraceEvent;
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use alphapulse_types::TraceEvent;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 use std::sync::Arc;
 use tokio::time::Instant;

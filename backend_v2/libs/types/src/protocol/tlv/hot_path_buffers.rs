@@ -94,8 +94,8 @@
 //! - **Memory Pressure**: Minimal (1.5KB total per thread)
 //! - **Cache Performance**: Excellent (buffers stay hot)
 
-use crate::tlv::TLVMessageBuilder;
 use super::super::{RelayDomain, SourceType};
+use crate::tlv::TLVMessageBuilder;
 use std::cell::RefCell;
 use std::io;
 

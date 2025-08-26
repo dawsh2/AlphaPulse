@@ -190,16 +190,17 @@ impl InstrumentId {
         let hex_clean = address.strip_prefix("0x").unwrap_or(address);
 
         if hex_clean.len() != 40 {
-            return Err(ProtocolError::InvalidInstrument("Hex string too short".to_string()));
+            return Err(ProtocolError::InvalidInstrument(
+                "Hex string too short".to_string(),
+            ));
         }
 
         // Use first 8 bytes (16 hex chars) of address as asset_id
-        let bytes = hex::decode(&hex_clean[..16]).map_err(|_| ProtocolError::InvalidInstrument("Invalid hex encoding".to_string()))?;
-        let asset_id = u64::from_be_bytes(
-            bytes
-                .try_into()
-                .map_err(|_| ProtocolError::InvalidInstrument("Failed to parse instrument from bytes".to_string()))?,
-        );
+        let bytes = hex::decode(&hex_clean[..16])
+            .map_err(|_| ProtocolError::InvalidInstrument("Invalid hex encoding".to_string()))?;
+        let asset_id = u64::from_be_bytes(bytes.try_into().map_err(|_| {
+            ProtocolError::InvalidInstrument("Failed to parse instrument from bytes".to_string())
+        })?);
 
         Ok(Self {
             venue: venue as u16,
@@ -324,12 +325,14 @@ impl InstrumentId {
 
     /// Get the venue for this instrument
     pub fn venue(&self) -> crate::Result<VenueId> {
-        VenueId::try_from(self.venue).map_err(|_| ProtocolError::InvalidInstrument("Invalid venue ID".to_string()))
+        VenueId::try_from(self.venue)
+            .map_err(|_| ProtocolError::InvalidInstrument("Invalid venue ID".to_string()))
     }
 
     /// Get the asset type for this instrument
     pub fn asset_type(&self) -> crate::Result<AssetType> {
-        AssetType::try_from(self.asset_type).map_err(|_| ProtocolError::InvalidInstrument("Invalid asset type".to_string()))
+        AssetType::try_from(self.asset_type)
+            .map_err(|_| ProtocolError::InvalidInstrument("Invalid asset type".to_string()))
     }
 
     /// Convert to u64 for cache keys (with potential precision loss)

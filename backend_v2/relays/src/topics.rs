@@ -123,9 +123,9 @@
 //! - Consider exact topic subscriptions for high-frequency signals
 
 use crate::{ConsumerId, RelayError, RelayResult, TopicConfig, TopicExtractionStrategy};
-use dashmap::DashMap;
-use alphapulse_types::protocol::{InstrumentId, MessageHeader, SourceType, VenueId};
 use alphapulse_codec::{parse_tlv_extensions, TLVType};
+use alphapulse_types::protocol::{InstrumentId, MessageHeader, SourceType, VenueId};
+use dashmap::DashMap;
 use std::collections::HashSet;
 use tracing::{debug, info, warn};
 
@@ -285,19 +285,20 @@ impl TopicRegistry {
 
     /// Extract venue from TLV payload by finding instrument ID
     fn extract_venue_from_tlv(&self, tlv_payload: &[u8]) -> RelayResult<String> {
-        let tlvs = parse_tlv_extensions(tlv_payload)
-            .map_err(|e| RelayError::Validation(format!("Failed to parse TLV extensions: {}", e)))?;
+        let tlvs = parse_tlv_extensions(tlv_payload).map_err(|e| {
+            RelayError::Validation(format!("Failed to parse TLV extensions: {}", e))
+        })?;
 
         // Look for TLVs that might contain instrument IDs
         for tlv in tlvs {
             let tlv_type = tlv.tlv_type;
-            
+
             match TLVType::try_from(tlv_type) {
                 Ok(TLVType::Trade) | Ok(TLVType::Quote) | Ok(TLVType::OrderStatus) => {
                     // These TLVs typically contain instrument IDs
                     // Try to extract instrument ID from the TLV data
                     let tlv_data = tlv.payload;
-                    
+
                     if tlv_data.len() >= 8 {
                         // Assuming instrument ID is the first 8 bytes
                         let instrument_bytes = &tlv_data[0..8];
@@ -341,14 +342,14 @@ impl TopicRegistry {
         // Extract venue hint from upper bits (simplified heuristic)
         let venue_bits = (instrument_id >> 48) & 0xFFFF;
         let symbol_hash = instrument_id & 0xFFFFFFFFFFFF;
-        
+
         // Use venue bits and symbol patterns to determine likely venue
         match venue_bits {
             v if v >= 100 && v <= 199 => {
                 // CEX range - use symbol patterns for disambiguation
                 match symbol_hash % 5 {
                     0 => "binance",
-                    1 => "kraken", 
+                    1 => "kraken",
                     2 => "coinbase",
                     3 => "gemini",
                     _ => "other_cex",
@@ -358,7 +359,7 @@ impl TopicRegistry {
                 // Blockchain range
                 match v {
                     200..=205 => "ethereum",
-                    206..=210 => "polygon", 
+                    206..=210 => "polygon",
                     211..=215 => "arbitrum",
                     216..=220 => "optimism",
                     _ => "other_chain",
@@ -370,7 +371,7 @@ impl TopicRegistry {
                     300..=349 => "uniswap_v2",
                     350..=399 => "uniswap_v3",
                     400..=449 => "sushiswap",
-                    450..=499 => "curve", 
+                    450..=499 => "curve",
                     500..=549 => "quickswap",
                     550..=599 => "pancakeswap",
                     _ => "other_defi",
@@ -381,7 +382,7 @@ impl TopicRegistry {
                 match symbol_hash % 8 {
                     0 => "binance",
                     1 => "kraken",
-                    2 => "coinbase", 
+                    2 => "coinbase",
                     3 => "polygon",
                     4 => "uniswap_v3",
                     5 => "ethereum",
@@ -394,18 +395,19 @@ impl TopicRegistry {
 
     /// Extract custom field value as topic from TLV payload
     fn extract_custom_field(&self, tlv_payload: &[u8], field_id: u16) -> RelayResult<String> {
-        let tlvs = parse_tlv_extensions(tlv_payload)
-            .map_err(|e| RelayError::Validation(format!("Failed to parse TLV extensions: {}", e)))?;
+        let tlvs = parse_tlv_extensions(tlv_payload).map_err(|e| {
+            RelayError::Validation(format!("Failed to parse TLV extensions: {}", e))
+        })?;
 
         // Look for the specific TLV type
         for tlv in tlvs {
             let tlv_type = tlv.tlv_type;
-            
+
             if u16::from(tlv_type) == field_id {
                 // Found the custom field - convert data to string
                 // Assuming custom fields contain UTF-8 strings
                 let tlv_data = tlv.payload;
-                
+
                 let topic = String::from_utf8(tlv_data.to_vec())
                     .map_err(|e| {
                         RelayError::Validation(format!("Custom field is not valid UTF-8: {}", e))
