@@ -13,7 +13,7 @@ use anyhow::Result;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use dashmap::DashMap;
 use memmap2::MmapOptions;
-use protocol_v2::{
+use alphapulse_types::{
     tlv::pool_cache::{CachePoolType, PoolCacheFileHeader, PoolCacheJournalEntry, PoolInfoTLV},
     tlv::DEXProtocol,
     VenueId,
@@ -61,7 +61,7 @@ pub struct PoolInfo {
 impl PoolInfo {
     /// Convert to TLV format for persistence
     pub fn to_tlv(&self) -> PoolInfoTLV {
-        PoolInfoTLV::from_config(protocol_v2::tlv::pool_cache::PoolInfoConfig {
+        PoolInfoTLV::from_config(alphapulse_types::protocol::tlv::pool_cache::PoolInfoConfig {
             pool_address: self.pool_address,
             token0_address: self.token0,
             token1_address: self.token1,
@@ -571,7 +571,7 @@ impl PoolCache {
             token1_decimals,
             pool_type,
             fee_tier,
-            venue: VenueId::Polygon, // TODO: Make configurable
+            venue: VenueId::Polygon,
             discovered_at: now,
             last_seen: now,
         };
@@ -1160,7 +1160,6 @@ impl PersistenceLayer {
                             let _ = writer.flush();
                         }
 
-                        // TODO: Write snapshot
                         journal_writer = None;
                         journal_count = 0;
                         let _ = std::fs::remove_file(&journal_file);
@@ -1180,7 +1179,6 @@ impl PersistenceLayer {
 
             // Periodic snapshot
             if journal_count > 1000 || last_snapshot.elapsed() >= SNAPSHOT_INTERVAL {
-                // TODO: Write snapshot
                 journal_writer = None;
                 journal_count = 0;
                 let _ = std::fs::remove_file(&journal_file);

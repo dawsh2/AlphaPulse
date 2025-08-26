@@ -56,4 +56,9 @@ async fn test_system_health_validation() {
     assert!(health_results.len() >= 3); // One for each relay socket
 }
 
-// TODO: Add more comprehensive integration tests once the dependencies are resolved
+// Additional integration tests to add:
+// - Test full message flow from collector to dashboard
+// - Test relay failover and recovery
+// - Test performance under load (>1M msg/s)
+// - Test precision preservation through the pipeline
+// - Test TLV parsing and routing accuracy

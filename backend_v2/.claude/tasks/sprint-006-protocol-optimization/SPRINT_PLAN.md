@@ -326,6 +326,35 @@ macro_rules! define_tlv {
 - Benchmark before/after performance
 - Document macro patterns thoroughly
 
+## Dependencies
+
+### Sprint Dependencies
+**Depends On**: 
+- [x] Sprint 002: Code cleanup completed - Clean codebase required for macro implementation
+- [x] Sprint 003: Data integrity resolved - Stable foundation needed
+
+**Provides For**:
+- Sprint 007: Generic relay refactor will benefit from typed IDs and TLV macros
+- Sprint 009: Testing pyramid will use generated test macro patterns
+- Sprint 010: Codec separation requires type safety improvements
+
+### Parallel Work Safe?
+**✅ Can Run Concurrently With**:
+- Sprint 004: Mycelium runtime - Different architectural layers
+- Sprint 005: Mycelium MVP - No shared protocol changes
+
+**⚠️ Conflicts With**:
+- Sprint 009: Both modify test infrastructure simultaneously
+- Any sprint modifying TLV structure: Protocol changes need coordination
+
+### Dependency Validation
+```bash
+# Before starting this sprint, verify:
+# 1. All prerequisite sprints marked COMPLETE
+# 2. No conflicting sprints are IN_PROGRESS
+# 3. Required infrastructure/APIs available
+```
+
 ## Definition of Done
 - Typed IDs eliminate confusion bugs
 - TLV definitions 80% smaller

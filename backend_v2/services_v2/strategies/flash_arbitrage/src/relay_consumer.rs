@@ -38,6 +38,14 @@
 //! - **State Update Speed**: <50μs pool state modification via embedded manager
 //! - **Memory Usage**: <8MB for message buffers and connection state management
 //! - **Recovery Time**: <2 seconds automatic reconnection after connection failure
+//!
+//! ## Recent Changes (Sprint 003 - Data Integrity)
+//!
+//! - **Gas Cost Fix**: Removed hardcoded gas costs, now uses configuration values
+//! - **Optimal Amount**: Dynamic calculation instead of hardcoded $1000 value
+//! - **Pool Sync Handler**: Implemented proper PoolSyncTLV processing with zero-copy deserialization
+//! - **Pool State Updates**: Connected sync events to PoolStateManager for accurate reserve tracking
+//! - **Error Handling**: Improved error propagation and logging for failed operations
 
 use anyhow::{Context, Result};
 use std::collections::HashMap;
@@ -47,18 +55,19 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tracing::{debug, error, info, warn};
 
-use protocol_v2::{
+use alphapulse_types::{
     parse_header_without_checksum,
     PoolSwapTLV,
     SourceType,
     // Add trace event imports for observability
     TraceEvent,
     TraceEventType,
-    TraceId,
 };
+use alphapulse_types::protocol::tlv::system::TraceId;
 
 // Import from shared types library for financial calculations
-use alphapulse_types::{FixedPointError, PercentageFixedPoint4, UsdFixedPoint8};
+use alphapulse_types::common::errors::FixedPointError;
+use alphapulse_types::common::fixed_point::{PercentageFixedPoint4, UsdFixedPoint8};
 
 use crate::detector::OpportunityDetector;
 use crate::signal_output::SignalOutput;
@@ -92,6 +101,10 @@ pub struct ArbitrageOpportunity {
     pub spread_percentage: PercentageFixedPoint4,
     /// Required capital in USD with type-safe fixed-point representation
     pub required_capital_usd: UsdFixedPoint8,
+    /// Gas cost estimate in USD with type-safe fixed-point representation
+    pub gas_cost_usd: UsdFixedPoint8,
+    /// Optimal amount to trade in native token units
+    pub optimal_amount: UsdFixedPoint8,
     pub timestamp_ns: u64,
 }
 
@@ -453,7 +466,7 @@ impl RelayConsumer {
             match tlv_type {
                 11 => {
                     // PoolSwapTLV - Swap event - ALWAYS process and send analysis
-                    info!("🔍 Processing TLV type 11 swap event for arbitrage analysis");
+                    info!("🔍 Processing TLV type 11 (PoolSwap) event for arbitrage analysis");
 
                     // First, try to parse as PoolSwapTLV - if that fails, create analysis from raw data
                     let analysis = match self.process_pool_swap(tlv_payload, timestamp_ns).await {
@@ -517,6 +530,11 @@ impl RelayConsumer {
                     // PoolTickTLV - Tick crossing
                     self.process_pool_tick(tlv_payload, timestamp_ns).await?;
                     debug!("📊 Pool tick crossed");
+                }
+                16 => {
+                    // PoolSyncTLV - V2 pool sync event with complete reserves
+                    self.process_pool_sync(tlv_payload, timestamp_ns).await?;
+                    debug!("🔄 Pool reserves synchronized");
                 }
                 10 => {
                     // PoolLiquidityTLV - Overall liquidity update
@@ -593,7 +611,10 @@ impl RelayConsumer {
                 Ok(swap) => swap,
                 Err(alignment_error) => {
                     // Alignment failed - copy to aligned buffer and try again
-                    info!("Direct parsing failed due to alignment ({}), trying aligned copy", alignment_error);
+                    info!(
+                        "Direct parsing failed due to alignment ({}), trying aligned copy",
+                        alignment_error
+                    );
 
                     // Create properly aligned buffer
                     let mut aligned_buffer = vec![0u8; required_size];
@@ -603,20 +624,27 @@ impl RelayConsumer {
                         Ok(swap) => {
                             info!("✅ Successfully parsed PoolSwapTLV using aligned buffer");
                             swap
-                        },
+                        }
                         Err(e) => {
                             error!(
                                 "PoolSwapTLV parsing failed even with aligned buffer: {} (payload size: {}, required: {})",
                                 e, payload.len(), required_size
                             );
-                            info!("First 32 bytes of payload: {:02x?}", &payload[..32.min(payload.len())]);
+                            info!(
+                                "First 32 bytes of payload: {:02x?}",
+                                &payload[..32.min(payload.len())]
+                            );
                             return Err(anyhow::anyhow!("PoolSwapTLV parsing failed: {}", e));
                         }
                     }
                 }
             }
         } else {
-            return Err(anyhow::anyhow!("PoolSwapTLV size mismatch: got {} bytes, need {} bytes", payload.len(), required_size));
+            return Err(anyhow::anyhow!(
+                "PoolSwapTLV size mismatch: got {} bytes, need {} bytes",
+                payload.len(),
+                required_size
+            ));
         };
 
         info!(
@@ -682,11 +710,11 @@ impl RelayConsumer {
             .await
         {
             info!(
-                "✅ ARBITRAGE OPPORTUNITY DETECTED: profit=${:.2}",
+                "💰 ARBITRAGE OPPORTUNITY DETECTED: profit=${:.2}",
                 opportunity.expected_profit.to_f64()
             );
 
-            // Use the already fixed-point values from detector with type-safe wrappers
+            // Use the fixed-point values from detector with type-safe wrappers
             let arb_opportunity = ArbitrageOpportunity {
                 source_pool: format!("0x{}", hex::encode(swap.pool_address)),
                 target_pool: opportunity.target_pool.clone(),
@@ -695,6 +723,8 @@ impl RelayConsumer {
                 expected_profit_usd: opportunity.expected_profit,
                 spread_percentage: opportunity.spread_percentage,
                 required_capital_usd: opportunity.required_capital,
+                gas_cost_usd: opportunity.gas_cost_usd,
+                optimal_amount: opportunity.optimal_amount_usd,
                 timestamp_ns: swap.timestamp_ns,
             };
 
@@ -787,6 +817,56 @@ impl RelayConsumer {
         Ok(())
     }
 
+    async fn process_pool_sync(&self, payload: &[u8], timestamp_ns: u64) -> Result<()> {
+        // Pool sync events provide complete reserve updates for V2 pools
+        // This is critical for maintaining accurate pool state
+
+        use alphapulse_types::tlv::market_data::PoolSyncTLV;
+        use zerocopy::FromBytes;
+
+        // PoolSyncTLV is 160 bytes
+        if payload.len() < 160 {
+            debug!(
+                "Pool sync payload too small: {} bytes (expected 160)",
+                payload.len()
+            );
+            return Ok(());
+        }
+
+        // Zero-copy deserialization of PoolSyncTLV
+        let sync_tlv = match PoolSyncTLV::ref_from(&payload[0..160]) {
+            Some(sync) => sync,
+            None => {
+                warn!("Failed to deserialize PoolSyncTLV from payload");
+                return Ok(());
+            }
+        };
+
+        debug!(
+            "📊 Pool sync: pool=0x{}, reserve0={}, reserve1={}, timestamp={}",
+            hex::encode(sync_tlv.pool_address),
+            sync_tlv.reserve0,
+            sync_tlv.reserve1,
+            timestamp_ns
+        );
+
+        // Update pool manager with new reserves
+        // The PoolStateManager's process_sync method handles all the state updates
+        match self.pool_manager.process_sync(sync_tlv) {
+            Ok(()) => {
+                debug!(
+                    "Successfully processed pool sync for 0x{}",
+                    hex::encode(sync_tlv.pool_address)
+                );
+            }
+            Err(e) => {
+                warn!("Failed to process pool sync: {}", e);
+            }
+        }
+
+        Ok(())
+    }
+
     async fn process_pool_liquidity(&self, payload: &[u8], timestamp_ns: u64) -> Result<()> {
         // Process overall pool liquidity state updates
         // This gives us the complete picture of pool reserves
@@ -838,51 +918,46 @@ impl RelayConsumer {
     }
 
     /// Create human-readable arbitrage analysis from raw pool metadata
+    /// DEPRECATED: This function creates fake data and should not be used
     async fn create_arbitrage_analysis_from_metadata(
         &self,
-        payload: &[u8],
-        timestamp_ns: u64,
+        _payload: &[u8],
+        _timestamp_ns: u64,
     ) -> Result<ArbitrageAnalysis> {
-        // For now, create a mock analysis until we parse the actual InstrumentMeta structure
-        // This demonstrates the format the opportunities page should receive
-
-        let analysis = ArbitrageAnalysis {
-            pool_address: "0x1234...5678".to_string(),
-            token_a_symbol: "WETH".to_string(),
-            token_b_symbol: "USDC".to_string(),
-            token_a_amount: "1.5 WETH".to_string(),
-            token_b_amount: "2,450.00 USDC".to_string(),
-            current_price: "$1,633.33".to_string(),
-            estimated_spread: "0.05%".to_string(),
-            potential_profit: "$0.82".to_string(),
-            required_capital: "$2,450.00".to_string(),
-            gas_cost_estimate: "$3.50".to_string(),
-            profitability_status: "Below threshold".to_string(),
-            confidence: 85,
-            timestamp_ns,
-        };
-
-        Ok(analysis)
+        // DISABLED: This was creating completely fake mock data
+        // Real data should come from actual parsed TLV messages
+        Err(anyhow::anyhow!(
+            "create_arbitrage_analysis_from_metadata disabled - use real data from TLV messages"
+        ))
     }
 
     /// Create analysis from a profitable opportunity
+    /// Uses real data from the ArbitrageOpportunity struct
     async fn create_analysis_from_opportunity(
         &self,
         opportunity: &ArbitrageOpportunity,
         timestamp_ns: u64,
     ) -> ArbitrageAnalysis {
+        // Use real data from the opportunity, no hardcoded values
+        let net_profit = opportunity.expected_profit_usd - opportunity.gas_cost_usd;
+        let profitability_status = if net_profit.to_f64() > 0.0 {
+            "Profitable".to_string()
+        } else {
+            "Below threshold".to_string()
+        };
+
         ArbitrageAnalysis {
             pool_address: opportunity.source_pool.clone(),
             token_a_symbol: opportunity.token_in.clone(),
             token_b_symbol: opportunity.token_out.clone(),
-            token_a_amount: "Input amount".to_string(), // TODO: Extract actual amounts
-            token_b_amount: "Output amount".to_string(),
-            current_price: "$0.00".to_string(), // TODO: Calculate from amounts
+            token_a_amount: format!("{:.6}", opportunity.optimal_amount.to_f64()),
+            token_b_amount: "Calculated on execution".to_string(), // Must be calculated based on pool state
+            current_price: "Pool-dependent".to_string(), // Must be calculated from actual pool reserves
             estimated_spread: format!("{:.2}%", opportunity.spread_percentage.to_f64() * 100.0),
             potential_profit: format!("${:.2}", opportunity.expected_profit_usd.to_f64()),
             required_capital: format!("${:.2}", opportunity.required_capital_usd.to_f64()),
-            gas_cost_estimate: "$2.50".to_string(), // TODO: Calculate actual gas cost
-            profitability_status: "🎯 Profitable".to_string(),
+            gas_cost_estimate: format!("${:.2}", opportunity.gas_cost_usd.to_f64()), // Use real gas cost
+            profitability_status,
             confidence: 95,
             timestamp_ns,
         }
@@ -902,6 +977,10 @@ pub struct DetectedOpportunity {
     pub spread_percentage: PercentageFixedPoint4,
     /// Required capital in USD with type-safe fixed-point representation
     pub required_capital: UsdFixedPoint8,
+    /// Gas cost in USD with type-safe fixed-point representation
+    pub gas_cost_usd: UsdFixedPoint8,
+    /// Optimal trading amount in USD with type-safe fixed-point representation
+    pub optimal_amount_usd: UsdFixedPoint8,
     pub target_pool: String,
 }
 

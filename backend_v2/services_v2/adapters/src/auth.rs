@@ -1,6 +1,6 @@
 //! Authentication and API key management
 
-use protocol_v2::VenueId;
+use alphapulse_types::VenueId;
 use std::collections::HashMap;
 
 /// API credentials for a venue

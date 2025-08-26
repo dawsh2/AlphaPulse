@@ -18,7 +18,7 @@
 //! Supports Protocol V2 performance targets through optimized message building pipeline.
 
 use async_trait::async_trait;
-use protocol_v2::{
+use alphapulse_types::{
     tlv::build_message_direct,
     tlv::market_data::{
         PoolBurnTLV, PoolMintTLV, PoolSwapTLV, PoolSyncTLV, PoolTickTLV, QuoteTLV,
@@ -250,7 +250,7 @@ impl MessageSender for MessageSenderImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol_v2::{InstrumentId, VenueId};
+    use alphapulse_types::{InstrumentId, VenueId};
     use std::sync::Arc;
 
     // Create a mock RelayOutput for testing (this is for unit testing only)

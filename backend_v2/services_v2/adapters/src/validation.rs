@@ -54,8 +54,8 @@
 //! ### Complete Example
 //! ```rust
 //! # use alphapulse_adapters::validation::*;
-//! # use protocol_v2::tlv::market_data::PoolSwapTLV;
-//! # use protocol_v2::VenueId;
+//! # use alphapulse_types::tlv::market_data::PoolSwapTLV;
+//! # use alphapulse_types::VenueId;
 //!
 //! #[test]
 //! fn test_my_adapter_validation() -> ValidationResult<()> {
@@ -136,8 +136,8 @@
 //! }
 //! ```
 
-use protocol_v2::tlv::dynamic_payload::DynamicPayload;
-use protocol_v2::tlv::market_data::*;
+use alphapulse_types::tlv::dynamic_payload::DynamicPayload;
+use alphapulse_types::tlv::market_data::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use zerocopy::{AsBytes, FromBytes};
@@ -709,7 +709,7 @@ impl_tlv_traits!(PoolTickTLV, 14); // TLVType::PoolTick = 14
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol_v2::VenueId;
+    use alphapulse_types::VenueId;
 
     #[test]
     fn test_pool_swap_semantic_validation_success() {

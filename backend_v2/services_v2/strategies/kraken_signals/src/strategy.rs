@@ -6,9 +6,9 @@ use crate::indicators::{CompositeIndicator, IndicatorSignal, MomentumStrength, T
 use crate::signals::{SignalStats, SignalType, TradingSignal};
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use protocol_v2::TLVType;
-use protocol_v2::{InstrumentId, VenueId};
-use protocol_v2::{MessageHeader, RelayDomain, SourceType};
+use alphapulse_types::TLVType;
+use alphapulse_types::{InstrumentId, VenueId};
+use alphapulse_types::{MessageHeader, RelayDomain, SourceType};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use std::sync::atomic::{AtomicU64, Ordering};

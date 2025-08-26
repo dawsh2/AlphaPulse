@@ -5,7 +5,7 @@
 use crate::{trace_id_to_hex, Result, TraceCollectorStats, TraceError, TraceId, TraceTimeline};
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use protocol_v2::TraceEvent;
+use alphapulse_types::TraceEvent;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 use std::sync::Arc;
 use tokio::time::Instant;
@@ -261,7 +261,7 @@ impl TraceEventProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol_v2::{SourceType, TraceEvent, TraceEventType};
+    use alphapulse_types::{SourceType, TraceEvent, TraceEventType};
     use std::collections::HashMap;
 
     fn create_test_event(

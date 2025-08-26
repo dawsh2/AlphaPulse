@@ -9,7 +9,7 @@ use tokio::net::UnixStream;
 use tracing::{debug, error, info, warn};
 use zerocopy::AsBytes;
 
-use protocol_v2::tlv::{
+use alphapulse_types::tlv::{
     dynamic_payload::DynamicPayload,
     market_data::{PoolBurnTLV, PoolLiquidityTLV, PoolMintTLV, PoolSwapTLV, PoolTickTLV},
 };

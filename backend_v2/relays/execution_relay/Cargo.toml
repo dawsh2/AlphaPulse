@@ -7,7 +7,7 @@ description = "High-security execution relay for order processing"
 [dependencies]
 # Core relay infrastructure with security-focused features
 alphapulse-relays = { path = "..", features = ["execution-relay"] }
-protocol_v2 = { path = "../../protocol_v2" }
+alphapulse-types = { path = "../../libs/types" }
 
 # Async runtime - minimal features for binary
 tokio = { version = "1.0", features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }

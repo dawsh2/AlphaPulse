@@ -150,5 +150,5 @@ pub use signals::{SignalType, TradingSignal};
 pub use strategy::KrakenSignalStrategy;
 
 /// Re-export key protocol types
-pub use protocol_v2::{InstrumentId, VenueId};
+pub use alphapulse_types::{InstrumentId, VenueId};
 pub use rust_decimal::Decimal;

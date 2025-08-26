@@ -4,7 +4,7 @@
 //! for maximum flexibility in development and production deployments.
 
 use anyhow::{Context, Result};
-use protocol_v2::RelayDomain;
+use alphapulse_types::RelayDomain;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 

@@ -1,7 +1,7 @@
 //! Configuration for Binance unified collector
 
 use anyhow::{Context, Result};
-use protocol_v2::RelayDomain;
+use alphapulse_types::RelayDomain;
 use serde::{Deserialize, Serialize};
 use std::fs;
 

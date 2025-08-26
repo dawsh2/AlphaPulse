@@ -38,7 +38,7 @@
 use crate::output::RelayOutput;
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
-use protocol_v2::{
+use alphapulse_types::{
     tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
 use rust_decimal::prelude::{FromStr, ToPrimitive};

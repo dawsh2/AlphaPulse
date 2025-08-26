@@ -90,7 +90,7 @@ use crate::error::{DashboardError, Result};
 use crate::message_converter::{
     convert_tlv_to_json, create_arbitrage_opportunity, create_combined_signal,
 };
-use protocol_v2::{
+use alphapulse_types::{
     message::header::MessageHeader, parse_header, parse_tlv_extensions, ParseError, RelayDomain,
     TLVExtensionEnum, MESSAGE_MAGIC,
 };
@@ -592,7 +592,10 @@ impl RelayConsumer {
                     // Validate expected message sizes for DemoDeFiArbitrageTLV (remove hardcoded magic numbers)
                     let expected_sizes = [214, 217, 258, 261]; // Correct (214), Extended (217), Legacy (258), Observed (261)
                     if expected_sizes.contains(&total_message_size) {
-                        debug!("Valid DemoDeFiArbitrageTLV message: {} bytes", total_message_size);
+                        debug!(
+                            "Valid DemoDeFiArbitrageTLV message: {} bytes",
+                            total_message_size
+                        );
                     } else if total_message_size % 214 == 0 && total_message_size > 214 {
                         warn!(
                             "⚠️ Concatenated correct messages: {} bytes ({}×214)",
@@ -762,7 +765,7 @@ impl RelayConsumer {
 mod tests {
     use super::*;
     use crate::client::ClientManager;
-    use protocol_v2::{message::header::MessageHeader, RelayDomain, MESSAGE_MAGIC};
+    use alphapulse_types::{message::header::MessageHeader, RelayDomain, MESSAGE_MAGIC};
     use std::collections::HashMap;
     use zerocopy::AsBytes;
 

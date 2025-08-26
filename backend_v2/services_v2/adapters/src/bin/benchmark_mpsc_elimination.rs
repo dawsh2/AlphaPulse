@@ -11,7 +11,7 @@
 //! - Reduced backpressure management complexity
 
 use anyhow::Result;
-use protocol_v2::{
+use alphapulse_types::{
     tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
 use std::sync::Arc;

@@ -5,7 +5,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum StrategyError {
     #[error("Protocol error: {0}")]
-    Protocol(#[from] protocol_v2::ProtocolError),
+    Protocol(#[from] alphapulse_types::protocol::ProtocolError),
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),

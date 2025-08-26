@@ -10,7 +10,7 @@
 //! All schemas stored inline for validation and documentation
 
 use async_trait::async_trait;
-use protocol_v2::{
+use alphapulse_types::{
     tlv::market_data::{QuoteTLV, TradeTLV},
     InstrumentId, RelayDomain, SourceType, VenueId,
 };

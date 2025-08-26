@@ -12,7 +12,7 @@
 use crate::output::RelayOutput;
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
-use protocol_v2::{
+use alphapulse_types::{
     current_timestamp_ns, tlv::build_message_direct, InstrumentId, QuoteTLV, RelayDomain,
     SourceType, TLVType, TradeTLV, VenueId,
 };

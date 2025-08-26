@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 use alphapulse_adapters::input::collectors::kraken::KrakenCollector;
 use alphapulse_dashboard_websocket::{DashboardConfig, DashboardServer};
 use alphapulse_kraken_signals::strategy::KrakenSignalsStrategy;
-use protocol_v2::relay::{MarketDataRelay, SignalRelay};
+use alphapulse_types::relay::{MarketDataRelay, SignalRelay};
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant};

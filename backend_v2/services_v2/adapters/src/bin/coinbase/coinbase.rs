@@ -27,7 +27,7 @@
 
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
-use protocol_v2::{
+use alphapulse_types::{
     parse_header, parse_tlv_extensions, tlv::build_message_direct,
     tlv::fast_timestamp::init_timestamp_system, InstrumentId, RelayDomain, SourceType, TLVType,
     TradeTLV, VenueId,

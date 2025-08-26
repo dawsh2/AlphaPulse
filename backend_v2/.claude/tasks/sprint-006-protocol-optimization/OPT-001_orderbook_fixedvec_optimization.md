@@ -1,4 +1,26 @@
+---
+task_id: OPT-001
+status: COMPLETED
+priority: CRITICAL
+estimated_hours: 4
+branch: perf/orderbook-fixedvec
+assignee: Claude Code Review
+created: 2025-08-26
+completed: 2025-08-26
+---
+
 # Task OPT-001: OrderBookTLV True Zero-Copy with FixedVec
+
+## 🔴 CRITICAL INSTRUCTIONS
+
+### 0. 📋 MARK AS IN-PROGRESS IMMEDIATELY
+**⚠️ FIRST ACTION: Change status when you start work!**
+```yaml
+# Edit the YAML frontmatter above:
+status: TODO → status: IN_PROGRESS
+
+# This makes the kanban board show you're working on it!
+```
 
 **Branch**: `perf/orderbook-fixedvec`  
 **Priority**: 🔴 CRITICAL  

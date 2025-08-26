@@ -1,6 +1,6 @@
 //! Trading signal definitions and generation
 
-use protocol_v2::InstrumentId;
+use alphapulse_types::InstrumentId;
 use rust_decimal::Decimal;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -148,7 +148,7 @@ impl SignalStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol_v2::VenueId;
+    use alphapulse_types::VenueId;
     use rust_decimal_macros::dec;
 
     #[test]

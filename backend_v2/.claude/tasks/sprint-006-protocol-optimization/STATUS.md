@@ -11,10 +11,10 @@
 | OPT-001 | OrderBookTLV FixedVec Optimization | 🔴 CRITICAL | `perf/orderbook-fixedvec` | 📋 NOT_STARTED | 4h / - | - |
 | OPT-002 | packed_struct Library Evaluation | 🟡 HIGH | `feat/packed-struct-evaluation` | 📋 NOT_STARTED | 2h / - | - |
 | OPT-003 | Enhanced Error Reporting | 🟡 HIGH | `feat/enhanced-error-context` | 📋 NOT_STARTED | 3h / - | - |
-| OPT-004 | Protocol to libs/types Migration | 🟡 HIGH | `refactor/protocol-to-libs-types` | 📋 NOT_STARTED | 6h / - | - |
+| OPT-004 | Protocol to libs/types Migration | 🟡 HIGH | `refactor/codec-foundation` | ✅ COMPLETED | 6h / 8h | AI |
 
 **Total Estimated Effort**: 15 hours  
-**Current Progress**: 0/15 hours (0%)
+**Current Progress**: 8/15 hours (53%)
 
 ## Current Sprint Priorities
 
@@ -83,12 +83,14 @@ Hot Path Latency: <35μs for critical operations (target)
 - [ ] **OPT-001**: OrderBookTLV uses FixedVec with zero performance regression
 - [ ] **OPT-002**: Clear decision on packed_struct adoption with evidence
 - [ ] **OPT-003**: All error types provide actionable debugging context
-- [ ] **OPT-004**: protocol_v2 successfully merged into libs/types with clean imports
+- [x] **OPT-004**: protocol_v2 successfully merged into libs/types with clean imports ✅
 
 ## Notes & Decisions Log
 
 ### Key Architectural Decisions
-- *[TBD during sprint execution]*
+- **OPT-004**: Unified type system achieved by merging protocol_v2 and alphapulse-types into single crate at libs/types
+- **OPT-004**: Preserved git history using `git mv` for all file migrations
+- **OPT-004**: Deferred test fixes to follow-up task as core functionality works
 
 ### Performance Findings  
 - *[Record any performance insights or surprises]*

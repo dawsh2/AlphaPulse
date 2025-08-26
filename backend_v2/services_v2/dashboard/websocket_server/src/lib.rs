@@ -18,4 +18,4 @@ pub use error::{DashboardError, Result};
 pub use server::DashboardServer;
 
 /// Re-export key types
-pub use protocol_v2::{QuoteTLV, StateInvalidationTLV};
+pub use alphapulse_types::{QuoteTLV, StateInvalidationTLV};

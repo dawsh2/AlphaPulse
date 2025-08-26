@@ -9,7 +9,7 @@ use crate::{
 
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use protocol_v2::TraceEvent;
+use alphapulse_types::TraceEvent;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 use std::path::Path;
 use std::sync::Arc;

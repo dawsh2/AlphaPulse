@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "protocol_v2",
     "services_v2/adapters",
     "services_v2/strategies/flash_arbitrage",
     "services_v2/strategies/kraken_signals",
@@ -15,6 +14,7 @@ members = [
     "relays/execution_relay",
     # Shared libraries
     "libs/types",
+    "libs/alphapulse_codec",
     "libs/amm",
     "libs/dex",
     "libs/health_check",
@@ -22,8 +22,6 @@ members = [
     "libs/mev",
     "libs/state/core",
     "libs/state/market",
-    "libs/state/execution",
-    "libs/state/portfolio",
     # Tests
     "tests/e2e",
 ]
@@ -36,16 +34,11 @@ edition = "2021"
 authors = ["AlphaPulse Team"]
 
 [workspace.dependencies]
-# Core protocol
-protocol_v2 = { path = "protocol_v2" }
-# alphapulse-protocol = { path = "protocol_v2" }  # Unused alias - removed
-
 # Internal libs
 alphapulse-types = { path = "libs/types" }
+alphapulse-codec = { path = "libs/alphapulse_codec" }
 alphapulse-state-core = { path = "libs/state/core" }
 alphapulse-state-market = { path = "libs/state/market" }
-alphapulse-state-execution = { path = "libs/state/execution" }
-alphapulse-state-portfolio = { path = "libs/state/portfolio" }
 alphapulse-amm = { path = "libs/amm" }
 alphapulse-dex = { path = "libs/dex" }
 alphapulse-health-check = { path = "libs/health_check" }  # Package name fixed to use hyphens

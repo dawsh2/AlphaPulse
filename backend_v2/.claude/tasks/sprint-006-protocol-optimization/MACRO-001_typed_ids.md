@@ -1,3 +1,14 @@
+---
+task_id: MACRO-001
+status: TODO
+priority: CRITICAL
+estimated_hours: 4
+assigned_branch: feat/typed-id-wrappers
+assignee: TBD
+created: 2025-08-26
+completed: null
+---
+
 # MACRO-001: Typed ID Wrappers
 
 ## Task Overview

@@ -135,7 +135,7 @@
 //! - Verify TLV construction follows proper header + payload structure
 
 use crate::{RelayError, RelayResult, ValidationPolicy};
-use protocol_v2::MessageHeader;
+use alphapulse_types::protocol::MessageHeader;
 use tracing::{debug, warn};
 
 /// Message validator trait
@@ -362,7 +362,7 @@ mod tests {
         let validator = PerformanceValidator::new(policy);
 
         let header = MessageHeader {
-            magic: protocol_v2::MESSAGE_MAGIC,
+            magic: alphapulse_types::protocol::MESSAGE_MAGIC,
             version: 1,
             message_type: 1,
             relay_domain: 1,
@@ -395,7 +395,7 @@ mod tests {
         let checksum = crc32fast::hash(data);
 
         let header = MessageHeader {
-            magic: protocol_v2::MESSAGE_MAGIC,
+            magic: alphapulse_types::protocol::MESSAGE_MAGIC,
             version: 1,
             message_type: 1,
             relay_domain: 1,

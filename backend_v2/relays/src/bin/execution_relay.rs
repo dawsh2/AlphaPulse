@@ -1,103 +1,61 @@
-//! Production Execution Relay
-//! Real Unix socket server for Protocol V2 execution messages
+//! # Execution Relay Binary - Generic Engine Implementation
+//!
+//! Unix socket server for Protocol V2 execution messages using the new
+//! generic relay engine architecture with security-focused features.
+//!
+//! ## Architecture Changes
+//!
+//! **Before**: Custom execution relay implementation with duplicated connection handling
+//! **After**: Uses generic `Relay<ExecutionLogic>` engine with execution-specific logic
+//!
+//! ## Security Features
+//! - **Message Validation**: Enhanced validation for execution messages
+//! - **Audit Logging**: Comprehensive logging for compliance
+//! - **Future Extensions**: Ready for authentication and authorization
+//!
+//! ## Performance Profile
+//! - **Security First**: Validation may add minimal latency
+//! - **Execution Integrity**: Correctness over pure speed
+//! - **Compliance Ready**: Designed for regulatory requirements
+//!
+//! ## Usage
+//! ```bash
+//! # Start the execution relay
+//! cargo run --release --bin execution_relay
+//!
+//! # Or using the relays package  
+//! cargo run --release -p alphapulse-relays --bin execution_relay
+//! ```
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::UnixListener;
-use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+use alphapulse_relays::common::{Relay, RelayLogic};
+use alphapulse_relays::execution::ExecutionLogic;
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize logging
     tracing_subscriber::fmt::init();
 
-    info!("🚀 Starting Production Execution Relay");
+    info!("🚀 Starting Generic Execution Relay");
+    info!("📋 Using new generic engine architecture");
+    info!("🔒 Security-focused execution message handling");
 
-    // Create directory
-    std::fs::create_dir_all("/tmp/alphapulse")?;
+    // Create execution logic
+    let logic = ExecutionLogic;
+    info!("✅ Execution Logic: domain={:?}, socket={}", 
+          logic.domain(), logic.socket_path());
 
-    // Remove existing socket
-    let socket_path = "/tmp/alphapulse/execution.sock";
-    if std::path::Path::new(socket_path).exists() {
-        std::fs::remove_file(socket_path)?;
-    }
-
-    // Create Unix socket listener
-    let listener = UnixListener::bind(socket_path)?;
-    info!("✅ Execution Relay listening on: {}", socket_path);
-
-    // Track connected consumers
-    let consumers = Arc::new(RwLock::new(HashMap::new()));
-    let consumer_id = Arc::new(std::sync::atomic::AtomicU64::new(0));
-
-    // Accept connections
-    loop {
-        match listener.accept().await {
-            Ok((mut stream, _)) => {
-                let id = consumer_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                info!("📡 Execution consumer {} connected", id);
-
-                let consumers_clone = consumers.clone();
-
-                tokio::spawn(async move {
-                    let mut buffer = vec![0u8; 65536]; // 64KB buffer for TLV messages
-                    let mut message_count = 0u64;
-
-                    loop {
-                        match stream.read(&mut buffer).await {
-                            Ok(0) => {
-                                info!(
-                                    "📡 Consumer {} disconnected after {} messages",
-                                    id, message_count
-                                );
-                                break;
-                            }
-                            Ok(n) => {
-                                message_count += 1;
-
-                                // In production, we would:
-                                // 1. Parse the Protocol V2 header
-                                // 2. Validate the message
-                                // 3. Route to other consumers
-                                // 4. Track metrics
-
-                                if message_count % 1000 == 0 {
-                                    info!(
-                                        "📊 Consumer {}: {} messages processed",
-                                        id, message_count
-                                    );
-                                }
-
-                                // For now, just log first few bytes to verify data flow
-                                if message_count <= 5 {
-                                    let preview = &buffer[..std::cmp::min(32, n)];
-                                    info!(
-                                        "📨 Consumer {} message {}: {} bytes, preview: {:?}",
-                                        id, message_count, n, preview
-                                    );
-                                }
-                            }
-                            Err(e) => {
-                                error!("Consumer {} read error: {}", id, e);
-                                break;
-                            }
-                        }
-                    }
-
-                    // Clean up consumer
-                    consumers_clone.write().await.remove(&id);
-                });
-
-                // Track consumer
-                consumers
-                    .write()
-                    .await
-                    .insert(id, std::time::Instant::now());
-            }
-            Err(e) => {
-                error!("Failed to accept connection: {}", e);
-            }
+    // Create and start relay
+    let mut relay = Relay::new(logic);
+    
+    match relay.run().await {
+        Ok(()) => {
+            info!("✅ Execution Relay completed successfully");
+            Ok(())
+        }
+        Err(e) => {
+            error!("❌ Execution Relay failed: {}", e);
+            Err(Box::new(e))
         }
     }
 }

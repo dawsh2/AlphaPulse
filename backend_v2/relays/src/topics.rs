@@ -124,7 +124,9 @@
 
 use crate::{ConsumerId, RelayError, RelayResult, TopicConfig, TopicExtractionStrategy};
 use dashmap::DashMap;
-use protocol_v2::{MessageHeader, SourceType};
+use alphapulse_types::protocol::{
+    parse_tlv_extensions, InstrumentId, MessageHeader, SourceType, TLVExtensionEnum, TLVType, VenueId,
+};
 use std::collections::HashSet;
 use tracing::{debug, info, warn};
 
@@ -235,7 +237,7 @@ impl TopicRegistry {
     pub fn extract_topic(
         &self,
         header: &MessageHeader,
-        _tlv_payload: Option<&[u8]>,
+        tlv_payload: Option<&[u8]>,
         strategy: &TopicExtractionStrategy,
     ) -> RelayResult<String> {
         let topic = match strategy {
@@ -244,16 +246,34 @@ impl TopicRegistry {
                 self.source_type_to_topic(header.source)?
             }
             TopicExtractionStrategy::InstrumentVenue => {
-                // TODO: Extract venue from TLV payload containing instrument ID
-                // For now, use default topic
-                warn!("InstrumentVenue extraction requires TLV parsing - using default");
-                self.config.default.clone()
+                // Extract venue from TLV payload containing instrument ID
+                if let Some(payload) = tlv_payload {
+                    match self.extract_venue_from_tlv(payload) {
+                        Ok(venue) => format!("venue_{}", venue),
+                        Err(e) => {
+                            warn!("Failed to extract venue from TLV: {}", e);
+                            self.config.default.clone()
+                        }
+                    }
+                } else {
+                    warn!("No TLV payload provided for InstrumentVenue extraction");
+                    self.config.default.clone()
+                }
             }
             TopicExtractionStrategy::CustomField(field_id) => {
                 // Look for custom TLV field
-                // TODO: Parse TLVs to find custom field
-                warn!("Custom field extraction not yet implemented");
-                self.config.default.clone()
+                if let Some(payload) = tlv_payload {
+                    match self.extract_custom_field(payload, u16::from(*field_id)) {
+                        Ok(topic) => topic,
+                        Err(e) => {
+                            warn!("Failed to extract custom field {}: {}", field_id, e);
+                            self.config.default.clone()
+                        }
+                    }
+                } else {
+                    warn!("No TLV payload provided for custom field extraction");
+                    self.config.default.clone()
+                }
             }
             TopicExtractionStrategy::Fixed(topic) => {
                 // Always use fixed topic
@@ -262,6 +282,101 @@ impl TopicRegistry {
         };
 
         Ok(topic)
+    }
+
+    /// Extract venue from TLV payload by finding instrument ID
+    fn extract_venue_from_tlv(&self, tlv_payload: &[u8]) -> RelayResult<String> {
+        let tlvs = parse_tlv_extensions(tlv_payload)
+            .map_err(|e| RelayError::Validation(format!("Failed to parse TLV extensions: {}", e)))?;
+
+        // Look for TLVs that might contain instrument IDs
+        for tlv in tlvs {
+            let tlv_type = match &tlv {
+                TLVExtensionEnum::Standard(std_tlv) => std_tlv.header.tlv_type,
+                TLVExtensionEnum::Extended(ext_tlv) => ext_tlv.header.tlv_type,
+            };
+            
+            match TLVType::try_from(tlv_type) {
+                Ok(TLVType::Trade) | Ok(TLVType::Quote) | Ok(TLVType::OrderStatus) => {
+                    // These TLVs typically contain instrument IDs
+                    // Try to extract instrument ID from the TLV data
+                    let tlv_data = match &tlv {
+                        TLVExtensionEnum::Standard(std_tlv) => &std_tlv.payload[..],
+                        TLVExtensionEnum::Extended(ext_tlv) => &ext_tlv.payload[..],
+                    };
+                    
+                    if tlv_data.len() >= 8 {
+                        // Assuming instrument ID is the first 8 bytes
+                        let instrument_bytes = &tlv_data[0..8];
+                        let instrument_id =
+                            u64::from_le_bytes(instrument_bytes.try_into().map_err(|_| {
+                                RelayError::Validation("Invalid instrument ID".to_string())
+                            })?);
+
+                        // Decode the instrument ID to extract venue
+                        let decoded = InstrumentId::from_cache_key(instrument_id as u128);
+                        let venue = match decoded.venue() {
+                            Ok(venue_id) => match venue_id {
+                                VenueId::Binance => "binance",
+                                VenueId::Kraken => "kraken",
+                                VenueId::Coinbase => "coinbase",
+                                VenueId::Polygon => "polygon",
+                                VenueId::Gemini => "gemini",
+                                _ => "unknown",
+                            },
+                            Err(_) => "unknown",
+                        };
+                        return Ok(venue.to_string());
+                    }
+                }
+                _ => continue,
+            }
+        }
+
+        Err(RelayError::Validation(
+            "No instrument ID found in TLV payload".to_string(),
+        ))
+    }
+
+    /// Extract custom field value as topic from TLV payload
+    fn extract_custom_field(&self, tlv_payload: &[u8], field_id: u16) -> RelayResult<String> {
+        let tlvs = parse_tlv_extensions(tlv_payload)
+            .map_err(|e| RelayError::Validation(format!("Failed to parse TLV extensions: {}", e)))?;
+
+        // Look for the specific TLV type
+        for tlv in tlvs {
+            let tlv_type = match &tlv {
+                TLVExtensionEnum::Standard(std_tlv) => std_tlv.header.tlv_type,
+                TLVExtensionEnum::Extended(ext_tlv) => ext_tlv.header.tlv_type,
+            };
+            
+            if u16::from(tlv_type) == field_id {
+                // Found the custom field - convert data to string
+                // Assuming custom fields contain UTF-8 strings
+                let tlv_data = match &tlv {
+                    TLVExtensionEnum::Standard(std_tlv) => &std_tlv.payload[..],
+                    TLVExtensionEnum::Extended(ext_tlv) => &ext_tlv.payload[..],
+                };
+                
+                let topic = String::from_utf8(tlv_data.to_vec())
+                    .map_err(|e| {
+                        RelayError::Validation(format!("Custom field is not valid UTF-8: {}", e))
+                    })?
+                    .trim()
+                    .to_string();
+
+                if topic.is_empty() {
+                    return Err(RelayError::Validation("Custom field is empty".to_string()));
+                }
+
+                return Ok(topic);
+            }
+        }
+
+        Err(RelayError::Validation(format!(
+            "Custom field {} not found in TLV payload",
+            field_id
+        )))
     }
 
     /// Map source type to topic name
@@ -408,7 +523,7 @@ mod tests {
         let registry = TopicRegistry::new(&config).unwrap();
 
         let mut header = MessageHeader {
-            magic: protocol_v2::MESSAGE_MAGIC,
+            magic: alphapulse_types::protocol::MESSAGE_MAGIC,
             version: 1,
             message_type: 1,
             relay_domain: 1,

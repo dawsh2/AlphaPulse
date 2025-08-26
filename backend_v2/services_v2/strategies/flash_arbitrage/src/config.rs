@@ -66,10 +66,14 @@ pub struct DetectorConfig {
     pub min_profit_usd: Decimal,
     /// Estimated gas cost in USD for transaction execution (TODO: determine dynamically from empirical data)
     pub gas_cost_usd: Decimal,
+    /// Fallback gas cost when conversion fails (safety net)
+    pub fallback_gas_cost_usd: Decimal,
     /// Maximum slippage tolerance in basis points (e.g., 50 = 0.5%)
     pub slippage_tolerance_bps: u32,
     /// Price impact detection threshold (e.g., 0.001 = 0.1%)
     pub price_impact_threshold: Decimal,
+    /// Maximum profit margin percentage to filter suspicious opportunities (e.g., 10.0 = 10%)
+    pub max_profit_margin_pct: Decimal,
 }
 
 /// Executor configuration with security-conscious defaults
@@ -162,9 +166,11 @@ impl Default for DetectorConfig {
     fn default() -> Self {
         Self {
             min_profit_usd: dec!(0.0),           // Non-inclusive: profit must be > 0
-            gas_cost_usd: dec!(5.0), // TODO: Replace with dynamic gas estimation from empirical data
+            gas_cost_usd: dec!(0.10), // Polygon typical gas cost - should be overridden via config or dynamic estimation
+            fallback_gas_cost_usd: dec!(0.05), // Safety net when conversion fails
             slippage_tolerance_bps: 50, // 0.5%
             price_impact_threshold: dec!(0.001), // 0.1%
+            max_profit_margin_pct: dec!(10.0), // 10% max profit margin filter
         }
     }
 }

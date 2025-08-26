@@ -1,6 +1,6 @@
 //! Error types for the adapters module
 
-use protocol_v2::VenueId;
+use alphapulse_types::VenueId;
 use thiserror::Error;
 
 /// Result type alias for adapter operations

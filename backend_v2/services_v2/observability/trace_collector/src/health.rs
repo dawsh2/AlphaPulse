@@ -4,7 +4,7 @@
 
 use crate::{Result, TraceCollectorStats};
 use parking_lot::RwLock;
-use protocol_v2::{SourceType, SystemHealthTLV};
+use alphapulse_types::{SourceType, SystemHealthTLV};
 use std::sync::Arc;
 use sysinfo::{Pid, System};
 use tracing::{error, info, warn};

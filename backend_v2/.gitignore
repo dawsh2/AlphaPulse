@@ -70,6 +70,14 @@ test_signal_relay_rust
 *.org~
 *.md~
 Cargo_*.toml
+*.backup
+*.bkp
+*.orig
+*.save
+.#*
+*_backup*
+*_bkp_*
+*-backup-*
 
 # Profile and benchmark outputs
 profile_*
@@ -78,3 +86,5 @@ simple_profile*
 
 # Keep the specific latency benchmark
 !network/transport/benches/latency.rs
+*~
+*.org~

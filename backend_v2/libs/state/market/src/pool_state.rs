@@ -7,7 +7,7 @@ use alphapulse_state_core::{SequenceTracker, SequencedStateful, StateError, Stat
 use anyhow::Result;
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use protocol_v2::{
+use alphapulse_types::{
     tlv::{
         DEXProtocol as PoolProtocol, PoolBurnTLV, PoolMintTLV, PoolStateTLV, PoolSwapTLV,
         PoolSyncTLV,

@@ -2,9 +2,9 @@
 
 use crate::error::{DashboardError, Result};
 use base64::prelude::*;
-use protocol_v2::InstrumentId;
-use protocol_v2::{
-    tlv::{ArbitrageSignalTLV, DemoDeFiArbitrageTLV, PoolSyncTLV},
+use alphapulse_types::InstrumentId;
+use alphapulse_types::{
+    tlv::{types::DeprecatedTLVType, ArbitrageSignalTLV, PoolSyncTLV},
     ParseError, PoolSwapTLV, QuoteTLV, VenueId,
 };
 use serde_json::{json, Value};
@@ -25,19 +25,30 @@ pub fn convert_tlv_to_json(tlv_type: u8, payload: &[u8], timestamp_ns: u64) -> R
         32 => convert_arbitrage_signal_tlv(payload, timestamp_ns), // ArbitrageSignalTLV
         67 => convert_flash_loan_result_tlv(payload, timestamp_ns), // TLVType::FlashLoanResult
         202 => convert_proprietary_data_tlv(payload, timestamp_ns), // VendorTLVType::ProprietaryData
-        255 => convert_demo_defi_arbitrage_tlv(payload, timestamp_ns), // DemoDeFiArbitrageTLV
-        _ => Ok(json!({
-            "msg_type": "unknown",
-            "tlv_type": tlv_type,
-            "timestamp": timestamp_ns,
-            "raw_data": base64::prelude::BASE64_STANDARD.encode(payload)
-        })),
+        // Handle deprecated types with proper enum
+        _ => {
+            // Check if this is a deprecated type
+            if let Some(deprecation_msg) = DeprecatedTLVType::deprecation_message(tlv_type) {
+                Ok(json!({
+                    "msg_type": "deprecated",
+                    "error": deprecation_msg,
+                    "timestamp": timestamp_ns
+                }))
+            } else {
+                Ok(json!({
+                    "msg_type": "unknown",
+                    "tlv_type": tlv_type,
+                    "timestamp": timestamp_ns,
+                    "raw_data": base64::prelude::BASE64_STANDARD.encode(payload)
+                }))
+            }
+        }
     }
 }
 
 fn convert_trade_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     if payload.len() < 22 {
-        return Err(DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
+        return Err(DashboardError::Protocol(alphapulse_types::protocol::ProtocolError::Parse(
             ParseError::MessageTooSmall { need: 22, got: 0 },
         )));
     }
@@ -104,7 +115,7 @@ fn convert_trade_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
 
 fn convert_quote_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     let quote = QuoteTLV::from_bytes(payload).map_err(|_e| {
-        DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
+        DashboardError::Protocol(alphapulse_types::protocol::ProtocolError::Parse(
             ParseError::MessageTooSmall {
                 need: 32,
                 got: payload.len(),
@@ -134,7 +145,7 @@ fn convert_state_invalidation_tlv(payload: &[u8], timestamp_ns: u64) -> Result<V
     // Simple parsing for StateInvalidationTLV - extract basic fields
     if payload.len() < 12 {
         // minimum: venue(2) + sequence(8) + count(2)
-        return Err(DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
+        return Err(DashboardError::Protocol(alphapulse_types::protocol::ProtocolError::Parse(
             ParseError::MessageTooSmall {
                 need: 12,
                 got: payload.len(),
@@ -265,7 +276,7 @@ pub fn create_arbitrage_opportunity(
 /// Convert ArbitrageSignalTLV to arbitrage opportunity JSON
 fn convert_arbitrage_signal_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     let signal = ArbitrageSignalTLV::from_bytes(payload).map_err(|_| {
-        DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
+        DashboardError::Protocol(alphapulse_types::protocol::ProtocolError::Parse(
             ParseError::MessageTooSmall {
                 need: 168,
                 got: payload.len(),
@@ -382,203 +393,10 @@ fn map_token_symbol(token_id: u64) -> &'static str {
         0x0d500b1d8e8ef31eu64 => "WMATIC", // WMATIC on Polygon: 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
         0x7ceB23fD6bC0adDBu64 => "WETH", // WETH on Polygon: 0x7ceB23fD6bC0adDBd44Bd6f21b62d628Fc157ae1
         0xc2132d05d31c914au64 => "USDT", // USDT on Polygon: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
-        0x8f3cf7ad23cd3cabu64 => "DAI",  // DAI on Polygon: 0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063 (truncated)
+        0x8f3cf7ad23cd3cabu64 => "DAI", // DAI on Polygon: 0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063 (truncated)
         0x1bfd67037b42cf73u64 => "WBTC", // WBTC on Polygon: 0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6 (truncated)
-        _ => "UNKNOWN", // Fallback for unknown tokens
+        _ => "UNKNOWN",                  // Fallback for unknown tokens
     }
-}
-
-/// Convert DemoDeFiArbitrageTLV to arbitrage opportunity JSON with enhanced metrics
-fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
-    use zerocopy::FromBytes;
-    let arbitrage_tlv = DemoDeFiArbitrageTLV::ref_from(payload).ok_or_else(|| {
-        DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
-            ParseError::MessageTooSmall {
-                need: std::mem::size_of::<DemoDeFiArbitrageTLV>(),
-                got: payload.len(),
-            },
-        ))
-    })?;
-
-    // Copy packed fields to local variables to avoid unaligned reference errors
-    let strategy_id = arbitrage_tlv.strategy_id;
-    let signal_id = arbitrage_tlv.signal_id;
-    let confidence = arbitrage_tlv.confidence;
-    let chain_id = arbitrage_tlv.chain_id;
-    let expected_profit_q = arbitrage_tlv.expected_profit_q;
-    let required_capital_q = arbitrage_tlv.required_capital_q;
-    let estimated_gas_cost_q = arbitrage_tlv.estimated_gas_cost_q;
-    let venue_a = arbitrage_tlv.venue_a;
-    let venue_b = arbitrage_tlv.venue_b;
-    let pool_a = arbitrage_tlv.pool_a;
-    let pool_b = arbitrage_tlv.pool_b;
-    let token_in = arbitrage_tlv.token_in;
-    let token_out = arbitrage_tlv.token_out;
-    let optimal_amount_q = arbitrage_tlv.optimal_amount_q;
-    let slippage_tolerance = arbitrage_tlv.slippage_tolerance;
-    let max_gas_price_gwei = arbitrage_tlv.max_gas_price_gwei;
-    let valid_until = arbitrage_tlv.valid_until;
-    let priority = arbitrage_tlv.priority;
-    let timestamp_ns = arbitrage_tlv.timestamp_ns;
-
-    // Extract pool information using copied values
-    let pool_a_venues = match venue_a {
-        300 => "Uniswap V2",           // UniswapV2
-        301 => "Uniswap V3",           // UniswapV3
-        302 => "SushiSwap",            // SushiSwap (Ethereum)
-        400 => "QuickSwap",            // QuickSwap (Polygon)
-        401 => "SushiSwap",            // SushiSwapPolygon
-        402 => "Curve",                // CurvePolygon
-        404 => "Balancer",             // BalancerPolygon
-        500 => "PancakeSwap",          // PancakeSwap (BSC)
-        600 => "Uniswap V3",           // UniswapV3Arbitrum
-        601 => "SushiSwap",            // SushiSwapArbitrum
-        _ => &format!("DEX-{}", venue_a), // Show venue ID for unknown DEXs
-    };
-
-    let pool_b_venues = match venue_b {
-        300 => "Uniswap V2",           // UniswapV2
-        301 => "Uniswap V3",           // UniswapV3
-        302 => "SushiSwap",            // SushiSwap (Ethereum)
-        400 => "QuickSwap",            // QuickSwap (Polygon)
-        401 => "SushiSwap",            // SushiSwapPolygon
-        402 => "Curve",                // CurvePolygon
-        404 => "Balancer",             // BalancerPolygon
-        500 => "PancakeSwap",          // PancakeSwap (BSC)
-        600 => "Uniswap V3",           // UniswapV3Arbitrum
-        601 => "SushiSwap",            // SushiSwapArbitrum
-        _ => &format!("DEX-{}", venue_b), // Show venue ID for unknown DEXs
-    };
-
-    // Pre-calculate Q64.64 values to avoid block expressions in json! macro
-    let profit_f64 = expected_profit_q as f64 / (1u128 << 64) as f64;
-    let capital_f64 = required_capital_q as f64 / (1u128 << 64) as f64;
-    let amount_f64 = optimal_amount_q as f64 / (1u128 << 64) as f64;
-    let _gas_cost_f64 = estimated_gas_cost_q as f64 / (1u128 << 64) as f64;
-
-    // Calculate derived values
-    let profit_percent = if capital_f64 > 0.0 { (profit_f64 / capital_f64) * 100.0 } else { 0.0 };
-    let total_fees = capital_f64 * 0.006; // 0.6% total DEX fees
-    let gas_cost_usd = (300000u64 * max_gas_price_gwei as u64) as f64 / 1e9 * 0.50; // Polygon MATIC ~$0.50
-    let slippage_cost = capital_f64 * (slippage_tolerance as f64 / 10000.0);
-    let net_profit = profit_f64 - total_fees - gas_cost_usd - slippage_cost;
-
-    // Create comprehensive arbitrage opportunity JSON
-    Ok(json!({
-        "msg_type": "arbitrage_opportunity",
-        "type": "demo_defi_arbitrage",
-        "detected_at": timestamp_ns,
-        "timestamp": timestamp_ns,
-        "timestamp_iso": timestamp_to_iso(timestamp_ns),
-
-        // Strategy Information
-        "strategy_id": strategy_id,
-        "strategy_name": get_strategy_name(strategy_id),
-        "signal_id": signal_id.to_string(),
-        "confidence_score": confidence,
-        "chain_id": chain_id,
-        "priority": priority,
-
-        // Financial Metrics - Enhanced with precise calculations using Q64.64 fixed-point
-        "estimated_profit": profit_f64,
-        "net_profit_usd": profit_f64,
-        "max_trade_size": capital_f64,
-        "tradeSize": amount_f64,
-        "grossProfit": profit_f64,
-        "netProfit": net_profit,
-        "profit_percent": profit_percent,
-        "net_profit_percent": profit_percent,
-        "optimal_trade_amount": DemoDeFiArbitrageTLV::q64_to_decimal_string(optimal_amount_q, 6), // Assume USDC (6 decimals)
-        "gas_cost_estimate": DemoDeFiArbitrageTLV::q64_to_decimal_string(estimated_gas_cost_q, 18),
-
-        // Enhanced Arbitrage Metrics for Trading View
-        "arbitrage_metrics": {
-            "spread_usd": profit_f64,
-            "spread_percent": profit_percent,
-            "optimal_size_usd": amount_f64,
-            "dex_fees": {
-                "pool_a_fee": 0.3, // Default 0.3% for V2
-                "pool_b_fee": 0.3,
-                "total_fee_usd": total_fees,
-            },
-            "gas_estimate": {
-                "gas_units": 300000,
-                "gas_price_gwei": max_gas_price_gwei,
-                "cost_usd": gas_cost_usd,
-            },
-            "slippage_estimate": {
-                "tolerance_bps": slippage_tolerance,
-                "impact_usd": slippage_cost,
-            },
-            "net_calculation": {
-                "gross_profit": profit_f64,
-                "total_fees": total_fees,
-                "gas_cost": gas_cost_usd,
-                "slippage": slippage_cost,
-                "net_profit": net_profit,
-            },
-            "executable": valid_until > (timestamp_ns / 1_000_000_000) as u32,
-            "confidence_score": confidence,
-        },
-
-        // Pool Information with proper token mapping
-        "pair": format!("{}/{}",
-            map_token_symbol(token_in),
-            map_token_symbol(token_out)
-        ),
-        "token_a": format!("0x{:016x}", token_in),
-        "token_b": format!("0x{:016x}", token_out),
-        "dex_buy": pool_a_venues,
-        "dex_sell": pool_b_venues,
-        "pool_a": format!("{:?}", pool_a),
-        "pool_b": format!("{:?}", pool_b),
-        "dex_buy_router": "0x0000000000000000000000000000000000000000", // Placeholder
-        "dex_sell_router": "0x0000000000000000000000000000000000000000", // Placeholder
-
-        // Trading Parameters
-        "slippage_tolerance": format!("{:.2}%", slippage_tolerance as f64 / 100.0),
-        "max_gas_price_gwei": max_gas_price_gwei,
-        "valid_until": valid_until,
-        "is_valid": valid_until > (timestamp_ns / 1_000_000_000) as u32,
-        "executable": valid_until > (timestamp_ns / 1_000_000_000) as u32,
-
-        // Dashboard compatibility values with proper calculations
-        "price_buy": 0.0, // Pool prices not available in current TLV
-        "price_sell": 0.0, // Pool prices not available in current TLV
-        "buyPrice": 0.0,
-        "sellPrice": 0.0,
-        "spread": profit_percent,
-        "gasFee": gas_cost_usd,
-        "gas_fee_usd": gas_cost_usd,
-        "dexFees": total_fees,
-        "dex_fees_usd": total_fees,
-        "slippage": slippage_cost,
-        "slippage_cost_usd": slippage_cost,
-        "netProfitPercent": profit_percent,
-        "buyExchange": pool_a_venues,
-        "sellExchange": pool_b_venues,
-        "buyPool": format!("{:?}", pool_a),
-        "sellPool": format!("{:?}", pool_b),
-
-        // Raw TLV data for debugging
-        "raw_data": {
-            "strategy_id": strategy_id,
-            "signal_id": signal_id,
-            "confidence": confidence,
-            "chain_id": chain_id,
-            "expected_profit_q": expected_profit_q.to_string(),
-            "required_capital_q": required_capital_q.to_string(),
-            "estimated_gas_cost_q": estimated_gas_cost_q.to_string(),
-            "token_in": format!("0x{:016x}", token_in),
-            "token_out": format!("0x{:016x}", token_out),
-            "optimal_amount_q": optimal_amount_q.to_string(),
-            "slippage_tolerance": slippage_tolerance,
-            "max_gas_price_gwei": max_gas_price_gwei,
-            "valid_until": valid_until,
-            "priority": priority,
-            "timestamp_ns": timestamp_ns
-        }
-    }))
 }
 
 fn convert_pool_liquidity_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
@@ -636,7 +454,7 @@ fn convert_sqrt_price_to_string(sqrt_price_bytes: &[u8; 32]) -> String {
 
 fn convert_pool_swap_tlv(payload: &[u8], _timestamp_ns: u64) -> Result<Value> {
     let swap = PoolSwapTLV::from_bytes(payload).map_err(|_e| {
-        DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
+        DashboardError::Protocol(alphapulse_types::protocol::ProtocolError::Parse(
             ParseError::MessageTooSmall { need: 32, got: 0 },
         ))
     })?;
@@ -708,7 +526,7 @@ fn convert_flash_loan_result_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Va
 /// Convert pool sync TLV (type 16) - V2 Sync events with complete reserves
 fn convert_pool_sync_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
     let sync = PoolSyncTLV::from_bytes(payload).map_err(|_e| {
-        DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
+        DashboardError::Protocol(alphapulse_types::protocol::ProtocolError::Parse(
             ParseError::MessageTooSmall { need: 32, got: 0 },
         ))
     })?;

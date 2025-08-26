@@ -5,7 +5,7 @@ use crate::{
     RelayResult, TopicRegistry, TransportAdapterConfig,
 };
 use bytes::Bytes;
-use protocol_v2::{MessageHeader, RelayDomain};
+use alphapulse_types::protocol::{MessageHeader, RelayDomain};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
@@ -193,7 +193,7 @@ impl Relay {
         let header = unsafe { &*(data.as_ptr() as *const MessageHeader) };
 
         // Validate magic number
-        if header.magic != protocol_v2::MESSAGE_MAGIC {
+        if header.magic != alphapulse_types::protocol::MESSAGE_MAGIC {
             return Err(RelayError::Validation("Invalid magic number".to_string()));
         }
 

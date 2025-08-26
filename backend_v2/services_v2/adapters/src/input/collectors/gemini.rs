@@ -41,7 +41,7 @@
 //! });
 //! ```
 
-use protocol_v2::{
+use alphapulse_types::{
     VenueId, InstrumentId, TradeTLV, QuoteTLV, TLVMessage, TLVType, TLVHeader,
     current_timestamp_ns
 };
@@ -655,7 +655,7 @@ impl GeminiCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol_v2::VenueId;
+    use alphapulse_types::VenueId;
     
     #[test]
     fn test_gemini_trade_event_validation() {

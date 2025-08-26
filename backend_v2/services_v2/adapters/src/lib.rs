@@ -131,7 +131,7 @@
 //! ### Complete CEX Adapter Implementation
 //! ```rust
 //! use alphapulse_adapters::{CoinbaseCollector, RelayDomain, SourceType};
-//! use alphapulse_protocol_v2::{TLVMessageBuilder, TLVType};
+//! use alphapulse_alphapulse_types::protocol::{TLVMessageBuilder, TLVType};
 //! use tokio::sync::mpsc;
 //!
 //! // Production-ready CEX adapter usage
@@ -235,7 +235,7 @@ pub use input::collectors::{
 };
 
 // Re-export protocol types for convenience
-pub use protocol_v2::{
+pub use alphapulse_types::{
     InstrumentId, QuoteTLV, StateInvalidationTLV, TLVMessageBuilder, TLVType, TradeTLV, VenueId,
 };
 

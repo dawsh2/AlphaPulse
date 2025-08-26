@@ -4,7 +4,7 @@
 **Sprint**: 004-mycelium-runtime
 **Priority**: CRITICAL
 **Estimate**: 8 hours
-**Status**: TODO
+**Status**: IN_PROGRESS
 **Goal**: Zero-cost message passing for same-process actors
 
 ## Problem
@@ -255,6 +255,35 @@ mod tests {
 - **Unix Socket**: <35μs per message (existing)
 - **Network**: <5ms per message (existing)
 - **Memory**: Zero allocations after warm-up
+
+## Progress Log
+
+### 2025-08-26: Transport Layer Infrastructure Fixed ✅
+**Issue**: Critical compilation errors blocking Mycelium development
+**Root Cause**: Transport layer had multiple compilation failures:
+1. Missing `bytes` dependency for zero-copy operations
+2. Incorrect TransportError enum usage throughout codebase
+3. Unused imports causing compiler warnings
+4. Buffer ownership issues in UnixSocketConnection
+
+**Resolution**:
+1. ✅ **Added bytes dependency** - `bytes = "1.5"` in Cargo.toml for zero-copy byte buffer management
+2. ✅ **Fixed TransportError constructors** - Updated all error usage in unix.rs:
+   - `TransportError::Io(...)` → `TransportError::network_with_source(...)`
+   - `TransportError::Bind(...)` → `TransportError::network_with_source(...)`
+   - `TransportError::NotConnected(...)` → `TransportError::connection(...)`
+   - `TransportError::MessageTooLarge(...)` → `TransportError::protocol(...)`
+   - `TransportError::Send/Receive/Accept(...)` → `TransportError::network_with_source(...)`
+3. ✅ **Cleaned imports** - Removed unused `error` and `warn` from tracing imports
+4. ✅ **Fixed ownership** - Resolved buffer size access in `UnixSocketConnection::new()`
+
+**Impact**: 
+- Transport layer now compiles successfully (only doc warnings remain)
+- Maintains zero-copy performance characteristics required for Mycelium
+- Follows established error handling patterns
+- **BLOCKER REMOVED** - Can now proceed with ActorTransport implementation
+
+**Next**: Continue with ActorTransport abstraction implementation using the fixed transport infrastructure.
 
 ## Definition of Done
 - ActorTransport implemented with local and remote modes

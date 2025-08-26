@@ -8,7 +8,7 @@ use crate::validation::{DataFlowValidator, PrecisionValidator};
 
 use anyhow::{Context, Result};
 use alphapulse_flash_arbitrage::strategy_engine::FlashArbitrageEngine;
-use protocol_v2::relay::{MarketDataRelay, SignalRelay, ExecutionRelay};
+use alphapulse_types::relay::{MarketDataRelay, SignalRelay, ExecutionRelay};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;

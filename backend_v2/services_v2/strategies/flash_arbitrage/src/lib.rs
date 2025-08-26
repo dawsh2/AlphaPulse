@@ -167,6 +167,7 @@ pub mod config;
 pub mod detector;
 pub mod executor;
 pub mod gas_price;
+pub mod logging;
 pub mod mev;
 pub mod relay_consumer;
 pub mod signal_output;
@@ -187,5 +188,5 @@ pub use strategy_engine::{StrategyConfig, StrategyEngine};
 pub use config::{DetectorConfig, FlashArbitrageConfig};
 
 /// Re-export key types
-pub use protocol_v2::InstrumentId as PoolInstrumentId;
+pub use alphapulse_types::InstrumentId as PoolInstrumentId;
 pub use rust_decimal::Decimal;

@@ -29,7 +29,7 @@ use anyhow::{Context, Result};
 use ethabi::{Event, EventParam, ParamType, RawLog};
 use futures_util::{SinkExt, StreamExt};
 use once_cell::sync::Lazy;
-use protocol_v2::{
+use alphapulse_types::{
     parse_header, parse_tlv_extensions,
     tlv::build_message_direct,
     tlv::fast_timestamp::init_timestamp_system,

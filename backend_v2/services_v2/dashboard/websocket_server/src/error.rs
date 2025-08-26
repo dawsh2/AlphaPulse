@@ -5,7 +5,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum DashboardError {
     #[error("Protocol error: {0}")]
-    Protocol(#[from] protocol_v2::ProtocolError),
+    Protocol(#[from] alphapulse_types::protocol::ProtocolError),
 
     #[error("WebSocket error: {0}")]
     WebSocket(#[from] tokio_tungstenite::tungstenite::Error),

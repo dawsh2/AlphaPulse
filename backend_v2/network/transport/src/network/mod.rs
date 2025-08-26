@@ -9,8 +9,7 @@ pub mod envelope;
 pub mod security;
 pub mod tcp;
 pub mod udp;
-
-// TODO: Implement QUIC module when needed
+pub mod unix;
 // #[cfg(feature = "quic")]
 // pub mod quic;
 
@@ -21,6 +20,7 @@ pub use envelope::{NetworkEnvelope, WireFormat};
 pub use security::{EncryptionType, SecurityLayer};
 pub use tcp::{TcpConfig, TcpConnection, TcpTransport};
 pub use udp::{UdpConfig, UdpTransport};
+pub use unix::{UnixSocketConfig, UnixSocketConnection, UnixSocketTransport};
 
 // #[cfg(feature = "quic")]
 // pub use quic::{QuicTransport, QuicConfig};

@@ -7,7 +7,7 @@ description = "High-performance market data relay for >1M msg/s throughput"
 [dependencies]
 # Core relay infrastructure with speed-focused features
 alphapulse-relays = { path = "..", features = ["market-data-relay"] }
-protocol_v2 = { path = "../../protocol_v2" }
+alphapulse-types = { path = "../../libs/types" }
 
 # Async runtime - minimal features for binary
 tokio = { version = "1.0", features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }

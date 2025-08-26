@@ -1,0 +1,81 @@
+name: Auto-Archive Completed Sprints
+
+on:
+  pull_request:
+    types: [closed]
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  archive-sprint:
+    if: github.event.pull_request.merged == true || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Need full history for git log checks
+      
+      - name: Extract Sprint Info
+        id: sprint-info
+        run: |
+          # Try to extract sprint number from PR title or commit message
+          SPRINT_NUMBER=""
+          
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # Extract from PR title
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            if echo "$PR_TITLE" | grep -qE 'sprint[_-]?[0-9]+'; then
+              SPRINT_NUMBER=$(echo "$PR_TITLE" | grep -oE '[0-9]+' | head -1)
+            fi
+          else
+            # Extract from latest commit message
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            if echo "$COMMIT_MSG" | grep -qE 'sprint[_-]?[0-9]+'; then
+              SPRINT_NUMBER=$(echo "$COMMIT_MSG" | grep -oE '[0-9]+' | head -1)
+            fi
+          fi
+          
+          echo "sprint_number=$SPRINT_NUMBER" >> $GITHUB_OUTPUT
+      
+      - name: Run Sprint Archive Check
+        run: |
+          SPRINT_NUMBER="${{ steps.sprint-info.outputs.sprint_number }}"
+          
+          if [[ -n "$SPRINT_NUMBER" ]]; then
+            echo "🎯 Checking Sprint $SPRINT_NUMBER for archiving..."
+            SPRINT_NAME=$(printf "sprint-%03d" "$SPRINT_NUMBER")
+            
+            # Run the archive check
+            if ./.claude/scrum/task-manager.sh check-complete "$SPRINT_NAME"; then
+              echo "✅ Sprint $SPRINT_NAME is ready for archiving"
+              
+              # Archive the sprint
+              ./.claude/scrum/task-manager.sh archive-sprint "$SPRINT_NAME"
+              
+              # Set flag for commit
+              echo "SPRINT_ARCHIVED=true" >> $GITHUB_ENV
+              echo "ARCHIVED_SPRINT=$SPRINT_NAME" >> $GITHUB_ENV
+            else
+              echo "⏳ Sprint $SPRINT_NAME is not ready for archiving yet"
+            fi
+          else
+            echo "🤖 Running auto-archive check for all sprints..."
+            ./.claude/scrum/task-manager.sh auto-archive
+          fi
+      
+      - name: Commit Archive Changes
+        if: env.SPRINT_ARCHIVED == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Check if there are changes to commit
+          if [[ -n $(git status -s) ]]; then
+            git add .claude/tasks/archive/
+            git commit -m "chore: Archive completed ${{ env.ARCHIVED_SPRINT }} [skip ci]"
+            git push
+          fi

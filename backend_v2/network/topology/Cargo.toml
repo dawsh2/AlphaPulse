@@ -24,7 +24,7 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 regex = "1.10"
 
 # Protocol integration (when available)
-# alphapulse-protocol-v2 = { path = "../protocol_v2" }
+# alphapulse-protocol-v2 = { path = "../alphapulse-types" }
 
 # Logging
 tracing = "0.1"
@@ -43,5 +43,5 @@ proptest = "1.5"
 
 [features]
 default = []
-protocol-integration = []  # Enable when protocol_v2 is ready
+protocol-integration = []  # Enable when alphapulse-types is ready
 numa-optimization = []     # Enable NUMA-specific features

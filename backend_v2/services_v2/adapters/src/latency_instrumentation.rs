@@ -49,7 +49,7 @@
 //! ### Global Instrumentation (Recommended)
 //! ```rust
 //! use crate::latency_instrumentation::global_instrument;
-//! use protocol_v2::VenueId;
+//! use alphapulse_types::VenueId;
 //!
 //! // Environment controls enablement (zero cost when disabled)
 //! let token = global_instrument().start_message_processing("trade", VenueId::Binance);
@@ -101,7 +101,7 @@
 //! - **Other**: Fallback for unclassified message types
 
 use crate::AdapterMetrics;
-use protocol_v2::VenueId;
+use alphapulse_types::VenueId;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};

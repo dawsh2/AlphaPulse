@@ -11,7 +11,7 @@ use bytes::Bytes;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 /// Adapter that bridges relay transport trait with infra/transport system
 pub struct InfraTransportAdapter {
@@ -315,9 +315,10 @@ impl alphapulse_transport::Transport for TcpTransportStub {
         _target_actor: &str,
         _message: &[u8],
     ) -> alphapulse_transport::Result<()> {
-        Err(alphapulse_transport::TransportError::NotImplemented(
-            "TCP transport is a placeholder stub".to_string(),
-        ))
+        Err(alphapulse_transport::TransportError::Configuration {
+            message: "TCP transport is not implemented (placeholder stub)".to_string(),
+            field: Some("tcp_implementation".to_string()),
+        })
     }
 
     async fn send_with_priority(
@@ -327,9 +328,10 @@ impl alphapulse_transport::Transport for TcpTransportStub {
         _message: &[u8],
         _priority: Priority,
     ) -> alphapulse_transport::Result<()> {
-        Err(alphapulse_transport::TransportError::NotImplemented(
-            "TCP transport is a placeholder stub".to_string(),
-        ))
+        Err(alphapulse_transport::TransportError::Configuration {
+            message: "TCP transport is not implemented (placeholder stub)".to_string(),
+            field: Some("tcp_implementation".to_string()),
+        })
     }
 
     fn is_healthy(&self) -> bool {
@@ -404,10 +406,11 @@ impl UnixTransportAdapter {
                 }
             }
         } else {
-            Err(alphapulse_transport::TransportError::NotConnected(format!(
-                "No connection to {}",
-                socket_path
-            )))
+            Err(alphapulse_transport::TransportError::Connection {
+                message: format!("No connection to {}", socket_path),
+                remote_addr: None,
+                source: None,
+            })
         }
     }
 
@@ -436,9 +439,10 @@ impl alphapulse_transport::Transport for UnixTransportAdapter {
         _message: &[u8],
     ) -> alphapulse_transport::Result<()> {
         // For relays, we use a different sending pattern through RelayTransport trait
-        Err(alphapulse_transport::TransportError::NotImplemented(
-            "Use RelayTransport::send for relay-specific messaging".to_string(),
-        ))
+        Err(alphapulse_transport::TransportError::Configuration {
+            message: "Use RelayTransport::send for relay-specific messaging".to_string(),
+            field: Some("relay_transport_send".to_string()),
+        })
     }
 
     async fn send_with_priority(
@@ -448,9 +452,10 @@ impl alphapulse_transport::Transport for UnixTransportAdapter {
         _message: &[u8],
         _priority: Priority,
     ) -> alphapulse_transport::Result<()> {
-        Err(alphapulse_transport::TransportError::NotImplemented(
-            "Priority sending not implemented for Unix sockets".to_string(),
-        ))
+        Err(alphapulse_transport::TransportError::Configuration {
+            message: "Priority sending not implemented for Unix sockets".to_string(),
+            field: Some("priority_send_implementation".to_string()),
+        })
     }
 
     fn is_healthy(&self) -> bool {

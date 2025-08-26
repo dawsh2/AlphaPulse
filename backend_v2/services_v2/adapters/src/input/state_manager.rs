@@ -3,7 +3,7 @@
 //! Ensures state consistency by immediately invalidating tracked instruments
 //! on disconnection to prevent phantom arbitrage opportunities.
 
-use protocol_v2::{
+use alphapulse_types::{
     tlv::{self, StateInvalidationTLV},
     InstrumentId, InvalidationReason, RelayDomain, SourceType, TLVType, VenueId,
 };

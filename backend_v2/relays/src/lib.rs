@@ -2,6 +2,7 @@
 //!
 //! Application-aware message routing layer between transport and services.
 
+pub mod common;
 pub mod config;
 pub mod relay;
 pub mod signal_relay;
@@ -10,6 +11,7 @@ pub mod transport_adapter;
 pub mod types;
 pub mod validation;
 
+pub use common::*;
 pub use config::*;
 pub use relay::*;
 pub use signal_relay::*;
@@ -18,7 +20,7 @@ pub use transport_adapter::*;
 pub use types::*;
 pub use validation::*;
 
-use protocol_v2::{ProtocolError, Result};
+use alphapulse_types::protocol::{ProtocolError, Result};
 
 /// Relay-specific errors
 #[derive(Debug, thiserror::Error)]

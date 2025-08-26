@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["AlphaPulse Team"]
 
 [dependencies]
-protocol_v2 = { path = "../../protocol_v2" }
+alphapulse-types = { workspace = true }
 anyhow = "1.0"
 thiserror = "1.0"
 rust_decimal = "1.33"

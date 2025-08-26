@@ -12,7 +12,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = { workspace = true }
 
 # Protocol dependencies
-protocol_v2 = { path = "../../../protocol_v2" }
+alphapulse-types = { path = "../../../libs/types" }
 
 # Math and calculations
 rust_decimal = "1.32"

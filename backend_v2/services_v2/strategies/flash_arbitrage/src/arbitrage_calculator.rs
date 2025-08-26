@@ -9,7 +9,7 @@
 //! - Designed for sub-millisecond calculation latency
 
 use alphapulse_amm::v2_math::V2Math;
-use alphapulse_types::fixed_point::UsdFixedPoint8;
+use alphapulse_types::common::fixed_point::UsdFixedPoint8;
 use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 

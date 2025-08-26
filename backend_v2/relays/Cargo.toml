@@ -6,7 +6,7 @@ description = "High-performance message relay infrastructure for AlphaPulse"
 
 [dependencies]
 # Core protocol
-protocol_v2 = { path = "../protocol_v2", package = "protocol_v2" }
+alphapulse-types = { path = "../libs/types" }
 
 # Transport and topology
 alphapulse-transport = { path = "../network/transport" }

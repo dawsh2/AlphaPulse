@@ -30,6 +30,12 @@
 //! Signal output serves as the communication bridge between arbitrage detection and
 //! external systems requiring opportunity awareness and portfolio coordination.
 //!
+//! ## Recent Changes (Sprint 003 - Data Integrity)
+//!
+//! - **Error Propagation**: Fixed send_arbitrage_analysis to return proper error instead of Ok()
+//! - **Function Disabled**: Properly disabled fake data generation with clear error messages
+//! - **Documentation**: Enhanced module documentation for better rq discovery
+//!
 //! ## Performance Profile
 //!
 //! - **Signal Latency**: <5ms from opportunity detection to relay transmission
@@ -46,13 +52,9 @@ use zerocopy::AsBytes;
 
 use crate::relay_consumer::ArbitrageOpportunity;
 use alphapulse_adapter_service::output::RelayOutput;
-use alphapulse_types::fixed_point::UsdFixedPoint8;
-use protocol_v2::{
-    tlv::{
-        demo_defi::{ArbitrageConfig, DemoDeFiArbitrageTLV},
-        zero_copy_builder_v2::build_message_direct,
-        ArbitrageSignalTLV, TLVMessageBuilder,
-    },
+use alphapulse_types::common::fixed_point::UsdFixedPoint8;
+use alphapulse_types::{
+    tlv::{zero_copy_builder_v2::build_message_direct, ArbitrageSignalTLV, TLVMessageBuilder},
     RelayDomain, SourceType, TLVType, VenueId,
 };
 
@@ -155,100 +157,18 @@ impl SignalOutput {
         Ok(())
     }
 
-    /// Send formatted arbitrage analysis for dashboard display using DemoDeFiArbitrageTLV
+    /// Send formatted arbitrage analysis for dashboard display
+    /// This function is deprecated and should not send fake data
+    /// TODO: Remove this entire function once dashboard is updated to use real ArbitrageSignalTLV
     pub async fn send_arbitrage_analysis(
         &self,
-        analysis: &crate::relay_consumer::ArbitrageAnalysis,
+        _analysis: &crate::relay_consumer::ArbitrageAnalysis,
     ) -> Result<()> {
-        let mut nonce = self.signal_nonce.lock().await;
-        *nonce += 1;
-        let signal_nonce = *nonce;
-
-        // Parse pool address with proper error propagation
-        let pool_addr = parse_hex_address(&analysis.pool_address)
-            .context("Invalid pool address in arbitrage analysis")?;
-
-        // Extract and validate potential profit
-        debug!("🔍 SIGNAL: Raw profit string: '{}'", analysis.potential_profit);
-        let profit_usd = analysis
-            .potential_profit
-            .strip_prefix('$')
-            .and_then(|s| s.parse::<f64>().ok())
-            .context("Failed to parse profit amount from analysis")?;
-        debug!("🔍 SIGNAL: Parsed profit USD: {}", profit_usd);
-
-        // Convert to Q64.64 format (multiply by 2^64)
-        const Q64_SCALE: f64 = (1u128 << 64) as f64; // 2^64 = 18446744073709551616
-        let profit_q64 = (profit_usd * Q64_SCALE) as i128;
-        debug!("🔍 SIGNAL: Profit Q64.64 raw: {}", profit_q64);
-
-        // Extract and validate required capital
-        debug!("🔍 SIGNAL: Raw capital string: '{}'", analysis.required_capital);
-        let capital_usd = analysis
-            .required_capital
-            .strip_prefix('$')
-            .and_then(|s| s.parse::<f64>().ok())
-            .context("Failed to parse capital requirement from analysis")?;
-        debug!("🔍 SIGNAL: Parsed capital USD: {}", capital_usd);
-
-        let capital_q64 = (capital_usd * Q64_SCALE) as u128;
-        debug!("🔍 SIGNAL: Capital Q64.64 raw: {}", capital_q64);
-
-        // Create DemoDeFiArbitrageTLV with analysis data
-        let gas_cost_q64 = (2.50 * Q64_SCALE) as u128; // $2.50 gas cost
-        debug!("🔍 SIGNAL: Gas cost Q64.64 raw: {}", gas_cost_q64);
-
-        debug!("🔍 SIGNAL: Creating DemoDeFiArbitrageTLV with:");
-        debug!("  - Profit Q64.64: {}", profit_q64);
-        debug!("  - Capital Q64.64: {}", capital_q64);
-        debug!("  - Optimal amount Q64.64: {}", capital_q64);
-
-        let demo_tlv = DemoDeFiArbitrageTLV::new(ArbitrageConfig {
-            strategy_id: FLASH_ARBITRAGE_STRATEGY_ID,
-            signal_id: signal_nonce as u64,
-            confidence: analysis.confidence,
-            chain_id: 137, // Polygon
-            expected_profit_q: profit_q64,
-            required_capital_q: capital_q64,
-            estimated_gas_cost_q: gas_cost_q64,
-            venue_a: VenueId::QuickSwap,
-            pool_a: pool_addr,
-            venue_b: VenueId::SushiSwapPolygon,
-            pool_b: pool_addr,                  // Same pool for now
-            token_in: 0x2791bca1f2de4661u64,  // USDC on Polygon: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-            token_out: 0x0d500b1d8e8ef31eu64, // WMATIC on Polygon: 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
-            optimal_amount_q: capital_q64,
-            slippage_tolerance: 100, // 1% in basis points
-            max_gas_price_gwei: 20,
-            valid_until: (std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-                + 300) as u32, // 5 minutes
-            priority: if profit_usd > 0.0 { 1 } else { 5 }, // High priority if profitable
-            timestamp_ns: analysis.timestamp_ns,
-        });
-
-        // Build complete TLV message with proper format
-        // DemoDeFiArbitrageTLV uses TLV type 255 (as expected by dashboard converter)
-        // Since it's exactly 180 bytes, it fits in standard TLV (<=255 bytes)
-        let message_bytes = TLVMessageBuilder::new(RelayDomain::Signal, SourceType::ArbitrageStrategy)
-            .add_tlv_slice(TLVType::ExtendedTLV, demo_tlv.as_bytes()) // Use ExtendedTLV type with raw struct bytes
-            .build();
-
-        debug!("Built Extended TLV message: {} bytes", message_bytes.len());
-
-        self.relay_output
-            .send_bytes(&message_bytes)
-            .await
-            .context("Failed to send arbitrage analysis to relay")?;
-
-        debug!(
-            "Sent DemoDeFiArbitrageTLV analysis #{} for pool {} to relay",
-            signal_nonce, analysis.pool_address
-        );
-
-        Ok(())
+        // DISABLED: This function was sending fake hardcoded data
+        // The dashboard should consume real ArbitrageSignalTLV messages instead
+        // Return an error to properly propagate the disabled state
+        debug!("send_arbitrage_analysis disabled - use real ArbitrageSignalTLV instead");
+        anyhow::bail!("send_arbitrage_analysis is disabled - use real ArbitrageSignalTLV messages from relay instead")
     }
 
     fn build_arbitrage_signal(
@@ -272,7 +192,8 @@ impl SignalOutput {
         let capital_fp = opportunity.required_capital_usd;
         let dex_fees_usd = UsdFixedPoint8::try_from_f64(capital_fp.to_f64() * 0.006)
             .unwrap_or(UsdFixedPoint8::ZERO); // 0.3% each side
-        let gas_cost_usd = UsdFixedPoint8::try_from_f64(0.10).unwrap_or(UsdFixedPoint8::ZERO); // Realistic for Polygon
+                                              // Use gas cost from the opportunity (calculated by detector with dynamic pricing)
+        let gas_cost_usd = opportunity.gas_cost_usd;
         let slippage_usd = UsdFixedPoint8::try_from_f64(capital_fp.to_f64() * 0.001)
             .unwrap_or(UsdFixedPoint8::ZERO); // 0.1% slippage estimate
 

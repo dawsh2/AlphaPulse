@@ -99,16 +99,8 @@
 pub mod error;
 pub mod network;
 
-// TODO: Implement message queue module when needed
-// #[cfg(feature = "message-queues")]
-// pub mod mq;
-
 pub mod hybrid;
 pub mod topology_integration;
-
-// TODO: Implement monitoring module when needed
-// #[cfg(feature = "monitoring")]
-// pub mod monitoring;
 
 // Re-export main types
 pub use error::{Result, TransportError};
@@ -118,6 +110,7 @@ pub use network::{
     CompressionEngine, CompressionType, Connection, ConnectionConfig, ConnectionPool,
     EncryptionType, NetworkConfig, NetworkEnvelope, NetworkProtocol, NetworkTransport,
     PerformanceConfig, ProtocolOptions, ProtocolType, SecurityLayer, TcpOptions, UdpOptions,
+    UnixSocketConfig, UnixSocketConnection, UnixSocketTransport,
 };
 
 // Re-export hybrid transport types

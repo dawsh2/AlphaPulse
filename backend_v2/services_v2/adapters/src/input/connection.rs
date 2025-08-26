@@ -1,7 +1,7 @@
 //! WebSocket connection management with automatic reconnection
 
 use futures_util::{SinkExt, StreamExt};
-use protocol_v2::VenueId;
+use alphapulse_types::VenueId;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -90,7 +90,7 @@ pub struct ConnectionManager {
     last_message_time: Arc<RwLock<u64>>, // Nanoseconds since epoch
     reconnect_count: Arc<RwLock<u32>>,
     backoff_multiplier: Arc<RwLock<u32>>,
-    tracked_instruments: Arc<RwLock<HashSet<protocol_v2::InstrumentId>>>,
+    tracked_instruments: Arc<RwLock<HashSet<alphapulse_types::protocol::InstrumentId>>>,
 }
 
 impl ConnectionManager {
@@ -326,14 +326,14 @@ impl ConnectionManager {
     }
 
     /// Add an instrument to track
-    pub async fn track_instrument(&self, instrument: protocol_v2::InstrumentId) {
+    pub async fn track_instrument(&self, instrument: alphapulse_types::protocol::InstrumentId) {
         self.tracked_instruments.write().await.insert(instrument);
         self.metrics
             .update_instrument_count(self.venue, self.tracked_instruments.read().await.len());
     }
 
     /// Get tracked instruments
-    pub async fn tracked_instruments(&self) -> Vec<protocol_v2::InstrumentId> {
+    pub async fn tracked_instruments(&self) -> Vec<alphapulse_types::protocol::InstrumentId> {
         self.tracked_instruments
             .read()
             .await

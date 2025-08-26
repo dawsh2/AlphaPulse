@@ -16,7 +16,7 @@ web3 = "0.19"
 ethereum-types = "0.14"
 
 # Protocol
-protocol_v2 = { path = "../../protocol_v2" }
+alphapulse-types = { path = "../types" }
 
 [dev-dependencies]
 tokio = { version = "1.39", features = ["full"] }
