@@ -38,9 +38,12 @@ define_tlv! {
             _padding: [u8; 3]    // 3 bytes padding to make struct size 192 bytes
         }
         special: {
-            pool_address: [u8; 32], // Full pool contract address
-            token0_addr: [u8; 32],  // Full token0 address
-            token1_addr: [u8; 32]   // Full token1 address
+            pool_address: EthAddress,           // Pool contract address (20 bytes)
+            pool_address_padding: AddressPadding, // Padding for alignment (12 bytes)
+            token0_addr: EthAddress,            // Token0 address (20 bytes)
+            token0_padding: AddressPadding,     // Padding for alignment (12 bytes)
+            token1_addr: EthAddress,            // Token1 address (20 bytes)
+            token1_padding: AddressPadding      // Padding for alignment (12 bytes)
         }
     }
 }
@@ -83,7 +86,7 @@ pub struct V3PoolConfig {
     pub token1_addr: EthAddress,
     pub token0_decimals: u8,
     pub token1_decimals: u8,
-    sqrt_price_x96: u128,
+    pub sqrt_price_x96: u128,
     pub tick: i32,
     pub liquidity: u128,
     pub fee_rate: u32,
@@ -109,9 +112,12 @@ impl PoolStateTLV {
             config.token0_decimals,
             config.token1_decimals,
             [0u8; 3], // _padding
-            config.pool_address.to_padded(),
-            config.token0_addr.to_padded(),
-            config.token1_addr.to_padded(),
+            config.pool_address,
+            ZERO_PADDING,
+            config.token0_addr,
+            ZERO_PADDING,
+            config.token1_addr,
+            ZERO_PADDING,
         )
     }
 
@@ -138,9 +144,12 @@ impl PoolStateTLV {
             config.token0_decimals,
             config.token1_decimals,
             [0u8; 3], // _padding
-            config.pool_address.to_padded(),
-            config.token0_addr.to_padded(),
-            config.token1_addr.to_padded(),
+            config.pool_address,
+            ZERO_PADDING,
+            config.token0_addr,
+            ZERO_PADDING,
+            config.token1_addr,
+            ZERO_PADDING,
         )
     }
 

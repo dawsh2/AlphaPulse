@@ -3,19 +3,21 @@
 ## Overview
 Centralized task management for arbitrage production deployment using atomic development workflow.
 
-## Current Sprint: Production Blockers
-**Objective**: Complete arbitrage strategy deployment until production-ready and live
+## Current Sprint: Code Hygiene & Cleanup (Sprint 002)
+**Objective**: Remove code litter and establish repository hygiene standards
+**Sprint Duration**: 1 week
+**Sprint Start**: 2025-08-25
 
-### 🔴 CRITICAL: Production Blockers (Block Go-Live)
-*These tasks must be completed before live trading deployment*
+### 🧹 Sprint 002: Code Hygiene Tasks
 
-| Task ID | Description | Status | Assignee | Dependencies |
-|---------|-------------|---------|----------|-------------|
-| **POOL-001** | Real pool/token addresses integration (pool_cache.rs) | 🟡 Foundation Only | - | Infrastructure exists, needs production validation |
-| **PRECISION-001** | Fix signal precision loss in profit calculations (replace f64 with UsdFixedPoint8) | 🔴 Not Started | - | Fixed-point types exist but not implemented |
-| **EXECUTION-001** | Complete arbitrage execution path with real DEX calls | ⭕ Pending | - | POOL-001, PRECISION-001 |
-| **RISK-001** | Implement position sizing and risk management controls | ⭕ Pending | - | EXECUTION-001 |
-| **MONITORING-001** | Production monitoring and alerting for live trading | ⭕ Pending | - | All above |
+| Task ID | Description | Status | Assignee | Priority |
+|---------|-------------|---------|----------|----------|
+| **CLEAN-001** | Update .gitignore to prevent artifact tracking | 🔴 TODO | - | CRITICAL |
+| **CLEAN-002** | Remove backup and temporary files | 🔴 TODO | - | CRITICAL |
+| **CLEAN-003** | Organize development scripts into proper directories | 🔴 TODO | - | HIGH |
+| **CLEAN-004** | Remove deprecated implementations | 🔴 TODO | - | HIGH |
+| **CLEAN-005** | Clean commented code blocks | 🔴 TODO | - | MEDIUM |
+| **CLEAN-006** | Process TODO/FIXME comments | 🔴 TODO | - | MEDIUM |
 
 ### 🟡 Production Quality (Must-Have for Live)
 *Required for safe production operation*
