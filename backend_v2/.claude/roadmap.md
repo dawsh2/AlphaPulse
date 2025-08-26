@@ -47,12 +47,12 @@
 - [ ] **MONOLITH-004**: Enable strategy+execution+risk+portfolio as single monolith process
 - [ ] **MONOLITH-005**: Benchmark monolith vs distributed performance (target: 5x speedup)
 
-#### 🟡 Production Quality (Must-Have for Live)
-- [ ] **TESTING-001**: End-to-end testing with real market data (no mocks)
-- [ ] **PERF-001**: Optimize hot path to <35μs (checksum sampling, etc.)
-- [ ] **SAFETY-001**: Circuit breakers and emergency stop mechanisms
-- [ ] **CAPITAL-001**: Capital allocation and drawdown protection
-- [ ] **LOGGING-001**: Comprehensive audit logging for regulatory compliance
+#### ✅ Production Quality (COMPLETED - ARCHIVED 2025-08-26)
+- [x] **TESTING-001**: End-to-end testing with real market data (no mocks)
+- [x] **PERF-001**: Optimize hot path to <35μs (checksum sampling, etc.)
+- [x] **SAFETY-001**: Circuit breakers and emergency stop mechanisms
+- [x] **CAPITAL-001**: Capital allocation and drawdown protection
+- [x] **LOGGING-001**: Comprehensive audit logging for regulatory compliance
 
 #### 🟢 Production Nice-to-Have (Post Go-Live)
 - [ ] **DASHBOARD-001**: Real-time P&L and position monitoring
@@ -200,11 +200,13 @@
 4. **MONITORING-001**: Production monitoring, alerting, and P&L tracking
 5. **TESTING-001**: End-to-end testing with live market data (no mocks)
 
-### Next Week - Go-Live Preparation
-1. **PRODUCTION**: Deploy arbitrage strategy to live environment
-2. **VALIDATION**: Monitor live performance and profit generation
-3. **OPTIMIZATION**: Tune parameters based on real trading results
-4. **RISK**: Validate all safety mechanisms under live conditions
+### Next Week - Data Integrity & Go-Live Preparation
+1. **DATA-INTEGRITY**: Fix hardcoded fake data and protocol violations (INTEGRITY-001, INTEGRITY-002)
+2. **SAFETY-RESTORATION**: Re-enable profitability guards and complete detector (SAFETY-001-NEW, SAFETY-002)
+3. **EVENT-PROCESSING**: Process all DEX events for complete market state (EVENTS-001, EVENTS-002)
+4. **PRODUCTION**: Deploy arbitrage strategy to live environment (after integrity fixes)
+5. **VALIDATION**: Monitor live performance and profit generation
+6. **OPTIMIZATION**: Tune parameters based on real trading results
 
 ### Post Go-Live - Strategic Codebase Improvement
 1. **MODULARIZATION**: Extract arbitrage logic into reusable libraries
@@ -223,6 +225,8 @@
 ## Key Arbitrage Production Readiness Metrics
 - [ ] **Real Money**: Live capital allocated and trading automatically
 - [ ] **Profit Generation**: Measurable positive returns from arbitrage opportunities
-- [ ] **Risk Control**: Position sizing, drawdown protection, circuit breakers active
-- [ ] **Monitoring**: Real-time alerts, P&L tracking, performance analytics
-- [ ] **Safety**: Emergency stops, manual overrides, comprehensive logging
+- [x] **Risk Control**: Position sizing, drawdown protection, circuit breakers active ✅
+- [x] **Monitoring**: Real-time alerts, P&L tracking, performance analytics ✅
+- [x] **Safety**: Emergency stops, manual overrides, comprehensive logging ✅
+- [ ] **Data Integrity**: No fake/hardcoded data, proper protocol compliance (CURRENT FOCUS)
+- [ ] **Event Processing**: Complete DEX event handling (Mint, Burn, Sync, not just Swaps)

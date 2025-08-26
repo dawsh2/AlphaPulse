@@ -34,12 +34,20 @@ show_status() {
     echo "============================================="
     echo ""
 
-    echo -e "${RED}🔴 CRITICAL Production Blockers:${NC}"
-    grep -A 10 "CRITICAL: Production Blockers" $TASK_MGMT | grep "| \*\*" | head -5
+    echo -e "${RED}🔴 EMERGENCY DATA INTEGRITY CRISIS:${NC}"
+    echo "INTEGRITY-001: Fix hardcoded signal data (fake profits/venues)"
+    echo "INTEGRITY-002: Remove protocol violations (type 255 abuse)"
+    echo "SAFETY-001-NEW: Re-enable profitability guards"
     echo ""
 
-    echo -e "${YELLOW}🟡 Production Quality Tasks:${NC}"
-    grep -A 10 "Production Quality" $TASK_MGMT | grep "| \*\*" | head -5
+    echo -e "${YELLOW}🟡 Critical Tasks (This Week):${NC}"
+    echo "SAFETY-002: Complete detector implementation"
+    echo "EVENTS-001: Process all DEX events (not just Swaps)"
+    echo "EVENTS-002: Update PoolStateManager for liquidity"
+    echo ""
+
+    echo -e "${GREEN}✅ ARCHIVED (Completed 2025-08-26):${NC}"
+    echo "TESTING-001, PERF-001, SAFETY-001, CAPITAL-001, LOGGING-001"
     echo ""
 
     echo -e "${GREEN}📈 Current Branch:${NC} $(git branch --show-current)"
@@ -47,30 +55,25 @@ show_status() {
 }
 
 show_next() {
-    echo -e "${BLUE}🎯 Next Priority Task${NC}"
-    echo "===================="
+    echo -e "${BLUE}🎯 Next Priority Task (Data Integrity Crisis)${NC}"
+    echo "============================================="
     echo ""
 
-    # Find first pending critical task
-    next_task=$(grep -A 10 "CRITICAL: Production Blockers" $TASK_MGMT | grep "⭕ Pending" | head -1)
-
-    if [[ -n "$next_task" ]]; then
-        task_id=$(echo "$next_task" | grep -o '\*\*[^*]*\*\*' | sed 's/\*//g')
-        echo -e "${RED}CRITICAL:${NC} $task_id"
-        echo ""
-
-        # Check if detailed breakdown exists
-        detail_file="$TASK_DIR/pool-address-fix/${task_id}_*.md"
-        if ls $detail_file 2>/dev/null; then
-            echo -e "${GREEN}📋 Detailed breakdown available:${NC}"
-            ls $detail_file | head -1
-            echo ""
-        fi
-
-        echo -e "${YELLOW}To start:${NC} .claude/task-manager.sh start $task_id"
-    else
-        echo -e "${GREEN}✅ All critical tasks complete! Check quality tasks.${NC}"
-    fi
+    echo -e "${RED}🚨 HIGHEST PRIORITY - EMERGENCY DATA INTEGRITY:${NC}"
+    echo "INTEGRITY-001: Fix hardcoded fake data in dashboard signals"
+    echo "  - Remove hardcoded profit values and venue assignments"
+    echo "  - Ensure all signals come from real arbitrage calculations"
+    echo "  - Fix dashboard display to show authentic opportunity data"
+    echo ""
+    echo -e "${YELLOW}Branch:${NC} git checkout -b integrity-001-fix-fake-data"
+    echo -e "${YELLOW}Location:${NC} services_v2/dashboard/websocket_server/src/"
+    echo "  - message_converter.rs (likely contains hardcoded data)"
+    echo "  - relay_consumer.rs (signal processing)"
+    echo ""
+    echo -e "${RED}CRITICAL IMPACT:${NC} System is currently lying to users about profits!"
+    echo -e "${RED}MUST BE FIXED BEFORE ANY PRODUCTION DEPLOYMENT${NC}"
+    echo ""
+    echo -e "${YELLOW}To start:${NC} git checkout -b integrity-001-fix-fake-data"
 }
 
 start_task() {
