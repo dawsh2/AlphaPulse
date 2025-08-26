@@ -41,7 +41,8 @@
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
+use zerocopy::AsBytes;
 
 use crate::relay_consumer::ArbitrageOpportunity;
 use alphapulse_adapter_service::output::RelayOutput;
@@ -50,7 +51,7 @@ use protocol_v2::{
     tlv::{
         demo_defi::{ArbitrageConfig, DemoDeFiArbitrageTLV},
         zero_copy_builder_v2::build_message_direct,
-        ArbitrageSignalTLV,
+        ArbitrageSignalTLV, TLVMessageBuilder,
     },
     RelayDomain, SourceType, TLVType, VenueId,
 };
@@ -220,14 +221,13 @@ impl SignalOutput {
             timestamp_ns: analysis.timestamp_ns,
         });
 
-        // Build complete TLV message with extended TLV format (type 255)
-        let message_bytes = build_message_direct(
-            RelayDomain::Signal,
-            SourceType::ArbitrageStrategy,
-            TLVType::ExtendedTLV,
-            &demo_tlv,
-        )
-        .map_err(|e| anyhow::anyhow!("DemoDeFiArbitrageTLV build failed: {}", e))?;
+        // Build complete TLV message with proper Extended TLV format
+        // Use TLVMessageBuilder with Extended TLV 
+        let message_bytes = TLVMessageBuilder::new(RelayDomain::Signal, SourceType::ArbitrageStrategy)
+            .add_extended_tlv(TLVType::ExtendedTLV, &demo_tlv) // Pass the struct directly
+            .build();
+            
+        debug!("Built Extended TLV message: {} bytes", message_bytes.len());
 
         self.relay_output
             .send_bytes(&message_bytes)

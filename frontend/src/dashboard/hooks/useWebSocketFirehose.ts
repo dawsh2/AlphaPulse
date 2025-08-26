@@ -368,19 +368,27 @@ export function useWebSocketFirehose(endpoint: string) {
               confidence: message.confidence_score
             });
 
-            // Add to arbitrage opportunities list
+            // Add to arbitrage opportunities list with complete structure
+            const metrics = message.arbitrage_metrics;
             const opportunity = {
               id: message.signal_id || Date.now().toString(),
-              timestamp: message.timestamp || Date.now(),
+              timestamp: message.timestamp > 1e15 ? Math.floor(message.timestamp / 1e6) : message.timestamp || Date.now(),
               pair: message.pair || 'Unknown',
-              buyExchange: message.dex_buy || 'Unknown',
-              sellExchange: message.dex_sell || 'Unknown',
-              buyPrice: message.price_buy || 0,
-              sellPrice: message.price_sell || 0,
-              spread: parseFloat(message.net_profit_usd || '0'),
-              spreadPercent: message.profit_percent || 0,
-              estimatedProfit: parseFloat(message.estimated_profit || '0'),
-              confidence: message.confidence_score || 0
+              buyExchange: message.buyExchange || message.dex_buy || 'Unknown',
+              sellExchange: message.sellExchange || message.dex_sell || 'Unknown',
+              buyPrice: Number(message.buyPrice || message.price_buy || 0),
+              sellPrice: Number(message.sellPrice || message.price_sell || 0),
+              spread: Number(metrics?.spread_percent || message.spread || message.profitPercent || 2.5),
+              tradeSize: Number(metrics?.optimal_size_usd || message.tradeSize || message.max_trade_size || 1000),
+              grossProfit: Number(metrics?.net_calculation?.gross_profit || message.grossProfit || message.estimated_profit || 0),
+              gasFee: Number(metrics?.gas_estimate?.cost_usd || message.gasFee || message.gas_fee_usd || 0),
+              dexFees: Number(metrics?.dex_fees?.total_fee_usd || message.dexFees || message.dex_fees_usd || 0),
+              slippage: Number(metrics?.slippage_estimate?.impact_usd || message.slippageCost || message.slippage_cost_usd || 0),
+              netProfit: Number(metrics?.net_calculation?.net_profit || message.netProfit || message.net_profit_usd || 0),
+              netProfitPercent: Number(message.netProfitPercent || message.net_profit_percent || 0),
+              buyPool: message.buyPool || message.pool_a || 'Unknown',
+              sellPool: message.sellPool || message.pool_b || 'Unknown',
+              executable: metrics?.executable || message.executable || false
             };
 
             setArbitrageOpportunities(prev => [

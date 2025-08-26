@@ -15,8 +15,11 @@ async fn main() -> Result<()> {
     let pool_manager = Arc::new(PoolStateManager::new());
     info!("✅ Pool state manager initialized");
 
-    // Create opportunity detector
-    let detector = Arc::new(OpportunityDetector::new());
+    // Create opportunity detector with pool manager and default config
+    let detector = Arc::new(OpportunityDetector::new(
+        pool_manager.clone(),
+        Default::default(), // Use default detector configuration
+    ));
     info!("✅ Opportunity detector initialized");
 
     // Create signal output component

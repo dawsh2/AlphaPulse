@@ -420,7 +420,10 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
         // Financial Metrics - Enhanced with precise calculations
         "estimated_profit": arbitrage_tlv.expected_profit_usd(),
         "net_profit_usd": arbitrage_tlv.expected_profit_usd(),
-        "max_trade_size": arbitrage_tlv.required_capital_usd(),
+        "max_trade_size": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(1000.0),
+        "tradeSize": arbitrage_tlv.optimal_amount_token(6).parse::<f64>().unwrap_or(1000.0),
+        "grossProfit": arbitrage_tlv.expected_profit_usd().parse::<f64>().unwrap_or(0.0),
+        "netProfit": arbitrage_tlv.expected_profit_usd().parse::<f64>().unwrap_or(0.0),
         "profit_percent": if arbitrage_tlv.required_capital_q > 0 {
             (arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0
         } else { 0.0 },
@@ -486,9 +489,22 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
         // Placeholder values for dashboard compatibility
         "price_buy": 0.0,
         "price_sell": 0.0,
+        "buyPrice": 0.0,
+        "sellPrice": 0.0,
+        "spread": arbitrage_tlv.slippage_percentage().parse::<f64>().unwrap_or(2.5),
+        "gasFee": arbitrage_tlv.estimated_gas_cost_native().parse::<f64>().unwrap_or(2.5),
         "gas_fee_usd": format!("{:.6}", arbitrage_tlv.estimated_gas_cost_native().parse::<f64>().unwrap_or(0.0)),
+        "dexFees": 3.0,
         "dex_fees_usd": 3.0,
+        "slippage": 1.0,
         "slippage_cost_usd": 1.0,
+        "netProfitPercent": if arbitrage_tlv.required_capital_q > 0 {
+            (arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0
+        } else { 0.0 },
+        "buyExchange": pool_a_venues,
+        "sellExchange": pool_b_venues,
+        "buyPool": format!("{:?}", arbitrage_tlv.pool_a),
+        "sellPool": format!("{:?}", arbitrage_tlv.pool_b),
 
         // Raw TLV data for debugging
         "raw_data": {

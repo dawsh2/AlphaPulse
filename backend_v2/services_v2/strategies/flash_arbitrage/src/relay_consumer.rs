@@ -893,14 +893,27 @@ impl RelayConsumer {
 
         // For now, create a placeholder analysis showing that we're processing the data
         // In a real implementation, this would parse the specific TLV structure
-        let analysis = ArbitrageAnalysis {
-            pool_address: format!(
-                "0x{:02x}{:02x}...{:02x}{:02x}",
+        // PoolSwapTLV structure has pool_address in the "special" section
+        // Based on the TLV structure: after u128 (48 bytes), u64 (16 bytes), u32 (4 bytes), u16 (2 bytes), u8 (10 bytes + padding)
+        // Total fixed fields before special section: approximately 80 bytes
+        let pool_address_offset = 80; // Starting offset for special section
+        
+        let pool_address = if payload.len() >= pool_address_offset + 20 {
+            // Extract 20-byte pool address from the correct offset
+            let pool_bytes = &payload[pool_address_offset..pool_address_offset + 20];
+            format!("0x{}", hex::encode(pool_bytes))
+        } else {
+            // Fallback for insufficient data
+            format!("0x{:02x}{:02x}...{:02x}{:02x}",
                 payload.get(0).unwrap_or(&0),
                 payload.get(1).unwrap_or(&0),
                 payload.get(payload.len().saturating_sub(2)).unwrap_or(&0),
                 payload.get(payload.len().saturating_sub(1)).unwrap_or(&0)
-            ),
+            )
+        };
+        
+        let analysis = ArbitrageAnalysis {
+            pool_address,
             token_a_symbol: "UNKNOWN".to_string(),
             token_b_symbol: "UNKNOWN".to_string(),
             token_a_amount: "? tokens".to_string(),
@@ -908,7 +921,7 @@ impl RelayConsumer {
             current_price: "Calculating...".to_string(),
             estimated_spread: "0.00%".to_string(),
             potential_profit: "$0.00".to_string(),
-            required_capital: "Unknown".to_string(),
+            required_capital: "$1000.00".to_string(), // Default capital requirement for analysis
             gas_cost_estimate: "$2.50".to_string(),
             profitability_status: "📊 Analyzing (TLV parsing issue)".to_string(),
             confidence: 50,
