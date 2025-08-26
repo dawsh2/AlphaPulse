@@ -92,6 +92,7 @@ pub use common::identifiers::{
     // Typed ID system
     OrderId, PositionId, StrategyId, SignalId, OpportunityId,
     TradeId, PortfolioId, SessionId, ActorId, RelayId, SequenceId,
+    PoolId, PoolPairId, SimpleInstrumentId, ChainId, SimpleVenueId,
     // Typed byte array wrappers
     EthAddress, TxHash, BlockHash, Hash256, PoolAddress, TokenAddress,
     EthSignature, PublicKey, PrivateKey,

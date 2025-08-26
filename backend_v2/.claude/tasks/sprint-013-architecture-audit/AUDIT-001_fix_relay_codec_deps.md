@@ -1,12 +1,12 @@
 ---
 task_id: AUDIT-001
-status: IN_PROGRESS
+status: COMPLETE
 priority: CRITICAL
 estimated_hours: 4
 assigned_branch: fix/relay-codec-integration
 assignee: TBD
 created: 2025-08-26
-completed: null
+completed: 2025-08-26
 ---
 
 # AUDIT-001: Fix Relay Codec Dependencies

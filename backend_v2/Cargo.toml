@@ -23,7 +23,7 @@ members = [
     "libs/state/core",
     "libs/state/market",
     # Tests
-    "tests/e2e", "packed_struct_test",
+    "tests/e2e",
 ]
 
 exclude = ["temp_test", "tools/rq"]

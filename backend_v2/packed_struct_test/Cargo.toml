@@ -1,9 +1,0 @@
-[package]
-name = "packed_struct_test"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-
-[dependencies]
-packed_struct = "0.10"
-zerocopy = { version = "0.7", features = ["derive"] }

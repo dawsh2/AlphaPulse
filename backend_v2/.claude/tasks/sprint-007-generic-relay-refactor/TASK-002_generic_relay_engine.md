@@ -1,11 +1,18 @@
 ---
+task_id: TASK-002
 status: COMPLETE
 priority: CRITICAL
 assigned_branch: feat/generic-relay-engine  
 created: 2025-08-26
 estimated_hours: 6
-depends_on: TASK-001
+depends_on:
+  - TASK-001  # Need RelayLogic trait first
+blocks:
+  - TASK-003  # Domain implementations depend on engine
 completed: 2025-08-26
+scope:
+  - "relays/src/engine.rs"  # Generic relay engine implementation
+  - "relays/src/lib.rs"  # Updated exports
 ---
 
 # TASK-002: Implement Generic Relay<T> Engine

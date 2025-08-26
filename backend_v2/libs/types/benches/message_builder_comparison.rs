@@ -1,14 +1,13 @@
 //! Benchmark comparing legacy TLVMessageBuilder vs TrueZeroCopyBuilder
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use protocol_v2::{
-    tlv::{
+use alphapulse_types::{
+    protocol::tlv::{
         builder::TLVMessageBuilder,
         market_data::TradeTLV,
-        with_hot_path_buffer,
         zero_copy_builder_v2::{build_message_direct, TrueZeroCopyBuilder},
     },
-    InstrumentId, RelayDomain, SourceType, TLVType, VenueId,
+    InstrumentId, VenueId, RelayDomain, SourceType, TLVType,
 };
 
 fn create_trade_tlv() -> TradeTLV {

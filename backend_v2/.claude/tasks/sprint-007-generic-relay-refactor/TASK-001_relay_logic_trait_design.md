@@ -1,10 +1,18 @@
 ---
+task_id: TASK-001
 status: COMPLETE
 priority: CRITICAL 
 assigned_branch: feat/relay-logic-trait
 created: 2025-08-26
 estimated_hours: 4
 completed: 2025-08-26
+depends_on:
+  - CODEC-002  # Need protocol refactoring complete
+blocks:
+  - TASK-002  # Generic engine depends on trait design
+scope:
+  - "relays/src/relay_logic.rs"  # Core trait definition
+  - "relays/src/lib.rs"  # Module exports
 ---
 
 # TASK-001: Design RelayLogic Trait and Core Module Structure

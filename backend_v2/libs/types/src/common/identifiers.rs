@@ -236,6 +236,9 @@ macro_rules! define_typed_id {
             Ord,
             Hash
         )]
+        // Add zerocopy traits for TLV compatibility
+        #[cfg(feature = "protocol")]
+        #[derive(zerocopy::AsBytes, zerocopy::FromBytes, zerocopy::FromZeroes)]
         #[repr(transparent)] // Same memory layout as u64 for zero cost
         pub struct $name(pub u64);
         
@@ -371,6 +374,31 @@ define_typed_id!(
 define_typed_id!(
     /// Unique identifier for a message sequence
     SequenceId
+);
+
+define_typed_id!(
+    /// Unique identifier for a liquidity pool
+    PoolId
+);
+
+define_typed_id!(
+    /// Unique identifier for a pool pair
+    PoolPairId
+);
+
+define_typed_id!(
+    /// Unique identifier for an instrument (different from the bijective InstrumentId)
+    SimpleInstrumentId
+);
+
+define_typed_id!(
+    /// Unique identifier for a chain
+    ChainId
+);
+
+define_typed_id!(
+    /// Unique identifier for a venue
+    SimpleVenueId
 );
 
 // ================================

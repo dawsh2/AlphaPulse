@@ -40,6 +40,9 @@ pub enum RelayError {
     #[error("Protocol error: {0}")]
     Protocol(#[from] ProtocolError),
 
+    #[error("Codec error: {0}")]
+    Codec(#[from] alphapulse_codec::CodecError),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }

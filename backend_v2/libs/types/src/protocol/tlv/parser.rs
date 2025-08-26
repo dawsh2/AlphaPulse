@@ -629,7 +629,7 @@ where
 mod tests {
     use super::*;
     use crate::message::header::MessageHeader;
-    use super::super::{RelayDomain, SourceType};
+    use crate::{RelayDomain, SourceType};
 
     #[test]
     fn test_parse_standard_tlv() {

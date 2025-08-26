@@ -46,7 +46,15 @@ class TaskLinter:
             
         # Skip non-task files
         filename = os.path.basename(filepath)
-        if filename in ['SPRINT_PLAN.md', 'README.md', 'TEST_RESULTS.md', 'STATUS.md']:
+        non_task_files = [
+            'SPRINT_PLAN.md', 'README.md', 'TEST_RESULTS.md', 'STATUS.md',
+            'REMAINING_ISSUES.md', 'EXECUTION_TRACKER.md', 'dependencies.md',
+            'task-breakdown.md', 'COMPLETION_REPORT.md', 'GITHUB_ISSUES.md',
+            'POST_REVIEW_FIXES.md', 'TODO_AUDIT.md', 'ARCHIVED.md'
+        ]
+        
+        # Skip MVP files and other documentation
+        if filename in non_task_files or filename.startswith('MVP-'):
             return True, [], []  # These files don't need task metadata
         if 'rename_me' in filename or 'template' in filename.lower():
             if strict:

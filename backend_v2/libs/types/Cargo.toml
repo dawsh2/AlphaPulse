@@ -85,3 +85,7 @@ required-features = ["observability"]
 [[bench]]
 name = "message_builder_comparison"
 harness = false
+
+[[bench]]
+name = "typed_id_performance"
+harness = false
