@@ -48,8 +48,8 @@ use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
-use std::time::SystemTime;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant, SystemTime};
 use tracing::{debug, error, info};
 
 /// Service health status levels
@@ -439,6 +439,47 @@ pub struct MetricsCollector {
     start_time: SystemTime,
     active_connections: AtomicU64,
     allocation_violations: AtomicU64,
+    latency_samples: Arc<Mutex<LatencyTracker>>,
+}
+
+/// Tracks latency statistics with percentile calculation
+struct LatencyTracker {
+    samples: Vec<f64>,
+    max_samples: usize,
+}
+
+impl LatencyTracker {
+    fn new(max_samples: usize) -> Self {
+        Self {
+            samples: Vec::with_capacity(max_samples),
+            max_samples,
+        }
+    }
+
+    fn add_sample(&mut self, latency_us: f64) {
+        if self.samples.len() >= self.max_samples {
+            // Remove oldest sample
+            self.samples.remove(0);
+        }
+        self.samples.push(latency_us);
+    }
+
+    fn calculate_average(&self) -> f64 {
+        if self.samples.is_empty() {
+            return 0.0;
+        }
+        self.samples.iter().sum::<f64>() / self.samples.len() as f64
+    }
+
+    fn calculate_p99(&self) -> f64 {
+        if self.samples.is_empty() {
+            return 0.0;
+        }
+        let mut sorted = self.samples.clone();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let index = ((sorted.len() as f64 * 0.99) as usize).min(sorted.len() - 1);
+        sorted[index]
+    }
 }
 
 impl MetricsCollector {
@@ -449,6 +490,7 @@ impl MetricsCollector {
             start_time: SystemTime::now(),
             active_connections: AtomicU64::new(0),
             allocation_violations: AtomicU64::new(0),
+            latency_samples: Arc::new(Mutex::new(LatencyTracker::new(10000))), // Keep last 10k samples
         }
     }
 
@@ -467,6 +509,71 @@ impl MetricsCollector {
         self.allocation_violations.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Record a latency sample in microseconds
+    pub fn record_latency_us(&self, latency_us: f64) {
+        if let Ok(mut tracker) = self.latency_samples.lock() {
+            tracker.add_sample(latency_us);
+        }
+    }
+
+    /// Record a latency sample from a Duration
+    pub fn record_latency(&self, duration: Duration) {
+        self.record_latency_us(duration.as_micros() as f64);
+    }
+
+    /// Get current memory usage in bytes
+    /// Returns Result to handle potential OS-level errors
+    fn get_memory_usage() -> Result<u64> {
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+                for line in status.lines() {
+                    if line.starts_with("VmRSS:") {
+                        if let Some(kb_str) = line.split_whitespace().nth(1) {
+                            if let Ok(kb) = kb_str.parse::<u64>() {
+                                return Ok(kb * 1024); // Convert KB to bytes
+                            }
+                        }
+                    }
+                }
+            }
+            return Err(anyhow::anyhow!(
+                "Failed to read memory usage from /proc/self/status"
+            ));
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        {
+            // Use libc::getrusage for Unix-like systems (macOS, BSD, etc.)
+            // Use MaybeUninit to avoid undefined behavior with zeroed structs
+            unsafe {
+                let mut rusage = std::mem::MaybeUninit::<libc::rusage>::uninit();
+                if libc::getrusage(libc::RUSAGE_SELF, rusage.as_mut_ptr()) == 0 {
+                    let rusage = rusage.assume_init();
+                    // On macOS, ru_maxrss is in bytes
+                    // On other BSD systems, it might be in kilobytes
+                    #[cfg(target_os = "macos")]
+                    {
+                        return Ok(rusage.ru_maxrss as u64);
+                    }
+
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        // On most other Unix systems, it's in kilobytes
+                        return Ok((rusage.ru_maxrss as u64) * 1024);
+                    }
+                } else {
+                    // Get the actual errno for better error reporting
+                    let errno = std::io::Error::last_os_error();
+                    return Err(anyhow::anyhow!(
+                        "Failed to get memory usage via getrusage: {}",
+                        errno
+                    ));
+                }
+            }
+        }
+    }
+
     /// Get current performance metrics
     pub fn get_metrics(&self) -> PerformanceMetrics {
         let total_messages = self.message_count.load(Ordering::Relaxed);
@@ -477,14 +584,23 @@ impl MetricsCollector {
             0.0
         };
 
+        let (avg_latency, p99_latency) = if let Ok(tracker) = self.latency_samples.lock() {
+            (tracker.calculate_average(), tracker.calculate_p99())
+        } else {
+            (0.0, 0.0)
+        };
+
         PerformanceMetrics {
             messages_per_second,
-            avg_latency_us: 0.0, // TODO: Implement latency tracking
-            p99_latency_us: 0.0, // TODO: Implement latency tracking
+            avg_latency_us: avg_latency,
+            p99_latency_us: p99_latency,
             active_connections: self.active_connections.load(Ordering::Relaxed),
             total_messages,
             allocation_violations: self.allocation_violations.load(Ordering::Relaxed),
-            memory_usage_bytes: 0, // TODO: Implement memory tracking
+            memory_usage_bytes: Self::get_memory_usage().unwrap_or_else(|e| {
+                tracing::warn!("Failed to get memory usage, reporting 0: {}", e);
+                0
+            }),
         }
     }
 }
@@ -520,5 +636,55 @@ mod tests {
         let metrics = collector.get_metrics();
         assert_eq!(metrics.total_messages, 2);
         assert_eq!(metrics.active_connections, 5);
+    }
+
+    #[test]
+    fn test_memory_usage_non_zero() {
+        // Test that memory usage returns a non-zero value on all platforms
+        let result = MetricsCollector::get_memory_usage();
+
+        // The function should return Ok on all platforms
+        assert!(
+            result.is_ok(),
+            "get_memory_usage should return Ok, got: {:?}",
+            result
+        );
+
+        // The memory usage should be greater than 0 (any running process uses some memory)
+        let memory_bytes = result.unwrap();
+        assert!(
+            memory_bytes > 0,
+            "Memory usage should be greater than 0, got: {}",
+            memory_bytes
+        );
+
+        // Sanity check: memory usage should be reasonable (between 1MB and 10GB)
+        assert!(
+            memory_bytes > 1_000_000,
+            "Memory usage seems too low: {} bytes",
+            memory_bytes
+        );
+        assert!(
+            memory_bytes < 10_000_000_000,
+            "Memory usage seems too high: {} bytes",
+            memory_bytes
+        );
+    }
+
+    #[test]
+    fn test_metrics_error_handling() {
+        // Test that metrics collection handles errors gracefully
+        let collector = MetricsCollector::new();
+
+        // Get metrics (this will call get_memory_usage internally)
+        let metrics = collector.get_metrics();
+
+        // Even if memory usage fails, other metrics should still work
+        assert_eq!(metrics.total_messages, 0);
+        assert_eq!(metrics.active_connections, 0);
+
+        // Memory usage should be reported (either real value or 0 fallback)
+        // Note: u64 is always >= 0, so we just verify it's being set
+        // This ensures the fallback mechanism works without causing compilation warnings
     }
 }

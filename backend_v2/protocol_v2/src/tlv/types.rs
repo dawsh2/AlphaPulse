@@ -371,7 +371,8 @@ pub enum TLVType {
     PoolTick = 14,  // Tick crossing event (V3)
     PoolState = 15, // Pool state snapshot (full state)
     PoolSync = 16,  // V2 Sync event (complete reserves)
-    // Reserved 17-19 for future market data types
+    GasPrice = 18,  // Gas price updates from WebSocket stream (Market Data domain)
+    // Reserved 17, 19 for future market data types
 
     // Strategy Signal Domain (20-39) - Routes through SignalRelay
     SignalIdentity = 20,
@@ -452,6 +453,37 @@ pub enum TLVType {
 
     // Extended TLV marker (255)
     ExtendedTLV = 255,
+}
+
+/// Deprecated TLV types that should not be used in new code
+///
+/// These types are maintained for documentation and error handling purposes.
+/// The message converter can provide meaningful deprecation messages when
+/// encountering these types instead of using magic numbers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeprecatedTLVType {
+    /// DemoDeFiArbitrageTLV - Type 255 was abused for demo purposes
+    ///
+    /// This type violated protocol specifications by using the ExtendedTLV
+    /// marker for application data. Replaced by ArbitrageSignalTLV (type 32).
+    DemoDeFiArbitrage = 255,
+}
+
+impl DeprecatedTLVType {
+    /// Check if a type number represents a deprecated TLV type
+    pub fn is_deprecated(type_number: u8) -> bool {
+        matches!(type_number, 255) // Add more deprecated types here as needed
+    }
+
+    /// Get deprecation message for a type number
+    pub fn deprecation_message(type_number: u8) -> Option<&'static str> {
+        match type_number {
+            255 => {
+                Some("Type 255 (DemoDeFiArbitrageTLV) removed - use type 32 (ArbitrageSignalTLV)")
+            }
+            _ => None,
+        }
+    }
 }
 
 impl TLVType {
@@ -923,6 +955,7 @@ impl TLVType {
             TLVType::L2Reset => TLVSizeConstraint::Variable,   // Variable reset data
             TLVType::PriceUpdate => TLVSizeConstraint::Variable, // Variable price data
             TLVType::VolumeUpdate => TLVSizeConstraint::Variable, // Variable volume data
+            TLVType::GasPrice => TLVSizeConstraint::Fixed(32), // Gas price updates (32 bytes as verified in gas_price.rs)
 
             // System TLVs (100-119)
             TLVType::Snapshot => TLVSizeConstraint::Bounded { min: 32, max: 1024 },
