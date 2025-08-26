@@ -169,47 +169,59 @@ impl SignalOutput {
             .context("Invalid pool address in arbitrage analysis")?;
 
         // Extract and validate potential profit
+        debug!("🔍 SIGNAL: Raw profit string: '{}'", analysis.potential_profit);
         let profit_usd = analysis
             .potential_profit
             .strip_prefix('$')
             .and_then(|s| s.parse::<f64>().ok())
             .context("Failed to parse profit amount from analysis")?;
+        debug!("🔍 SIGNAL: Parsed profit USD: {}", profit_usd);
 
-        let profit_fp = UsdFixedPoint8::try_from_f64(profit_usd)
-            .context("Invalid profit amount - outside fixed-point range")?;
+        // Convert to Q64.64 format (multiply by 2^64)
+        const Q64_SCALE: f64 = (1u128 << 64) as f64; // 2^64 = 18446744073709551616
+        let profit_q64 = (profit_usd * Q64_SCALE) as i128;
+        debug!("🔍 SIGNAL: Profit Q64.64 raw: {}", profit_q64);
 
         // Extract and validate required capital
+        debug!("🔍 SIGNAL: Raw capital string: '{}'", analysis.required_capital);
         let capital_usd = analysis
             .required_capital
             .strip_prefix('$')
             .and_then(|s| s.parse::<f64>().ok())
             .context("Failed to parse capital requirement from analysis")?;
+        debug!("🔍 SIGNAL: Parsed capital USD: {}", capital_usd);
 
-        let capital_fp = UsdFixedPoint8::try_from_f64(capital_usd)
-            .context("Invalid capital amount - outside fixed-point range")?;
+        let capital_q64 = (capital_usd * Q64_SCALE) as u128;
+        debug!("🔍 SIGNAL: Capital Q64.64 raw: {}", capital_q64);
 
         // Extend pool address to 32 bytes (pad with zeros)
         let mut pool_32 = [0u8; 32];
         pool_32[12..32].copy_from_slice(&pool_addr); // Place 20-byte address in last 20 bytes
 
         // Create DemoDeFiArbitrageTLV with analysis data
+        let gas_cost_q64 = (2.50 * Q64_SCALE) as u128; // $2.50 gas cost
+        debug!("🔍 SIGNAL: Gas cost Q64.64 raw: {}", gas_cost_q64);
+        
+        debug!("🔍 SIGNAL: Creating DemoDeFiArbitrageTLV with:");
+        debug!("  - Profit Q64.64: {}", profit_q64);
+        debug!("  - Capital Q64.64: {}", capital_q64);
+        debug!("  - Optimal amount Q64.64: {}", capital_q64);
+        
         let demo_tlv = DemoDeFiArbitrageTLV::new(ArbitrageConfig {
             strategy_id: FLASH_ARBITRAGE_STRATEGY_ID,
             signal_id: signal_nonce as u64,
             confidence: analysis.confidence,
             chain_id: 137, // Polygon
-            expected_profit_q: profit_fp.raw_value() as i128,
-            required_capital_q: capital_fp.raw_value() as u128,
-            estimated_gas_cost_q: UsdFixedPoint8::try_from_f64(2.50)
-                .context("Invalid gas cost amount")?
-                .raw_value() as u128,
+            expected_profit_q: profit_q64,
+            required_capital_q: capital_q64,
+            estimated_gas_cost_q: gas_cost_q64,
             venue_a: VenueId::QuickSwap,
             pool_a: pool_32,
             venue_b: VenueId::SushiSwapPolygon,
-            pool_b: pool_32,                  // Same pool for now
-            token_in: 0x2791bca1f2de4661u64,  // USDC on Polygon (real address truncated)
-            token_out: 0x0d500b1d8e8ef31eu64, // WMATIC on Polygon (real address truncated)
-            optimal_amount_q: capital_fp.raw_value() as u128,
+            pool_b: pool_32,                  // Same pool for now  
+            token_in: 0x2791bca1f2de4661u64,  // USDC on Polygon: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+            token_out: 0x0d500b1d8e8ef31eu64, // WMATIC on Polygon: 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
+            optimal_amount_q: capital_q64,
             slippage_tolerance: 100, // 1% in basis points
             max_gas_price_gwei: 20,
             valid_until: (std::time::SystemTime::now()

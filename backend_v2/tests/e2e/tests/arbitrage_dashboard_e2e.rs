@@ -219,8 +219,8 @@ async fn send_arbitrage_signal(
         opportunity.timestamp_ns,
     );
 
-    // Serialize the DemoDeFiArbitrageTLV to bytes
-    let tlv_payload = arbitrage_tlv.to_bytes();
+    // Serialize the DemoDeFiArbitrageTLV to bytes using zerocopy
+    let tlv_payload = arbitrage_tlv.as_bytes().to_vec();
 
     // Build complete protocol message with header using ExtendedTLV
     let message_bytes = TLVMessageBuilder::new(RelayDomain::Signal, SourceType::ArbitrageStrategy)

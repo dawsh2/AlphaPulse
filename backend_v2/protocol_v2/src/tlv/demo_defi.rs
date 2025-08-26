@@ -21,7 +21,7 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 ///
 /// Uses Q64.64 fixed-point encoding for all financial values to maintain precision.
 /// Fixed size with proper alignment for zero-copy serialization.
-#[repr(C, align(16))] // ✅ FIXED: Proper alignment for i128/u128 fields
+#[repr(C, packed)] // Use packed to avoid alignment padding issues with manual serialization
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DemoDeFiArbitrageTLV {
     // Strategy Identity (12 bytes)
@@ -171,21 +171,21 @@ impl DemoDeFiArbitrageTLV {
     }
 
     /// Convert Q64.64 to human-readable decimal string
-    /// Note: These values are already in the final denomination (e.g., $250.00, not wei-style)
-    pub fn q64_to_decimal_string(q64_value: u128, decimals: u8) -> String {
-        // For Q64.64, we have 64.64 fixed point
-        // The decimal point is implied after 64 bits from the right
-        // So we divide by 2^64 to get the fractional part, but since we want normal decimal format,
-        // we treat the value as already being in the correct scale
-        let divisor = 10_u128.pow(decimals as u32);
-        let integer_part = q64_value / divisor;
-        let fractional_part = q64_value % divisor;
-        format!(
-            "{}.{:0width$}",
-            integer_part,
-            fractional_part,
-            width = decimals as usize
-        )
+    /// Q64.64 means 64 bits integer part, 64 bits fractional part
+    /// So we need to divide by 2^64 to get the actual decimal value
+    pub fn q64_to_decimal_string(q64_value: u128, _decimals: u8) -> String {
+        // For Q64.64 format: divide by 2^64 to get decimal value
+        const Q64_DIVISOR: f64 = (1u128 << 64) as f64;
+        let decimal_value = q64_value as f64 / Q64_DIVISOR;
+        
+        // Format with appropriate precision for financial values
+        if decimal_value < 0.01 {
+            format!("{:.6}", decimal_value) // Show more precision for small values
+        } else if decimal_value < 1.0 {
+            format!("{:.4}", decimal_value)
+        } else {
+            format!("{:.2}", decimal_value) // Standard 2 decimal places for USD amounts
+        }
     }
 
     /// Convert signed Q64.64 to human-readable decimal string
@@ -230,155 +230,7 @@ impl DemoDeFiArbitrageTLV {
         current_timestamp <= self.valid_until
     }
 
-    /// Serialize to bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-
-        // Strategy Identity (12 bytes)
-        bytes.extend_from_slice(&self.strategy_id.to_le_bytes());
-        bytes.extend_from_slice(&self.signal_id.to_le_bytes());
-        bytes.push(self.confidence);
-        bytes.push(self.chain_id);
-        bytes.extend_from_slice(&[0, 0]); // 2 bytes padding for alignment
-
-        // Economics (48 bytes) - Q64.64 format
-        bytes.extend_from_slice(&self.expected_profit_q.to_le_bytes());
-        bytes.extend_from_slice(&self.required_capital_q.to_le_bytes());
-        bytes.extend_from_slice(&self.estimated_gas_cost_q.to_le_bytes());
-
-        // Pool A venue (2 bytes)
-        bytes.extend_from_slice(&self.venue_a.to_le_bytes());
-
-        // Pool A address (20 bytes)
-        bytes.extend_from_slice(&self.pool_a);
-
-        // Pool B venue (2 bytes)
-        bytes.extend_from_slice(&self.venue_b.to_le_bytes());
-
-        // Pool B address (20 bytes)
-        bytes.extend_from_slice(&self.pool_b);
-
-        // Trade Execution (32 bytes)
-        bytes.extend_from_slice(&self.token_in.to_le_bytes());
-        bytes.extend_from_slice(&self.token_out.to_le_bytes());
-        bytes.extend_from_slice(&self.optimal_amount_q.to_le_bytes());
-
-        // Risk Parameters (12 bytes)
-        bytes.extend_from_slice(&self.slippage_tolerance.to_le_bytes());
-        bytes.extend_from_slice(&self.max_gas_price_gwei.to_le_bytes());
-        bytes.extend_from_slice(&self.valid_until.to_le_bytes());
-        bytes.push(self.priority);
-        bytes.push(self.reserved);
-
-        // Timing (8 bytes)
-        bytes.extend_from_slice(&self.timestamp_ns.to_le_bytes());
-
-        bytes
-    }
-
-    /// Deserialize from bytes
-    pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        if data.len() < 124 {
-            // Minimum size check
-            return Err(format!(
-                "Invalid DemoDeFiArbitrageTLV size: need at least 124 bytes, got {}",
-                data.len()
-            ));
-        }
-
-        let mut offset = 0;
-
-        // Strategy Identity (12 bytes)
-        let strategy_id = u16::from_le_bytes(data[offset..offset + 2].try_into().unwrap());
-        offset += 2;
-        let signal_id = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-        offset += 8;
-        let confidence = data[offset];
-        offset += 1;
-        let chain_id = data[offset];
-        offset += 1;
-        // Skip 2 bytes padding
-        offset += 2;
-
-        // Economics (48 bytes)
-        let expected_profit_q = i128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-        let required_capital_q = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-        let estimated_gas_cost_q =
-            u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-
-        // Pool A venue (2 bytes)
-        let venue_a = u16::from_le_bytes(data[offset..offset + 2].try_into().unwrap());
-        offset += 2;
-
-        // Pool B venue (2 bytes)
-        let venue_b = u16::from_le_bytes(data[offset..offset + 2].try_into().unwrap());
-        offset += 2;
-
-        // Pool A address (32 bytes)
-        if offset + 32 > data.len() {
-            return Err("Insufficient data for pool A address".to_string());
-        }
-        let mut pool_a = [0u8; 32];
-        pool_a.copy_from_slice(&data[offset..offset + 32]);
-        offset += 32;
-
-        // Pool B address (32 bytes)
-        if offset + 32 > data.len() {
-            return Err("Insufficient data for pool B address".to_string());
-        }
-        let mut pool_b = [0u8; 32];
-        pool_b.copy_from_slice(&data[offset..offset + 32]);
-        offset += 32;
-
-        // Trade Execution (32 bytes)
-        let token_in = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-        offset += 8;
-        let token_out = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-        offset += 8;
-        let optimal_amount_q = u128::from_le_bytes(data[offset..offset + 16].try_into().unwrap());
-        offset += 16;
-
-        // Risk Parameters (12 bytes)
-        let slippage_tolerance = u16::from_le_bytes(data[offset..offset + 2].try_into().unwrap());
-        offset += 2;
-        let max_gas_price_gwei = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
-        offset += 4;
-        let valid_until = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
-        offset += 4;
-        let priority = data[offset];
-        offset += 1;
-        let reserved = data[offset];
-        offset += 1;
-
-        // Timing (8 bytes)
-        let timestamp_ns = u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-
-        Ok(Self {
-            strategy_id,
-            signal_id,
-            confidence,
-            chain_id,
-            expected_profit_q,
-            required_capital_q,
-            estimated_gas_cost_q,
-            venue_a,
-            venue_b,
-            pool_a,
-            pool_b,
-            token_in,
-            token_out,
-            optimal_amount_q,
-            slippage_tolerance,
-            max_gas_price_gwei,
-            valid_until,
-            priority,
-            reserved,
-            timestamp_ns,
-        })
-    }
+    // Manual serialization methods removed - use zerocopy AsBytes/FromBytes traits consistently
 
     // Legacy TLV message methods removed - use Protocol V2 TLVMessageBuilder instead
 }
@@ -408,16 +260,16 @@ mod tests {
             signal_id: 0x1234567890abcdef,                 // Unique signal ID
             confidence: 85,                                // 85% confidence
             chain_id: 137,                                 // Polygon chain
-            expected_profit_q: 25000000000i128,            // $250.00 expected profit (8 decimals)
-            required_capital_q: 500000000000u128,          // $5000.00 required capital (8 decimals)
-            estimated_gas_cost_q: 2500000000000000000u128, // 0.0025 MATIC gas cost (18 decimals)
+            expected_profit_q: ((250.0 * (1u128 << 64) as f64) as i128),  // $250.00 profit in Q64.64
+            required_capital_q: ((5000.0 * (1u128 << 64) as f64) as u128), // $5000.00 capital in Q64.64
+            estimated_gas_cost_q: ((0.0025 * (1u128 << 64) as f64) as u128), // 0.0025 MATIC gas in Q64.64
             venue_a: VenueId::UniswapV2,                   // Pool A venue
             pool_a: pool_a.to_padded(),                    // Pool A address (32-byte padded)
             venue_b: VenueId::UniswapV3,                   // Pool B venue
             pool_b: pool_b.to_padded(),                    // Pool B address (32-byte padded)
             token_in: usdc_token_id,                       // USDC token (truncated address)
             token_out: weth_token_id,                      // WETH token (truncated address)
-            optimal_amount_q: 100000000000u128, // 1000.00 USDC optimal amount (8 decimals)
+            optimal_amount_q: ((1000.0 * (1u128 << 64) as f64) as u128), // 1000.00 USDC in Q64.64
             slippage_tolerance: 50,             // 0.5% slippage tolerance
             max_gas_price_gwei: 100,            // 100 Gwei max gas price
             valid_until: 1700000000 + 300,      // Valid for 5 minutes
@@ -430,8 +282,8 @@ mod tests {
     fn test_demo_arbitrage_tlv_roundtrip() {
         let original = create_test_arbitrage_tlv();
 
-        let bytes = original.to_bytes();
-        let recovered = DemoDeFiArbitrageTLV::from_bytes(&bytes).unwrap();
+        let bytes = original.as_bytes();
+        let recovered = *DemoDeFiArbitrageTLV::read_from_bytes(bytes).unwrap();
 
         assert_eq!(original, recovered);
     }
@@ -441,8 +293,8 @@ mod tests {
         let original = create_test_arbitrage_tlv();
 
         // Legacy TLV message test removed - use Protocol V2 TLVMessageBuilder for testing
-        let bytes = original.to_bytes();
-        let recovered = DemoDeFiArbitrageTLV::from_bytes(&bytes).unwrap();
+        let bytes = original.as_bytes();
+        let recovered = *DemoDeFiArbitrageTLV::read_from_bytes(bytes).unwrap();
 
         assert_eq!(original, recovered);
     }
@@ -451,11 +303,11 @@ mod tests {
     fn test_q64_conversion() {
         let original = create_test_arbitrage_tlv();
 
-        // Test profit conversion
-        assert_eq!(original.expected_profit_usd(), "250.00000000");
+        // Test profit conversion (Q64.64 format)
+        assert_eq!(original.expected_profit_usd(), "250.00");
 
-        // Test capital conversion
-        assert_eq!(original.required_capital_usd(), "5000.00000000");
+        // Test capital conversion (Q64.64 format)
+        assert_eq!(original.required_capital_usd(), "5000.00");
 
         // Test slippage conversion
         assert_eq!(original.slippage_percentage(), "0.50%");
@@ -475,8 +327,8 @@ mod tests {
     #[test]
     fn test_negative_profit() {
         let mut arbitrage = create_test_arbitrage_tlv();
-        arbitrage.expected_profit_q = -15000000000i128; // -$150.00 (8 decimals)
+        arbitrage.expected_profit_q = -(150.0 * (1u128 << 64) as f64) as i128; // -$150.00 in Q64.64
 
-        assert_eq!(arbitrage.expected_profit_usd(), "-150.00000000");
+        assert_eq!(arbitrage.expected_profit_usd(), "-150.00");
     }
 }

@@ -375,31 +375,79 @@ fn format_token_address(addr: &[u8; 20]) -> String {
     }
 }
 
+/// Map truncated 64-bit token IDs to symbols for Polygon tokens
+fn map_token_symbol(token_id: u64) -> &'static str {
+    match token_id {
+        0x2791bca1f2de4661u64 => "USDC", // USDC on Polygon: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+        0x0d500b1d8e8ef31eu64 => "WMATIC", // WMATIC on Polygon: 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
+        0x7ceB23fD6bC0adDBu64 => "WETH", // WETH on Polygon: 0x7ceB23fD6bC0adDBd44Bd6f21b62d628Fc157ae1
+        0xc2132d05d31c914au64 => "USDT", // USDT on Polygon: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
+        0x8f3cf7ad23cd3cabu64 => "DAI",  // DAI on Polygon: 0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063 (truncated)
+        0x1bfd67037b42cf73u64 => "WBTC", // WBTC on Polygon: 0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6 (truncated)
+        _ => "UNKNOWN", // Fallback for unknown tokens
+    }
+}
+
 /// Convert DemoDeFiArbitrageTLV to arbitrage opportunity JSON with enhanced metrics
 fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
-    let arbitrage_tlv = DemoDeFiArbitrageTLV::from_bytes(payload).map_err(|e| {
+    use zerocopy::FromBytes;
+    let arbitrage_tlv = DemoDeFiArbitrageTLV::ref_from(payload).ok_or_else(|| {
         DashboardError::Protocol(protocol_v2::ProtocolError::Parse(
             ParseError::MessageTooSmall {
-                need: 124,
+                need: std::mem::size_of::<DemoDeFiArbitrageTLV>(),
                 got: payload.len(),
             },
         ))
     })?;
 
-    // Extract pool information
-    let pool_a_venues = match arbitrage_tlv.venue_a {
+    // Copy packed fields to local variables to avoid unaligned reference errors
+    let strategy_id = arbitrage_tlv.strategy_id;
+    let signal_id = arbitrage_tlv.signal_id;
+    let confidence = arbitrage_tlv.confidence;
+    let chain_id = arbitrage_tlv.chain_id;
+    let expected_profit_q = arbitrage_tlv.expected_profit_q;
+    let required_capital_q = arbitrage_tlv.required_capital_q;
+    let estimated_gas_cost_q = arbitrage_tlv.estimated_gas_cost_q;
+    let venue_a = arbitrage_tlv.venue_a;
+    let venue_b = arbitrage_tlv.venue_b;
+    let pool_a = arbitrage_tlv.pool_a;
+    let pool_b = arbitrage_tlv.pool_b;
+    let token_in = arbitrage_tlv.token_in;
+    let token_out = arbitrage_tlv.token_out;
+    let optimal_amount_q = arbitrage_tlv.optimal_amount_q;
+    let slippage_tolerance = arbitrage_tlv.slippage_tolerance;
+    let max_gas_price_gwei = arbitrage_tlv.max_gas_price_gwei;
+    let valid_until = arbitrage_tlv.valid_until;
+    let priority = arbitrage_tlv.priority;
+    let timestamp_ns = arbitrage_tlv.timestamp_ns;
+
+    // Extract pool information using copied values
+    let pool_a_venues = match venue_a {
         x if x == protocol_v2::VenueId::UniswapV2 as u16 => "Uniswap V2",
         x if x == protocol_v2::VenueId::UniswapV3 as u16 => "Uniswap V3",
         x if x == protocol_v2::VenueId::SushiSwap as u16 => "SushiSwap V2",
         _ => "Unknown DEX",
     };
 
-    let pool_b_venues = match arbitrage_tlv.venue_b {
+    let pool_b_venues = match venue_b {
         x if x == protocol_v2::VenueId::UniswapV2 as u16 => "Uniswap V2",
         x if x == protocol_v2::VenueId::UniswapV3 as u16 => "Uniswap V3",
         x if x == protocol_v2::VenueId::SushiSwap as u16 => "SushiSwap V2",
         _ => "Unknown DEX",
     };
+
+    // Pre-calculate Q64.64 values to avoid block expressions in json! macro
+    let profit_f64 = expected_profit_q as f64 / (1u128 << 64) as f64;
+    let capital_f64 = required_capital_q as f64 / (1u128 << 64) as f64;
+    let amount_f64 = optimal_amount_q as f64 / (1u128 << 64) as f64;
+    let _gas_cost_f64 = estimated_gas_cost_q as f64 / (1u128 << 64) as f64;
+
+    // Calculate derived values
+    let profit_percent = if capital_f64 > 0.0 { (profit_f64 / capital_f64) * 100.0 } else { 0.0 };
+    let total_fees = capital_f64 * 0.006; // 0.6% total DEX fees
+    let gas_cost_usd = (300000u64 * max_gas_price_gwei as u64) as f64 / 1e9 * 0.50; // Polygon MATIC ~$0.50
+    let slippage_cost = capital_f64 * (slippage_tolerance as f64 / 10000.0);
+    let net_profit = profit_f64 - total_fees - gas_cost_usd - slippage_cost;
 
     // Create comprehensive arbitrage opportunity JSON
     Ok(json!({
@@ -410,119 +458,111 @@ fn convert_demo_defi_arbitrage_tlv(payload: &[u8], timestamp_ns: u64) -> Result<
         "timestamp_iso": timestamp_to_iso(timestamp_ns),
 
         // Strategy Information
-        "strategy_id": arbitrage_tlv.strategy_id,
-        "strategy_name": get_strategy_name(arbitrage_tlv.strategy_id),
-        "signal_id": arbitrage_tlv.signal_id.to_string(),
-        "confidence_score": arbitrage_tlv.confidence,
-        "chain_id": arbitrage_tlv.chain_id,
-        "priority": arbitrage_tlv.priority,
+        "strategy_id": strategy_id,
+        "strategy_name": get_strategy_name(strategy_id),
+        "signal_id": signal_id.to_string(),
+        "confidence_score": confidence,
+        "chain_id": chain_id,
+        "priority": priority,
 
-        // Financial Metrics - Enhanced with precise calculations
-        "estimated_profit": arbitrage_tlv.expected_profit_usd(),
-        "net_profit_usd": arbitrage_tlv.expected_profit_usd(),
-        "max_trade_size": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(1000.0),
-        "tradeSize": arbitrage_tlv.optimal_amount_token(6).parse::<f64>().unwrap_or(1000.0),
-        "grossProfit": arbitrage_tlv.expected_profit_usd().parse::<f64>().unwrap_or(0.0),
-        "netProfit": arbitrage_tlv.expected_profit_usd().parse::<f64>().unwrap_or(0.0),
-        "profit_percent": if arbitrage_tlv.required_capital_q > 0 {
-            (arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0
-        } else { 0.0 },
-        "net_profit_percent": if arbitrage_tlv.required_capital_q > 0 {
-            (arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0
-        } else { 0.0 },
-        "optimal_trade_amount": arbitrage_tlv.optimal_amount_token(6), // Assume USDC (6 decimals)
-        "gas_cost_estimate": arbitrage_tlv.estimated_gas_cost_native(),
+        // Financial Metrics - Enhanced with precise calculations using Q64.64 fixed-point
+        "estimated_profit": profit_f64,
+        "net_profit_usd": profit_f64,
+        "max_trade_size": capital_f64,
+        "tradeSize": amount_f64,
+        "grossProfit": profit_f64,
+        "netProfit": net_profit,
+        "profit_percent": profit_percent,
+        "net_profit_percent": profit_percent,
+        "optimal_trade_amount": DemoDeFiArbitrageTLV::q64_to_decimal_string(optimal_amount_q, 6), // Assume USDC (6 decimals)
+        "gas_cost_estimate": DemoDeFiArbitrageTLV::q64_to_decimal_string(estimated_gas_cost_q, 18),
 
         // Enhanced Arbitrage Metrics for Trading View
         "arbitrage_metrics": {
-            "spread_usd": arbitrage_tlv.expected_profit_usd(), // Simplified for now
-            "spread_percent": if arbitrage_tlv.required_capital_q > 0 {
-                (arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0
-            } else { 0.0 },
-            "optimal_size_usd": arbitrage_tlv.optimal_amount_token(6),
+            "spread_usd": profit_f64,
+            "spread_percent": profit_percent,
+            "optimal_size_usd": amount_f64,
             "dex_fees": {
                 "pool_a_fee": 0.3, // Default 0.3% for V2
                 "pool_b_fee": 0.3,
-                "total_fee_usd": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * 0.006, // 0.6% total
+                "total_fee_usd": total_fees,
             },
             "gas_estimate": {
                 "gas_units": 300000,
-                "gas_price_gwei": arbitrage_tlv.max_gas_price_gwei,
-                "cost_usd": (300000u64 * arbitrage_tlv.max_gas_price_gwei as u64) as f64 / 1e9 * 3000.0, // Assume $3000 ETH
+                "gas_price_gwei": max_gas_price_gwei,
+                "cost_usd": gas_cost_usd,
             },
             "slippage_estimate": {
-                "tolerance_bps": arbitrage_tlv.slippage_tolerance,
-                "impact_usd": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * (arbitrage_tlv.slippage_tolerance as f64 / 10000.0),
+                "tolerance_bps": slippage_tolerance,
+                "impact_usd": slippage_cost,
             },
             "net_calculation": {
-                "gross_profit": arbitrage_tlv.expected_profit_usd(),
-                "total_fees": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * 0.006,
-                "gas_cost": (300000u64 * arbitrage_tlv.max_gas_price_gwei as u64) as f64 / 1e9 * 3000.0,
-                "slippage": arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * (arbitrage_tlv.slippage_tolerance as f64 / 10000.0),
-                "net_profit": arbitrage_tlv.expected_profit_usd().parse::<f64>().unwrap_or(0.0)
-                    - arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * 0.006
-                    - (300000u64 * arbitrage_tlv.max_gas_price_gwei as u64) as f64 / 1e9 * 3000.0
-                    - arbitrage_tlv.required_capital_usd().parse::<f64>().unwrap_or(0.0) * (arbitrage_tlv.slippage_tolerance as f64 / 10000.0),
+                "gross_profit": profit_f64,
+                "total_fees": total_fees,
+                "gas_cost": gas_cost_usd,
+                "slippage": slippage_cost,
+                "net_profit": net_profit,
             },
-            "executable": arbitrage_tlv.is_valid((timestamp_ns / 1_000_000_000) as u32),
-            "confidence_score": arbitrage_tlv.confidence,
+            "executable": valid_until > (timestamp_ns / 1_000_000_000) as u32,
+            "confidence_score": confidence,
         },
 
-        // Pool Information
-        "pair": format!("0x{:016x}-0x{:016x}", arbitrage_tlv.token_in, arbitrage_tlv.token_out),
-        "token_a": format!("0x{:016x}", arbitrage_tlv.token_in),
-        "token_b": format!("0x{:016x}", arbitrage_tlv.token_out),
+        // Pool Information with proper token mapping
+        "pair": format!("{}/{}", 
+            map_token_symbol(token_in),
+            map_token_symbol(token_out)
+        ),
+        "token_a": format!("0x{:016x}", token_in),
+        "token_b": format!("0x{:016x}", token_out),
         "dex_buy": pool_a_venues,
         "dex_sell": pool_b_venues,
-        "pool_a": format!("{:?}", arbitrage_tlv.pool_a),
-        "pool_b": format!("{:?}", arbitrage_tlv.pool_b),
+        "pool_a": format!("{:?}", pool_a),
+        "pool_b": format!("{:?}", pool_b),
         "dex_buy_router": "0x0000000000000000000000000000000000000000", // Placeholder
         "dex_sell_router": "0x0000000000000000000000000000000000000000", // Placeholder
 
         // Trading Parameters
-        "slippage_tolerance": arbitrage_tlv.slippage_percentage(),
-        "max_gas_price_gwei": arbitrage_tlv.max_gas_price_gwei,
-        "valid_until": arbitrage_tlv.valid_until,
-        "is_valid": arbitrage_tlv.is_valid((timestamp_ns / 1_000_000_000) as u32),
-        "executable": arbitrage_tlv.is_valid((timestamp_ns / 1_000_000_000) as u32),
+        "slippage_tolerance": format!("{:.2}%", slippage_tolerance as f64 / 100.0),
+        "max_gas_price_gwei": max_gas_price_gwei,
+        "valid_until": valid_until,
+        "is_valid": valid_until > (timestamp_ns / 1_000_000_000) as u32,
+        "executable": valid_until > (timestamp_ns / 1_000_000_000) as u32,
 
-        // Placeholder values for dashboard compatibility
-        "price_buy": 0.0,
-        "price_sell": 0.0,
+        // Dashboard compatibility values with proper calculations
+        "price_buy": 0.0, // Pool prices not available in current TLV
+        "price_sell": 0.0, // Pool prices not available in current TLV
         "buyPrice": 0.0,
         "sellPrice": 0.0,
-        "spread": arbitrage_tlv.slippage_percentage().parse::<f64>().unwrap_or(2.5),
-        "gasFee": arbitrage_tlv.estimated_gas_cost_native().parse::<f64>().unwrap_or(2.5),
-        "gas_fee_usd": format!("{:.6}", arbitrage_tlv.estimated_gas_cost_native().parse::<f64>().unwrap_or(0.0)),
-        "dexFees": 3.0,
-        "dex_fees_usd": 3.0,
-        "slippage": 1.0,
-        "slippage_cost_usd": 1.0,
-        "netProfitPercent": if arbitrage_tlv.required_capital_q > 0 {
-            (arbitrage_tlv.expected_profit_q as f64 / arbitrage_tlv.required_capital_q as f64) * 100.0
-        } else { 0.0 },
+        "spread": profit_percent,
+        "gasFee": gas_cost_usd,
+        "gas_fee_usd": gas_cost_usd,
+        "dexFees": total_fees,
+        "dex_fees_usd": total_fees,
+        "slippage": slippage_cost,
+        "slippage_cost_usd": slippage_cost,
+        "netProfitPercent": profit_percent,
         "buyExchange": pool_a_venues,
         "sellExchange": pool_b_venues,
-        "buyPool": format!("{:?}", arbitrage_tlv.pool_a),
-        "sellPool": format!("{:?}", arbitrage_tlv.pool_b),
+        "buyPool": format!("{:?}", pool_a),
+        "sellPool": format!("{:?}", pool_b),
 
         // Raw TLV data for debugging
         "raw_data": {
-            "strategy_id": arbitrage_tlv.strategy_id,
-            "signal_id": arbitrage_tlv.signal_id,
-            "confidence": arbitrage_tlv.confidence,
-            "chain_id": arbitrage_tlv.chain_id,
-            "expected_profit_q": arbitrage_tlv.expected_profit_q.to_string(),
-            "required_capital_q": arbitrage_tlv.required_capital_q.to_string(),
-            "estimated_gas_cost_q": arbitrage_tlv.estimated_gas_cost_q.to_string(),
-            "token_in": format!("0x{:016x}", arbitrage_tlv.token_in),
-            "token_out": format!("0x{:016x}", arbitrage_tlv.token_out),
-            "optimal_amount_q": arbitrage_tlv.optimal_amount_q.to_string(),
-            "slippage_tolerance": arbitrage_tlv.slippage_tolerance,
-            "max_gas_price_gwei": arbitrage_tlv.max_gas_price_gwei,
-            "valid_until": arbitrage_tlv.valid_until,
-            "priority": arbitrage_tlv.priority,
-            "timestamp_ns": arbitrage_tlv.timestamp_ns
+            "strategy_id": strategy_id,
+            "signal_id": signal_id,
+            "confidence": confidence,
+            "chain_id": chain_id,
+            "expected_profit_q": expected_profit_q.to_string(),
+            "required_capital_q": required_capital_q.to_string(),
+            "estimated_gas_cost_q": estimated_gas_cost_q.to_string(),
+            "token_in": format!("0x{:016x}", token_in),
+            "token_out": format!("0x{:016x}", token_out),
+            "optimal_amount_q": optimal_amount_q.to_string(),
+            "slippage_tolerance": slippage_tolerance,
+            "max_gas_price_gwei": max_gas_price_gwei,
+            "valid_until": valid_until,
+            "priority": priority,
+            "timestamp_ns": timestamp_ns
         }
     }))
 }
