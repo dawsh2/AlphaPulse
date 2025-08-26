@@ -244,7 +244,6 @@ impl DemoDeFiArbitrageTLV {
 mod tests {
     use super::*;
     use crate::VenueId;
-    use crate::tlv::address::AddressConversion;
 
     fn create_test_arbitrage_tlv() -> DemoDeFiArbitrageTLV {
         // Token IDs (simplified for demo - normally would be proper address mappings)
@@ -270,9 +269,9 @@ mod tests {
             required_capital_q: ((5000.0 * (1u128 << 64) as f64) as u128), // $5000.00 capital in Q64.64
             estimated_gas_cost_q: ((0.0025 * (1u128 << 64) as f64) as u128), // 0.0025 MATIC gas in Q64.64
             venue_a: VenueId::UniswapV2,                   // Pool A venue
-            pool_a: pool_a.to_padded(),                    // Pool A address (32-byte padded)
+            pool_a,                                         // Pool A address (20 bytes)
             venue_b: VenueId::UniswapV3,                   // Pool B venue
-            pool_b: pool_b.to_padded(),                    // Pool B address (32-byte padded)
+            pool_b,                                         // Pool B address (20 bytes)
             token_in: usdc_token_id,                       // USDC token (truncated address)
             token_out: weth_token_id,                      // WETH token (truncated address)
             optimal_amount_q: ((1000.0 * (1u128 << 64) as f64) as u128), // 1000.00 USDC in Q64.64
@@ -289,7 +288,7 @@ mod tests {
         let original = create_test_arbitrage_tlv();
 
         let bytes = original.as_bytes();
-        let recovered = *DemoDeFiArbitrageTLV::read_from(bytes).unwrap();
+        let recovered = DemoDeFiArbitrageTLV::read_from(bytes).unwrap();
 
         assert_eq!(original, recovered);
     }
@@ -300,7 +299,7 @@ mod tests {
 
         // Legacy TLV message test removed - use Protocol V2 TLVMessageBuilder for testing
         let bytes = original.as_bytes();
-        let recovered = *DemoDeFiArbitrageTLV::read_from(bytes).unwrap();
+        let recovered = DemoDeFiArbitrageTLV::read_from(bytes).unwrap();
 
         assert_eq!(original, recovered);
     }

@@ -5,7 +5,7 @@
 // TLVType removed with legacy TLV system
 // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
 use super::market_data::PoolSwapTLV;
-use super::address::{EthAddress, AddressPadding, AddressConversion, AddressExtraction, ZERO_PADDING};
+use super::address::{EthAddress, AddressPadding, ZERO_PADDING};
 use crate::define_tlv;
 use crate::tlv::fast_timestamp::fast_timestamp_ns;
 use std::collections::HashMap;
@@ -245,7 +245,7 @@ fn calculate_v3_virtual_reserves(sqrt_price_x96: u128, liquidity: u128) -> (u128
 
 /// Pool state tracker - maintains current state of all pools
 pub struct PoolStateTracker {
-    states: HashMap<[u8; 32], PoolStateTLV>, // Keyed by pool address (32-byte padded)
+    states: HashMap<EthAddress, PoolStateTLV>, // Keyed by pool address (20-byte Ethereum address)
 }
 
 impl Default for PoolStateTracker {
@@ -264,7 +264,7 @@ impl PoolStateTracker {
     /// Initialize pool state (called on startup)
     pub async fn initialize_pool(
         &mut self,
-        _pool_address: [u8; 32],
+        _pool_address: EthAddress,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // In production, we'd use eth_call to get current state:
         // - For V2: call getReserves()
@@ -279,18 +279,18 @@ impl PoolStateTracker {
     }
 
     /// Update state from swap event
-    pub fn update_from_swap(&mut self, pool_address: &[u8; 32], swap: &PoolSwapTLV) {
+    pub fn update_from_swap(&mut self, pool_address: &EthAddress, swap: &PoolSwapTLV) {
         if let Some(state) = self.states.get_mut(pool_address) {
             // Calculate deltas (swap amounts affect reserves oppositely)
             // Compare full addresses to determine which token was swapped in
             // Use i128 for signed arithmetic with u128 values
-            let amount0_delta = if swap.token_in_addr == state.token0_addr[..20] {
+            let amount0_delta = if swap.token_in_addr == state.token0_addr {
                 swap.amount_in as i128 // Pool gains token0
             } else {
                 -(swap.amount_out as i128) // Pool loses token0
             };
 
-            let amount1_delta = if swap.token_in_addr == state.token1_addr[..20] {
+            let amount1_delta = if swap.token_in_addr == state.token1_addr {
                 swap.amount_in as i128 // Pool gains token1
             } else {
                 -(swap.amount_out as i128) // Pool loses token1
@@ -306,7 +306,7 @@ impl PoolStateTracker {
     }
 
     /// Get current price for a pool
-    pub fn get_price(&self, pool_address: &[u8; 32]) -> Option<f64> {
+    pub fn get_price(&self, pool_address: &EthAddress) -> Option<f64> {
         self.states.get(pool_address).map(|s| s.spot_price())
     }
 
@@ -331,9 +331,9 @@ impl PoolStateTracker {
                     if spread_pct > 0.5 {
                         // 0.5% spread threshold
                         opportunities.push(ArbitrageOpportunity {
-                            pool1: pool1_addr.to_eth_address(),
+                            pool1: *pool1_addr,  // Already an EthAddress
                             pool1_padding: ZERO_PADDING,
-                            pool2: pool2_addr.to_eth_address(),
+                            pool2: *pool2_addr,  // Already an EthAddress
                             pool2_padding: ZERO_PADDING,
                             spread_pct,
                             estimated_profit: calculate_profit(state1, state2, spread_pct),

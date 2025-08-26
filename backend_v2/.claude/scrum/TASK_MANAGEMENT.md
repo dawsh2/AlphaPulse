@@ -3,21 +3,33 @@
 ## Overview
 Centralized task management for arbitrage production deployment using atomic development workflow.
 
-## Current Sprint: Code Hygiene & Cleanup (Sprint 002)
-**Objective**: Remove code litter and establish repository hygiene standards
+## Current Sprint: Critical Data Integrity Resolution (Sprint 003)
+**Objective**: Fix production data integrity violations - STOP LYING TO USERS
 **Sprint Duration**: 1 week
-**Sprint Start**: 2025-08-25
+**Sprint Start**: 2025-08-26
+**Status**: 🚨 PRODUCTION CRISIS
 
-### 🧹 Sprint 002: Code Hygiene Tasks
+### 🔴 Sprint 003: Data Integrity Emergency
 
 | Task ID | Description | Status | Assignee | Priority |
 |---------|-------------|---------|----------|----------|
-| **CLEAN-001** | Update .gitignore to prevent artifact tracking | 🔴 TODO | - | CRITICAL |
-| **CLEAN-002** | Remove backup and temporary files | 🔴 TODO | - | CRITICAL |
-| **CLEAN-003** | Organize development scripts into proper directories | 🔴 TODO | - | HIGH |
-| **CLEAN-004** | Remove deprecated implementations | 🔴 TODO | - | HIGH |
-| **CLEAN-005** | Clean commented code blocks | 🔴 TODO | - | MEDIUM |
-| **CLEAN-006** | Process TODO/FIXME comments | 🔴 TODO | - | MEDIUM |
+| **INTEGRITY-001** | Fix hardcoded signal data (fake profits/venues) | 🔴 TODO | - | EMERGENCY |
+| **INTEGRITY-002** | Remove protocol violations (type 255 abuse) | 🔴 TODO | - | CRITICAL |
+| **SAFETY-001** | Re-enable profitability guards | 🔴 TODO | - | CRITICAL |
+| **SAFETY-002** | Complete detector implementation | 🔴 TODO | - | HIGH |
+| **EVENTS-001** | Process all DEX events (not just Swaps) | 🔴 TODO | - | HIGH |
+| **EVENTS-002** | Update PoolStateManager for liquidity | 🔴 TODO | - | MEDIUM |
+
+### 🧹 Sprint 002: Code Hygiene (POSTPONED - Crisis takes priority)
+
+| Task ID | Description | Status | Assignee | Priority |
+|---------|-------------|---------|----------|----------|
+| **CLEAN-001** | Update .gitignore to prevent artifact tracking | ✅ DONE | - | CRITICAL |
+| **CLEAN-002** | Remove backup and temporary files | ⏸️ HOLD | - | CRITICAL |
+| **CLEAN-003** | Organize development scripts into proper directories | ⏸️ HOLD | - | HIGH |
+| **CLEAN-004** | Remove deprecated implementations | ⏸️ HOLD | - | HIGH |
+| **CLEAN-005** | Clean commented code blocks | ⏸️ HOLD | - | MEDIUM |
+| **CLEAN-006** | Process TODO/FIXME comments | ⏸️ HOLD | - | MEDIUM |
 
 ### 🟡 Production Quality (Must-Have for Live)
 *Required for safe production operation*
@@ -32,7 +44,25 @@ Centralized task management for arbitrage production deployment using atomic dev
 
 ## Task Directories
 
-### `.claude/tasks/pool-address-fix/`
+### `.claude/tasks/sprint-003-data-integrity/` 🚨 ACTIVE CRISIS
+Contains emergency data integrity fixes:
+- `INTEGRITY-001_fix_hardcoded_signals.md` - Remove fake dashboard data
+- `INTEGRITY-002_remove_protocol_violations.md` - Fix type 255 abuse
+- `SAFETY-001_reenable_profitability_guards.md` - Prevent losses
+- `SAFETY-002_complete_detector.md` - Complete implementation
+- `EVENTS-001_process_all_dex_events.md` - Full event coverage
+- `EVENTS-002_update_pool_state.md` - Liquidity tracking
+
+### `.claude/tasks/sprint-002-cleanup/` (ON HOLD)
+Contains repository hygiene tasks:
+- `CLEAN-001_gitignore.md` - ✅ COMPLETE
+- `CLEAN-002_remove_backups.md` - On hold
+- `CLEAN-003_organize_scripts.md` - On hold
+- `CLEAN-004_remove_deprecated.md` - On hold
+- `CLEAN-005_clean_comments.md` - On hold
+- `CLEAN-006_process_todos.md` - On hold
+
+### `.claude/tasks/pool-address-fix/` (ARCHIVED)
 Contains detailed breakdown of POOL-001 related work:
 - `POOL-001_cache_structure.md` - Cache integration (✅ COMPLETE)
 - `POOL-002_event_extraction.md` - Event parsing improvements
@@ -78,14 +108,19 @@ Contains atomic development workflow:
 
 ## Priority Queue (Next Tasks to Pick Up)
 
-### Immediate (This Week)
-1. **PRECISION-001** - Critical for accurate profit calculations
-2. **POOL-001** - Production validation of foundation work
-3. **EXECUTION-001** - Core arbitrage execution logic
+### 🚨 EMERGENCY (TODAY - Sprint 003)
+1. **INTEGRITY-001** - Fix hardcoded fake data in dashboard
+2. **INTEGRITY-002** - Remove type 255 protocol violation
+3. **SAFETY-001** - Re-enable profitability guards to prevent losses
 
-### Next Sprint
-1. **TESTING-001** - End-to-end validation
-2. **SAFETY-001** - Risk management controls
+### Critical (This Week - Sprint 003)
+1. **SAFETY-002** - Complete detector implementation
+2. **EVENTS-001** - Process all DEX events (not just swaps)
+3. **EVENTS-002** - Update PoolStateManager
+
+### On Hold (Sprint 002 - Postponed)
+1. **CLEAN-002 to CLEAN-006** - Repository hygiene (after crisis)
+2. **TESTING-001** - End-to-end validation
 3. **MONITORING-001** - Production observability
 
 ## Performance Targets
