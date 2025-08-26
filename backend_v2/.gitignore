@@ -1,1 +1,80 @@
-network/transport/benches/latency.rs
+# Rust
+/target
+**/target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+*.pyc
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.bak
+\#*\#
+.\#*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Temporary files
+*.tmp
+*.temp
+debug_*
+test_actual*
+test_websocket*
+test_zerocopy/
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Compiled binaries (test artifacts)
+test_signal_relay_rust
+*.dSYM
+
+# Backup files
+*.org~
+*.md~
+Cargo_*.toml
+
+# Profile and benchmark outputs
+profile_*
+serialization_bench*
+simple_profile*
+
+# Keep the specific latency benchmark
+!network/transport/benches/latency.rs
