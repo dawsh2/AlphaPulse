@@ -1,7 +1,7 @@
 //! Simple relay starter that uses default configs
 //! Starts market data and signal relays for testing
 
-use alphapulse_relays::{Relay, RelayConfig};
+use alphapulse_relays::{relay::Relay, RelayConfig};
 use anyhow::Result;
 use tracing::info;
 

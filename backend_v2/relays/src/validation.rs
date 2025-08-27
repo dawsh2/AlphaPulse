@@ -363,13 +363,13 @@ mod tests {
 
         let header = MessageHeader {
             magic: alphapulse_types::protocol::MESSAGE_MAGIC,
-            version: 1,
-            message_type: 1,
             relay_domain: 1,
-            source_type: 1,
+            version: 1,
+            source: 1,
+            flags: 0,
             sequence: 1,
-            timestamp_ns: 0,
-            instrument_id: 0,
+            timestamp: 0,
+            payload_size: 0,
             checksum: 0,
         };
 
@@ -396,13 +396,13 @@ mod tests {
 
         let header = MessageHeader {
             magic: alphapulse_types::protocol::MESSAGE_MAGIC,
-            version: 1,
-            message_type: 1,
             relay_domain: 1,
-            source_type: 1,
+            version: 1,
+            source: 1,
+            flags: 0,
             sequence: 1,
-            timestamp_ns: 0,
-            instrument_id: 0,
+            timestamp: 0,
+            payload_size: data.len() as u32,
             checksum,
         };
 

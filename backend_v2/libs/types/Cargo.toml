@@ -8,7 +8,7 @@ description = "Unified type system for AlphaPulse Protocol V2 TLV messages and c
 name = "alphapulse_types"
 
 [features]
-default = ["protocol", "common"]
+default = ["protocol", "common", "typed-tlv-bridge"]
 protocol = ["zerocopy", "crc32fast", "serde", "serde_json"]  # Protocol-specific deps
 common = ["rust_decimal", "serde"]   # Common type deps
 
@@ -16,6 +16,7 @@ common = ["rust_decimal", "serde"]   # Common type deps
 checksum-validation = ["crc32fast"]         # CRC32 checksums for message integrity
 serialization = ["serde", "serde_json"]     # JSON serialization support
 binary-protocol = []                        # Binary TLV protocol (always included)
+typed-tlv-bridge = ["paste"]                # Typed TLV bridge macros
 
 # Runtime and async support
 runtime = ["tokio", "async-trait"]           # Async runtime support
@@ -27,60 +28,77 @@ yaml-config = ["serde_yaml"]          # YAML configuration support
 
 # Performance-focused feature sets
 high-performance = ["binary-protocol"]               # Minimal features for speed
-full-featured = ["checksum-validation", "serialization", "runtime", "observability", "debug-tools", "yaml-config"]
+full-featured = [
+    "checksum-validation",
+    "serialization",
+    "runtime",
+    "observability",
+    "debug-tools",
+    "yaml-config",
+]
 
 [dependencies]
+# Note: Removed alphapulse_codec dependency to avoid circular dependency
+# Services should import TLVMessageBuilder directly from alphapulse_codec
+
+# Safe timestamp conversion functions
+alphapulse-transport = { path = "../../network/transport" }
+anyhow = "1.0"
+async-trait = { version = "0.1", optional = true }
+
 # Core dependencies (always available)
 byteorder = "1.5" 
-thiserror = "1.0"
-num_enum = "0.7"
-anyhow = "1.0"
-hex = "0.4"  # Always required for instrument IDs and trace formatting
-
-# Protocol dependencies (optional)
-zerocopy = { version = "0.7", features = ["derive"], optional = true }
+clap = { version = "4.0", features = ["derive"], optional = true }
+once_cell = "1.0"  # Required for lazy static configuration
 
 # Core serialization dependencies  
 crc32fast = { version = "1.3", optional = true }
+hex = "0.4"  # Always required for instrument IDs and trace formatting
+num_enum = "0.7"
+paste = { version = "1.0", optional = true }
+
+# Common dependencies (from original alphapulse-types)
+rust_decimal = { version = "1.32", features = ["serde"], optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 
 # Optional dependencies controlled by features
 serde_yaml = { version = "0.9", optional = true }
-async-trait = { version = "0.1", optional = true }
+thiserror = "1.0"
 tokio = { version = "1.0", features = ["rt-multi-thread", "net", "io-util", "time", "macros"], optional = true }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", optional = true }
-clap = { version = "4.0", features = ["derive"], optional = true }
 
-# Common dependencies (from original alphapulse-types)
-rust_decimal = { version = "1.32", features = ["serde"], optional = true }
+# Protocol dependencies (optional)
+zerocopy = { version = "0.7", features = ["derive"], optional = true }
 
 [dev-dependencies]
-tokio-test = "0.4"
-tempfile = "3.0"
-hex = "0.4"
+chrono = "0.4"
 criterion = { version = "0.5", features = ["html_reports"] }
+futures-util = "0.3"
+hex = "0.4"
+rust_decimal = "1.37.2"
+serde_json = "1.0"
+tempfile = "3.0"
+tokio-test = "0.4"
 tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
 web3 = "0.19"
-serde_json = "1.0"
-futures-util = "0.3"
-rust_decimal = "1.37.2"
-chrono = "0.4"
 
-[[bin]]
-name = "test_protocol"
-path = "src/protocol/bin/test_protocol.rs"
+# Commented out to avoid circular dependency - should be moved to alphapulse_codec or separate crate
+# [[bin]]
+# name = "test_protocol"
+# path = "src/protocol/bin/test_protocol.rs"
 
-[[bin]]
-name = "debug_tlv_parsing"
-path = "src/protocol/bin/debug_tlv_parsing.rs"
-required-features = ["observability"]
-
-[[bin]]
-name = "test_fixed_parsing"
-path = "src/protocol/bin/test_fixed_parsing.rs"
-required-features = ["observability"]
+# Commented out remaining binaries to avoid circular dependency
+# [[bin]]
+# name = "debug_tlv_parsing"
+# path = "src/protocol/bin/debug_tlv_parsing.rs"
+# required-features = ["observability"]
+#
+# [[bin]]
+# name = "test_fixed_parsing"
+# path = "src/protocol/bin/test_fixed_parsing.rs"
+# required-features = ["observability"]
 
 [[bench]]
 name = "message_builder_comparison"

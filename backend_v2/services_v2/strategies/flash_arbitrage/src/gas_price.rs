@@ -79,10 +79,13 @@ struct GasPriceCache {
 
 impl GasPriceCache {
     fn is_expired(&self, max_age_secs: u64) -> bool {
-        let now_ns = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
+        let now_ns = match alphapulse_transport::time::safe_system_timestamp_ns_checked() {
+            Ok(timestamp) => timestamp,
+            Err(e) => {
+                tracing::error!("Failed to get current timestamp for cache expiry check: {}", e);
+                return true; // Treat as expired on timestamp failure
+            }
+        };
 
         (now_ns - self.timestamp_ns) / 1_000_000_000 > max_age_secs
     }
@@ -152,10 +155,10 @@ impl GasPriceFetcher {
                 let cache_entry = GasPriceCache {
                     gas_price_wei: gas_price,
                     matic_price_usd: self.matic_price_usd,
-                    timestamp_ns: SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_nanos() as u64,
+                    timestamp_ns: alphapulse_transport::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+                        tracing::error!("Failed to generate timestamp for gas price cache: {}", e);
+                        0
+                    }),
                 };
 
                 {
@@ -215,10 +218,10 @@ impl GasPriceFetcher {
         let cache_entry = GasPriceCache {
             gas_price_wei: total_wei,
             matic_price_usd: current_matic_price,
-            timestamp_ns: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
+            timestamp_ns: alphapulse_transport::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+                tracing::error!("Failed to generate timestamp for WebSocket gas price update: {}", e);
+                0
+            }),
         };
 
         // Atomic cache update
@@ -298,10 +301,7 @@ mod tests {
         let cache = GasPriceCache {
             gas_price_wei: U256::from(30_000_000_000u64),
             matic_price_usd: 0.33,
-            timestamp_ns: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
+            timestamp_ns: alphapulse_transport::time::safe_system_timestamp_ns_checked().unwrap_or(0),
         };
 
         // Should not be expired immediately
@@ -311,10 +311,7 @@ mod tests {
         let expired_cache = GasPriceCache {
             gas_price_wei: U256::from(30_000_000_000u64),
             matic_price_usd: 0.33,
-            timestamp_ns: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64
+            timestamp_ns: alphapulse_transport::time::safe_system_timestamp_ns_checked().unwrap_or(0)
                 - 60_000_000_000, // 60 seconds ago
         };
 

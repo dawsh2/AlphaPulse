@@ -1,0 +1,161 @@
+digraph TaskDependencies {
+  rankdir=LR;
+  node [shape=box, style=rounded];
+
+  subgraph "cluster_sprint-004-mycelium-runtime" {
+    label="sprint-004-mycelium-runtime";
+    style=filled;
+    fillcolor=lightgrey;
+    "MYCEL-001" [fillcolor=yellow, style=filled, shape=octagon];
+    "MYCEL-003" [fillcolor=white, style=filled, shape=diamond];
+    "MYCEL-007" [fillcolor=white, style=filled, shape=octagon];
+    "MYCEL-002" [fillcolor=white, style=filled, shape=octagon];
+  }
+
+  subgraph "cluster_sprint-006-protocol-optimization" {
+    label="sprint-006-protocol-optimization";
+    style=filled;
+    fillcolor=lightgrey;
+    "OPT-004" [fillcolor=lightgreen, style=filled, shape=diamond];
+    "OPT-002" [fillcolor=white, style=filled, shape=diamond];
+    "MACRO-001" [fillcolor=white, style=filled, shape=octagon];
+    "OPT-001" [fillcolor=lightgreen, style=filled, shape=octagon];
+    "OPT-003" [fillcolor=lightgreen, style=filled, shape=diamond];
+  }
+
+  subgraph "cluster_sprint-007-generic-relay-refactor" {
+    label="sprint-007-generic-relay-refactor";
+    style=filled;
+    fillcolor=lightgrey;
+    "ARCH-001" [fillcolor=white, style=filled, shape=diamond];
+    "TASK-005" [fillcolor=pink, style=filled, shape=diamond];
+    "TASK-006" [fillcolor=pink, style=filled, shape=box];
+    "RELAY-007" [fillcolor=white, style=filled, shape=box];
+    "TASK-002" [fillcolor=lightgreen, style=filled, shape=octagon];
+    "TASK-003" [fillcolor=lightgreen, style=filled, shape=diamond];
+    "ARCH-002" [fillcolor=white, style=filled, shape=diamond];
+    "TASK-004" [fillcolor=lightgreen, style=filled, shape=diamond];
+    "TASK-001" [fillcolor=lightgreen, style=filled, shape=octagon];
+  }
+
+  subgraph "cluster_sprint-009-testing-pyramid" {
+    label="sprint-009-testing-pyramid";
+    style=filled;
+    fillcolor=lightgrey;
+    "TEST-003" [fillcolor=white, style=filled, shape=octagon];
+    "TEST-004" [fillcolor=white, style=filled, shape=diamond];
+  }
+
+  subgraph "cluster_sprint-010-codec-separation" {
+    label="sprint-010-codec-separation";
+    style=filled;
+    fillcolor=lightgrey;
+    "CODEC-001" [fillcolor=lightgreen, style=filled, shape=octagon];
+    "CODEC-002" [fillcolor=lightgreen, style=filled, shape=octagon];
+  }
+
+  subgraph "cluster_sprint-011-control-script-management" {
+    label="sprint-011-control-script-management";
+    style=filled;
+    fillcolor=lightgrey;
+    "CTRL-001" [fillcolor=yellow, style=filled, shape=octagon];
+  }
+
+  subgraph "cluster_sprint-012-critical-gaps" {
+    label="sprint-012-critical-gaps";
+    style=filled;
+    fillcolor=lightgrey;
+    "S013.1-GAP005" [fillcolor=white, style=filled, shape=diamond];
+    "S013.1-GAP004" [fillcolor=lightgreen, style=filled, shape=diamond];
+    "S013.1-GAP003" [fillcolor=white, style=filled, shape=octagon];
+    "S013.1-GAP001" [fillcolor=white, style=filled, shape=octagon];
+    "S013.1-GAP002" [fillcolor=white, style=filled, shape=octagon];
+  }
+
+  subgraph "cluster_sprint-013-architecture-audit" {
+    label="sprint-013-architecture-audit";
+    style=filled;
+    fillcolor=lightgrey;
+    "AUDIT-007" [fillcolor=white, style=filled, shape=box];
+    "AUDIT-004" [fillcolor=lightgreen, style=filled, shape=diamond];
+    "AUDIT-002" [fillcolor=lightgreen, style=filled, shape=octagon];
+    "AUDIT-003" [fillcolor=lightgreen, style=filled, shape=diamond];
+    "AUDIT-006" [fillcolor=white, style=filled, shape=box];
+    "AUDIT-005" [fillcolor=yellow, style=filled, shape=box];
+    "AUDIT-008" [fillcolor=white, style=filled, shape=box];
+    "AUDIT-001" [fillcolor=lightgreen, style=filled, shape=octagon];
+  }
+
+  subgraph "cluster_sprint-014-messagesink-lazy-connections" {
+    label="sprint-014-messagesink-lazy-connections";
+    style=filled;
+    fillcolor=lightgrey;
+    "SINK-003" [fillcolor=white, style=filled, shape=octagon];
+    "SINK-001" [fillcolor=white, style=filled, shape=octagon];
+    "SINK-002" [fillcolor=white, style=filled, shape=octagon];
+  }
+
+  subgraph "cluster_sprint-016-workflow-tooling" {
+    label="sprint-016-workflow-tooling";
+    style=filled;
+    fillcolor=lightgrey;
+    "TASK-XXX" [fillcolor=white, style=filled, shape=octagon];
+  }
+
+  subgraph "cluster_sprint-999-test-verification" {
+    label="sprint-999-test-verification";
+    style=filled;
+    fillcolor=lightgrey;
+    "TEST-001" [fillcolor=white, style=filled, shape=box];
+    "TEST-002" [fillcolor=lightgreen, style=filled, shape=box];
+  }
+
+  // Dependencies
+  "CODEC-002" -> "MYCEL-001";
+  "MYCEL-001" -> "MYCEL-003";
+  "MYCEL-002" -> "MYCEL-003";
+  "MYCEL-001" -> "MYCEL-007";
+  "MYCEL-002" -> "MYCEL-007";
+  "MYCEL-003" -> "MYCEL-007";
+  "MYCEL-001" -> "MYCEL-002";
+  "S013.1-GAP002" -> "S013.1-GAP005";
+  "S013.1-GAP003" -> "S013.1-GAP005";
+  "S013.1-GAP004" -> "S013.1-GAP005";
+  "S013.1-GAP001" -> "S013.1-GAP003";
+  "S013.1-GAP001" -> "S013.1-GAP002";
+  "AUDIT-002" -> "AUDIT-007";
+  "AUDIT-003" -> "AUDIT-007";
+  "AUDIT-003" -> "AUDIT-004";
+  "AUDIT-001" -> "AUDIT-002";
+  "AUDIT-002" -> "AUDIT-003";
+  "AUDIT-005" -> "AUDIT-006";
+  "AUDIT-002" -> "AUDIT-008";
+  "AUDIT-003" -> "AUDIT-008";
+  "AUDIT-005" -> "AUDIT-008";
+  "CODEC-001" -> "OPT-004";
+  "CODEC-002" -> "OPT-004";
+  "CODEC-001" -> "OPT-002";
+  "CODEC-001" -> "OPT-001";
+  "CODEC-001" -> "OPT-003";
+  "TEST-001" -> "TEST-003";
+  "TEST-001" -> "TEST-004";
+  "CODEC-002" -> "CTRL-001";
+  "TASK-002" -> "CTRL-001";
+  "TASK-002" -> "TASK-005";
+  "TASK-003" -> "TASK-005";
+  "TASK-004" -> "TASK-005";
+  "TASK-005" -> "TASK-006";
+  "TASK-002" -> "RELAY-007";
+  "TASK-001" -> "TASK-002";
+  "TASK-001" -> "TASK-003";
+  "TASK-002" -> "TASK-003";
+  "ARCH-001" -> "ARCH-002";
+  "TASK-002" -> "TASK-004";
+  "TASK-003" -> "TASK-004";
+  "CODEC-002" -> "TASK-001";
+  "SINK-001" -> "SINK-003";
+  "SINK-002" -> "SINK-003";
+  "CODEC-002" -> "SINK-001";
+  "TASK-002" -> "SINK-001";
+  "SINK-001" -> "SINK-002";
+}

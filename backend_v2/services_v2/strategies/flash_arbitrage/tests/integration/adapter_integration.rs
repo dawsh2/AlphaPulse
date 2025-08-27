@@ -1,11 +1,11 @@
 //! Integration tests with adapters service
 
 use alphapulse_flash_arbitrage::pool_state::{PoolState, PoolStateManager};
-use protocol_v2::{
-    instrument_id::{PoolInstrumentId, VenueId},
-    tlv::TLVMessageBuilder,
+use alphapulse_types::{
+    InstrumentId, VenueId,
     SourceType, TLVType,
 };
+use alphapulse_codec::TLVMessageBuilder;
 use rust_decimal_macros::dec;
 use std::sync::Arc;
 use tokio::sync::mpsc;

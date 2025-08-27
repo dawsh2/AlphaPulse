@@ -24,7 +24,7 @@ scope:
 git branch --show-current
 
 # If you see "main", IMMEDIATELY run:
-git checkout -b test/e2e-golden-path
+git worktree add -b test/e2e-golden-path
 
 # NEVER commit directly to main!
 ```
@@ -210,7 +210,7 @@ cargo test --test golden_path_test --no-fail-fast
 ## Git Workflow
 ```bash
 # 1. Start on your branch
-git checkout -b test/e2e-golden-path
+git worktree add -b test/e2e-golden-path
 
 # 2. Make changes and commit
 git add tests/e2e/

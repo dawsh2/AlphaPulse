@@ -291,13 +291,19 @@ impl TopicRegistry {
 
         // Look for TLVs that might contain instrument IDs
         for tlv in tlvs {
-            let tlv_type = tlv.tlv_type;
+            let (tlv_type, tlv_data) = match tlv {
+                alphapulse_codec::TLVExtensionEnum::Standard(std_tlv) => {
+                    (std_tlv.header.tlv_type, std_tlv.payload)
+                }
+                alphapulse_codec::TLVExtensionEnum::Extended(ext_tlv) => {
+                    (ext_tlv.header.tlv_type, ext_tlv.payload)
+                }
+            };
 
             match TLVType::try_from(tlv_type) {
                 Ok(TLVType::Trade) | Ok(TLVType::Quote) | Ok(TLVType::OrderStatus) => {
                     // These TLVs typically contain instrument IDs
                     // Try to extract instrument ID from the TLV data
-                    let tlv_data = tlv.payload;
 
                     if tlv_data.len() >= 8 {
                         // Assuming instrument ID is the first 8 bytes
@@ -401,12 +407,18 @@ impl TopicRegistry {
 
         // Look for the specific TLV type
         for tlv in tlvs {
-            let tlv_type = tlv.tlv_type;
+            let (tlv_type, tlv_data) = match tlv {
+                alphapulse_codec::TLVExtensionEnum::Standard(std_tlv) => {
+                    (std_tlv.header.tlv_type, std_tlv.payload)
+                }
+                alphapulse_codec::TLVExtensionEnum::Extended(ext_tlv) => {
+                    (ext_tlv.header.tlv_type, ext_tlv.payload)
+                }
+            };
 
             if u16::from(tlv_type) == field_id {
                 // Found the custom field - convert data to string
                 // Assuming custom fields contain UTF-8 strings
-                let tlv_data = tlv.payload;
 
                 let topic = String::from_utf8(tlv_data.to_vec())
                     .map_err(|e| {
@@ -574,13 +586,13 @@ mod tests {
 
         let mut header = MessageHeader {
             magic: alphapulse_types::protocol::MESSAGE_MAGIC,
-            version: 1,
-            message_type: 1,
             relay_domain: 1,
-            source_type: 4, // Polygon collector
+            version: 1,
+            source: 4, // Polygon collector
+            flags: 0,
             sequence: 1,
-            timestamp_ns: 0,
-            instrument_id: 0,
+            timestamp: 0,
+            payload_size: 0,
             checksum: 0,
         };
 

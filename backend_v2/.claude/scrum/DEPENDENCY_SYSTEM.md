@@ -212,7 +212,7 @@ $ ./task-manager.sh find-conflicts sprint-010/CODEC-001.md
 
 3. **Start work:**
 ```bash
-$ git checkout -b refactor/codec-foundation
+$ git worktree add -b refactor/codec-foundation
 $ # Update status to IN_PROGRESS in task file
 $ ./yaml_parser.py status sprint-010/CODEC-001.md IN_PROGRESS
 ```

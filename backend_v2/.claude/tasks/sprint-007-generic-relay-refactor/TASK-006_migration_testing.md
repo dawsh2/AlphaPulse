@@ -1,15 +1,16 @@
 ---
 task_id: TASK-006
-status: BLOCKED
+status: DONE
 priority: MEDIUM
 assigned_branch: feat/migration-testing
 created: 2025-08-26
+completed: 2025-08-27
 estimated_hours: 3  
 depends_on:
   - TASK-005  # Need performance validation first
 blocks: []
-blocked_reason: "Depends on TASK-005 performance validation which is blocked"
-blocked_by: "OPT-004 migration issues (transitively)"
+blocked_reason: null
+blocked_by: null
 scope:
   - "tests/integration/migration/"  # Migration test suite
   - "scripts/migrate_relays.sh"  # Migration deployment script
@@ -25,13 +26,13 @@ scope:
 # MANDATORY: Verify you're not on main before starting
 if [ "$(git branch --show-current)" = "main" ]; then
     echo "❌ NEVER WORK ON MAIN BRANCH!"
-    echo "Run: git checkout -b feat/migration-testing"  
+    echo "Run: git worktree add -b feat/migration-testing"  
     exit 1
 fi
 
 # Create feature branch from performance-validation
 git checkout feat/performance-validation  # Start from TASK-005 branch
-git checkout -b feat/migration-testing
+git worktree add -b feat/migration-testing
 git branch --show-current  # Should show: feat/migration-testing
 ```
 

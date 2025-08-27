@@ -252,10 +252,17 @@ mod tests {
         channels.insert(
             "critical_actor".to_string(),
             ChannelConfig {
+                name: "critical_actor".to_string(),
                 mode: TransportMode::Direct,
                 criticality: Criticality::UltraLowLatency,
                 reliability: Reliability::BestEffort,
-                queue_name: None,
+                default_priority: Priority::High,
+                max_message_size: 1024 * 1024,
+                timeout: Duration::from_millis(100),
+                retry: RetryConfig::default(),
+                circuit_breaker: None,
+                #[cfg(feature = "message-queues")]
+                mq_config: None,
             },
         );
 

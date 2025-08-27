@@ -27,13 +27,13 @@ scope:
 # MANDATORY: Verify you're not on main before starting
 if [ "$(git branch --show-current)" = "main" ]; then
     echo "❌ NEVER WORK ON MAIN BRANCH!"
-    echo "Run: git checkout -b feat/domain-implementations"
+    echo "Run: git worktree add -b feat/domain-implementations"
     exit 1
 fi
 
 # Create feature branch from generic-relay-engine
 git checkout feat/generic-relay-engine  # Start from TASK-002 branch
-git checkout -b feat/domain-implementations
+git worktree add -b feat/domain-implementations
 git branch --show-current  # Should show: feat/domain-implementations
 ```
 

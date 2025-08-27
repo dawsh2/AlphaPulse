@@ -5,7 +5,7 @@
 
 use super::super::{MessageHeader, RelayDomain, SourceType};
 use super::TLVType;
-use crate::tlv::fast_timestamp::fast_timestamp_ns;
+use super::fast_timestamp_ns;
 use std::io;
 use std::sync::atomic::{AtomicU64, Ordering};
 use zerocopy::AsBytes;

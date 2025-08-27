@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             error!("❌ Execution Relay failed: {}", e);
-            Err(Box::new(e))
+            Err(e.into())
         }
     }
 }

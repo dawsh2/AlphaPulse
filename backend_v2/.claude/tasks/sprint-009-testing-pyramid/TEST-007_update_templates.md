@@ -17,7 +17,7 @@ completed: null
 git branch --show-current
 
 # If you see "main", IMMEDIATELY run:
-git checkout -b test/update-templates
+git worktree add -b test/update-templates
 
 # NEVER commit directly to main!
 ```
@@ -232,7 +232,7 @@ grep -A 20 "Testing Requirements" .claude/tasks/sprint-999-test/TASK-001_rename_
 ## Git Workflow
 ```bash
 # 1. Start on your branch
-git checkout -b test/update-templates
+git worktree add -b test/update-templates
 
 # 2. Make changes and commit
 git add .claude/scrum/templates/

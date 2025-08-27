@@ -4,7 +4,10 @@
 
 pub mod common;
 pub mod config;
+pub mod execution;
+pub mod market_data;
 pub mod relay;
+pub mod signal;
 pub mod signal_relay;
 pub mod topics;
 pub mod transport_adapter;
@@ -41,7 +44,7 @@ pub enum RelayError {
     Protocol(#[from] ProtocolError),
 
     #[error("Codec error: {0}")]
-    Codec(#[from] alphapulse_codec::CodecError),
+    Codec(#[from] alphapulse_codec::ProtocolError),
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),

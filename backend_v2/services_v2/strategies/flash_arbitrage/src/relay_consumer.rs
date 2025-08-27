@@ -57,13 +57,13 @@ use tracing::{debug, error, info, warn};
 
 use alphapulse_types::protocol::tlv::system::TraceId;
 use alphapulse_types::{
-    parse_header_without_checksum,
     PoolSwapTLV,
     SourceType,
     // Add trace event imports for observability
     TraceEvent,
     TraceEventType,
 };
+use alphapulse_codec::parse_header_without_checksum;
 
 // Import from shared types library for financial calculations
 use alphapulse_types::common::errors::FixedPointError;
@@ -183,12 +183,15 @@ impl RelayConsumer {
 
     /// Generate trace ID for strategy-initiated events
     fn generate_strategy_trace_id() -> TraceId {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos() as u64;
+        // Use safe timestamp conversion from transport module
+        let now = match alphapulse_transport::time::safe_system_timestamp_ns_checked() {
+            Ok(timestamp) => timestamp,
+            Err(e) => {
+                // Fallback to Unix epoch on timestamp failure
+                tracing::error!("Failed to generate timestamp for trace ID: {}", e);
+                0
+            }
+        };
 
         // TraceId is now [u8; 8] - use timestamp directly
         now.to_be_bytes()
@@ -200,10 +203,10 @@ impl RelayConsumer {
             trace_id,
             service: SourceType::ArbitrageStrategy,
             event_type: TraceEventType::MessageReceived,
-            timestamp_ns: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos() as u64,
+            timestamp_ns: alphapulse_transport::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+                tracing::error!("Failed to generate timestamp for MessageReceived event: {}", e);
+                0
+            }),
             duration_ns: None,
             metadata: {
                 let mut meta = HashMap::new();
@@ -223,10 +226,10 @@ impl RelayConsumer {
             trace_id,
             service: SourceType::ArbitrageStrategy,
             event_type: TraceEventType::MessageProcessed,
-            timestamp_ns: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos() as u64,
+            timestamp_ns: alphapulse_transport::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+                tracing::error!("Failed to generate timestamp for MessageProcessed event: {}", e);
+                0
+            }),
             duration_ns: Some(processing_duration),
             metadata: {
                 let mut meta = HashMap::new();
@@ -249,10 +252,10 @@ impl RelayConsumer {
             trace_id,
             service: SourceType::ArbitrageStrategy,
             event_type: TraceEventType::ExecutionTriggered,
-            timestamp_ns: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos() as u64,
+            timestamp_ns: alphapulse_transport::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+                tracing::error!("Failed to generate timestamp for ExecutionTriggered event: {}", e);
+                0
+            }),
             duration_ns: None,
             metadata: {
                 let mut meta = HashMap::new();
@@ -419,7 +422,14 @@ impl RelayConsumer {
         self.process_tlv_data(tlv_data, timestamp_ns, trace_id)
             .await?;
 
-        let processing_duration = processing_start.elapsed().as_nanos() as u64;
+        // Use safe duration conversion from transport module
+        let processing_duration = match alphapulse_transport::time::safe_duration_to_ns_checked(processing_start.elapsed()) {
+            Ok(duration) => duration,
+            Err(e) => {
+                tracing::error!("Failed to convert processing duration: {}", e);
+                0
+            }
+        };
 
         // Emit MessageProcessed trace event
         self.emit_message_processed_event(trace_id, processing_duration)

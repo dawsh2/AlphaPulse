@@ -10,12 +10,48 @@ pub mod recovery;
 pub mod tlv;
 pub mod validation;
 
-// Re-export key types for convenience
+// Re-export key types for convenience with explicit naming to avoid conflicts
 pub use identifiers::*;
 pub use message::*;
 pub use recovery::*;
-pub use tlv::*;
 pub use validation::*;
+
+// Re-export TLV types selectively to avoid conflicts
+pub use tlv::{
+    // Core TLV functionality (only include existing types)
+    TradeTLV, QuoteTLV, ArbitrageSignalTLV, PoolStateTLV, PoolInfoTLV,
+    
+    // State management types
+    InvalidationReason,
+    
+    // System and observability types
+    SystemHealthTLV, TraceEvent, TraceEventType, StateInvalidationTLV,
+    
+    // Market data TLV types
+    PoolSwapTLV,
+    
+    // TLV size constants (only include existing ones)
+    ARBITRAGE_SIGNAL_TLV_SIZE,
+    
+    // Utility functions (avoiding conflicts)
+    fast_timestamp_ns, init_timestamp_system,
+    build_message_direct, TrueZeroCopyBuilder,
+    
+    // Pool types with explicit naming
+    pool_state::{DEXProtocol, PoolStateTracker, PoolType as TLVPoolType},
+    pool_cache::{CachePoolType, PoolCacheJournalEntry},
+    
+    // Buffer management
+    build_with_size_hint, with_hot_path_buffer, with_signal_buffer,
+    with_validation_buffer, BufferError,
+    
+    // Address handling
+    AddressConversion, AddressExtraction, PaddedAddress,
+    
+    // Dynamic payload support
+    DynamicPayload, FixedStr, FixedVec, PayloadError,
+    MAX_INSTRUMENTS, MAX_ORDER_LEVELS, MAX_POOL_TOKENS
+};
 
 // Protocol-level error type
 #[derive(Debug, thiserror::Error)]

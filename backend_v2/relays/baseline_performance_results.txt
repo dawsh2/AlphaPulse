@@ -1,0 +1,977 @@
+warning: field `config` is never read
+  --> network/transport/src/network/connection.rs:19:5
+   |
+18 | pub struct ConnectionManager {
+   |            ----------------- field in this struct
+19 |     config: ConnectionConfig,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `shutdown_rx` is never read
+  --> network/transport/src/network/unix.rs:20:5
+   |
+16 | pub struct UnixSocketTransport {
+   |            ------------------- field in this struct
+...
+20 |     shutdown_rx: Option<mpsc::Receiver<()>>,
+   |     ^^^^^^^^^^^
+
+warning: field `message` is never read
+  --> network/transport/src/hybrid/bridge.rs:48:5
+   |
+45 | struct BridgedMessage {
+   |        -------------- field in this struct
+...
+48 |     message: Vec<u8>,
+   |     ^^^^^^^
+   |
+   = note: `BridgedMessage` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:15:9
+   |
+15 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> network/transport/src/lib.rs:96:9
+   |
+96 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:16:9
+   |
+16 |         source: Option<Box<dyn std::error::Error + Send + Sync>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:22:9
+   |
+22 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:23:9
+   |
+23 |         remote_addr: Option<SocketAddr>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:24:9
+   |
+24 |         source: Option<Box<dyn std::error::Error + Send + Sync>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:30:9
+   |
+30 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:31:9
+   |
+31 |         source: Option<Box<dyn std::error::Error + Send + Sync>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:37:9
+   |
+37 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:38:9
+   |
+38 |         field: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:44:9
+   |
+44 |         backend: String,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:45:9
+   |
+45 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:46:9
+   |
+46 |         source: Option<Box<dyn std::error::Error + Send + Sync>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:52:9
+   |
+52 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:53:9
+   |
+53 |         source: Option<Box<dyn std::error::Error + Send + Sync>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:58:19
+   |
+58 |     Compression { codec: String, message: String },
+   |                   ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:58:34
+   |
+58 |     Compression { codec: String, message: String },
+   |                                  ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:62:15
+   |
+62 |     Timeout { operation: String, timeout_ms: u64 },
+   |               ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:62:34
+   |
+62 |     Timeout { operation: String, timeout_ms: u64 },
+   |                                  ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:66:25
+   |
+66 |     ResourceExhausted { resource: String, message: String },
+   |                         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:66:43
+   |
+66 |     ResourceExhausted { resource: String, message: String },
+   |                                           ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:71:9
+   |
+71 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:72:9
+   |
+72 |         source: Option<Box<dyn std::error::Error + Send + Sync>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:78:9
+   |
+78 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:79:9
+   |
+79 |         source: Option<Box<dyn std::error::Error + Send + Sync>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:84:19
+   |
+84 |     HealthCheck { check_type: String, message: String },
+   |                   ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:84:39
+   |
+84 |     HealthCheck { check_type: String, message: String },
+   |                                       ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:89:9
+   |
+89 |         message: String,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/error.rs:90:9
+   |
+90 |         source: std::io::Error,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/mod.rs:165:13
+    |
+165 |     Fixed { delay: Duration },
+    |             ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/mod.rs:168:9
+    |
+168 |         initial_delay: Duration,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/mod.rs:169:9
+    |
+169 |         increment: Duration,
+    |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/mod.rs:170:9
+    |
+170 |         max_delay: Duration,
+    |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/mod.rs:174:9
+    |
+174 |         initial_delay: Duration,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/mod.rs:175:9
+    |
+175 |         multiplier: f64,
+    |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/mod.rs:176:9
+    |
+176 |         max_delay: Duration,
+    |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/compression.rs:211:5
+    |
+211 |     pub name: &'static str,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/compression.rs:212:5
+    |
+212 |     pub speed: CompressionSpeed,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/compression.rs:213:5
+    |
+213 |     pub ratio: CompressionRatio,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/compression.rs:214:5
+    |
+214 |     pub description: &'static str,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:220:5
+    |
+220 |     Fastest,  // No compression
+    |     ^^^^^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:221:5
+    |
+221 |     VeryFast, // LZ4, Snappy
+    |     ^^^^^^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:222:5
+    |
+222 |     Fast,     // Zstd level 1-3
+    |     ^^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:223:5
+    |
+223 |     Medium,   // Zstd level 4-6
+    |     ^^^^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:224:5
+    |
+224 |     Slow,     // Zstd level 7-12
+    |     ^^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:225:5
+    |
+225 |     Slowest,  // Zstd level 13-22
+    |     ^^^^^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:231:5
+    |
+231 |     Lowest,  // No compression
+    |     ^^^^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:232:5
+    |
+232 |     Low,     // LZ4
+    |     ^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:233:5
+    |
+233 |     Medium,  // Snappy
+    |     ^^^^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:234:5
+    |
+234 |     High,    // Zstd
+    |     ^^^^
+
+warning: missing documentation for a variant
+   --> network/transport/src/network/compression.rs:235:5
+    |
+235 |     Highest, // Zstd max level
+    |     ^^^^^^^
+
+warning: missing documentation for a struct
+ --> network/transport/src/network/connection.rs:8:1
+  |
+8 | pub struct ConnectionPool;
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct
+ --> network/transport/src/network/connection.rs:9:1
+  |
+9 | pub struct Connection;
+  | ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> network/transport/src/network/connection.rs:12:5
+   |
+12 |     pub async fn send(&self, _data: &[u8]) -> Result<()> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct
+  --> network/transport/src/network/connection.rs:18:1
+   |
+18 | pub struct ConnectionManager {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct
+  --> network/transport/src/network/connection.rs:24:1
+   |
+24 | pub struct ConnectionStats {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/network/connection.rs:25:5
+   |
+25 |     pub messages_sent: u64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/network/connection.rs:26:5
+   |
+26 |     pub messages_received: u64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/network/connection.rs:27:5
+   |
+27 |     pub bytes_sent: u64,
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/network/connection.rs:28:5
+   |
+28 |     pub bytes_received: u64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+  --> network/transport/src/network/connection.rs:32:5
+   |
+32 |     pub fn new(config: ConnectionConfig) -> Self {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> network/transport/src/network/connection.rs:39:5
+   |
+39 |     pub async fn get_or_create_connection(&self, target_node: &str) -> Result<Arc<Connection>> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/security.rs:332:5
+    |
+332 |     pub name: &'static str,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/security.rs:333:5
+    |
+333 |     pub level: SecurityLevel,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/security.rs:334:5
+    |
+334 |     pub overhead_bytes: usize,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/network/security.rs:335:5
+    |
+335 |     pub description: &'static str,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct
+ --> network/transport/src/network/tcp.rs:7:1
+  |
+7 | pub struct TcpTransport;
+  | ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct
+  --> network/transport/src/network/tcp.rs:10:1
+   |
+10 | pub struct TcpConfig {
+   | ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/network/tcp.rs:11:5
+   |
+11 |     pub bind_address: SocketAddr,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct
+  --> network/transport/src/network/tcp.rs:14:1
+   |
+14 | pub struct TcpConnection;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+  --> network/transport/src/network/tcp.rs:17:5
+   |
+17 |     pub fn new(_config: TcpConfig) -> Result<Self> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct
+ --> network/transport/src/network/udp.rs:7:1
+  |
+7 | pub struct UdpTransport;
+  | ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct
+  --> network/transport/src/network/udp.rs:10:1
+   |
+10 | pub struct UdpConfig {
+   | ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/network/udp.rs:11:5
+   |
+11 |     pub bind_address: SocketAddr,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+  --> network/transport/src/network/udp.rs:15:5
+   |
+15 |     pub fn new(_config: UdpConfig) -> Result<Self> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/time.rs:212:16
+    |
+212 |     Overflow { ns_value: u128, max_value: u64, overflow_year: u128 },
+    |                ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/time.rs:212:32
+    |
+212 |     Overflow { ns_value: u128, max_value: u64, overflow_year: u128 },
+    |                                ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/time.rs:212:48
+    |
+212 |     Overflow { ns_value: u128, max_value: u64, overflow_year: u128 },
+    |                                                ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/hybrid/bridge.rs:23:5
+   |
+23 |     pub retry_delay_ms: u64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> network/transport/src/hybrid/router.rs:27:14
+   |
+27 |     Bridge { target_node: String },
+   |              ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/topology_integration/factory.rs:178:5
+    |
+178 |     pub node_id: String,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/topology_integration/factory.rs:179:5
+    |
+179 |     pub transport_type: String,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/topology_integration/factory.rs:180:5
+    |
+180 |     pub address: String,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/topology_integration/factory.rs:186:5
+    |
+186 |     pub priority: Priority,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/topology_integration/factory.rs:187:5
+    |
+187 |     pub reliability_required: bool,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> network/transport/src/topology_integration/factory.rs:188:5
+    |
+188 |     pub latency_sensitive: bool,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `alphapulse-transport` (lib) generated 88 warnings
+warning: unused variable: `compressed_data`
+   --> libs/types/src/protocol/recovery/snapshot.rs:165:14
+    |
+165 |         let (compressed_data, actual_compression) = match self.compression {
+    |              ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_compressed_data`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `header`
+   --> libs/types/src/protocol/recovery/snapshot.rs:182:13
+    |
+182 |         let header = SnapshotTLVHeader {
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_header`
+
+warning: unused variable: `source`
+   --> libs/types/src/protocol/recovery/snapshot.rs:157:9
+    |
+157 |         source: SourceType,
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: `alphapulse-types` (lib) generated 3 warnings
+warning: unused import: `Instant`
+  --> libs/health_check/src/lib.rs:52:27
+   |
+52 | use std::time::{Duration, Instant, SystemTime};
+   |                           ^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: `alphapulse-health-check` (lib) generated 1 warning (run `cargo fix --lib -p alphapulse-health-check` to apply 1 suggestion)
+warning: unused import: `warn`
+  --> relays/src/common/mod.rs:57:28
+   |
+57 | use tracing::{error, info, warn};
+   |                            ^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `TransportAdapterConfig`
+ --> relays/src/relay.rs:5:33
+  |
+5 |     RelayResult, TopicRegistry, TransportAdapterConfig,
+  |                                 ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ProtocolError`
+ --> relays/src/relay.rs:7:38
+  |
+7 | use alphapulse_codec::{parse_header, ProtocolError};
+  |                                      ^^^^^^^^^^^^^
+
+warning: unused import: `RelayDomain`
+ --> relays/src/relay.rs:8:49
+  |
+8 | use alphapulse_types::protocol::{MessageHeader, RelayDomain};
+  |                                                 ^^^^^^^^^^^
+
+warning: unused imports: `InstrumentId`, `SourceType`, and `VenueId`
+   --> relays/src/topics.rs:127:34
+    |
+127 | use alphapulse_types::protocol::{InstrumentId, MessageHeader, SourceType, VenueId};
+    |                                  ^^^^^^^^^^^^                 ^^^^^^^^^^  ^^^^^^^
+
+warning: unused import: `alphapulse_topology::TopologyConfig`
+ --> relays/src/transport_adapter.rs:4:5
+  |
+4 | use alphapulse_topology::TopologyConfig;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ChannelConfig`, `NetworkTransport`, `TransportConfig`, `TransportError`, and `TransportMode`
+ --> relays/src/transport_adapter.rs:6:5
+  |
+6 |     ChannelConfig, NetworkTransport, Priority, TopologyIntegration, TransportConfig,
+  |     ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^                                 ^^^^^^^^^^^^^^^
+7 |     TransportError, TransportMode, TransportStatistics,
+  |     ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: ambiguous glob re-exports
+  --> relays/src/lib.rs:17:9
+   |
+17 | pub use common::*;
+   |         ^^^^^^^^^ the name `Relay` in the type namespace is first re-exported here
+18 | pub use config::*;
+19 | pub use relay::*;
+   |         -------- but the name `Relay` in the type namespace is also re-exported here
+   |
+   = note: `#[warn(ambiguous_glob_reexports)]` on by default
+
+warning: unused import: `Result`
+  --> relays/src/lib.rs:26:49
+   |
+26 | use alphapulse_types::protocol::{ProtocolError, Result};
+   |                                                 ^^^^^^
+
+warning: unused variable: `channel_name`
+   --> relays/src/transport_adapter.rs:154:13
+    |
+154 |         let channel_name = self.config.channel_name.as_ref().ok_or_else(|| {
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_channel_name`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `transport`
+   --> relays/src/transport_adapter.rs:206:21
+    |
+206 |         if let Some(transport) = &mut self.transport {
+    |                     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_transport`
+
+warning: unused variable: `transport`
+   --> relays/src/transport_adapter.rs:218:21
+    |
+218 |         if let Some(transport) = &mut self.transport {
+    |                     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_transport`
+
+warning: unused variable: `transport`
+   --> relays/src/transport_adapter.rs:228:21
+    |
+228 |         if let Some(transport) = &mut self.transport {
+    |                     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_transport`
+
+warning: unused variable: `transport`
+   --> relays/src/transport_adapter.rs:248:21
+    |
+248 |         if let Some(transport) = &mut self.transport {
+    |                     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_transport`
+
+warning: unused variable: `header`
+   --> relays/src/validation.rs:176:24
+    |
+176 |     fn validate(&self, header: &MessageHeader, data: &[u8]) -> RelayResult<()> {
+    |                        ^^^^^^ help: if this is intentional, prefix it with an underscore: `_header`
+
+warning: method `extract_venue_topic` is never used
+   --> relays/src/topics.rs:467:8
+    |
+142 | impl TopicRegistry {
+    | ------------------ method in this implementation
+...
+467 |     fn extract_venue_topic(&self, instrument_id: u64) -> RelayResult<String> {
+    |        ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: field `topology` is never read
+  --> relays/src/transport_adapter.rs:21:5
+   |
+17 | pub struct InfraTransportAdapter {
+   |            --------------------- field in this struct
+...
+21 |     topology: Option<Arc<TopologyIntegration>>,
+   |     ^^^^^^^^
+
+warning: fields `id` and `topics` are never read
+  --> relays/src/transport_adapter.rs:46:5
+   |
+45 | struct ConsumerConnection {
+   |        ------------------ fields in this struct
+46 |     id: ConsumerId,
+   |     ^^
+47 |     topics: Vec<String>,
+   |     ^^^^^^
+   |
+   = note: `ConsumerConnection` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `connections` is never read
+   --> relays/src/transport_adapter.rs:349:5
+    |
+347 | struct UnixTransportAdapter {
+    |        -------------------- field in this struct
+348 |     transport: alphapulse_transport::UnixSocketTransport,
+349 |     connections: Arc<RwLock<HashMap<String, alphapulse_transport::UnixSocketConnection>>>,
+    |     ^^^^^^^^^^^
+
+warning: methods `connect`, `disconnect`, and `send_data` are never used
+   --> relays/src/transport_adapter.rs:361:14
+    |
+352 | impl UnixTransportAdapter {
+    | ------------------------- methods in this implementation
+...
+361 |     async fn connect(&self, socket_path: &str) -> alphapulse_transport::Result<()> {
+    |              ^^^^^^^
+...
+385 |     async fn disconnect(&self, socket_path: &str) -> alphapulse_transport::Result<()> {
+    |              ^^^^^^^^^^
+...
+396 |     async fn send_data(&self, socket_path: &str, data: &[u8]) -> alphapulse_transport::Result<()> {
+    |              ^^^^^^^^^
+
+warning: `alphapulse-relays` (lib) generated 20 warnings (run `cargo fix --lib -p alphapulse-relays` to apply 8 suggestions)
+warning: unused import: `MessageValidator`
+  --> relays/benches/relay_throughput.rs:10:35
+   |
+10 |     create_validator, ConsumerId, MessageValidator, TopicConfig, TopicExtractionStrategy,
+   |                                   ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: variable does not need to be mutable
+   --> relays/src/topics.rs:587:13
+    |
+587 |         let mut header = MessageHeader {
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> relays/src/transport_adapter.rs:552:17
+    |
+552 |             let mut connections = adapter.connections.write().await;
+    |                 ----^^^^^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: method `connect` is never used
+   --> relays/src/transport_adapter.rs:361:14
+    |
+352 | impl UnixTransportAdapter {
+    | ------------------------- method in this implementation
+...
+361 |     async fn connect(&self, socket_path: &str) -> alphapulse_transport::Result<()> {
+    |              ^^^^^^^
+
+warning: `alphapulse-relays` (bench "relay_throughput") generated 1 warning
+warning: `alphapulse-relays` (lib test) generated 21 warnings (18 duplicates) (run `cargo fix --lib -p alphapulse-relays --tests` to apply 2 suggestions)
+    Finished `bench` profile [optimized] target(s) in 0.45s
+     Running unittests src/lib.rs (/Users/daws/alphapulse/backend_v2/target/release/deps/alphapulse_relays-23cc75822a18f4b2)
+
+running 27 tests
+test common::client::tests::test_client_manager ... ignored
+test common::client::tests::test_message_validation ... ignored
+test common::tests::test_relay_creation ... ignored
+test common::tests::test_trait_default_implementation ... ignored
+test config::tests::test_default_configs ... ignored
+test execution::tests::test_execution_logic ... ignored
+test execution::tests::test_message_filtering ... ignored
+test market_data::tests::test_market_data_logic ... ignored
+test market_data::tests::test_message_filtering ... ignored
+test relay::tests::test_relay_creation ... ignored
+test signal::tests::test_message_filtering ... ignored
+test signal::tests::test_signal_logic ... ignored
+test signal_relay::tests::test_consumer_id_generation ... ignored
+test signal_relay::tests::test_signal_relay_creation ... ignored
+test signal_relay::tests::test_topic_matching ... ignored
+test topics::tests::test_topic_extraction ... ignored
+test topics::tests::test_topic_subscription ... ignored
+test transport_adapter::tests::test_consumer_registration ... ignored
+test transport_adapter::tests::test_transport_adapter_creation ... ignored
+test transport_adapter::tests::test_unix_transport_connection_management ... ignored
+test types::tests::test_consumer_registration ... ignored
+test types::tests::test_relay_message_creation ... ignored
+test types::tests::test_signal_metrics_calculations ... ignored
+test types::tests::test_topic_category_extraction ... ignored
+test types::tests::test_topic_matching ... ignored
+test validation::tests::test_performance_validator ... ignored
+test validation::tests::test_reliability_validator ... ignored
+
+test result: ok. 0 passed; 0 failed; 27 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/execution_relay.rs (/Users/daws/alphapulse/backend_v2/target/release/deps/execution_relay-1a53757505d9699e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/market_data_relay.rs (/Users/daws/alphapulse/backend_v2/target/release/deps/market_data_relay-8ba12a709862d998)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests bin/relay.rs (/Users/daws/alphapulse/backend_v2/target/release/deps/relay-fd5ca3560455105c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests bin/relay_dev.rs (/Users/daws/alphapulse/backend_v2/target/release/deps/relay_dev-3f611e03a0a12dc3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/signal_relay.rs (/Users/daws/alphapulse/backend_v2/target/release/deps/signal_relay-1e85a4a516389ac3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests bin/simple_relay_starter.rs (/Users/daws/alphapulse/backend_v2/target/release/deps/simple_relay_starter-de514e853174f58c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running benches/relay_throughput.rs (/Users/daws/alphapulse/backend_v2/target/release/deps/relay_throughput-a7f22a2e138da6ca)
+Gnuplot not found, using plotters backend
+Benchmarking topic_extraction/source_type
+Benchmarking topic_extraction/source_type: Warming up for 3.0000 s
+Benchmarking topic_extraction/source_type: Collecting 100 samples in estimated 5.0001 s (231M iterations)
+Benchmarking topic_extraction/source_type: Analyzing
+topic_extraction/source_type
+                        time:   [21.748 ns 22.026 ns 22.398 ns]
+                        change: [-9.1394% -5.4097% -1.5843%] (p = 0.01 < 0.05)
+                        Performance has improved.
+Found 17 outliers among 100 measurements (17.00%)
+  1 (1.00%) high mild
+  16 (16.00%) high severe
+Benchmarking topic_extraction/venue_based
+Benchmarking topic_extraction/venue_based: Warming up for 3.0000 s
+Benchmarking topic_extraction/venue_based: Collecting 100 samples in estimated 5.0001 s (227M iterations)
+Benchmarking topic_extraction/venue_based: Analyzing
+topic_extraction/venue_based
+                        time:   [21.041 ns 21.092 ns 21.156 ns]
+                        change: [+1.1182% +1.4615% +1.8121%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+Benchmarking topic_extraction/fixed
+Benchmarking topic_extraction/fixed: Warming up for 3.0000 s
+Benchmarking topic_extraction/fixed: Collecting 100 samples in estimated 5.0000 s (144M iterations)
+Benchmarking topic_extraction/fixed: Analyzing
+topic_extraction/fixed  time:   [33.135 ns 33.183 ns 33.234 ns]
+                        change: [-1.3136% -0.9236% -0.5057%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 8 outliers among 100 measurements (8.00%)
+  4 (4.00%) high mild
+  4 (4.00%) high severe
+
+Benchmarking validation/performance_mode
+Benchmarking validation/performance_mode: Warming up for 3.0000 s
+Benchmarking validation/performance_mode: Collecting 100 samples in estimated 5.0000 s (1.4B iterations)
+Benchmarking validation/performance_mode: Analyzing
+validation/performance_mode
+                        time:   [3.4771 ns 3.4814 ns 3.4861 ns]
+                        change: [-9.5693% -6.1813% -3.1461%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 8 outliers among 100 measurements (8.00%)
+  4 (4.00%) high mild
+  4 (4.00%) high severe
+Benchmarking validation/reliability_mode
+Benchmarking validation/reliability_mode: Warming up for 3.0000 s
+Benchmarking validation/reliability_mode: Collecting 100 samples in estimated 5.0005 s (41M iterations)
+Benchmarking validation/reliability_mode: Analyzing
+validation/reliability_mode
+                        time:   [111.78 ns 112.85 ns 114.31 ns]
+                        change: [+7.4398% +11.420% +15.829%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 9 outliers among 100 measurements (9.00%)
+  7 (7.00%) high mild
+  2 (2.00%) high severe
+Benchmarking validation/security_mode
+Benchmarking validation/security_mode: Warming up for 3.0000 s
+Benchmarking validation/security_mode: Collecting 100 samples in estimated 5.0005 s (45M iterations)
+Benchmarking validation/security_mode: Analyzing
+validation/security_mode
+                        time:   [112.41 ns 114.24 ns 116.51 ns]
+                        change: [+11.162% +19.029% +26.530%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 18 outliers among 100 measurements (18.00%)
+  10 (10.00%) high mild
+  8 (8.00%) high severe
+
+Benchmarking subscriber_lookup/1
+Benchmarking subscriber_lookup/1: Warming up for 3.0000 s
+Benchmarking subscriber_lookup/1: Collecting 100 samples in estimated 5.0002 s (62M iterations)
+Benchmarking subscriber_lookup/1: Analyzing
+subscriber_lookup/1     time:   [77.985 ns 78.331 ns 78.718 ns]
+                        thrpt:  [12.704 Melem/s 12.766 Melem/s 12.823 Melem/s]
+                 change:
+                        time:   [-4.1918% -1.4433% +1.0670%] (p = 0.31 > 0.05)
+                        thrpt:  [-1.0558% +1.4645% +4.3752%]
+                        No change in performance detected.
+Found 7 outliers among 100 measurements (7.00%)
+  7 (7.00%) high mild
+Benchmarking subscriber_lookup/10
+Benchmarking subscriber_lookup/10: Warming up for 3.0000 s
+Benchmarking subscriber_lookup/10: Collecting 100 samples in estimated 5.0005 s (23M iterations)
+Benchmarking subscriber_lookup/10: Analyzing
+subscriber_lookup/10    time:   [224.14 ns 226.94 ns 230.78 ns]
+                        thrpt:  [43.332 Melem/s 44.065 Melem/s 44.616 Melem/s]
+                 change:
+                        time:   [-8.5808% -3.4114% +2.5673%] (p = 0.24 > 0.05)
+                        thrpt:  [-2.5031% +3.5319% +9.3862%]
+                        No change in performance detected.
+Found 12 outliers among 100 measurements (12.00%)
+  1 (1.00%) high mild
+  11 (11.00%) high severe
+Benchmarking subscriber_lookup/100
+Benchmarking subscriber_lookup/100: Warming up for 3.0000 s
+Benchmarking subscriber_lookup/100: Collecting 100 samples in estimated 5.0072 s (2.4M iterations)
+Benchmarking subscriber_lookup/100: Analyzing
+subscriber_lookup/100   time:   [1.9315 µs 1.9345 µs 1.9381 µs]
+                        thrpt:  [51.596 Melem/s 51.693 Melem/s 51.772 Melem/s]
+                 change:
+                        time:   [-10.681% -7.4745% -4.5049%] (p = 0.00 < 0.05)
+                        thrpt:  [+4.7174% +8.0783% +11.958%]
+                        Performance has improved.
+Found 10 outliers among 100 measurements (10.00%)
+  4 (4.00%) high mild
+  6 (6.00%) high severe
+Benchmarking subscriber_lookup/1000
+Benchmarking subscriber_lookup/1000: Warming up for 3.0000 s
+Benchmarking subscriber_lookup/1000: Collecting 100 samples in estimated 5.0961 s (247k iterations)
+Benchmarking subscriber_lookup/1000: Analyzing
+subscriber_lookup/1000  time:   [20.689 µs 21.067 µs 21.622 µs]
+                        thrpt:  [46.248 Melem/s 47.467 Melem/s 48.335 Melem/s]
+                 change:
+                        time:   [+3.1472% +16.027% +30.945%] (p = 0.01 < 0.05)
+                        thrpt:  [-23.632% -13.813% -3.0512%]
+                        Performance has regressed.
+Found 17 outliers among 100 measurements (17.00%)
+  3 (3.00%) high mild
+  14 (14.00%) high severe
+
+Benchmarking header_parsing/zero_copy_parse
+Benchmarking header_parsing/zero_copy_parse: Warming up for 3.0000 s
+Benchmarking header_parsing/zero_copy_parse: Collecting 100 samples in estimated 5.0000 s (6.5B iterations)
+Benchmarking header_parsing/zero_copy_parse: Analyzing
+header_parsing/zero_copy_parse
+                        time:   [676.44 ps 714.49 ps 761.35 ps]
+                        change: [-18.512% -12.052% -5.6666%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 12 outliers among 100 measurements (12.00%)
+  5 (5.00%) high mild
+  7 (7.00%) high severe
+Benchmarking header_parsing/with_validation
+Benchmarking header_parsing/with_validation: Warming up for 3.0000 s
+Benchmarking header_parsing/with_validation: Collecting 100 samples in estimated 5.0000 s (4.8B iterations)

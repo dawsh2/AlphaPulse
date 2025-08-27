@@ -4,54 +4,21 @@ version = "0.1.0"
 edition = "2021"
 description = "High-performance message relay infrastructure for AlphaPulse"
 
-[dependencies]
-# Core protocol
-alphapulse-types = { path = "../libs/types" }
-alphapulse_codec = { path = "../libs/alphapulse_codec" }
+[lib]
+name = "alphapulse_relays"  # Keep underscore for lib name to match existing imports
+path = "src/lib.rs"
 
-# Transport and topology
-alphapulse-transport = { path = "../network/transport" }
-alphapulse-topology = { path = "../network/topology" }
+[[bin]]
+name = "relay"
+path = "bin/relay.rs"
 
-# Service infrastructure
-alphapulse-health-check = { path = "../libs/health_check" }
-alphapulse-service-discovery = { path = "../libs/service_discovery" }
+[[bin]]
+name = "relay_dev"
+path = "bin/relay_dev.rs"
 
-# Async runtime - configurable features for different relay types
-tokio = { version = "1.0", features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }
-async-trait = "0.1"
-
-# Configuration - optional features for complex deployments
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = { version = "0.9", optional = true }  # Only needed for YAML config files
-toml = { version = "0.8", optional = true }        # Only needed for TOML config files
-
-# Performance utilities - optional features
-crc32fast = { version = "1.4", optional = true }   # Only needed for checksum validation
-config = { version = "0.13", optional = true }     # Only needed for advanced config
-
-# Core logging - always required
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-# Error handling - always required
-anyhow = "1.0"
-thiserror = "1.0"
-
-# Collections and utilities - some optional
-dashmap = "5.5"                                    # Always needed for connection management
-bytes = "1.5"                                      # Always needed for message handling
-futures = "0.3"                                    # Always needed for async operations
-bincode = "1.3"                                    # Binary serialization for signal relay
-chrono = { version = "0.4", features = ["serde"], optional = true }  # Only needed for timestamps
-
-# Command line - always required for binaries
-clap = { version = "4.0", features = ["derive"] }
-
-[dev-dependencies]
-tokio-test = "0.4"
-tempfile = "3.0"
-criterion = { version = "0.5", features = ["html_reports"] }
+[[bin]]
+name = "simple_relay_starter"
+path = "bin/simple_relay_starter.rs"
 
 [features]
 default = ["config-files", "checksum-validation", "timestamps"]
@@ -70,21 +37,55 @@ market-data-relay = ["timestamps"]                          # Speed-focused
 signal-relay = ["config-files", "timestamps"]               # Balanced features
 execution-relay = ["checksum-validation", "config-files", "timestamps"]  # Security-focused
 
-[lib]
-name = "alphapulse_relays"  # Keep underscore for lib name to match existing imports
-path = "src/lib.rs"
+[dependencies]
 
-[[bin]]
-name = "relay"
-path = "bin/relay.rs"
+# Service infrastructure
+alphapulse-health-check = { path = "../libs/health_check" }
+alphapulse-service-discovery = { path = "../libs/service_discovery" }
+alphapulse-topology = { path = "../network/topology" }
 
-[[bin]]
-name = "relay_dev"
-path = "bin/relay_dev.rs"
+# Transport and topology
+alphapulse-transport = { path = "../network/transport" }
+# Core protocol
+alphapulse-types = { path = "../libs/types" }
+alphapulse_codec = { path = "../libs/alphapulse_codec" }
 
-[[bin]]
-name = "simple_relay_starter"
-path = "bin/simple_relay_starter.rs"
+# Error handling - always required
+anyhow = "1.0"
+async-trait = "0.1"
+bincode = "1.3"                                    # Binary serialization for signal relay
+bytes = "1.5"                                      # Always needed for message handling
+chrono = { version = "0.4", features = ["serde"], optional = true }  # Only needed for timestamps
+
+# Command line - always required for binaries
+clap = { version = "4.0", features = ["derive"] }
+config = { version = "0.13", optional = true }     # Only needed for advanced config
+
+# Performance utilities - optional features
+crc32fast = { version = "1.4", optional = true }   # Only needed for checksum validation
+
+# Collections and utilities - some optional
+dashmap = "5.5"                                    # Always needed for connection management
+futures = "0.3"                                    # Always needed for async operations
+
+# Configuration - optional features for complex deployments
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = { version = "0.9", optional = true }  # Only needed for YAML config files
+thiserror = "1.0"
+
+# Async runtime - configurable features for different relay types
+tokio = { version = "1.0", features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }
+toml = { version = "0.8", optional = true }        # Only needed for TOML config files
+
+# Core logging - always required
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3.0"
+tokio-test = "0.4"
+fastrand = "2.0"
 
 # Domain-specific relay binaries moved to separate crates:
 # - market_data_relay → relays/market_data_relay/
@@ -93,4 +94,8 @@ path = "bin/simple_relay_starter.rs"
 
 [[bench]]
 name = "relay_throughput"
+harness = false
+
+[[bench]]
+name = "performance_validation"
 harness = false

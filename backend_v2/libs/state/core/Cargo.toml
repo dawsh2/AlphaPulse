@@ -6,7 +6,7 @@ authors.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-thiserror = { workspace = true }
-serde = { workspace = true }
 bincode = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
 tracing = { workspace = true }

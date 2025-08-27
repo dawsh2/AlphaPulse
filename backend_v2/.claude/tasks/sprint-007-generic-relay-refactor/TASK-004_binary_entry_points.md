@@ -26,13 +26,13 @@ scope:
 # MANDATORY: Verify you're not on main before starting
 if [ "$(git branch --show-current)" = "main" ]; then
     echo "❌ NEVER WORK ON MAIN BRANCH!"
-    echo "Run: git checkout -b feat/binary-entry-points"
+    echo "Run: git worktree add -b feat/binary-entry-points"
     exit 1
 fi
 
 # Create feature branch from domain-implementations
 git checkout feat/domain-implementations  # Start from TASK-003 branch
-git checkout -b feat/binary-entry-points
+git worktree add -b feat/binary-entry-points
 git branch --show-current  # Should show: feat/binary-entry-points
 ```
 

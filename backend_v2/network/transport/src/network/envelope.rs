@@ -5,12 +5,31 @@
 //! variable-length payload support.
 
 use crate::network::{CompressionType, EncryptionType};
-use crate::{current_nanos, generate_message_id, Result, TransportError};
+use crate::{generate_message_id, Result, TransportError};
+use crate::time::fast_timestamp_ns;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Write};
 
 /// Network message envelope for wire protocol
+///
+/// This envelope provides transport-layer metadata for messages flowing through
+/// the AlphaPulse network infrastructure. It includes timing information that
+/// allows precise measurement of network latency and total system latency.
+///
+/// ## Timestamp Architecture
+///
+/// The envelope contains two transport-level timestamps:
+/// - `sent_at_ns`: When the message entered the network transport layer
+/// - `received_at_ns`: When the message was received at destination
+///
+/// These are separate from any business-level timestamps contained in the payload.
+///
+/// ## Latency Measurement
+///
+/// Use the provided methods to calculate different types of latency:
+/// - Network latency: `received_at_ns - sent_at_ns`
+/// - Total latency: `received_at_ns - business_event_timestamp`
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkEnvelope {
     /// Unique message identifier
@@ -21,8 +40,15 @@ pub struct NetworkEnvelope {
     pub target_node: String,
     /// Target actor identifier
     pub target_actor: String,
-    /// Message sent timestamp (nanoseconds since epoch)
-    pub sent_timestamp: u64,
+    
+    // Transport-layer timing (infrastructure timestamps)
+    /// When message entered the transport layer (nanoseconds since UNIX epoch)
+    /// Set automatically when envelope is created
+    pub sent_at_ns: u64,
+    /// When message was received at destination (nanoseconds since UNIX epoch)
+    /// Set automatically when envelope is received (0 until then)
+    pub received_at_ns: u64,
+    
     /// Compression type used for payload
     pub compression: CompressionType,
     /// Encryption type used for payload
@@ -33,7 +59,7 @@ pub struct NetworkEnvelope {
     pub flags: MessageFlags,
     /// Payload size in bytes
     pub payload_size: u32,
-    /// Message payload
+    /// Message payload (contains serialized business messages)
     pub payload: Vec<u8>,
 }
 
@@ -139,7 +165,8 @@ impl NetworkEnvelope {
             source_node,
             target_node,
             target_actor,
-            sent_timestamp: current_nanos(),
+            sent_at_ns: fast_timestamp_ns(),
+            received_at_ns: 0, // Set when message is received
             compression,
             encryption,
             priority: 1, // Normal priority
@@ -200,7 +227,7 @@ impl NetworkEnvelope {
         buffer.write_u8(self.flags.to_byte())?; // 1 byte: flags
         buffer.write_u8(self.compression.to_byte())?; // 1 byte: compression
         buffer.write_u64::<LittleEndian>(self.message_id)?; // 8 bytes: message_id
-        buffer.write_u64::<LittleEndian>(self.sent_timestamp)?; // 8 bytes: timestamp
+        buffer.write_u64::<LittleEndian>(self.sent_at_ns)?; // 8 bytes: sent timestamp
         buffer.write_u32::<LittleEndian>(self.payload_size)?; // 4 bytes: payload_size
         buffer.write_u32::<LittleEndian>(0)?; // 4 bytes: reserved
 
@@ -262,7 +289,7 @@ impl NetworkEnvelope {
         let flags = MessageFlags::from_byte(cursor.read_u8()?);
         let compression = CompressionType::from_byte(cursor.read_u8()?)?;
         let message_id = cursor.read_u64::<LittleEndian>()?;
-        let sent_timestamp = cursor.read_u64::<LittleEndian>()?;
+        let sent_at_ns = cursor.read_u64::<LittleEndian>()?;
         let payload_size = cursor.read_u32::<LittleEndian>()?;
         let _reserved = cursor.read_u32::<LittleEndian>()?;
 
@@ -289,7 +316,8 @@ impl NetworkEnvelope {
             source_node,
             target_node,
             target_actor,
-            sent_timestamp,
+            sent_at_ns,
+            received_at_ns: 0, // Will be set when message is actually received
             compression,
             encryption,
             priority,
@@ -299,9 +327,67 @@ impl NetworkEnvelope {
         })
     }
 
-    /// Get message age in nanoseconds
+    /// Mark message as received and set the received timestamp
+    ///
+    /// This should be called automatically by the transport layer when
+    /// a message is received at its destination.
+    pub fn mark_received(&mut self) {
+        self.received_at_ns = fast_timestamp_ns();
+    }
+
+    /// Mark message as received with a specific timestamp
+    ///
+    /// This is useful for testing or when the received timestamp
+    /// needs to be set to a specific value.
+    pub fn mark_received_at(&mut self, timestamp_ns: u64) {
+        self.received_at_ns = timestamp_ns;
+    }
+
+    /// Calculate network latency in nanoseconds
+    ///
+    /// This measures how long the message spent in transit through the
+    /// AlphaPulse network infrastructure (received_at_ns - sent_at_ns).
+    ///
+    /// Returns 0 if the message hasn't been received yet.
+    pub fn network_latency_ns(&self) -> u64 {
+        if self.received_at_ns == 0 {
+            0
+        } else {
+            self.received_at_ns.saturating_sub(self.sent_at_ns)
+        }
+    }
+
+    /// Calculate total system latency from a business event timestamp
+    ///
+    /// This measures the total time from when a business event occurred
+    /// (e.g., trade execution on exchange) to when the message was received.
+    ///
+    /// ## Parameters
+    /// - `business_event_timestamp_ns`: When the business event occurred
+    ///
+    /// ## Returns
+    /// Total latency in nanoseconds, or 0 if message hasn't been received yet.
+    ///
+    /// ## Example
+    /// ```rust
+    /// // For a trade message with execution timestamp from exchange
+    /// let trade_tlv = TradeTLV { execution_timestamp_ns: 1234567890, /* ... */ };
+    /// let total_latency = envelope.total_latency_from_event_ns(trade_tlv.execution_timestamp_ns);
+    /// ```
+    pub fn total_latency_from_event_ns(&self, business_event_timestamp_ns: u64) -> u64 {
+        if self.received_at_ns == 0 {
+            0
+        } else {
+            self.received_at_ns.saturating_sub(business_event_timestamp_ns)
+        }
+    }
+
+    /// Get message age since it was sent (current time - sent_at_ns)
+    ///
+    /// This is useful for detecting stale messages or measuring how long
+    /// a message has been in the system.
     pub fn age_nanos(&self) -> u64 {
-        current_nanos().saturating_sub(self.sent_timestamp)
+        fast_timestamp_ns().saturating_sub(self.sent_at_ns)
     }
 
     /// Get message age in milliseconds
@@ -411,13 +497,13 @@ impl NetworkEnvelope {
         }
 
         // Check timestamp is reasonable (not too far in future/past)
-        let now = current_nanos();
-        let age = now.saturating_sub(self.sent_timestamp);
+        let now = fast_timestamp_ns();
+        let age = now.saturating_sub(self.sent_at_ns);
         if age > 300_000_000_000 {
             // 5 minutes in nanoseconds
             return Err(TransportError::protocol("Message too old"));
         }
-        if self.sent_timestamp > now + 60_000_000_000 {
+        if self.sent_at_ns > now + 60_000_000_000 {
             // 1 minute in future
             return Err(TransportError::protocol("Message timestamp in future"));
         }

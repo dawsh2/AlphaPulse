@@ -1,10 +1,11 @@
 //! Integration tests for message bus communication
 
 use alphapulse_flash_arbitrage::pool_state::PoolStateManager;
-use protocol_v2::{
-    tlv::TLVMessageBuilder, transport::message_bus::InMemoryMessageBus, RelayDomain, SourceType,
-    TLVType,
+use alphapulse_types::{
+    RelayDomain, SourceType, TLVType,
 };
+use alphapulse_codec::TLVMessageBuilder;
+// TODO: InMemoryMessageBus needs to be imported from the correct location
 use std::sync::Arc;
 
 #[tokio::test]

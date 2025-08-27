@@ -508,14 +508,8 @@ impl UnifiedCoinbaseCollector {
         // Create cryptocurrency spot pair using coin() method with full pair
         let instrument_id = InstrumentId::coin(VenueId::Coinbase, &normalized_symbol);
 
-        // Parse timestamp
-        let timestamp = match chrono::DateTime::parse_from_rfc3339(&match_event.time) {
-            Ok(dt) => dt.timestamp_nanos_opt().unwrap_or(0) as u64,
-            Err(_) => SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
-        };
+        // Parse timestamp with DoS protection - prevents malicious Coinbase timestamps from crashing system
+        let timestamp = alphapulse_transport::time::parse_external_timestamp_safe(&match_event.time, "Coinbase");
 
         // Build TradeTLV using the constructor
         let trade_tlv = TradeTLV::new(

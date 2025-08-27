@@ -15,18 +15,16 @@
 //!
 //! ### Protocol V2 TLV Messages
 //! ```rust
-//! use alphapulse_types::{TLVMessageBuilder, TLVType, TradeTLV, RelayDomain, SourceType};
+//! use alphapulse_types::{TradeTLV, RelayDomain, SourceType, TLVType};
 //!
 //! // Create a trade message
 //! let trade = TradeTLV::new(/* ... */);
 //!
-//! // Build TLV message with proper routing
-//! let message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
-//!     .add_tlv(TLVType::Trade, &trade)
-//!     .build();
-//!
-//! // Zero-copy serialization
-//! let bytes = message.as_bytes();
+//! // For message building, import codec separately in services:
+//! // use alphapulse_codec::TLVMessageBuilder;
+//! // let message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
+//! //     .add_tlv(TLVType::Trade, &trade)
+//! //     .build();
 //! ```
 //!
 //! ### Instrument Identification
@@ -82,7 +80,7 @@ pub mod protocol;
 
 // Re-export common types for convenience
 #[cfg(feature = "common")]
-pub use common::errors::FixedPointError;
+pub use common::errors::{FixedPointError, ValidationError};
 #[cfg(feature = "common")]
 pub use common::fixed_point::{PercentageFixedPoint4, UsdFixedPoint8};
 

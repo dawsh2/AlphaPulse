@@ -16,10 +16,10 @@ define_tlv! {
     /// Fields are ordered to eliminate padding: u64/i64 → u16 → u8
     TradeTLV {
         u64: {
-            asset_id: u64,     // Asset identifier
-            price: i64,        // Fixed-point with 8 decimals
-            volume: i64,       // Fixed-point with 8 decimals
-            timestamp_ns: u64  // Nanoseconds since epoch
+            asset_id: u64,                // Asset identifier
+            price: i64,                   // Fixed-point with 8 decimals
+            volume: i64,                  // Fixed-point with 8 decimals
+            execution_timestamp_ns: u64   // When trade was executed on exchange (nanoseconds since epoch)
         }
         u32: {}
         u16: { venue_id: u16 } // VenueId as primitive
@@ -42,14 +42,14 @@ impl TradeTLV {
         price: i64,
         volume: i64,
         side: u8,
-        timestamp_ns: u64,
+        execution_timestamp_ns: u64,
     ) -> Self {
         // Use macro-generated constructor with proper field order
         Self::new_raw(
             instrument_id.asset_id,
             price,
             volume,
-            timestamp_ns,
+            execution_timestamp_ns,
             venue as u16,
             instrument_id.asset_type,
             instrument_id.reserved,
@@ -65,9 +65,9 @@ impl TradeTLV {
         price: i64,
         volume: i64,
         side: u8,
-        timestamp_ns: u64,
+        execution_timestamp_ns: u64,
     ) -> Self {
-        Self::new(venue, instrument_id, price, volume, side, timestamp_ns)
+        Self::new(venue, instrument_id, price, volume, side, execution_timestamp_ns)
     }
 
     /// Convert to InstrumentId
@@ -99,12 +99,12 @@ define_tlv! {
     /// Padded to 56 bytes for 8-byte alignment
     QuoteTLV {
         u64: {
-            asset_id: u64,     // Asset identifier
-            bid_price: i64,    // Fixed-point with 8 decimals
-            bid_size: i64,     // Fixed-point with 8 decimals
-            ask_price: i64,    // Fixed-point with 8 decimals
-            ask_size: i64,     // Fixed-point with 8 decimals
-            timestamp_ns: u64  // Nanoseconds since epoch
+            asset_id: u64,                // Asset identifier
+            bid_price: i64,               // Fixed-point with 8 decimals
+            bid_size: i64,                // Fixed-point with 8 decimals
+            ask_price: i64,               // Fixed-point with 8 decimals
+            ask_size: i64,                // Fixed-point with 8 decimals
+            quote_timestamp_ns: u64       // When quote was generated on exchange (nanoseconds since epoch)
         }
         u32: {}
         u16: { venue_id: u16 } // VenueId as primitive
@@ -126,7 +126,7 @@ impl QuoteTLV {
         bid_size: i64,
         ask_price: i64,
         ask_size: i64,
-        timestamp_ns: u64,
+        quote_timestamp_ns: u64,
     ) -> Self {
         // Use macro-generated constructor with proper field order
         Self::new_raw(
@@ -135,7 +135,7 @@ impl QuoteTLV {
             bid_size,
             ask_price,
             ask_size,
-            timestamp_ns,
+            quote_timestamp_ns,
             venue as u16,
             instrument_id.asset_type,
             instrument_id.reserved,
@@ -151,7 +151,7 @@ impl QuoteTLV {
         bid_size: i64,
         ask_price: i64,
         ask_size: i64,
-        timestamp_ns: u64,
+        quote_timestamp_ns: u64,
     ) -> Self {
         Self::new(
             venue,
@@ -160,7 +160,7 @@ impl QuoteTLV {
             bid_size,
             ask_price,
             ask_size,
-            timestamp_ns,
+            quote_timestamp_ns,
         )
     }
 
@@ -281,10 +281,10 @@ define_tlv! {
     /// Supports both traditional exchange (8-decimal) and DEX (native token precision) formats.
     OrderBookTLV {
         u64: {
-            timestamp_ns: u64,     // Nanosecond timestamp when snapshot was taken (offset 0)
-            sequence: u64,         // Sequence number for gap detection (offset 8)
-            precision_factor: i64, // Precision factor: 100_000_000 for 8-decimal, varies for DEX (offset 16)
-            asset_id: u64         // Asset identifier from InstrumentId (offset 24)
+            snapshot_timestamp_ns: u64, // When orderbook snapshot was taken on exchange (nanoseconds since epoch) (offset 0)
+            sequence: u64,              // Sequence number for gap detection (offset 8)
+            precision_factor: i64,      // Precision factor: 100_000_000 for 8-decimal, varies for DEX (offset 16)
+            asset_id: u64               // Asset identifier from InstrumentId (offset 24)
         }
         u32: {}
         u16: { venue_id: u16 } // Venue identifier as primitive u16 (offset 32)
@@ -306,13 +306,13 @@ impl OrderBookTLV {
     pub fn from_instrument(
         venue: VenueId,
         instrument_id: InstrumentId,
-        timestamp_ns: u64,
+        snapshot_timestamp_ns: u64,
         sequence: u64,
         precision_factor: i64,
     ) -> Self {
         // Use macro-generated constructor with proper field order
         let order_book = Self::new_raw(
-            timestamp_ns,
+            snapshot_timestamp_ns,
             sequence,
             precision_factor,
             instrument_id.asset_id,
@@ -338,9 +338,9 @@ impl OrderBookTLV {
     fn validate_field_layout(order_book: &Self) {
         // Verify u64 fields are at expected 8-byte aligned offsets
         debug_assert_eq!(
-            std::mem::offset_of!(OrderBookTLV, timestamp_ns),
+            std::mem::offset_of!(OrderBookTLV, snapshot_timestamp_ns),
             0,
-            "timestamp_ns should be at offset 0 (first u64 field)"
+            "snapshot_timestamp_ns should be at offset 0 (first u64 field)"
         );
         debug_assert_eq!(
             std::mem::offset_of!(OrderBookTLV, sequence),
@@ -394,8 +394,8 @@ impl OrderBookTLV {
 
         // Verify field values are correctly set (basic sanity check)
         debug_assert_eq!(
-            order_book.timestamp_ns, order_book.timestamp_ns,
-            "timestamp_ns field access works"
+            order_book.snapshot_timestamp_ns, order_book.snapshot_timestamp_ns,
+            "snapshot_timestamp_ns field access works"
         );
         debug_assert_eq!(
             order_book.sequence, order_book.sequence,

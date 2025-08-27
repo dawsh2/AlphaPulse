@@ -5,7 +5,7 @@
 //! - Signal Relay: >100K messages/second  
 //! - Execution Relay: >50K messages/second
 
-use alphapulse_protocol_v2::{MessageHeader, MESSAGE_MAGIC};
+use alphapulse_types::protocol::{MessageHeader, MESSAGE_MAGIC};
 use alphapulse_relays::{
     create_validator, ConsumerId, MessageValidator, TopicConfig, TopicExtractionStrategy,
     TopicRegistry, ValidationPolicy,
@@ -37,35 +37,35 @@ fn bench_topic_extraction(c: &mut Criterion) {
     let headers = vec![
         MessageHeader {
             magic: MESSAGE_MAGIC,
-            version: 1,
-            message_type: 1,
             relay_domain: 1,
-            source_type: 4, // Polygon
+            version: 1,
+            source: 4, // Polygon
+            flags: 0,
             sequence: 1,
-            timestamp_ns: 1000,
-            instrument_id: 123,
+            timestamp: 1000,
+            payload_size: 0,
             checksum: 0,
         },
         MessageHeader {
             magic: MESSAGE_MAGIC,
-            version: 1,
-            message_type: 1,
             relay_domain: 1,
-            source_type: 2, // Kraken
+            version: 1,
+            source: 2, // Kraken
+            flags: 0,
             sequence: 2,
-            timestamp_ns: 2000,
-            instrument_id: 456,
+            timestamp: 2000,
+            payload_size: 0,
             checksum: 0,
         },
         MessageHeader {
             magic: MESSAGE_MAGIC,
-            version: 1,
-            message_type: 50,
             relay_domain: 2,
-            source_type: 20, // Arbitrage
+            version: 1,
+            source: 20, // Arbitrage
+            flags: 0,
             sequence: 3,
-            timestamp_ns: 3000,
-            instrument_id: 789,
+            timestamp: 3000,
+            payload_size: 0,
             checksum: 0,
         },
     ];
@@ -76,7 +76,7 @@ fn bench_topic_extraction(c: &mut Criterion) {
         b.iter(|| {
             let header = &headers[idx % headers.len()];
             idx += 1;
-            black_box(registry.extract_topic(header, &TopicExtractionStrategy::SourceType))
+            black_box(registry.extract_topic(header, None, &TopicExtractionStrategy::SourceType))
         })
     });
 
@@ -86,7 +86,7 @@ fn bench_topic_extraction(c: &mut Criterion) {
         b.iter(|| {
             let header = &headers[idx % headers.len()];
             idx += 1;
-            black_box(registry.extract_topic(header, &TopicExtractionStrategy::InstrumentVenue))
+            black_box(registry.extract_topic(header, None, &TopicExtractionStrategy::InstrumentVenue))
         })
     });
 
@@ -98,7 +98,7 @@ fn bench_topic_extraction(c: &mut Criterion) {
             idx += 1;
             black_box(
                 registry
-                    .extract_topic(header, &TopicExtractionStrategy::Fixed("fixed".to_string())),
+                    .extract_topic(header, None, &TopicExtractionStrategy::Fixed("fixed".to_string())),
             )
         })
     });
@@ -116,13 +116,13 @@ fn bench_validation_policies(c: &mut Criterion) {
 
     let header = MessageHeader {
         magic: MESSAGE_MAGIC,
-        version: 1,
-        message_type: 1,
         relay_domain: 1,
-        source_type: 4,
+        version: 1,
+        source: 4,
+        flags: 0,
         sequence: 1,
-        timestamp_ns: 1000,
-        instrument_id: 123,
+        timestamp: 1000,
+        payload_size: data.len() as u32,
         checksum,
     };
 
@@ -217,13 +217,13 @@ fn bench_header_parsing(c: &mut Criterion) {
     // Create a valid message with header
     let header = MessageHeader {
         magic: MESSAGE_MAGIC,
-        version: 1,
-        message_type: 1,
         relay_domain: 1,
-        source_type: 4,
+        version: 1,
+        source: 4,
+        flags: 0,
         sequence: 12345,
-        timestamp_ns: 1234567890,
-        instrument_id: 9876543210,
+        timestamp: 1234567890,
+        payload_size: 100,
         checksum: 0xDEADBEEF,
     };
 
@@ -299,25 +299,25 @@ fn bench_message_routing(c: &mut Criterion) {
     // Create test messages
     let polygon_header = MessageHeader {
         magic: MESSAGE_MAGIC,
-        version: 1,
-        message_type: 1,
         relay_domain: 1,
-        source_type: 4, // Polygon
+        version: 1,
+        source: 4, // Polygon
+        flags: 0,
         sequence: 1,
-        timestamp_ns: 1000,
-        instrument_id: 123,
+        timestamp: 1000,
+        payload_size: 0,
         checksum: 0,
     };
 
     let kraken_header = MessageHeader {
         magic: MESSAGE_MAGIC,
-        version: 1,
-        message_type: 1,
         relay_domain: 1,
-        source_type: 2, // Kraken
+        version: 1,
+        source: 2, // Kraken
+        flags: 0,
         sequence: 2,
-        timestamp_ns: 2000,
-        instrument_id: 456,
+        timestamp: 2000,
+        payload_size: 0,
         checksum: 0,
     };
 
@@ -332,7 +332,7 @@ fn bench_message_routing(c: &mut Criterion) {
 
             // Extract topic
             let topic = registry
-                .extract_topic(header, &TopicExtractionStrategy::SourceType)
+                .extract_topic(header, None, &TopicExtractionStrategy::SourceType)
                 .unwrap();
 
             // Get subscribers

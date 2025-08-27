@@ -317,10 +317,7 @@ impl HealthReporter {
 
 /// Get current timestamp in nanoseconds
 fn current_timestamp_ns() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64
+    alphapulse_transport::time::safe_system_timestamp_ns()
 }
 
 #[cfg(test)]

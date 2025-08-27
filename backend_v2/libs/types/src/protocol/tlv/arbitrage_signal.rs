@@ -8,7 +8,7 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 /// Real arbitrage signal with actual pool and token data
 /// TLV Type: 21 (Signal domain)
 #[repr(C, packed)]
-#[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
+#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
 pub struct ArbitrageSignalTLV {
     /// Strategy ID (21 for flash arbitrage)
     pub strategy_id: u16,

@@ -32,15 +32,15 @@ cat SPRINT_PLAN.md  # See complete architecture and strategy
 ```bash
 # Day 1-2: Foundation (CODEC-001) 
 cat CODEC-001_create_codec_foundation.md
-git checkout -b refactor/codec-foundation
+git worktree add -b refactor/codec-foundation
 
 # Day 3-4: Core Logic (CODEC-002)
 cat CODEC-002_move_core_protocol.md  
-git checkout -b refactor/core-protocol-logic
+git worktree add -b refactor/core-protocol-logic
 
 # Day 5-6: Network Layer (CODEC-003)
 cat CODEC-003_separate_network_layer.md
-git checkout -b refactor/network-layer
+git worktree add -b refactor/network-layer
 ```
 
 ### Check Sprint Status

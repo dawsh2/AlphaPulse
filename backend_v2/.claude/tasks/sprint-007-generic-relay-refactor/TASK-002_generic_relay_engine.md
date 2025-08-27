@@ -25,13 +25,13 @@ scope:
 # MANDATORY: Verify you're not on main before starting
 if [ "$(git branch --show-current)" = "main" ]; then
     echo "❌ NEVER WORK ON MAIN BRANCH!"  
-    echo "Run: git checkout -b feat/generic-relay-engine"
+    echo "Run: git worktree add -b feat/generic-relay-engine"
     exit 1
 fi
 
 # Create feature branch from relay-logic-trait
 git checkout feat/relay-logic-trait  # Start from TASK-001 branch
-git checkout -b feat/generic-relay-engine
+git worktree add -b feat/generic-relay-engine
 git branch --show-current  # Should show: feat/generic-relay-engine
 ```
 

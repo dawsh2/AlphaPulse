@@ -1,12 +1,12 @@
 ---
 task_id: CTRL-001
-status: TODO
+status: COMPLETE
 priority: CRITICAL
 estimated_hours: 3
 assigned_branch: feat/control-script-orchestrator
 assignee: TBD
 created: 2025-08-26
-completed: null
+completed: 2025-08-27
 depends_on:
   - CODEC-002  # Need protocol refactoring complete
   - TASK-002   # Need relay refactor complete
@@ -36,7 +36,7 @@ status: TODO → status: IN_PROGRESS
 git branch --show-current
 
 # If you see "main", IMMEDIATELY run:
-git checkout -b feat/control-script-orchestrator
+git worktree add -b feat/control-script-orchestrator
 
 # NEVER commit directly to main!
 ```
@@ -316,7 +316,7 @@ echo "All integration tests passed!"
 ## Git Workflow
 ```bash
 # 1. Start on your branch
-git checkout -b feat/control-script-orchestrator
+git worktree add -b feat/control-script-orchestrator
 
 # 2. Create test files first (TDD)
 mkdir -p tests

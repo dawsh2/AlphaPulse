@@ -1,0 +1,129 @@
+name: Standard Rust Tooling
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run weekly to catch security advisories
+    - cron: '0 6 * * 1'  # Monday at 6 AM UTC
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Security and dependency auditing
+  cargo-deny:
+    name: Security & License Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
+
+    - name: Install cargo-deny
+      run: cargo install --locked cargo-deny
+
+    - name: Run cargo-deny check
+      run: cargo deny check
+
+  # Unused dependency detection
+  cargo-udeps:
+    name: Unused Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust nightly toolchain
+      uses: dtolnay/rust-toolchain@nightly
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-nightly-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-nightly-
+
+    - name: Install cargo-udeps
+      run: cargo install --locked cargo-udeps
+
+    - name: Run cargo-udeps
+      run: cargo +nightly udeps --all-targets
+
+  # Cargo.toml formatting
+  cargo-sort:
+    name: Cargo.toml Formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+        key: ${{ runner.os }}-cargo-tools-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-tools-
+
+    - name: Install cargo-sort
+      run: cargo install --locked cargo-sort
+
+    - name: Check Cargo.toml formatting
+      run: cargo sort --workspace --check
+
+  # Combined results job
+  tooling-gate:
+    name: Standard Rust Tooling Gate
+    runs-on: ubuntu-latest
+    needs: [cargo-deny, cargo-udeps, cargo-sort]
+    if: always()
+
+    steps:
+    - name: Check all tooling passed
+      run: |
+        if [[ "${{ needs.cargo-deny.result }}" != "success" ]]; then
+          echo "❌ cargo-deny failed"
+          exit 1
+        fi
+        if [[ "${{ needs.cargo-udeps.result }}" != "success" ]]; then
+          echo "❌ cargo-udeps failed"
+          exit 1
+        fi
+        if [[ "${{ needs.cargo-sort.result }}" != "success" ]]; then
+          echo "❌ cargo-sort failed"
+          exit 1
+        fi
+        echo "✅ All standard Rust tooling checks passed"

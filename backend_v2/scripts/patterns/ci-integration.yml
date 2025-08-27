@@ -1,0 +1,62 @@
+# AlphaPulse Pattern Enforcement CI Integration
+# Add this to .github/workflows/ci.yml
+
+name: Pattern Enforcement
+
+# Run pattern checks on PRs and pushes to main
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  pattern-enforcement:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+        
+    - name: Run Architectural Pattern Checks
+      run: |
+        cd backend_v2
+        ./scripts/patterns/run-all-pattern-checks.sh . true
+      
+    - name: Upload Pattern Violation Report
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: pattern-violations
+        path: |
+          backend_v2/pattern-violations.txt
+          backend_v2/logs/pattern-check.log
+
+# Alternative: Run as a separate check job
+  pattern-checks:
+    runs-on: ubuntu-latest
+    continue-on-error: false  # Fail the build if patterns violated
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Transport Usage Check
+      run: |
+        cd backend_v2
+        ./scripts/patterns/detect-transport-violations.sh .
+        
+    - name: Precision Violations Check  
+      run: |
+        cd backend_v2
+        python3 scripts/patterns/detect-precision-violations.py .
+        
+    - name: Pattern Check Summary
+      if: always()
+      run: |
+        echo "Pattern enforcement completed"
+        echo "See job logs for any violations found"

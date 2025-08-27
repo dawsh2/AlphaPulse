@@ -30,15 +30,15 @@ cat SPRINT_PLAN.md  # See full sprint details and architecture
 ```bash
 # Day 1: Unit Tests (TEST-001)
 cat TEST-001_unit_test_framework.md
-git checkout -b test/unit-test-framework
+git worktree add -b test/unit-test-framework
 
 # Day 3: E2E Golden Path (TEST-003) - The critical test!
 cat TEST-003_e2e_golden_path.md
-git checkout -b test/e2e-golden-path
+git worktree add -b test/e2e-golden-path
 
 # Day 5: Update Templates (TEST-007)
 cat TEST-007_update_templates.md
-git checkout -b test/update-templates
+git worktree add -b test/update-templates
 ```
 
 ### Check Sprint Status

@@ -1,6 +1,6 @@
 ---
 task_id: TEST-001
-status: TODO
+status: COMPLETE
 priority: CRITICAL
 estimated_hours: 4
 assigned_branch: test/unit-test-framework
@@ -25,7 +25,7 @@ scope:
 git branch --show-current
 
 # If you see "main", IMMEDIATELY run:
-git checkout -b test/unit-test-framework
+git worktree add -b test/unit-test-framework
 
 # NEVER commit directly to main!
 ```
@@ -242,7 +242,7 @@ cargo test --package protocol_v2 --lib --release -- --test-threads=1
 ## Git Workflow
 ```bash
 # 1. Start on your branch
-git checkout -b test/unit-test-framework
+git worktree add -b test/unit-test-framework
 
 # 2. Make changes and commit
 git add protocol_v2/src/

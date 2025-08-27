@@ -8,7 +8,7 @@ assignee: TBD
 created: 2025-08-26
 completed: null
 depends_on:
-  - ARCH-001  # Need RelayLogic trait first
+  - RELAY-ARCH-001  # Need RelayLogic trait first
 blocks:
   - TASK-003  # Domain implementations need generic engine
   - TASK-004  # Binary entry points need generic engine

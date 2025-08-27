@@ -387,7 +387,7 @@ impl UnifiedKrakenCollector {
             // Convert strings to numbers
             let price: f64 = price_str.parse().ok()?;
             let volume: f64 = volume_str.parse().ok()?;
-            let timestamp: f64 = time_str.parse().ok()?;
+            let timestamp: f64 = time_str.parse().unwrap_or(0.0); // Safe fallback for malformed input
 
             // Convert to 8-decimal fixed-point for USD prices
             let price_fixed = (price * 100_000_000.0) as i64;
@@ -413,7 +413,7 @@ impl UnifiedKrakenCollector {
                 price_fixed,
                 volume_fixed,
                 if side_str == "b" { 0 } else { 1 }, // 0 = buy, 1 = sell
-                (timestamp * 1_000_000_000.0) as u64, // Convert to nanoseconds
+                alphapulse_transport::time::parse_external_unix_timestamp_safe(timestamp, "Kraken"), // DoS-safe timestamp conversion
             );
 
             // Build complete Protocol V2 message (true zero-copy)
@@ -481,10 +481,7 @@ impl UnifiedKrakenCollector {
         };
 
         // Build QuoteTLV using constructor for top of book
-        let timestamp_ns = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
+        let timestamp_ns = alphapulse_transport::time::safe_system_timestamp_ns();
 
         let quote_tlv = QuoteTLV::new(
             VenueId::Kraken,

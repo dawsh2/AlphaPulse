@@ -28,7 +28,7 @@ This is the **culmination sprint** that depends on ALL major refactoring sprints
 4. **Start work**:
    ```bash
    # Never work on main!
-   git checkout -b feat/sprint-012-architecture-synthesis
+   git worktree add -b feat/sprint-012-architecture-synthesis
    ```
 
 5. **Check status**:

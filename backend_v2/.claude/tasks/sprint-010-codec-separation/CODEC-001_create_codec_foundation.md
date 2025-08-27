@@ -17,7 +17,7 @@ completed: null
 git branch --show-current
 
 # If you see "main", IMMEDIATELY run:
-git checkout -b refactor/codec-foundation
+git worktree add -b refactor/codec-foundation
 
 # NEVER commit directly to main!
 ```
@@ -252,7 +252,7 @@ cargo build --workspace
 ## Git Workflow
 ```bash
 # 1. Start on your branch
-git checkout -b refactor/codec-foundation
+git worktree add -b refactor/codec-foundation
 
 # 2. Create crate structure first
 git add libs/alphapulse_codec/Cargo.toml libs/alphapulse_codec/src/lib.rs

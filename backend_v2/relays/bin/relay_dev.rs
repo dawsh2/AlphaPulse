@@ -5,7 +5,7 @@
 //!   relay_dev signal --metrics-interval 5
 //!   relay_dev execution --socket /tmp/test.sock
 
-use alphapulse_relays::{Relay, RelayConfig};
+use alphapulse_relays::{relay::Relay, RelayConfig};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::time::Duration;

@@ -5,7 +5,7 @@
 //!   relay --config config/signal.toml
 //!   relay --config config/execution.toml
 
-use alphapulse_relays::{Relay, RelayConfig};
+use alphapulse_relays::{relay::Relay, RelayConfig};
 use anyhow::Result;
 use clap::Parser;
 use tracing::{error, info};

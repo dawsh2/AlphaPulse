@@ -1,27 +1,28 @@
 [workspace]
 resolver = "2"
 members = [
-    "services_v2/adapters",
-    "services_v2/strategies/flash_arbitrage",
-    "services_v2/strategies/kraken_signals",
-    "services_v2/dashboard/websocket_server",
-    "services_v2/observability/trace_collector",
-    "network/topology",
-    "network/transport",
-    "relays",
-    "relays/market_data_relay",
-    "relays/signal_relay",
-    "relays/execution_relay",
-    # Shared libraries
-    "libs/types",
     "libs/alphapulse_codec",
     "libs/amm",
     "libs/dex",
     "libs/health_check",
-    "libs/service_discovery",
+    "libs/message_sink",
     "libs/mev",
+    "libs/service_discovery",
     "libs/state/core",
     "libs/state/market",
+    # Shared libraries
+    "libs/types",
+    "network/topology",
+    "network/transport",
+    "relays",
+    "relays/execution_relay",
+    "relays/market_data_relay",
+    "relays/signal_relay",
+    "services_v2/adapters",
+    "services_v2/dashboard/websocket_server",
+    "services_v2/observability/trace_collector",
+    "services_v2/strategies/flash_arbitrage",
+    "services_v2/strategies/kraken_signals",
     # Tests
     "tests/e2e",
 ]
@@ -34,78 +35,79 @@ edition = "2021"
 authors = ["AlphaPulse Team"]
 
 [workspace.dependencies]
-# Internal libs
-alphapulse-types = { path = "libs/types" }
-alphapulse-codec = { path = "libs/alphapulse_codec" }
-alphapulse-state-core = { path = "libs/state/core" }
-alphapulse-state-market = { path = "libs/state/market" }
 alphapulse-amm = { path = "libs/amm" }
+alphapulse-codec = { path = "libs/alphapulse_codec" }
 alphapulse-dex = { path = "libs/dex" }
 alphapulse-health-check = { path = "libs/health_check" }  # Package name fixed to use hyphens
-alphapulse-service-discovery = { path = "libs/service_discovery" }  # Package name fixed to use hyphens
+alphapulse-message-sink = { path = "libs/message_sink" }
 alphapulse-mev = { path = "libs/mev" }
-
-# Async runtime
-tokio = { version = "1.40", features = ["full"] }
-tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
-futures-util = "0.3"
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# Error handling and logging
-tracing = "0.1"
-tracing-subscriber = "0.3"
+alphapulse-service-discovery = { path = "libs/service_discovery" }  # Package name fixed to use hyphens
+alphapulse-state-core = { path = "libs/state/core" }
+alphapulse-state-market = { path = "libs/state/market" }
+# Internal libs
+alphapulse-types = { path = "libs/types" }
 anyhow = "1.0"
-thiserror = "1.0"
+
+# Documentation enhancements
+aquamarine = "0.5"
+async-trait = "0.1"
+bincode = "1.3"
+bytemuck = { version = "1.17", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Code navigation and discovery
+clap = { version = "4.5", features = ["derive"] }
+colored = "2.1"
+crc32fast = "1.4"
+criterion = "0.5"
+crossbeam-channel = "0.5"
+dashmap = "6.0"
+dirs = "5.0"
+ethabi = "18.0"
+ethers-core = "2.0"
+futures-util = "0.3"
+fuzzy-matcher = "0.3"
+governor = "0.6"
 
 # Common utilities
 hex = "0.4"
-dashmap = "6.0"
+memmap2 = "0.9"
+mockito = "1.5"
+nonzero_ext = "0.3"
+
+# Zero-copy serialization
+num_enum = "0.7"
 once_cell = "1.19"
 parking_lot = "0.12"
-bincode = "1.3"
-crossbeam-channel = "0.5"
-crc32fast = "1.4"
-memmap2 = "0.9"
-zerocopy = { version = "0.7", features = ["derive"] }
-web3 = { version = "0.19", features = ["http"] }
-async-trait = "0.1"
-bytemuck = { version = "1.17", features = ["derive"] }
-ethabi = "18.0"
-governor = "0.6"
-nonzero_ext = "0.3"
 prometheus = "0.13"
-chrono = { version = "0.4", features = ["serde"] }
+regex = "1.10"
+
+# Networking
+reqwest = { version = "0.11", features = ["json"] }
 
 # Math and precision
 rust_decimal = "1.36"
 rust_decimal_macros = "1.36"
-ethers-core = "2.0"
 
-# Networking
-reqwest = { version = "0.11", features = ["json"] }
-url = "2.5"
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
 
 # Development dependencies
 tokio-test = "0.4"
-mockito = "1.5"
-criterion = "0.5"
-
-# Documentation enhancements
-aquamarine = "0.5"
-
-# Code navigation and discovery
-clap = { version = "4.5", features = ["derive"] }
-dirs = "5.0"
-walkdir = "2.4"
-fuzzy-matcher = "0.3"
-colored = "2.1"
-regex = "1.10"
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 
 # Configuration
 toml = "0.8"
 
-# Zero-copy serialization
-num_enum = "0.7"
+# Error handling and logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+url = "2.5"
+walkdir = "2.4"
+web3 = { version = "0.19", features = ["http"] }
+zerocopy = { version = "0.7", features = ["derive"] }

@@ -24,7 +24,7 @@ scope:
 git branch --show-current
 
 # If you see "main", IMMEDIATELY run:
-git checkout -b refactor/adapters-cleanup
+git worktree add -b refactor/adapters-cleanup
 
 # NEVER commit directly to main!
 ```
@@ -252,7 +252,7 @@ cargo bench --baseline before_cleanup adapters
 ## Git Workflow
 ```bash
 # 1. Start on your branch
-git checkout -b refactor/adapters-cleanup
+git worktree add -b refactor/adapters-cleanup
 
 # 2. Commit after each phase for easy rollback
 git add services_v2/adapters/

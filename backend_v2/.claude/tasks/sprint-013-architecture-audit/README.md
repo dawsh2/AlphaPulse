@@ -12,19 +12,21 @@ Complete partially finished refactorings and fix critical architectural gaps
 - Protocol split into libs/types and libs/alphapulse_codec
 - Generic relay engine with clean architecture  
 - Typed ID macros (23 usages, eliminating ID bugs)
+- **NEW**: Codec workspace circular dependency RESOLVED (AUDIT-002) ✅
+- **NEW**: Coinbase adapter migrated to plugin architecture (AUDIT-004) ✅
 
-### ⚠️ What's Broken
-- **CRITICAL**: Services not using alphapulse_codec
-- Relays only depend on types, not codec
-- Protocol logic duplicated across services
+### ⚠️ What's Broken  
+- **CRITICAL**: Services not using alphapulse_codec consistently
+- Binary target import errors (legacy adapter code)
+- Some missing TLV types (QuoteTLV, InvalidationReason) in protocol module
 
 ### ❌ What's Missing
-- Adapter plugin architecture (still monolithic)
+- Complete adapter plugin architecture migration (in progress)
 - Unified manage.sh control script
 
 ## Sprint Priorities
 
-1. **🔴 CRITICAL**: Fix codec dependencies (AUDIT-001, AUDIT-002)
+1. **🟡 PARTIAL**: Fix codec dependencies (AUDIT-001 pending, AUDIT-002 ✅ COMPLETE)
 2. **🟡 HIGH**: Complete adapter plugin refactoring (AUDIT-003, AUDIT-004)
 3. **🟢 MEDIUM**: Build manage.sh control script (AUDIT-005, AUDIT-006)
 4. **🔵 LOW**: Validation tests and documentation (AUDIT-007, AUDIT-008)

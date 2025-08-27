@@ -29,13 +29,14 @@ use zerocopy::{AsBytes, FromBytes, FromZeroes};
 // Import OrderLevel for zerocopy trait implementations
 use super::market_data::OrderLevel;
 
-/// Domain constants for bounded TLV structures
-///
-/// These constants define maximum capacities based on real-world usage patterns
-/// with generous headroom for future growth.
-pub const MAX_INSTRUMENTS: usize = 16; // Real usage: 1-5, generous headroom
-pub const MAX_POOL_TOKENS: usize = 8; // Real usage: 2-4, handles complex Balancer
-pub const MAX_ORDER_LEVELS: usize = 50; // Real usage: 10-30, generous headroom for deep books
+// Re-export configuration functions for backward compatibility
+pub use super::config::{max_instruments as MAX_INSTRUMENTS_FN, max_pool_tokens as MAX_POOL_TOKENS_FN, max_order_levels as MAX_ORDER_LEVELS_FN};
+
+// Compile-time constants for array sizing (must remain const for zerocopy)
+// These represent the maximum possible values - runtime config can be lower
+pub const MAX_INSTRUMENTS: usize = 16; // Compile-time max for array sizing
+pub const MAX_POOL_TOKENS: usize = 8;  // Compile-time max for array sizing  
+pub const MAX_ORDER_LEVELS: usize = 50; // Compile-time max for array sizing
 
 /// Error type for dynamic payload operations
 #[derive(Debug, Clone, PartialEq)]

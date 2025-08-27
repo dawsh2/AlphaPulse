@@ -250,7 +250,7 @@ impl RecoveryResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tlv::parser::{find_tlv_by_type, parse_header, parse_tlv_extensions};
+    // Parser functions moved to alphapulse_codec to avoid circular dependency
 
     #[test]
     fn test_recovery_request_tlv_creation() {

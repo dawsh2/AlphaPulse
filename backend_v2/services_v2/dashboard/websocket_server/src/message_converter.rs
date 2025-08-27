@@ -3,8 +3,8 @@
 use crate::error::{DashboardError, Result};
 use alphapulse_types::InstrumentId;
 use alphapulse_types::{
-    tlv::{types::DeprecatedTLVType, ArbitrageSignalTLV, PoolSyncTLV},
-    ParseError, PoolSwapTLV, QuoteTLV, VenueId,
+    tlv::{types::DeprecatedTLVType, ArbitrageSignalTLV, PoolSyncTLV, PoolSwapTLV, ParseError},
+    QuoteTLV, VenueId,
 };
 use base64::prelude::*;
 use serde_json::{json, Value};
@@ -584,10 +584,8 @@ mod tests {
 
     #[test]
     fn test_timestamp_conversion() {
-        let now_ns = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
+        let now_ns = alphapulse_transport::time::safe_system_timestamp_ns_checked()
+            .unwrap_or(1000000000); // Use a fixed timestamp for test
 
         let iso = timestamp_to_iso(now_ns);
         assert!(!iso.is_empty());

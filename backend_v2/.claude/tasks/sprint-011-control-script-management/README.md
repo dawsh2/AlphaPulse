@@ -18,7 +18,7 @@ Implement unified control script pattern (manage.sh) for streamlined system mana
 3. **Start work**:
    ```bash
    # Never work on main!
-   git checkout -b feat/sprint-011-task-002
+   git worktree add -b feat/sprint-011-task-002
    ```
 
 4. **Check status**:

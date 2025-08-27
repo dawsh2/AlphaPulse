@@ -1,6 +1,6 @@
 # Git Worktree Standard - AlphaPulse Development
 
-## 🚫 **NEVER Use `git checkout -b`**
+## 🚫 **NEVER Use `git worktree add -b`**
 Git branches change state for **ALL sessions**, breaking parallel development and AI agent workflows.
 
 ## ✅ **ALWAYS Use `git worktree`**
@@ -34,7 +34,7 @@ git branch -D task-branch-name  # Optional: delete local branch
 
 ## Why Worktrees?
 
-### ❌ Problems with `git checkout -b`:
+### ❌ Problems with `git worktree add -b`:
 - Changes branch for **ALL** terminal sessions
 - Breaks parallel development
 - Causes conflicts with multiple AI agents

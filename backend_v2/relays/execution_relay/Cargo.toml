@@ -4,32 +4,32 @@ version = "0.1.0"
 edition = "2021"
 description = "High-security execution relay for order processing"
 
+[[bin]]
+name = "execution_relay"
+path = "src/main.rs"
+
 [dependencies]
 # Core relay infrastructure with security-focused features
 alphapulse-relays = { path = "..", features = ["execution-relay"] }
 alphapulse-types = { path = "../../libs/types" }
 
-# Async runtime - minimal features for binary
-tokio = { version = "1.0", features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }
-async-trait = "0.1"
-
-# Logging
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
 # Error handling
 anyhow = "1.0"
+async-trait = "0.1"
+
+# Utilities
+bytes = "1.5"
 
 # Command line
 clap = { version = "4.0", features = ["derive"] }
 
-# Utilities
-bytes = "1.5"
-futures = "0.3"
-
 # Security - execution relay requires full checksum validation
 crc32fast = "1.4"
+futures = "0.3"
 
-[[bin]]
-name = "execution_relay"
-path = "src/main.rs"
+# Async runtime - minimal features for binary
+tokio = { version = "1.0", features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

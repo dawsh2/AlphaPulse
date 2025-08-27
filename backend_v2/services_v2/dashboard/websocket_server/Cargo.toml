@@ -3,56 +3,57 @@ name = "alphapulse-dashboard-websocket"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+
 [dependencies]
-# Core dependencies
-tokio = { version = "1.0", features = ["full"] }
-anyhow = "1.0"
-tracing = "0.1"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+alphapulse-transport = { path = "../../../network/transport" }
 
 # Protocol dependencies
 alphapulse-types = { path = "../../../libs/types" }
 alphapulse_codec = { path = "../../../libs/alphapulse_codec" }
-
-# WebSocket server
-tokio-tungstenite = "0.24"
-futures-util = "0.3"
-
-# HTTP server for WebSocket upgrade
-warp = "0.3"
-
-# Collections and concurrency
-dashmap = "6.0"
-parking_lot = "0.12"
-
-# Time handling
-chrono = { version = "0.4", features = ["serde"] }
-
-# Metrics
-metrics = "0.23"
-
-# Error handling
-thiserror = "1.0"
-
-# Configuration
-toml = "0.8"
-
-# CLI
-clap = { version = "4.0", features = ["derive"] }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1.0"
 
 # Base64 encoding
 base64 = "0.22"
 
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# CLI
+clap = { version = "4.0", features = ["derive"] }
+
+# Collections and concurrency
+dashmap = "6.0"
+futures-util = "0.3"
+
 # Hex encoding
 hex = "0.4"
+
+# Metrics
+metrics = "0.23"
+parking_lot = "0.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+# Core dependencies
+tokio = { version = "1.0", features = ["full"] }
+
+# WebSocket server
+tokio-tungstenite = "0.24"
+
+# Configuration
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # UUID for client tracking
 uuid = { version = "1.0", features = ["v4"] }
 
+# HTTP server for WebSocket upgrade
+warp = "0.3"
+
 # Zero-copy serialization
 zerocopy = "0.7"
-
-[features]
-default = []

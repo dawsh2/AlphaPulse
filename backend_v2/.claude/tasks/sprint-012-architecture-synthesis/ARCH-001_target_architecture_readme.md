@@ -1,12 +1,12 @@
 ---
 task_id: ARCH-001
-status: TODO
+status: COMPLETE
 priority: CRITICAL
 estimated_hours: 4
 assigned_branch: feat/architecture-synthesis-readme
 assignee: TBD
 created: 2025-08-26
-completed: null
+completed: 2025-08-27
 ---
 
 # ARCH-001: Target Architecture README - The North Star Document
@@ -28,7 +28,7 @@ status: TODO → status: IN_PROGRESS
 git branch --show-current
 
 # If you see "main", IMMEDIATELY run:
-git checkout -b feat/architecture-synthesis-readme
+git worktree add -b feat/architecture-synthesis-readme
 
 # NEVER commit directly to main!
 ```
@@ -346,7 +346,7 @@ mermaid-cli -i docs/architecture.mmd -o docs/architecture.svg
 ## Git Workflow
 ```bash
 # 1. Start on your branch
-git checkout -b feat/architecture-synthesis-readme
+git worktree add -b feat/architecture-synthesis-readme
 
 # 2. Create comprehensive README
 # Follow the template structure above

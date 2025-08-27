@@ -1,9 +1,10 @@
 ---
 task_id: TASK-005
-status: BLOCKED
+status: DONE
 priority: HIGH  
 assigned_branch: feat/performance-validation
 created: 2025-08-26
+completed: 2025-08-27
 estimated_hours: 4
 depends_on:
   - TASK-002  # Need generic engine
@@ -11,8 +12,8 @@ depends_on:
   - TASK-004  # Need binary entry points
 blocks:
   - TASK-006  # Migration testing depends on performance baseline
-blocked_reason: "alphapulse-types compilation failures prevent performance testing"
-blocked_by: "OPT-004 migration issues"
+blocked_reason: null
+blocked_by: null
 scope:
   - "relays/benches/"  # Performance benchmark tests
   - "tests/integration/relay_performance.rs"  # Integration performance tests
@@ -28,13 +29,13 @@ scope:
 # MANDATORY: Verify you're not on main before starting
 if [ "$(git branch --show-current)" = "main" ]; then
     echo "❌ NEVER WORK ON MAIN BRANCH!"
-    echo "Run: git checkout -b feat/performance-validation"
+    echo "Run: git worktree add -b feat/performance-validation"
     exit 1
 fi
 
 # Create feature branch from binary-entry-points
 git checkout feat/binary-entry-points  # Start from TASK-004 branch
-git checkout -b feat/performance-validation
+git worktree add -b feat/performance-validation
 git branch --show-current  # Should show: feat/performance-validation
 ```
 

@@ -4,44 +4,42 @@ version = "0.1.0"
 edition = "2021"
 description = "Declarative topology system for AlphaPulse actor deployment"
 
+[features]
+default = []
+protocol-integration = []  # Enable when alphapulse-types is ready
+numa-optimization = []     # Enable NUMA-specific features
+
 [dependencies]
-# Configuration and serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.9"
-serde_json = "1.0"
 
 # Error handling
 anyhow = "1.0"
-thiserror = "1.0"
-
-# Async runtime
-tokio = { version = "1.40", features = ["full"] }
 async-trait = "0.1"
 
 # Collections and utilities
 indexmap = "2.0"
-uuid = { version = "1.0", features = ["v4", "serde"] }
-regex = "1.10"
 
+# System-level operations
+libc = "0.2"
+nix = { version = "0.27", features = ["process", "sched"] }
+regex = "1.10"
+# Configuration and serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+thiserror = "1.0"
+
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
 # Protocol integration (when available)
 # alphapulse-protocol-v2 = { path = "../alphapulse-types" }
 
 # Logging
 tracing = "0.1"
 tracing-subscriber = "0.3"
-
-# System-level operations
-libc = "0.2"
-nix = { version = "0.27", features = ["process", "sched"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
 
 [dev-dependencies]
-tokio-test = "0.4"
-tempfile = "3.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.5"
-
-
-[features]
-default = []
-protocol-integration = []  # Enable when alphapulse-types is ready
-numa-optimization = []     # Enable NUMA-specific features
+tempfile = "3.0"
+tokio-test = "0.4"

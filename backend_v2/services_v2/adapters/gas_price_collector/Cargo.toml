@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 # Protocol
 alphapulse-types = { path = "../../../libs/types" }
+alphapulse_codec = { path = "../../../libs/alphapulse_codec" }
+alphapulse-transport = { path = "../../../network/transport" }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

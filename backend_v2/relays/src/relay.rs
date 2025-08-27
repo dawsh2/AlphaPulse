@@ -4,7 +4,7 @@ use crate::{
     create_transport_from_config, InfraTransportAdapter, MessageValidator, RelayConfig, RelayError,
     RelayResult, TopicRegistry, TransportAdapterConfig,
 };
-use alphapulse_codec::{parse_header, CodecError};
+use alphapulse_codec::{parse_header, ProtocolError};
 use alphapulse_types::protocol::{MessageHeader, RelayDomain};
 use bytes::Bytes;
 use std::sync::Arc;

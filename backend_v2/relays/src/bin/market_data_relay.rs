@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             error!("❌ Market Data Relay failed: {}", e);
-            Err(Box::new(e))
+            Err(e.into())
         }
     }
 }

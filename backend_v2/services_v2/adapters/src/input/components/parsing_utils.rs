@@ -168,10 +168,7 @@ pub fn current_millis() -> u64 {
 
 /// Get current timestamp in nanoseconds
 pub fn current_nanos() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos() as u64
+    alphapulse_transport::time::safe_system_timestamp_ns()
 }
 
 /// Common subscription message builder for WebSocket venues

@@ -196,7 +196,10 @@ pub mod common;
 pub mod circuit_breaker;
 pub mod rate_limit;
 
-// Adapter implementations
+// Plugin architecture adapter implementations
+pub mod adapters;
+
+// Legacy adapter implementations
 pub mod config;
 pub mod error;
 pub mod input;
@@ -207,7 +210,7 @@ pub mod validation;
 // Re-export common adapter infrastructure
 pub use common::{
     Adapter, AdapterFactory, AdapterHealth, AdapterOutput, BaseAdapterConfig, ChannelOutput,
-    ConfigurableAdapter, ConnectionStatus, InstrumentType,
+    ConfigurableAdapter, ConnectionStatus, InstrumentType, SafeAdapter,
 };
 
 // Re-export core utilities for adapter developers
@@ -233,7 +236,10 @@ pub use validation::{
 #[cfg(feature = "strict-validation")]
 pub use validation::ValidatedAdapter;
 
-// Re-export collectors for external use
+// Re-export plugin adapters
+pub use adapters::{CoinbaseAdapterConfig, CoinbasePluginAdapter};
+
+// Re-export legacy collectors for external use
 pub use input::collectors::{
     BinanceCollector,
     CoinbaseCollector, // GeminiCollector,
@@ -244,13 +250,15 @@ pub use input::collectors::{
 // Re-export protocol types for convenience
 pub use alphapulse_types::{
     InstrumentId,
+    InvalidationReason,
     QuoteTLV,
-    StateInvalidationTLV,
     TLVType,
     TradeTLV,
     VenueId,
-    // TLVMessageBuilder, // Temporarily disabled due to codec compilation issues
 };
+
+// Re-export codec functionality
+pub use alphapulse_codec::TLVMessageBuilder;
 
 /// Architecture diagram showing adapter service data flow and component relationships
 #[cfg_attr(doc, aquamarine::aquamarine)]

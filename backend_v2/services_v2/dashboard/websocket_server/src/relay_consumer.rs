@@ -91,8 +91,10 @@ use crate::message_converter::{
     convert_tlv_to_json, create_arbitrage_opportunity, create_combined_signal,
 };
 use alphapulse_types::{
-    message::header::MessageHeader, parse_header, parse_tlv_extensions, ParseError, RelayDomain,
-    TLVExtensionEnum, MESSAGE_MAGIC,
+    message::header::MessageHeader, RelayDomain, MESSAGE_MAGIC,
+};
+use alphapulse_codec::{
+    parse_header, parse_tlv_extensions, ParseError, TLVExtensionEnum,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -736,24 +738,27 @@ impl RelayConsumer {
     /// Fast header parsing without checksum validation (MarketData optimization)
     fn parse_header_fast(data: &[u8]) -> std::result::Result<&MessageHeader, ParseError> {
         if data.len() < size_of::<MessageHeader>() {
-            return Err(ParseError::MessageTooSmall {
-                need: size_of::<MessageHeader>(),
-                got: data.len(),
-            });
+            return Err(ParseError::message_too_small(
+                size_of::<MessageHeader>(),
+                data.len(),
+                "MessageHeader parsing in dashboard"
+            ));
         }
 
         let header = Ref::<_, MessageHeader>::new(&data[..size_of::<MessageHeader>()])
-            .ok_or(ParseError::MessageTooSmall {
-                need: size_of::<MessageHeader>(),
-                got: data.len(),
-            })?
+            .ok_or_else(|| ParseError::message_too_small(
+                size_of::<MessageHeader>(),
+                data.len(),
+                "MessageHeader zerocopy conversion"
+            ))?
             .into_ref();
 
         if header.magic != MESSAGE_MAGIC {
-            return Err(ParseError::InvalidMagic {
-                expected: MESSAGE_MAGIC,
-                actual: header.magic,
-            });
+            return Err(ParseError::invalid_magic(
+                MESSAGE_MAGIC,
+                header.magic,
+                0
+            ));
         }
 
         // Skip checksum validation for MarketData performance

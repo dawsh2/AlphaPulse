@@ -1,12 +1,12 @@
 ---
 task_id: CODEC-002
-status: TODO
+status: COMPLETE
 priority: CRITICAL
 estimated_hours: 6
 assigned_branch: refactor/core-protocol-logic
 assignee: TBD
 created: 2025-08-26
-completed: null
+completed: 2025-08-26
 ---
 
 # CODEC-002: Move Core Protocol Logic to Codec
@@ -17,13 +17,13 @@ completed: null
 git branch --show-current
 
 # If you see "main", IMMEDIATELY run:
-git checkout -b refactor/core-protocol-logic
+git worktree add -b refactor/core-protocol-logic
 
 # NEVER commit directly to main!
 ```
 
 ## Status
-**Status**: TODO
+**Status**: COMPLETE
 **Priority**: CRITICAL
 **Branch**: `refactor/core-protocol-logic`
 **Estimated**: 6 hours
@@ -322,7 +322,7 @@ cargo test --package protocol_v2
 ## Git Workflow
 ```bash
 # 1. Start on your branch (ensure CODEC-001 is complete first)
-git checkout -b refactor/core-protocol-logic
+git worktree add -b refactor/core-protocol-logic
 
 # 2. Move message builder
 git add libs/alphapulse_codec/src/message_builder.rs

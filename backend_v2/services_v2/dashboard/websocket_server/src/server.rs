@@ -226,10 +226,13 @@ impl DashboardServer {
 
                 let heartbeat_msg = serde_json::json!({
                     "msg_type": "heartbeat",
-                    "timestamp": std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis(),
+                    "timestamp": match alphapulse_transport::time::safe_system_timestamp_ns_checked() {
+                        Ok(timestamp_ns) => timestamp_ns / 1_000_000, // Convert to milliseconds
+                        Err(e) => {
+                            tracing::error!("Failed to generate timestamp for heartbeat: {}", e);
+                            0
+                        }
+                    },
                     "client_count": client_manager.client_count().await
                 });
 

@@ -3,7 +3,7 @@
 //! Binary TLV format for persisting discovered pool → token mappings.
 //! Uses full 20-byte addresses for execution compatibility.
 
-use crate::tlv::fast_timestamp::fast_timestamp_ns;
+use crate::tlv::fast_timestamp_ns;
 use crate::{define_tlv, VenueId};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 

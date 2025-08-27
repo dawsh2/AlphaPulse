@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use ethers::prelude::*;
 use alphapulse_types::tlv::gas_price::GasPriceTLV;
 use alphapulse_types::tlv::types::TLVType;
-use alphapulse_types::TLVMessageBuilder;
+use alphapulse_codec::TLVMessageBuilder;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::net::UnixStream;
@@ -141,10 +141,7 @@ impl GasPriceCollector {
             if let Some(base_fee) = block.base_fee_per_gas {
                 let base_fee_gwei = (base_fee.as_u64() / 1_000_000_000) as u32;
                 let block_number = block.number.unwrap_or_default().as_u64();
-                let timestamp_ns = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos() as u64;
+                let timestamp_ns = alphapulse_transport::time::safe_system_timestamp_ns();
                 
                 // Create GasPriceTLV
                 let gas_price_tlv = GasPriceTLV::new(

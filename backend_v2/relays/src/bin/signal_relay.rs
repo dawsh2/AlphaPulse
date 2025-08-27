@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             error!("❌ Signal Relay failed: {}", e);
-            Err(Box::new(e))
+            Err(e.into())
         }
     }
 }

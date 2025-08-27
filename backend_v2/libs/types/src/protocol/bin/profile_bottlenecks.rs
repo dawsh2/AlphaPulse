@@ -1,7 +1,7 @@
 use alphapulse_types::{
     parse_header, parse_tlv_extensions,
     tlv::market_data::TradeTLV,
-    tlv::{build_message_direct, fast_timestamp::init_timestamp_system},
+    tlv::{build_message_direct, init_timestamp_system},
     InstrumentId, RelayDomain, SourceType, TLVType, VenueId,
 };
 use std::time::Instant;
@@ -101,7 +101,7 @@ fn profile_hot_path() {
         4500000000000,
         1000000,
         1,
-        protocol_v2::tlv::fast_timestamp::fast_timestamp_ns(),
+        alphapulse_types::tlv::fast_timestamp_ns(),
     );
 
     let iterations = 100_000;
@@ -144,7 +144,7 @@ fn identify_bottlenecks() {
     // 1. Timestamp generation
     let start = Instant::now();
     for _ in 0..iterations {
-        let ts = protocol_v2::tlv::fast_timestamp::fast_timestamp_ns();
+        let ts = alphapulse_types::tlv::fast_timestamp_ns();
         std::hint::black_box(ts);
     }
     let ts_time = start.elapsed();

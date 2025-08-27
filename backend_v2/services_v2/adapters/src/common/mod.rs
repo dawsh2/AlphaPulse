@@ -3,7 +3,7 @@
 //! Shared trait definitions and utilities for all AlphaPulse adapter implementations.
 //! Provides a unified interface for data collection, transformation, and output routing.
 
-use crate::{AdapterError, Result};
+use crate::{AdapterError, Result, CircuitState};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
@@ -20,14 +20,21 @@ pub trait Adapter: Send + Sync {
     /// Adapter configuration type
     type Config: Send + Sync + Clone;
 
-    /// Start the adapter data collection process
+    /// Start the adapter data collection process with safety mechanisms
     ///
     /// This method should:
-    /// 1. Establish connections to external data sources
-    /// 2. Begin continuous data collection
-    /// 3. Handle automatic reconnection on failures
-    /// 4. Transform raw data into Protocol V2 TLV messages
-    /// 5. Route messages to appropriate relay domains
+    /// 1. Initialize circuit breaker in CLOSED state
+    /// 2. Establish connections with configured timeout limits
+    /// 3. Begin continuous data collection with rate limiting
+    /// 4. Handle automatic reconnection on failures
+    /// 5. Transform raw data into Protocol V2 TLV messages
+    /// 6. Route messages to appropriate relay domains
+    /// 
+    /// # Safety Requirements
+    /// - **Circuit Breaker**: Must implement circuit breaker pattern
+    /// - **Connection Timeout**: Must respect connection_timeout_ms
+    /// - **Rate Limiting**: Must enforce rate_limit_requests_per_second if configured
+    /// - **Error Propagation**: Never silently ignore failures
     async fn start(&self) -> Result<()>;
 
     /// Stop the adapter gracefully
@@ -58,8 +65,20 @@ pub trait Adapter: Send + Sync {
     /// Process a raw message from the external source
     ///
     /// This is the core transformation function that converts
-    /// raw exchange data into Protocol V2 TLV messages
-    async fn process_message(&self, raw_data: &[u8]) -> Result<Vec<Vec<u8>>>;
+    /// raw exchange data into Protocol V2 TLV messages.
+    /// 
+    /// # Performance Requirements
+    /// - **Hot Path Latency**: Must complete in <35μs for high-frequency trading
+    /// - **Zero-Copy**: Uses buffer writes, no Vec allocations in hot path
+    /// - **Single Message Output**: Returns single TLV message to avoid allocations
+    /// 
+    /// # Arguments
+    /// * `raw_data` - Raw bytes from exchange WebSocket/API
+    /// * `output_buffer` - Pre-allocated buffer for zero-copy message construction
+    /// 
+    /// # Returns
+    /// * `Option<usize>` - Number of bytes written to output_buffer, or None if no message
+    async fn process_message(&self, raw_data: &[u8], output_buffer: &mut [u8]) -> Result<Option<usize>>;
 }
 
 /// Health status information for an adapter
@@ -83,8 +102,17 @@ pub struct AdapterHealth {
     /// Uptime since last restart
     pub uptime_seconds: u64,
 
-    /// Current latency metrics
+    /// Current latency metrics (must be <35μs for hot path)
     pub latency_ms: Option<f64>,
+
+    /// Circuit breaker status
+    pub circuit_breaker_state: CircuitState,
+
+    /// Rate limiting status
+    pub rate_limit_remaining: Option<u32>,
+
+    /// Connection timeout configuration (milliseconds)
+    pub connection_timeout_ms: u64,
 }
 
 /// Connection status for external data sources
@@ -126,7 +154,7 @@ pub enum InstrumentType {
 }
 
 /// Standard adapter configuration parameters
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BaseAdapterConfig {
     /// Unique identifier for this adapter instance
     pub adapter_id: String,
@@ -194,14 +222,43 @@ pub trait ConfigurableAdapter: Adapter {
     async fn remove_instruments(&mut self, instruments: Vec<String>) -> Result<()>;
 }
 
-/// Standard output interface for sending processed messages
+/// Trait for adapters that enforce safety mechanisms
+#[async_trait]
+pub trait SafeAdapter: Adapter {
+    /// Get circuit breaker state
+    fn circuit_breaker_state(&self) -> CircuitState;
+
+    /// Trigger circuit breaker manually (for emergency stops)
+    async fn trigger_circuit_breaker(&self) -> Result<()>;
+
+    /// Reset circuit breaker to closed state
+    async fn reset_circuit_breaker(&self) -> Result<()>;
+
+    /// Check if rate limit allows new requests
+    fn check_rate_limit(&self) -> bool;
+
+    /// Get remaining rate limit budget
+    fn rate_limit_remaining(&self) -> Option<u32>;
+
+    /// Validate connection health with timeout
+    async fn validate_connection(&self, timeout_ms: u64) -> Result<bool>;
+}
+
+/// Standard output interface for sending processed messages with zero-copy operations
 #[async_trait]
 pub trait AdapterOutput: Send + Sync {
-    /// Send a single Protocol V2 message
-    async fn send_message(&self, message: Vec<u8>) -> Result<()>;
+    /// Send a single Protocol V2 message from buffer slice
+    /// 
+    /// # Performance Requirements
+    /// - **Zero-Copy**: Sends message directly from buffer without allocation
+    /// - **Hot Path**: Must complete in <10μs for relay forwarding
+    /// 
+    /// # Arguments
+    /// * `message_data` - Pre-constructed TLV message bytes
+    async fn send_message(&self, message_data: &[u8]) -> Result<()>;
 
-    /// Send multiple messages in batch for efficiency
-    async fn send_batch(&self, messages: Vec<Vec<u8>>) -> Result<()>;
+    /// Send multiple messages from buffer slices in batch for efficiency
+    async fn send_batch(&self, messages: &[&[u8]]) -> Result<()>;
 
     /// Check if output channel is ready to accept messages
     fn is_ready(&self) -> bool;
@@ -224,17 +281,20 @@ impl ChannelOutput {
 
 #[async_trait]
 impl AdapterOutput for ChannelOutput {
-    async fn send_message(&self, message: Vec<u8>) -> Result<()> {
+    async fn send_message(&self, message_data: &[u8]) -> Result<()> {
+        // Single required allocation for async ownership across await points
+        // This is unavoidable due to Rust's async ownership model
+        let message = message_data.to_vec();
         self.sender
             .send(message)
             .await
-            .map_err(|e| AdapterError::ConfigError(format!("Failed to send message: {}", e)))?;
+            .map_err(|e| AdapterError::TLVSendFailed(format!("Channel send failed: {}", e)))?;
         Ok(())
     }
 
-    async fn send_batch(&self, messages: Vec<Vec<u8>>) -> Result<()> {
-        for message in messages {
-            self.send_message(message).await?;
+    async fn send_batch(&self, messages: &[&[u8]]) -> Result<()> {
+        for message_data in messages {
+            self.send_message(message_data).await?;
         }
         Ok(())
     }

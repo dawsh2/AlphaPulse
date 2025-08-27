@@ -576,9 +576,9 @@ mod tests {
 
         if let Err(e) = send_result {
             match e {
-                alphapulse_transport::TransportError::NotConnected(msg) => {
+                alphapulse_transport::TransportError::Connection { message, .. } => {
                     assert!(
-                        msg.contains(&test_socket_path),
+                        message.contains(&test_socket_path),
                         "Error should mention the socket path"
                     );
                 }

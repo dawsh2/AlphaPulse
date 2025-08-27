@@ -3,8 +3,7 @@
 //! The header is identical for all messages and contains routing and validation information.
 
 use super::super::{ProtocolError, RelayDomain, SourceType, MESSAGE_MAGIC};
-use crate::tlv::fast_timestamp::fast_timestamp_ns;
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::tlv::fast_timestamp_ns;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 /// Message Header (32 bytes)
@@ -165,10 +164,9 @@ pub fn current_timestamp_ns() -> u64 {
 /// Uses SystemTime::now() for perfect accuracy at the cost of ~200ns latency.
 /// Use this sparingly for critical operations requiring perfect timestamp accuracy.
 pub fn precise_timestamp_ns() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64
+    // Use safe conversion from network transport module
+    // Prevents silent truncation on overflow - will panic if timestamp overflows u64
+    alphapulse_transport::time::safe_system_timestamp_ns()
 }
 
 #[cfg(test)]

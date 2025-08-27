@@ -932,8 +932,8 @@ impl UnifiedPolygonCollector {
             sqrt_price_x96, // liquidity_after - V3 specific, now extracted properly
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
+                .map(|d| alphapulse_transport::time::safe_duration_to_ns(d))
+                .unwrap_or(0),
             log.block_number.map(|n| n.as_u64()).unwrap_or(0),
             tick, // tick_after - V3 specific, now extracted properly
             amount_in_decimals,
@@ -1069,8 +1069,8 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
+                .map(|d| alphapulse_transport::time::safe_duration_to_ns(d))
+                .unwrap_or(0),
         );
 
         debug!(
@@ -1187,8 +1187,8 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
+                .map(|d| alphapulse_transport::time::safe_duration_to_ns(d))
+                .unwrap_or(0),
         );
 
         debug!(
@@ -1227,8 +1227,8 @@ impl UnifiedPolygonCollector {
             7922816251426433759, // price_sqrt
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
+                .map(|d| alphapulse_transport::time::safe_duration_to_ns(d))
+                .unwrap_or(0),
         );
 
         debug!("📊 Tick crossing processed: tick={}", tick);
@@ -1306,8 +1306,8 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64,
+                .map(|d| alphapulse_transport::time::safe_duration_to_ns(d))
+                .unwrap_or(0),
             log.block_number.map(|n| n.as_u64()).unwrap_or(0),
         );
 

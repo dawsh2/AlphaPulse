@@ -25,7 +25,7 @@ Refactor relay system using Generic + Trait pattern to eliminate 80% code duplic
 3. **Start work**:
    ```bash
    # Never work on main!
-   git checkout -b feat/sprint-007-task-001
+   git worktree add -b feat/sprint-007-task-001
    ```
 
 4. **Check status**:

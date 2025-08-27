@@ -30,10 +30,26 @@ impl ApiCredentials {
         self
     }
 
+    /// Add a secondary token (alias for compatibility)
+    pub fn with_secret(mut self, secret: impl Into<String>) -> Self {
+        self.secondary_token = Some(secret.into());
+        self
+    }
+
     /// Add a custom header
     pub fn with_header(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.headers.insert(key.into(), value.into());
         self
+    }
+
+    /// Get primary token (compatibility accessor)
+    pub fn api_key(&self) -> &str {
+        &self.primary_token
+    }
+
+    /// Get secondary token (compatibility accessor) 
+    pub fn api_secret(&self) -> Option<&str> {
+        self.secondary_token.as_deref()
     }
 }
 
@@ -81,7 +97,7 @@ impl AuthManager {
             }
             VenueId::Polygon => {
                 // Polygon includes API key in URL
-                format!("{}?apikey={}", base_url, credentials.api_key)
+                format!("{}?apikey={}", base_url, credentials.api_key())
             }
             _ => base_url.to_string(),
         };
@@ -98,12 +114,12 @@ impl AuthManager {
                 // Add venue-specific headers
                 match venue {
                     VenueId::Binance => {
-                        headers.insert("X-MBX-APIKEY".to_string(), creds.api_key.clone());
+                        headers.insert("X-MBX-APIKEY".to_string(), creds.api_key().to_string());
                     }
                     VenueId::Coinbase => {
-                        headers.insert("CB-ACCESS-KEY".to_string(), creds.api_key.clone());
-                        if let Some(secret) = &creds.api_secret {
-                            headers.insert("CB-ACCESS-SECRET".to_string(), secret.clone());
+                        headers.insert("CB-ACCESS-KEY".to_string(), creds.api_key().to_string());
+                        if let Some(secret) = creds.api_secret() {
+                            headers.insert("CB-ACCESS-SECRET".to_string(), secret.to_string());
                         }
                     }
                     _ => {}

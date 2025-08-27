@@ -27,12 +27,12 @@ scope:
 # MANDATORY: Verify you're not on main before starting
 if [ "$(git branch --show-current)" = "main" ]; then
     echo "❌ NEVER WORK ON MAIN BRANCH!"
-    echo "Run: git checkout -b feat/relay-logic-trait"
+    echo "Run: git worktree add -b feat/relay-logic-trait"
     exit 1
 fi
 
 # Create and switch to feature branch
-git checkout -b feat/relay-logic-trait
+git worktree add -b feat/relay-logic-trait
 git branch --show-current  # Should show: feat/relay-logic-trait
 ```
 

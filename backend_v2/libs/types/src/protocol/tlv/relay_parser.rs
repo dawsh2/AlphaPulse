@@ -159,22 +159,23 @@ pub fn validate_execution_domain_fast(tlv_data: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tlv::TLVMessageBuilder;
+    // TLVMessageBuilder moved to alphapulse_codec to avoid circular dependency
     use crate::{RelayDomain, SourceType, TLVType};
 
     #[test]
     fn test_relay_tlv_parsing() {
-        // Create a message with non-standard payload size
-        let large_payload = vec![0u8; 100]; // 100 bytes instead of standard 24
-
-        let message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
-            .add_tlv_bytes(TLVType::Trade, large_payload)
-            .build();
-
-        let tlv_payload = &message[crate::message::header::MessageHeader::SIZE..];
+        // Create a TLV payload manually (without codec dependency)
+        let mut tlv_payload = Vec::new();
+        
+        // TLV header: Type=1 (Trade), Length=100
+        tlv_payload.push(1u8); // TLV Type: Trade
+        tlv_payload.push(100u8); // TLV Length: 100 bytes
+        
+        // Add 100 bytes of payload
+        tlv_payload.extend_from_slice(&vec![0u8; 100]);
 
         // This should work with relay parser (no strict size validation)
-        let tlvs = parse_tlv_extensions_for_relay(tlv_payload).unwrap();
+        let tlvs = parse_tlv_extensions_for_relay(&tlv_payload).unwrap();
         assert_eq!(tlvs.len(), 1);
         assert_eq!(tlvs[0].tlv_type, TLVType::Trade as u8);
         assert_eq!(tlvs[0].tlv_length, 100);

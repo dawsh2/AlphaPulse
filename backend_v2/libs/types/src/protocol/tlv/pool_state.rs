@@ -7,7 +7,7 @@
 use super::address::{AddressPadding, EthAddress, ZERO_PADDING};
 use super::market_data::PoolSwapTLV;
 use crate::define_tlv;
-use crate::tlv::fast_timestamp::fast_timestamp_ns;
+use crate::tlv::fast_timestamp_ns;
 use std::collections::HashMap;
 use zerocopy::AsBytes;
 
