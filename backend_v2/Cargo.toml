@@ -10,15 +10,16 @@ members = [
     "libs/service_discovery",
     "libs/state/core",
     "libs/state/market",
+    "libs/time",
     # Shared libraries
     "libs/types",
     "network",
-    "network/topology",
     "relays",
     "relays/execution_relay",
     "relays/market_data_relay",
     "relays/signal_relay",
     "services_v2/adapters",
+    "services_v2/adapters/coinbase_adapter",
     "services_v2/adapters/gas_price_collector",
     "services_v2/adapters/polygon_adapter",
     "services_v2/dashboard/websocket_server",
@@ -47,6 +48,7 @@ alphapulse-service-discovery = { path = "libs/service_discovery" }  # Package na
 alphapulse-state-core = { path = "libs/state/core" }
 alphapulse-state-market = { path = "libs/state/market" }
 # Internal libs
+alphapulse-adapter-service = { path = "services_v2/adapters" }
 alphapulse-types = { path = "libs/types" }
 anyhow = "1.0"
 

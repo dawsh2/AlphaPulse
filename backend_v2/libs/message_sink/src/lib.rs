@@ -20,7 +20,7 @@ use async_trait::async_trait;
 use std::fmt::Debug;
 use std::time::SystemTime;
 
-pub use alphapulse_network::current_timestamp_ns as fast_timestamp_ns;
+pub use torq_network::current_timestamp_ns as fast_timestamp_ns;
 pub use batch::BatchResult;
 pub use circuit_breaker::{
     CircuitBreakerConfig, CircuitBreakerSink, CircuitBreakerStats, CircuitState,
@@ -430,7 +430,7 @@ mod tests {
         assert!(!timeout_err.is_connection_error());
         assert!(timeout_err.is_recoverable());
 
-        let timestamp = alphapulse_network::safe_system_timestamp_ns_checked().unwrap_or(0);
+        let timestamp = torq_network::safe_system_timestamp_ns_checked().unwrap_or(0);
         let context = SendContext::new(100, timestamp);
         let buffer_err = SinkError::buffer_full_with_context(context);
         assert!(buffer_err.is_recoverable());

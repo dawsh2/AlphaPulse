@@ -13,9 +13,9 @@ pub use factory::{
 };
 
 use crate::hybrid::{ChannelConfig, TransportConfig};
+use crate::topology::resolution::TopologyResolver as AlphaPulseTopologyResolver;
+use crate::topology::{Actor, Node, TopologyConfig};
 use crate::{Result, Transport, TransportError};
-use alphapulse_topology::resolution::TopologyResolver as AlphaPulseTopologyResolver;
-use alphapulse_topology::{Actor, Node, TopologyConfig};
 use std::sync::Arc;
 
 /// Integration layer between topology and transport systems
@@ -192,15 +192,15 @@ impl TopologyIntegration {
     ) -> Result<SecurityRequirements> {
         // Determine security requirements based on actor type and node configuration
         let encryption_required = match actor.actor_type {
-            alphapulse_topology::ActorType::Producer => {
+            crate::topology::ActorType::Producer => {
                 // Producers handling sensitive market data may need encryption
                 false // Default to no encryption for performance
             }
-            alphapulse_topology::ActorType::Transformer => {
+            crate::topology::ActorType::Transformer => {
                 // Transformers doing trading logic may need encryption
                 true // Default to encryption for trading strategies
             }
-            alphapulse_topology::ActorType::Consumer => {
+            crate::topology::ActorType::Consumer => {
                 // Consumers writing to external systems may need encryption
                 true // Default to encryption for external communication
             }
@@ -367,7 +367,7 @@ impl Default for TopologyIntegrationBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alphapulse_topology::{Actor, ActorType};
+    use crate::topology::{Actor, ActorType};
     use std::collections::HashMap;
 
     #[test]

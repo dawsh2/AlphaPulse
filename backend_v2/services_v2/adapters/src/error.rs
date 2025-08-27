@@ -45,6 +45,17 @@ pub enum AdapterError {
     #[error("Invalid message format: {0}")]
     InvalidMessage(String),
 
+    /// Parse error from exchange data
+    #[error("Parse error for venue {venue}: {message} - {error}")]
+    ParseError {
+        /// The venue that provided the unparseable data
+        venue: VenueId,
+        /// Description of what was being parsed
+        message: String,
+        /// Underlying error message
+        error: String,
+    },
+
     /// JSON parsing error from exchange response
     #[error("Failed to parse JSON: {0}")]
     JsonParse(#[from] serde_json::Error),
@@ -75,6 +86,7 @@ pub enum AdapterError {
     },
 
     /// Protocol errors
+    /// Failed to build TLV message
     #[error("Failed to build TLV message: {0}")]
     TLVBuildFailed(String),
 
@@ -97,6 +109,10 @@ pub enum AdapterError {
     /// Configuration error in adapter settings
     #[error("Configuration error: {0}")]
     Configuration(String),
+
+    /// Feature not yet implemented
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
 
     /// Circuit breaker triggered due to repeated failures
     #[error("Circuit breaker open for venue {venue}")]

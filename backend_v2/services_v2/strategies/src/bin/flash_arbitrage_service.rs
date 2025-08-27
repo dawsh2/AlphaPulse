@@ -1,13 +1,14 @@
-use alphapulse_flash_arbitrage::{OpportunityDetector, RelayConsumer, SignalOutput};
+use alphapulse_strategies::flash_arbitrage::{OpportunityDetector, RelayConsumer, SignalOutput};
+use alphapulse_strategies::common::logging::init_strategy_logging;
 use alphapulse_state_market::PoolStateManager;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::sync::Arc;
 use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing with simple format
-    tracing_subscriber::fmt::init();
+    // Initialize standardized logging
+    init_strategy_logging("flash_arbitrage_service")?;
 
     info!("🚀 Starting Flash Arbitrage Service...");
 
@@ -42,10 +43,8 @@ async fn main() -> Result<()> {
     info!("🎯 Sending signals to Signal Relay → Dashboard");
 
     // Start consuming and analyzing pool events
-    if let Err(e) = consumer.start().await {
-        error!("Flash arbitrage service error: {}", e);
-        return Err(e);
-    }
+    consumer.start().await
+        .context("Failed to start flash arbitrage relay consumer")?;
 
     Ok(())
 }

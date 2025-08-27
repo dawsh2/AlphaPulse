@@ -362,17 +362,30 @@ mod tests {
 
         // Test adding new config
         let new_config = ChannelConfig {
+            name: "new_actor".to_string(),
             mode: TransportMode::Direct,
-            criticality: Criticality::Normal,
+            criticality: Criticality::Standard,
             reliability: Reliability::BestEffort,
-            queue_name: None,
+            default_priority: crate::Priority::Normal,
+            max_message_size: 1024 * 1024, // 1MB
+            timeout: std::time::Duration::from_secs(30),
+            retry: crate::hybrid::config::RetryConfig {
+                max_attempts: 3,
+                initial_delay: std::time::Duration::from_millis(100),
+                max_delay: std::time::Duration::from_secs(60),
+                backoff_multiplier: 2.0,
+                jitter: true,
+            },
+            circuit_breaker: None,
+            #[cfg(feature = "message-queues")]
+            mq_config: None,
         };
 
         router.set_channel_config("new_actor".to_string(), new_config.clone());
 
         let retrieved_config = router.get_channel_config("node1", "new_actor");
         assert!(retrieved_config.is_some());
-        assert_eq!(retrieved_config.unwrap().criticality, Criticality::High);
+        assert_eq!(retrieved_config.unwrap().criticality, Criticality::Standard);
 
         // Test removing config
         let removed = router.remove_channel_config("new_actor");

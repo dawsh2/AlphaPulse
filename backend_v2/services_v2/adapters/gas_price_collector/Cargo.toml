@@ -7,7 +7,7 @@ edition = "2021"
 # Protocol
 alphapulse-types = { path = "../../../libs/types" }
 codec = { path = "../../../libs/codec" }
-alphapulse-network = { path = "../../../network" }
+torq-network = { path = "../../../network" }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

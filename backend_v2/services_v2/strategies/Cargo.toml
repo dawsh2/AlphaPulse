@@ -3,9 +3,20 @@ name = "alphapulse-strategies"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["flash-arbitrage", "kraken-signals"]
+flash-arbitrage = []
+kraken-signals = []
+
+[[bin]]
+name = "flash_arbitrage_service"
+path = "src/bin/flash_arbitrage_service.rs"
+required-features = ["flash-arbitrage"]
+
 [[bin]]
 name = "kraken_signals_service"
 path = "src/bin/kraken_signals_service.rs"
+required-features = ["kraken-signals"]
 
 [dependencies]
 # Core dependencies
@@ -13,7 +24,7 @@ alphapulse-adapter-service = { path = "../adapters" }
 alphapulse-amm = { path = "../../libs/amm" }
 alphapulse-state-core = { path = "../../libs/state/core" }
 alphapulse-state-market = { path = "../../libs/state/market" }
-alphapulse-network = { path = "../../network" }
+torq-network = { path = "../../network" }
 
 # Protocol dependencies
 alphapulse-types = { workspace = true }
@@ -21,6 +32,7 @@ codec = { path = "../../libs/codec" }
 
 # Common dependencies
 anyhow = { workspace = true }
+atty = "0.2"
 dashmap = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -34,18 +46,25 @@ tracing-subscriber = { workspace = true }
 ethers = { version = "2.0", features = ["ws", "rustls"] }
 ethers-core = { workspace = true }
 ethers-signers = "2.0"
-hex = "0.4"
+hex = { workspace = true }
 rand = "0.8"
 reqwest = { workspace = true }
 rust_decimal = { workspace = true }
 rust_decimal_macros = { workspace = true }
 url = { workspace = true }
 zerocopy = "0.7"
+crc32fast = { workspace = true }
+
+# Kraken signals specific dependencies
+chrono = { workspace = true }
+# Use prometheus instead of metrics for consistency
+prometheus = { workspace = true }
+toml = { workspace = true }
 
 [dev-dependencies]
 approx = "0.5"
 criterion = { workspace = true }
-hex = "0.4"
+hex = { workspace = true }
 mockall = "0.12"
 proptest = "1.5"
 rand = "0.8"

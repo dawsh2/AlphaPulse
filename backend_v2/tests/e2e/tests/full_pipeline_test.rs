@@ -368,7 +368,7 @@ async fn test_pipeline_protocol_compliance() -> Result<()> {
         price: 4500000000000,
         amount: 100000000,
         direction: 0,
-        timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns(),
+        timestamp_ns: torq_network::time::safe_system_timestamp_ns(),
         trade_id: 12345,
     };
     

@@ -139,10 +139,10 @@ let timestamp = safe_system_timestamp_ns();
 ./scripts/migrate_unsafe_timestamps.sh
 
 # Test safe functions
-cargo test --package alphapulse-transport time::
+cargo test --package torq-network time::
 
 # Verify compilation
-cargo build --package alphapulse-transport
+cargo build --package torq-network
 ```
 
 ## Next Steps

@@ -12,6 +12,7 @@ path = "src/main.rs"
 # Core relay infrastructure with balanced features
 alphapulse-relays = { path = "..", features = ["signal-relay"] }
 alphapulse-types = { path = "../../libs/types" }
+codec = { path = "../../libs/codec" }
 
 # Error handling
 anyhow = "1.0"

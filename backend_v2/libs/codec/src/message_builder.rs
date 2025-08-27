@@ -66,9 +66,21 @@ impl TLVMessageBuilder {
         }
     }
 
-    /// Add a standard TLV (payload ≤ 255 bytes)
+    /// Add a standard TLV (payload ≤ 255 bytes) with size validation
     pub fn add_tlv<T: AsBytes>(mut self, tlv_type: TLVType, data: &T) -> Self {
         let bytes = data.as_bytes();
+        
+        // Runtime alignment validation
+        if let Some(expected_size) = tlv_type.expected_payload_size() {
+            if bytes.len() != expected_size {
+                panic!(
+                    "TLV size mismatch for {:?}: expected {} bytes, got {} bytes. \
+                    This indicates a macro-generated struct size doesn't match its TLV type definition.",
+                    tlv_type, expected_size, bytes.len()
+                );
+            }
+        }
+        
         if bytes.len() <= 255 {
             self.tlvs.push(TLVData::Standard {
                 tlv_type: tlv_type as u8,
@@ -84,8 +96,18 @@ impl TLVMessageBuilder {
         self
     }
 
-    /// Add a TLV with raw bytes slice (zero-copy friendly)
+    /// Add a TLV with raw bytes slice (zero-copy friendly) with size validation
     pub fn add_tlv_slice(mut self, tlv_type: TLVType, payload: &[u8]) -> Self {
+        // Runtime alignment validation
+        if let Some(expected_size) = tlv_type.expected_payload_size() {
+            if payload.len() != expected_size {
+                panic!(
+                    "TLV size mismatch for {:?}: expected {} bytes, got {} bytes",
+                    tlv_type, expected_size, payload.len()
+                );
+            }
+        }
+        
         if payload.len() <= 255 {
             self.tlvs.push(TLVData::Standard {
                 tlv_type: tlv_type as u8,
@@ -100,8 +122,18 @@ impl TLVMessageBuilder {
         self
     }
 
-    /// Add a TLV with raw bytes payload
+    /// Add a TLV with raw bytes payload with size validation
     pub fn add_tlv_bytes(mut self, tlv_type: TLVType, payload: Vec<u8>) -> Self {
+        // Runtime alignment validation
+        if let Some(expected_size) = tlv_type.expected_payload_size() {
+            if payload.len() != expected_size {
+                panic!(
+                    "TLV size mismatch for {:?}: expected {} bytes, got {} bytes",
+                    tlv_type, expected_size, payload.len()
+                );
+            }
+        }
+        
         if payload.len() <= 255 {
             self.tlvs.push(TLVData::Standard {
                 tlv_type: tlv_type as u8,
@@ -116,9 +148,20 @@ impl TLVMessageBuilder {
         self
     }
 
-    /// Force extended TLV format even for small payloads
+    /// Force extended TLV format even for small payloads with size validation
     pub fn add_extended_tlv<T: AsBytes>(mut self, tlv_type: TLVType, data: &T) -> Self {
         let bytes = data.as_bytes();
+        
+        // Runtime alignment validation
+        if let Some(expected_size) = tlv_type.expected_payload_size() {
+            if bytes.len() != expected_size {
+                panic!(
+                    "TLV size mismatch for {:?}: expected {} bytes, got {} bytes",
+                    tlv_type, expected_size, bytes.len()
+                );
+            }
+        }
+        
         if bytes.len() > 65535 {
             panic!(
                 "Extended TLV payload too large: {} bytes (max 65535)",

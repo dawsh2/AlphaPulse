@@ -9,14 +9,14 @@ This document consolidates the architectural improvements completed in Sprint 01
 ### 1. ✅ Relay Validation Module
 **Status**: Retained and Enhanced  
 **Location**: `relays/src/validation.rs`  
-**Decision**: The validation.rs file is NOT a remnant but a critical component providing domain-specific message validation. It has been enhanced with alphapulse_codec integration.
+**Decision**: The validation.rs file is NOT a remnant but a critical component providing domain-specific message validation. It has been enhanced with codec integration.
 
 ### 2. ✅ Full Codec Integration in Relays
 **Status**: Completed  
 **Location**: `relays/src/`  
 **Enhancements**:
 - Added `message_construction.rs` for TLVMessageBuilder integration
-- Updated `topics.rs` to properly use InstrumentId from alphapulse_codec
+- Updated `topics.rs` to properly use InstrumentId from codec
 - Enhanced `validation.rs` with codec validation functions
 - Proper TLV parsing and validation throughout relay infrastructure
 
@@ -192,7 +192,7 @@ While Sprint 013's architectural gaps have been addressed, future work includes:
 
 Sprint 013 successfully addressed the identified architectural gaps:
 1. ✅ Clarified that `validation.rs` is a critical component, not a remnant
-2. ✅ Fully integrated alphapulse_codec throughout the relays crate
+2. ✅ Fully integrated codec throughout the relays crate
 3. ✅ Demonstrated plugin architecture with CoinbasePlugin
 4. ✅ Consolidated and referenced all critical documentation
 

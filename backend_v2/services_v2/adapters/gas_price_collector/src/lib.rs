@@ -50,7 +50,8 @@ impl Default for GasPriceCollectorConfig {
 pub struct GasPriceStats {
     pub last_base_fee_gwei: u32,
     pub last_priority_fee_gwei: u32,
-    pub avg_priority_fee_gwei: f64,
+    /// Average priority fee in gwei * 1000 (3 decimal precision)
+    pub avg_priority_fee_milligwei: u64,
     pub block_number: u64,
     pub timestamp_ns: u64,
 }
@@ -84,7 +85,7 @@ impl GasPriceCollector {
         let stats = Arc::new(RwLock::new(GasPriceStats {
             last_base_fee_gwei: 30,
             last_priority_fee_gwei: config.priority_fee_gwei,
-            avg_priority_fee_gwei: config.priority_fee_gwei as f64,
+            avg_priority_fee_milligwei: (config.priority_fee_gwei as u64) * 1000,
             block_number: 0,
             timestamp_ns: 0,
         }));
@@ -149,7 +150,7 @@ impl GasPriceCollector {
             if let Some(base_fee) = block.base_fee_per_gas {
                 let base_fee_gwei = (base_fee.as_u64() / 1_000_000_000) as u32;
                 let block_number = block.number.unwrap_or_default().as_u64();
-                let timestamp_ns = alphapulse_network::time::safe_system_timestamp_ns();
+                let timestamp_ns = torq_network::time::safe_system_timestamp_ns();
 
                 // Create GasPriceTLV
                 let gas_price_tlv = GasPriceTLV::new(
@@ -168,12 +169,14 @@ impl GasPriceCollector {
                     stats.timestamp_ns = timestamp_ns;
                 }
 
+                // Copy packed field to avoid alignment issues
+                let total_gas_price_gwei = gas_price_tlv.gas_price_gwei;
                 debug!(
                     "📊 Block {}: base_fee={}gwei, priority={}gwei, total={}gwei",
                     block_number,
                     base_fee_gwei,
                     self.config.priority_fee_gwei,
-                    gas_price_tlv.gas_price_gwei
+                    total_gas_price_gwei
                 );
 
                 // Send to relay
@@ -194,12 +197,12 @@ impl GasPriceCollector {
     /// Send gas price TLV to relay via Unix socket
     async fn send_to_relay(&self, tlv: GasPriceTLV) -> Result<()> {
         // Build TLV message
-        let mut builder = TLVMessageBuilder::new(
+        let builder = TLVMessageBuilder::new(
             RelayDomain::MarketData,
-            SourceType::GasPriceCollector,
+            SourceType::MetricsCollector,
         );
 
-        builder.add_tlv(TLVType::GasPrice, &tlv);
+        let builder = builder.add_tlv(TLVType::GasPrice, &tlv);
         let message = builder.build()?;
 
         // Write to Unix socket (thread-safe)
@@ -233,8 +236,8 @@ impl GasPriceCollector {
 /// Phase 2: Priority fee calculator from DEX events
 /// This will consume the swap event stream to calculate market-driven priority fees
 pub struct PriorityFeeCalculator {
-    /// Moving average of observed priority fees
-    avg_priority_fee: RwLock<f64>,
+    /// Moving average of observed priority fees in milligwei (gwei * 1000)
+    avg_priority_fee_milligwei: RwLock<u64>,
     /// Number of samples in average
     sample_count: RwLock<usize>,
 }
@@ -242,7 +245,7 @@ pub struct PriorityFeeCalculator {
 impl PriorityFeeCalculator {
     pub fn new() -> Self {
         Self {
-            avg_priority_fee: RwLock::new(2.0), // Start with 2 gwei default
+            avg_priority_fee_milligwei: RwLock::new(2000), // Start with 2 gwei (2000 milligwei) default
             sample_count: RwLock::new(0),
         }
     }
@@ -250,14 +253,15 @@ impl PriorityFeeCalculator {
     /// Update priority fee estimate from observed transaction
     pub async fn update_from_transaction(&self, tx_gas_price: U256, block_base_fee: U256) {
         let priority_fee_wei = tx_gas_price.saturating_sub(block_base_fee);
-        let priority_fee_gwei = (priority_fee_wei.as_u64() / 1_000_000_000) as f64;
+        // Convert to milligwei (gwei * 1000) for 3 decimal precision
+        let priority_fee_milligwei = priority_fee_wei.as_u64() / 1_000_000;
 
-        // Update moving average
-        let mut avg = self.avg_priority_fee.write().await;
+        // Update moving average using integer arithmetic
+        let mut avg = self.avg_priority_fee_milligwei.write().await;
         let mut count = self.sample_count.write().await;
 
         *count += 1;
-        *avg = (*avg * (*count - 1) as f64 + priority_fee_gwei) / *count as f64;
+        *avg = ((*avg * (*count - 1) as u64) + priority_fee_milligwei) / *count as u64;
 
         debug!(
             "Updated priority fee estimate: {:.2} gwei (from {} samples)",

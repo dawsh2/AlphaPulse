@@ -41,7 +41,7 @@ blocks:  # Tasks that cannot start until this completes
   - S006-T001
   - S007-T001
 scope:  # Files/directories this task modifies
-  - "libs/alphapulse_codec/src/"
+  - "libs/codec/src/"
   - "protocol_v2/src/identifiers/"
 ---
 ```
@@ -241,7 +241,7 @@ depends_on:
 blocks:
   - S014-T001  # This can't start until we're done
 scope:
-  - "libs/alphapulse_codec/src/"
+  - "libs/codec/src/"
   - "relays/src/common/"
 ```
 
@@ -312,7 +312,7 @@ Always include in YAML frontmatter:
 - Update `blocks` field to help others understand impact
 
 ### 2. Scope Management
-- Use glob patterns for directories: `"libs/alphapulse_codec/src/*.rs"`
+- Use glob patterns for directories: `"libs/codec/src/*.rs"`
 - Be comprehensive - include test files, configs, docs
 - Check conflicts before starting work
 

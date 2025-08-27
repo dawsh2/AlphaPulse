@@ -1,0 +1,130 @@
+#+TITLE: Priority-Based Task Extraction Demo
+#+TODO: TODO NEXT IN-PROGRESS | DONE CANCELLED
+#+STARTUP: overview
+
+* User Authentication System                         :critical:security:
+  :PROPERTIES:
+  :ID:          AUTH-GOAL
+  :PRIORITY:    A
+  :END:
+  
+  Critical system for user management and access control.
+
+** TODO [#A] Database schema design                  :database:critical:
+   :PROPERTIES:
+   :ID:          AUTH-001
+   :EFFORT:      6h
+   :PRIORITY:    A
+   :END:
+   
+   Design user tables, indexes, constraints, and relationships.
+
+** TODO [#A] Authentication API endpoints            :api:critical:
+   :PROPERTIES:
+   :ID:          AUTH-002
+   :EFFORT:      8h
+   :PRIORITY:    A
+   :END:
+   
+   Design REST API for login, register, password reset.
+
+** TODO [#B] User registration implementation        :backend:
+   :PROPERTIES:
+   :ID:          AUTH-003
+   :DEPENDS:     AUTH-001 AUTH-002
+   :EFFORT:      12h
+   :PRIORITY:    B
+   :END:
+   
+   Implement full user registration with email verification.
+
+** TODO [#B] Password reset flow                     :backend:
+   :PROPERTIES:
+   :ID:          AUTH-004
+   :DEPENDS:     AUTH-001 AUTH-002
+   :EFFORT:      8h
+   :PRIORITY:    B
+   :END:
+   
+   Implement secure password reset with email tokens.
+
+** TODO [#C] Frontend login forms                    :frontend:
+   :PROPERTIES:
+   :ID:          AUTH-005
+   :DEPENDS:     AUTH-003 AUTH-004
+   :EFFORT:      6h
+   :PRIORITY:    C
+   :END:
+   
+   Create React components for authentication UI.
+
+* Security Hardening                                 :security:critical:
+  :PROPERTIES:
+  :ID:          SEC-GOAL
+  :PRIORITY:    A
+  :END:
+  
+  Critical security improvements for production readiness.
+
+** TODO [#A] Input validation framework              :security:backend:
+   :PROPERTIES:
+   :ID:          SEC-001
+   :EFFORT:      4h
+   :PRIORITY:    A
+   :END:
+   
+   Implement comprehensive input sanitization and validation.
+
+** TODO [#A] Rate limiting middleware                :security:api:
+   :PROPERTIES:
+   :ID:          SEC-002
+   :DEPENDS:     SEC-001
+   :EFFORT:      6h
+   :PRIORITY:    A
+   :END:
+   
+   Add rate limiting to prevent abuse and DoS attacks.
+
+** TODO [#B] Security audit and testing             :security:testing:
+   :PROPERTIES:
+   :ID:          SEC-003
+   :DEPENDS:     SEC-001 SEC-002
+   :EFFORT:      8h
+   :PRIORITY:    B
+   :END:
+   
+   Comprehensive security testing and vulnerability assessment.
+
+* Performance Optimization                           :performance:
+  :PROPERTIES:
+  :ID:          PERF-GOAL
+  :PRIORITY:    B
+  :END:
+
+** TODO [#B] Database query optimization             :database:performance:
+   :PROPERTIES:
+   :ID:          PERF-001
+   :EFFORT:      4h
+   :PRIORITY:    B
+   :END:
+   
+   Optimize slow queries and add appropriate indexes.
+
+** TODO [#B] API response caching                    :api:performance:
+   :PROPERTIES:
+   :ID:          PERF-002
+   :EFFORT:      6h
+   :PRIORITY:    B
+   :END:
+   
+   Implement Redis caching for frequently accessed data.
+
+** TODO [#C] Frontend bundle optimization            :frontend:performance:
+   :PROPERTIES:
+   :ID:          PERF-003
+   :DEPENDS:     PERF-001 PERF-002
+   :EFFORT:      8h
+   :PRIORITY:    C
+   :END:
+   
+   Reduce bundle size and implement code splitting.

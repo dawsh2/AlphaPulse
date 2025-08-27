@@ -46,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
     info!("📋 Configuration loaded from: {:?}", args.config);
 
     // Create adapter
-    let adapter = PolygonAdapter::new(config);
+    let adapter = PolygonAdapter::new(config)?;
 
     info!("Adapter created with ID: {}", adapter.identifier());
 

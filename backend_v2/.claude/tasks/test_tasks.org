@@ -1,0 +1,75 @@
+#+TITLE: AlphaPulse Tasks - Test File
+#+TODO: TODO NEXT IN-PROGRESS WAITING | DONE CANCELLED
+#+STARTUP: overview
+#+STARTUP: hidestars
+#+STARTUP: logdone
+
+* GOAL Post-Refactor Quality Validation               :sprint:goal:
+  :PROPERTIES:
+  :ID:          SPRINT-015
+  :TYPE:        goal
+  :TIMELINE:    [2024-01-15 Mon]--[2024-01-25 Thu]
+  :STATUS:      active
+  :END:
+  
+  Comprehensive quality validation after major refactor.
+  
+** TODO Phase 1: Core validation                      :phase:
+   :PROPERTIES:
+   :ID:          PHASE-015-1
+   :GOAL:        SPRINT-015
+   :END:
+   
+*** TODO Validate TLV structures                      :critical:codec:
+    DEADLINE: <2024-01-20 Sat>
+    :PROPERTIES:
+    :ID:          VALIDATE-001
+    :GOAL:        SPRINT-015
+    :EFFORT:      6h
+    :PRIORITY:    A
+    :PARALLEL_GROUP: validation
+    :END:
+    
+    Ensure all TLV structs have proper repr(C), AsBytes, FromBytes.
+    
+    - [ ] Check all TLV struct definitions
+    - [ ] Verify memory layout with static_assertions
+    - [ ] Test serialization round-trips
+    
+*** TODO Validate codec separation                    :critical:codec:
+    :PROPERTIES:
+    :ID:          VALIDATE-002
+    :GOAL:        SPRINT-015
+    :EFFORT:      8h
+    :PRIORITY:    A
+    :DEPENDS:     VALIDATE-001
+    :END:
+    
+    Verify libs/types contains only data, libs/codec contains only logic.
+
+** IN-PROGRESS Phase 2: Integration testing           :phase:
+   :PROPERTIES:
+   :ID:          PHASE-015-2
+   :GOAL:        SPRINT-015
+   :END:
+
+*** DONE Setup test environment                       :setup:
+    :PROPERTIES:
+    :ID:          SETUP-001
+    :GOAL:        SPRINT-015
+    :EFFORT:      2h
+    :END:
+    
+    Test environment configured successfully.
+    
+*** IN-PROGRESS Adapter pipeline validation           :integration:
+    SCHEDULED: <2024-01-16 Tue>
+    :PROPERTIES:
+    :ID:          VALIDATE-004
+    :GOAL:        SPRINT-015
+    :EFFORT:      6h
+    :DEPENDS:     SETUP-001
+    :BLOCKS:      VALIDATE-005 VALIDATE-006
+    :END:
+    
+    Validate JSON → TLV → Binary conversion pipeline.

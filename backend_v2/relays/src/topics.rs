@@ -127,9 +127,50 @@ use codec::{parse_tlv_extensions, TLVType, InstrumentId};
 use alphapulse_types::protocol::{MessageHeader, SourceType};
 use alphapulse_types::VenueId;
 use dashmap::DashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 use tracing::{debug, info, warn};
-use zerocopy::FromBytes;
+use zerocopy::{FromBytes, AsBytes};
+
+/// Simple LRU cache for InstrumentId parsing results
+struct InstrumentIdCache {
+    cache: Mutex<HashMap<Vec<u8>, InstrumentId>>,
+    max_size: usize,
+}
+
+impl InstrumentIdCache {
+    fn new(max_size: usize) -> Self {
+        Self {
+            cache: Mutex::new(HashMap::new()),
+            max_size,
+        }
+    }
+
+    fn get_or_insert<F>(&self, key: Vec<u8>, f: F) -> Option<InstrumentId> 
+    where
+        F: FnOnce() -> Option<InstrumentId>,
+    {
+        let mut cache = self.cache.lock().expect("InstrumentId cache mutex poisoned");
+        
+        if let Some(cached) = cache.get(&key) {
+            return Some(*cached);
+        }
+
+        // If cache is full, remove oldest entry (simple FIFO eviction)
+        if cache.len() >= self.max_size {
+            if let Some(first_key) = cache.keys().next().cloned() {
+                cache.remove(&first_key);
+            }
+        }
+
+        if let Some(result) = f() {
+            cache.insert(key, result);
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
 
 /// Registry for topic-based message routing
 pub struct TopicRegistry {
@@ -139,6 +180,8 @@ pub struct TopicRegistry {
     config: TopicConfig,
     /// Reverse mapping: consumer to topics
     consumer_topics: DashMap<ConsumerId, HashSet<String>>,
+    /// Cache for parsed InstrumentId results to avoid repeated deserialization
+    instrument_cache: InstrumentIdCache,
 }
 
 impl TopicRegistry {
@@ -148,6 +191,7 @@ impl TopicRegistry {
             topics: DashMap::new(),
             config: config.clone(),
             consumer_topics: DashMap::new(),
+            instrument_cache: InstrumentIdCache::new(1000), // Cache up to 1000 InstrumentIds
         };
 
         // Initialize available topics
@@ -292,6 +336,7 @@ impl TopicRegistry {
         })?;
 
         // Look for TLVs that might contain instrument IDs
+        let mut offset = 0;
         for tlv in tlvs {
             let (tlv_type, tlv_data) = match tlv {
                 codec::TLVExtensionEnum::Standard(std_tlv) => {
@@ -312,23 +357,54 @@ impl TopicRegistry {
                         // Extract the InstrumentId bytes
                         let instrument_bytes = &tlv_data[0..InstrumentId::SIZE];
 
-                        // Deserialize using zerocopy
-                        let instrument_id =
-                            InstrumentId::read_from(instrument_bytes).ok_or_else(|| {
-                                RelayError::Validation("Failed to parse InstrumentId".to_string())
-                            })?;
+                        // Add alignment validation for better error diagnostics
+                        if instrument_bytes.as_ptr() as usize % std::mem::align_of::<InstrumentId>() != 0 {
+                            warn!("InstrumentId bytes may be misaligned at offset {}, using read_from for compatibility", offset);
+                        }
 
-                        // Get the venue from the InstrumentId
-                        let venue_id = instrument_id.venue().map_err(|e| {
-                            RelayError::Validation(format!("Invalid venue: {:?}", e))
+                        // Use cached deserialization for performance optimization
+                        let cache_key = instrument_bytes.to_vec();
+                        let instrument_id = self.instrument_cache.get_or_insert(cache_key, || {
+                            InstrumentId::read_from(instrument_bytes)
+                        }).ok_or_else(|| {
+                            let tlv_type_name = TLVType::try_from(tlv_type)
+                                .map(|t| format!("{:?}", t))
+                                .unwrap_or_else(|_| format!("Unknown({})", tlv_type));
+                            RelayError::Validation(format!(
+                                "Failed to deserialize InstrumentId from TLV type {} at offset {} (expected {} bytes, got {} bytes)",
+                                tlv_type_name, offset, InstrumentId::SIZE, tlv_data.len()
+                            ))
                         })?;
 
-                        // Convert VenueId to string for topic routing
-                        let venue = self.venue_id_to_string(venue_id);
+                        // Get the venue from the InstrumentId with enhanced error context
+                        let venue_id_raw = instrument_id.venue; // Copy packed field to avoid unaligned reference
+                        let codec_venue_id = instrument_id.venue().map_err(|e| {
+                            RelayError::Validation(format!(
+                                "Invalid venue in InstrumentId from TLV type {} at offset {}: {:?} (venue_id={})", 
+                                TLVType::try_from(tlv_type)
+                                    .map(|t| format!("{:?}", t))
+                                    .unwrap_or_else(|_| format!("Unknown({})", tlv_type)),
+                                offset,
+                                e,
+                                venue_id_raw
+                            ))
+                        })?;
+
+                        // Convert codec VenueId to string using proper mapping
+                        let venue = self.codec_venue_to_string(codec_venue_id);
+                        debug!("Successfully extracted venue '{}' from InstrumentId in TLV type {} at offset {}", 
+                               venue, TLVType::try_from(tlv_type)
+                                   .map(|t| format!("{:?}", t))
+                                   .unwrap_or_else(|_| format!("Unknown({})", tlv_type)),
+                               offset);
                         return Ok(venue);
                     }
                 }
-                _ => continue,
+                _ => {
+                    // Update offset for next TLV
+                    offset += 4 + tlv_data.len(); // TLV header (4 bytes) + payload
+                    continue;
+                }
             }
         }
 
@@ -337,13 +413,52 @@ impl TopicRegistry {
         ))
     }
 
-    /// Convert VenueId to string for topic routing
+    /// Convert codec::VenueId to string for topic routing
     ///
     /// Uses the proper VenueId enum from codec to get
     /// accurate venue names instead of heuristic decoding.
     ///
     /// # Arguments
     /// * `venue_id` - VenueId enum from codec
+    ///
+    /// # Returns
+    /// * String representation of the venue for topic routing
+    fn codec_venue_to_string(&self, venue_id: codec::VenueId) -> String {
+        // Use the actual VenueId variant to determine the venue string
+        match venue_id {
+            // Traditional Finance
+            codec::VenueId::NYSE => "nyse",
+            codec::VenueId::NASDAQ => "nasdaq",
+            codec::VenueId::LSE => "lse",
+
+            // Crypto CEX
+            codec::VenueId::Binance => "binance",
+            codec::VenueId::Kraken => "kraken",
+            codec::VenueId::Coinbase => "coinbase",
+
+            // Blockchain Networks
+            codec::VenueId::Ethereum => "ethereum",
+            codec::VenueId::Polygon => "polygon",
+            codec::VenueId::BinanceSmartChain => "bsc",
+            codec::VenueId::Arbitrum => "arbitrum",
+
+            // DeFi Protocols
+            codec::VenueId::UniswapV2 => "uniswap_v2",
+            codec::VenueId::UniswapV3 => "uniswap_v3",
+            codec::VenueId::SushiSwap => "sushiswap",
+            codec::VenueId::Curve => "curve",
+            codec::VenueId::QuickSwap => "quickswap",
+            codec::VenueId::PancakeSwap => "pancakeswap",
+        }
+        .to_string()
+    }
+
+    /// Convert legacy alphapulse_types::VenueId to string for topic routing  
+    ///
+    /// Kept for compatibility with legacy code paths that use alphapulse_types::VenueId
+    ///
+    /// # Arguments
+    /// * `venue_id` - VenueId enum from alphapulse_types
     ///
     /// # Returns
     /// * String representation of the venue for topic routing

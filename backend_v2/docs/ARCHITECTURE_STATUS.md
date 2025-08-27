@@ -22,7 +22,7 @@ The AlphaPulse backend_v2 architecture has been successfully aligned with the ta
 
 ### ✅ Protocol V2 Implementation
 - **Status**: PRODUCTION READY
-- **Location**: `libs/types/`, `libs/alphapulse_codec/`
+- **Location**: `libs/types/`, `libs/codec/`
 - **Performance**: 
   - Message construction: >1M msg/s
   - Message parsing: >1.6M msg/s
@@ -66,7 +66,7 @@ The AlphaPulse backend_v2 architecture has been successfully aligned with the ta
 backend_v2/
 ├── libs/                       # ✅ Shared libraries
 │   ├── types/                  # ✅ Protocol V2 types
-│   ├── alphapulse_codec/       # ✅ TLV codec
+│   ├── codec/       # ✅ TLV codec
 │   ├── amm/                    # ✅ AMM mathematics
 │   ├── execution/              # ✅ Execution utilities
 │   ├── mev/                    # ✅ MEV protection

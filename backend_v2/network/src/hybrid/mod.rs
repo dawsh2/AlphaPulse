@@ -1,5 +1,15 @@
 //! Hybrid Transport Module
 //!
+//! ## Consolidation Note
+//!
+//! This module contains functionality originally from the `alphapulse-transport`
+//! crate, consolidated into the unified `torq-network` crate. All original APIs
+//! are preserved for backward compatibility.
+//!
+//! **Migration**: Replace `use alphapulse_transport::*` with `use torq_network::hybrid::*`
+//!
+//! ## Overview
+//!
 //! Provides hybrid transport capabilities that can route messages through
 //! either direct network transport or message queues based on configuration
 //! and channel requirements.
@@ -351,7 +361,7 @@ mod tests {
             channels: HashMap::new(),
             routes: Vec::new(),
             enable_bridge: false,
-            bridge: BridgeConfig::default(),
+            bridge: crate::hybrid::config::BridgeConfig::default(),
         };
 
         assert!(config.validate().is_ok());

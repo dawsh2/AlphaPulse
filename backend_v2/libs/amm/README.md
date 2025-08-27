@@ -1,3 +1,5 @@
+// TODO: When we can run as a modular mono, this code should be moved to the execution module. 
+
 # AlphaPulse AMM Library
 
 Mathematics and pool interfaces for Automated Market Makers including Uniswap V2/V3, SushiSwap, and other DEX protocols.

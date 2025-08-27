@@ -1,6 +1,6 @@
 //! Performance benchmarks for message processing
 
-use alphapulse_protocol_v2::{InstrumentId, TLVHeader, TLVMessage, TLVType, VenueId};
+use codec::{InstrumentId, TLVHeader, TLVMessage, TLVType, VenueId};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use serde_json::json;
 
@@ -135,6 +135,8 @@ fn bench_decimal_conversion(c: &mut Criterion) {
 
 // Test structures
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(zerocopy::AsBytes, zerocopy::FromBytes, zerocopy::FromZeroes)]
+#[repr(C)]
 struct TradeTLV {
     venue: VenueId,
     instrument_id: InstrumentId,
@@ -159,7 +161,7 @@ impl TradeTLV {
 
         TLVMessage {
             header: TLVHeader {
-                magic: 0xAA55AA55,
+                magic: 0xDEADBEEF, // Protocol V2 standard magic number
                 tlv_type: TLVType::Trade,
                 payload_len: payload.len() as u8,
                 checksum,

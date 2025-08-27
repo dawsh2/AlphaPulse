@@ -54,7 +54,7 @@ use tokio::time::timeout;
 use tracing::{debug, error, info, warn};
 use url::Url;
 
-use crate::detector::ArbitrageOpportunity;
+use crate::flash_arbitrage::detector::ArbitrageOpportunity;
 
 /// Executor configuration optimized for high-performance execution
 #[derive(Debug, Clone)]

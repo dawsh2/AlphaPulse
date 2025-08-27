@@ -13,10 +13,14 @@ path = "src/bin/polygon_adapter.rs"
 # Core adapter library with shared traits
 alphapulse-adapter-service = { path = "../" }
 
-# Protocol dependencies
+# Protocol dependencies  
 alphapulse-types = { workspace = true }
 codec = { workspace = true }
 alphapulse-dex = { workspace = true }
+
+# Pool discovery and state management
+alphapulse-state-core = { workspace = true }
+alphapulse-state-market = { workspace = true }
 
 # Web3 for Polygon RPC
 web3 = { workspace = true }
@@ -42,6 +46,9 @@ hex = { workspace = true }
 dashmap = { workspace = true }
 memmap2 = { workspace = true }
 chrono = { workspace = true }
+once_cell = "1.0"
+futures-util = "0.3"
+zerocopy = { workspace = true }
 
 # Configuration
 toml = { workspace = true }

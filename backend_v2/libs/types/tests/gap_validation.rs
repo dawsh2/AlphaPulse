@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use alphapulse_types::{InstrumentId, InvalidationReason, QuoteTLV, VenueId};
-    use alphapulse_network::time::safe_system_timestamp_ns;
+    use alphapulse_time::safe_system_timestamp_ns;
 
     #[test]
     fn test_gap_001_tlv_types_accessible() {

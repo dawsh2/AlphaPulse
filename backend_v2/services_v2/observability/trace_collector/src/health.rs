@@ -317,7 +317,7 @@ impl HealthReporter {
 
 /// Get current timestamp in nanoseconds
 fn current_timestamp_ns() -> u64 {
-    alphapulse_network::time::safe_system_timestamp_ns()
+    torq_network::time::safe_system_timestamp_ns()
 }
 
 #[cfg(test)]

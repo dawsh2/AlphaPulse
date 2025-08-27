@@ -40,7 +40,7 @@ This is the **culmination sprint** that depends on ALL major refactoring sprints
 
 ### Three-Layer Philosophy
 1. **The Data (`libs/types`)**: Pure data structures - system vocabulary
-2. **The Rules (`libs/alphapulse_codec`)**: Protocol logic - system grammar  
+2. **The Rules (`libs/codec`)**: Protocol logic - system grammar  
 3. **The Behavior**: Active components using types+codec
 
 ### Target Directory Structure
@@ -48,7 +48,7 @@ This is the **culmination sprint** that depends on ALL major refactoring sprints
 alphapulse_backend_v2/
 ├── libs/                 # Core shared libraries - the "foundation"
 │   ├── types/            # Pure data structs/enums (TradeTLV, PoolInfo)
-│   ├── alphapulse_codec/ # Protocol logic (parsing, building, validation)
+│   ├── codec/ # Protocol logic (parsing, building, validation)
 │   ├── health_check/     # Shared health check utilities
 │   └── config/           # Configuration loading and macros
 ├── network/              # Mycelium transport - handles bytes only

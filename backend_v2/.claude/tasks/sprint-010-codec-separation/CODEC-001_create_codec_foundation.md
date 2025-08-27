@@ -9,7 +9,7 @@ created: 2025-08-26
 completed: null
 ---
 
-# CODEC-001: Create libs/alphapulse_codec Foundation
+# CODEC-001: Create libs/codec Foundation
 
 ## 🔴 CRITICAL INSTRUCTIONS
 ```bash
@@ -29,10 +29,10 @@ git worktree add -b refactor/codec-foundation
 **Estimated**: 4 hours
 
 ## Problem Statement
-Create the foundation for `libs/alphapulse_codec` - the new home for protocol rules and logic. This will contain the "grammar" of the AlphaPulse system: encoding/decoding rules, message builders, and protocol constants.
+Create the foundation for `libs/codec` - the new home for protocol rules and logic. This will contain the "grammar" of the AlphaPulse system: encoding/decoding rules, message builders, and protocol constants.
 
 ## Acceptance Criteria
-- [ ] New `libs/alphapulse_codec` crate created with proper Cargo.toml
+- [ ] New `libs/codec` crate created with proper Cargo.toml
 - [ ] Bijective InstrumentId system moved from protocol_v2
 - [ ] TLVType registry and constants moved from protocol_v2
 - [ ] Core protocol constants (MESSAGE_MAGIC, etc.) moved
@@ -44,7 +44,7 @@ Create the foundation for `libs/alphapulse_codec` - the new home for protocol ru
 
 ### New Crate Structure
 ```
-libs/alphapulse_codec/
+libs/codec/
 ├── Cargo.toml           # New crate configuration
 ├── src/
 │   ├── lib.rs          # Main exports and module organization
@@ -57,10 +57,10 @@ libs/alphapulse_codec/
 
 ### Files to Create
 
-#### libs/alphapulse_codec/Cargo.toml
+#### libs/codec/Cargo.toml
 ```toml
 [package]
-name = "alphapulse_codec"
+name = "codec"
 version = "0.1.0"
 edition = "2021"
 description = "AlphaPulse protocol codec - encoding/decoding rules and message construction"
@@ -76,7 +76,7 @@ zerocopy = { version = "0.7", features = ["derive"] }
 criterion = "0.5"
 ```
 
-#### libs/alphapulse_codec/src/lib.rs
+#### libs/codec/src/lib.rs
 ```rust
 //! AlphaPulse Protocol Codec
 //!
@@ -118,7 +118,7 @@ pub use constants::*;
 
 #### Step 2: Move Bijective InstrumentId System (1.5 hours)
 ```rust
-// COPY from protocol_v2/src/identifiers/ to libs/alphapulse_codec/src/instrument_id.rs
+// COPY from protocol_v2/src/identifiers/ to libs/codec/src/instrument_id.rs
 
 /// Bijective instrument identifier system
 /// Self-describing IDs that can be reversed to extract venue and asset info
@@ -149,7 +149,7 @@ mod tests {
 
 #### Step 3: Move TLV Type Registry (1 hour)
 ```rust
-// COPY from protocol_v2/src/tlv/types.rs to libs/alphapulse_codec/src/tlv_types.rs
+// COPY from protocol_v2/src/tlv/types.rs to libs/codec/src/tlv_types.rs
 
 /// Official TLV type registry for AlphaPulse protocol
 #[repr(u16)]
@@ -177,7 +177,7 @@ pub struct TlvTypeRegistry {
 
 #### Step 4: Move Protocol Constants (0.5 hours)
 ```rust
-// COPY from protocol_v2/src/constants.rs to libs/alphapulse_codec/src/constants.rs
+// COPY from protocol_v2/src/constants.rs to libs/codec/src/constants.rs
 
 /// Protocol magic number for message headers
 pub const MESSAGE_MAGIC: u32 = 0xDEADBEEF;
@@ -192,7 +192,7 @@ pub const MAX_MESSAGE_SIZE: usize = 1024 * 1024; // 1MB
 
 #### Unit Tests (White-Box Testing)
 ```rust
-// libs/alphapulse_codec/src/instrument_id.rs
+// libs/codec/src/instrument_id.rs
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,8 +220,8 @@ mod tests {
 
 #### Integration Tests (Black-Box Testing)
 ```rust
-// libs/alphapulse_codec/tests/codec_tests.rs
-use alphapulse_codec::{InstrumentId, TLVType};
+// libs/codec/tests/codec_tests.rs
+use codec::{InstrumentId, TLVType};
 
 #[test]
 fn test_codec_public_api() {
@@ -237,13 +237,13 @@ fn test_codec_public_api() {
 ### Testing Instructions
 ```bash
 # Test new codec crate
-cargo test --package alphapulse_codec
+cargo test --package codec
 
 # Test integration with types
-cargo test --package alphapulse_codec --test codec_tests
+cargo test --package codec --test codec_tests
 
 # Benchmark performance (ensure no regression)
-cargo bench --package alphapulse_codec
+cargo bench --package codec
 
 # Verify workspace builds
 cargo build --workspace
@@ -255,26 +255,26 @@ cargo build --workspace
 git worktree add -b refactor/codec-foundation
 
 # 2. Create crate structure first
-git add libs/alphapulse_codec/Cargo.toml libs/alphapulse_codec/src/lib.rs
-git commit -m "feat: create libs/alphapulse_codec foundation crate"
+git add libs/codec/Cargo.toml libs/codec/src/lib.rs
+git commit -m "feat: create libs/codec foundation crate"
 
 # 3. Move InstrumentId system
-git add libs/alphapulse_codec/src/instrument_id.rs
+git add libs/codec/src/instrument_id.rs
 git commit -m "refactor: move bijective InstrumentId system to codec crate"
 
 # 4. Move TLV types and constants
-git add libs/alphapulse_codec/src/tlv_types.rs libs/alphapulse_codec/src/constants.rs
+git add libs/codec/src/tlv_types.rs libs/codec/src/constants.rs
 git commit -m "refactor: move TLV type registry and constants to codec crate"
 
 # 5. Push and create PR
 git push origin refactor/codec-foundation
-gh pr create --title "CODEC-001: Create libs/alphapulse_codec foundation" \
+gh pr create --title "CODEC-001: Create libs/codec foundation" \
              --body "Creates new codec crate with InstrumentId, TLV types, and constants"
 ```
 
 ## Completion Checklist
 - [ ] Working on correct branch (not main)
-- [ ] New libs/alphapulse_codec crate created
+- [ ] New libs/codec crate created
 - [ ] InstrumentId system moved and working identically
 - [ ] TLV type registry moved and working identically
 - [ ] Protocol constants moved and accessible

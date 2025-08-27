@@ -38,8 +38,8 @@ impl HybridTransport {
         }
     }
 
-    pub fn with_tcp(mut self) -> Self {
-        self.tcp = Some(TcpTransport);
+    pub fn with_tcp(mut self, config: crate::network::TcpConfig) -> Self {
+        self.tcp = Some(crate::network::TcpNetworkTransport::from_config(config));
         self
     }
 

@@ -1011,110 +1011,112 @@ impl PoolSyncTLV {
     // Legacy TLV message methods removed - use Protocol V2 TLVMessageBuilder instead
 }
 
-/// Pool Mint (liquidity add) event TLV structure
-///
-/// Records when liquidity providers add liquidity to a pool
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
-pub struct PoolMintTLV {
-    // u128 fields first (16-byte aligned) - 48 bytes
-    pub liquidity_delta: u128, // Liquidity added (native precision)
-    pub amount0: u128,         // Token0 deposited (native precision)
-    pub amount1: u128,         // Token1 deposited (native precision)
-
-    // u64 fields (8-byte aligned) - 8 bytes
-    pub timestamp_ns: u64, // Nanoseconds since epoch
-
-    // i32 fields (4-byte aligned) - 8 bytes
-    pub tick_lower: i32, // Lower tick boundary (for concentrated liquidity)
-    pub tick_upper: i32, // Upper tick boundary
-
-    // u16 fields (2-byte aligned) - 2 bytes
-    pub venue: u16, // NOT VenueId enum! Direct u16 for zero-copy
-
-    // u8 fields (1-byte aligned) - 2 bytes
-    pub token0_decimals: u8, // Decimals for token0 (e.g., WMATIC=18)
-    pub token1_decimals: u8, // Decimals for token1 (e.g., USDC=6)
-
-    // Address fields (20 bytes + 12 padding each) - 128 bytes total
-    pub pool_address: [u8; 20],         // Ethereum pool contract address
-    pub pool_address_padding: [u8; 12], // Padding for alignment
-    pub provider_addr: [u8; 20],        // LP provider address
-    pub provider_padding: [u8; 12],     // Padding for alignment
-    pub token0_addr: [u8; 20],          // Token0 address
-    pub token0_padding: [u8; 12],       // Padding for alignment
-    pub token1_addr: [u8; 20],          // Token1 address
-    pub token1_padding: [u8; 12],       // Padding for alignment
-
-    // EXPLICIT PADDING - DO NOT DELETE!
-    pub _padding: [u8; 12], // Required for alignment to 208 bytes
-                            // Total: 208 bytes (13 × 16) ✅
+// Pool Mint (liquidity add) event TLV using macro for consistent alignment
+define_tlv_with_padding! {
+    /// Pool Mint (liquidity add) event TLV structure - 208 bytes
+    ///
+    /// Records when liquidity providers add liquidity to a pool
+    PoolMintTLV {
+        size: 208,
+        u128: {
+            liquidity_delta: u128,  // Liquidity added (native precision)
+            amount0: u128,          // Token0 deposited (native precision)
+            amount1: u128           // Token1 deposited (native precision)
+        }
+        u64: {
+            timestamp_ns: u64       // Nanoseconds since epoch
+        }
+        u32: {
+            tick_lower: i32,        // Lower tick boundary (for concentrated liquidity) - signed
+            tick_upper: i32         // Upper tick boundary - signed
+        }
+        u16: {
+            venue: u16              // NOT VenueId enum! Direct u16 for zero-copy
+        }
+        u8: {
+            token0_decimals: u8,    // Decimals for token0 (e.g., WMATIC=18)
+            token1_decimals: u8,    // Decimals for token1 (e.g., USDC=6)
+            _padding: [u8; 12]      // Required for alignment to 208 bytes
+        }
+        special: {
+            pool_address: EthAddress,           // Ethereum pool contract address (20 bytes)
+            pool_address_padding: AddressPadding, // Padding for alignment (12 bytes)
+            provider_addr: EthAddress,          // LP provider address (20 bytes)
+            provider_padding: AddressPadding,   // Padding for alignment (12 bytes)
+            token0_addr: EthAddress,            // Token0 address (20 bytes)
+            token0_padding: AddressPadding,     // Padding for alignment (12 bytes)
+            token1_addr: EthAddress,            // Token1 address (20 bytes)
+            token1_padding: AddressPadding      // Padding for alignment (12 bytes)
+        }
+    }
 }
 
-/// Pool Burn (liquidity remove) event TLV structure
-///
-/// Records when liquidity providers remove liquidity from a pool
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
-pub struct PoolBurnTLV {
-    // u128 fields first (16-byte aligned) - 48 bytes
-    pub liquidity_delta: u128, // Liquidity removed (native precision)
-    pub amount0: u128,         // Token0 withdrawn (native precision)
-    pub amount1: u128,         // Token1 withdrawn (native precision)
-
-    // u64 fields (8-byte aligned) - 8 bytes
-    pub timestamp_ns: u64, // Nanoseconds since epoch
-
-    // i32 fields (4-byte aligned) - 8 bytes
-    pub tick_lower: i32, // Lower tick boundary
-    pub tick_upper: i32, // Upper tick boundary
-
-    // u16 fields (2-byte aligned) - 2 bytes
-    pub venue: u16, // NOT VenueId enum! Direct u16 for zero-copy
-
-    // u8 fields (1-byte aligned) - 2 bytes
-    pub token0_decimals: u8, // Decimals for token0 (e.g., WMATIC=18)
-    pub token1_decimals: u8, // Decimals for token1 (e.g., USDC=6)
-
-    // Address fields (20 bytes + 12 padding each) - 128 bytes total
-    pub pool_address: [u8; 20],         // Ethereum pool contract address
-    pub pool_address_padding: [u8; 12], // Padding for alignment
-    pub provider_addr: [u8; 20],        // LP provider address
-    pub provider_padding: [u8; 12],     // Padding for alignment
-    pub token0_addr: [u8; 20],          // Token0 address
-    pub token0_padding: [u8; 12],       // Padding for alignment
-    pub token1_addr: [u8; 20],          // Token1 address
-    pub token1_padding: [u8; 12],       // Padding for alignment
-
-    // EXPLICIT PADDING - DO NOT DELETE!
-    pub _padding: [u8; 12], // Required for alignment to 208 bytes
-                            // Total: 208 bytes (13 × 16) ✅
+// Pool Burn (liquidity remove) event TLV using macro for consistent alignment
+define_tlv_with_padding! {
+    /// Pool Burn (liquidity remove) event TLV structure - 208 bytes
+    ///
+    /// Records when liquidity providers remove liquidity from a pool
+    PoolBurnTLV {
+        size: 208,
+        u128: {
+            liquidity_delta: u128,  // Liquidity removed (native precision)
+            amount0: u128,          // Token0 withdrawn (native precision)
+            amount1: u128           // Token1 withdrawn (native precision)
+        }
+        u64: {
+            timestamp_ns: u64       // Nanoseconds since epoch
+        }
+        u32: {
+            tick_lower: i32,        // Lower tick boundary - signed
+            tick_upper: i32         // Upper tick boundary - signed
+        }
+        u16: {
+            venue: u16              // NOT VenueId enum! Direct u16 for zero-copy
+        }
+        u8: {
+            token0_decimals: u8,    // Decimals for token0 (e.g., WMATIC=18)
+            token1_decimals: u8,    // Decimals for token1 (e.g., USDC=6)
+            _padding: [u8; 12]      // Required for alignment to 208 bytes
+        }
+        special: {
+            pool_address: EthAddress,           // Ethereum pool contract address (20 bytes)
+            pool_address_padding: AddressPadding, // Padding for alignment (12 bytes)
+            provider_addr: EthAddress,          // LP provider address (20 bytes)
+            provider_padding: AddressPadding,   // Padding for alignment (12 bytes)
+            token0_addr: EthAddress,            // Token0 address (20 bytes)
+            token0_padding: AddressPadding,     // Padding for alignment (12 bytes)
+            token1_addr: EthAddress,            // Token1 address (20 bytes)
+            token1_padding: AddressPadding      // Padding for alignment (12 bytes)
+        }
+    }
 }
 
-/// Pool Tick crossing event TLV structure
-///
-/// Records when price crosses tick boundaries (important for concentrated liquidity)
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, AsBytes, FromBytes, FromZeroes)]
-pub struct PoolTickTLV {
-    // u64/i64 fields first (8-byte aligned) - 24 bytes
-    pub liquidity_net: i64, // Net liquidity change at this tick
-    pub price_sqrt: u64,    // Square root price (X96 format)
-    pub timestamp_ns: u64,  // Nanoseconds since epoch
-
-    // i32 fields (4-byte aligned) - 4 bytes
-    pub tick: i32, // The tick that was crossed
-
-    // u16 fields (2-byte aligned) - 2 bytes
-    pub venue: u16, // NOT VenueId enum! Direct u16 for zero-copy
-
-    // Address fields (20 bytes + 12 padding) - 32 bytes total
-    pub pool_address: [u8; 20],         // Ethereum pool contract address
-    pub pool_address_padding: [u8; 12], // Padding for alignment
-
-    // EXPLICIT PADDING - DO NOT DELETE!
-    pub _padding: [u8; 2], // Required for alignment to 64 bytes
-                           // Total: 64 bytes (4 × 16) ✅
+// Pool Tick crossing event TLV using macro for consistent alignment
+define_tlv_with_padding! {
+    /// Pool Tick crossing event TLV structure - 64 bytes
+    ///
+    /// Records when price crosses tick boundaries (important for concentrated liquidity)
+    PoolTickTLV {
+        size: 64,
+        u64: {
+            liquidity_net: i64,  // Net liquidity change at this tick (signed)
+            price_sqrt: u64,     // Square root price (X96 format)
+            timestamp_ns: u64    // Nanoseconds since epoch
+        }
+        u32: {
+            tick: i32            // The tick that was crossed (signed)
+        }
+        u16: {
+            venue: u16           // NOT VenueId enum! Direct u16 for zero-copy
+        }
+        u8: {
+            _padding: [u8; 2]    // Required for alignment to 64 bytes
+        }
+        special: {
+            pool_address: EthAddress,           // Ethereum pool contract address (20 bytes)
+            pool_address_padding: AddressPadding // Padding for alignment (12 bytes)
+        }
+    }
 }
 
 impl PoolMintTLV {
@@ -1158,18 +1160,7 @@ impl PoolMintTLV {
     }
 
     // to_bytes() method DELETED - use zerocopy's AsBytes trait instead
-
-    /// Deserialize from binary format
-    /// Parse from bytes using zero-copy
-    pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        if data.len() < std::mem::size_of::<Self>() {
-            return Err("Data too short for PoolMintTLV".to_string());
-        }
-
-        use zerocopy::Ref;
-        let tlv_ref = Ref::<_, Self>::new(data).ok_or("Failed to parse PoolMintTLV from bytes")?;
-        Ok(*tlv_ref.into_ref())
-    }
+    // from_bytes() method is provided by the macro
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
 }
@@ -1215,17 +1206,7 @@ impl PoolBurnTLV {
     }
 
     // to_bytes() method DELETED - use zerocopy's AsBytes trait instead
-
-    /// Parse from bytes using zero-copy
-    pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        if data.len() < std::mem::size_of::<Self>() {
-            return Err("Data too short for PoolBurnTLV".to_string());
-        }
-
-        use zerocopy::Ref;
-        let tlv_ref = Ref::<_, Self>::new(data).ok_or("Failed to parse PoolBurnTLV from bytes")?;
-        Ok(*tlv_ref.into_ref())
-    }
+    // from_bytes() method is provided by the macro
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
 }
@@ -1253,17 +1234,7 @@ impl PoolTickTLV {
     }
 
     // to_bytes() method DELETED - use zerocopy's AsBytes trait instead
-
-    /// Parse from bytes using zero-copy
-    pub fn from_bytes(data: &[u8]) -> Result<Self, String> {
-        if data.len() < std::mem::size_of::<Self>() {
-            return Err("Data too short for PoolTickTLV".to_string());
-        }
-
-        use zerocopy::Ref;
-        let tlv_ref = Ref::<_, Self>::new(data).ok_or("Failed to parse PoolTickTLV from bytes")?;
-        Ok(*tlv_ref.into_ref())
-    }
+    // from_bytes() method is provided by the macro
 
     // Legacy to_tlv_message removed - use Protocol V2 TLVMessageBuilder instead
 }

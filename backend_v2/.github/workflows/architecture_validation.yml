@@ -1,0 +1,91 @@
+name: Architecture Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  # Run daily to catch gradual architectural drift
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  validate-architecture:
+    name: Validate Architecture Rules
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
+    
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-git-
+    
+    - name: Cache target directory
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-target-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-target-
+    
+    - name: Run Architecture Validation Tests
+      run: |
+        cd tests/architecture_validation
+        cargo run --release
+      env:
+        RUST_BACKTRACE: 1
+    
+    - name: Upload validation report
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: architecture-violations
+        path: tests/architecture_validation/violations.log
+    
+    - name: Comment PR with violations
+      if: failure() && github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const violations = fs.readFileSync('tests/architecture_validation/violations.log', 'utf8');
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: `## ❌ Architecture Validation Failed\n\n<details><summary>Click to see violations</summary>\n\n\`\`\`\n${violations}\n\`\`\`\n\n</details>\n\nPlease fix these architectural violations before merging.`
+          });
+    
+    - name: Run as non-blocking check (warning mode)
+      if: github.event_name == 'pull_request'
+      continue-on-error: true
+      run: |
+        echo "::warning::Architecture validation found issues. These should be addressed but won't block the PR."
+    
+    # Additional checks for critical violations
+    - name: Check for critical violations
+      run: |
+        cd tests/architecture_validation
+        # Run with strict mode for critical violations only
+        cargo run --release -- --critical-only || exit 1
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'

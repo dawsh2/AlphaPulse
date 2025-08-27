@@ -9,7 +9,7 @@ Transform protocol_v2 from a monolithic communication stack into three focused, 
 
 ```
 libs/types/              ← The "What": Pure data structures  
-libs/alphapulse_codec/   ← The "Rules": Protocol grammar & logic
+libs/codec/   ← The "Rules": Protocol grammar & logic
 network/                 ← The "How/Where": Transport layer
 ```
 
@@ -18,7 +18,7 @@ network/                 ← The "How/Where": Transport layer
 | Layer | Responsibility | Examples | What It Doesn't Do |
 |-------|---------------|----------|-------------------|
 | **libs/types** | Pure data structures | `TradeTLV`, `PoolType` | No parsing, no network, no protocol rules |
-| **libs/alphapulse_codec** | Protocol rules & logic | `TLVMessageBuilder`, `parse_header()` | No transport, no raw data definitions |
+| **libs/codec** | Protocol rules & logic | `TLVMessageBuilder`, `parse_header()` | No transport, no raw data definitions |
 | **network/** | Transport & connections | Socket pools, wire protocols | No protocol logic, no data structures |
 
 ## 🚀 Quick Start
@@ -52,7 +52,7 @@ git worktree add -b refactor/network-layer
 
 | Task | Description | Priority | Hours | Status |
 |------|-------------|----------|-------|---------|
-| CODEC-001 | Create libs/alphapulse_codec foundation | CRITICAL | 4 | TODO |
+| CODEC-001 | Create libs/codec foundation | CRITICAL | 4 | TODO |
 | CODEC-002 | Move core protocol logic (builders, parsers) | CRITICAL | 6 | TODO |
 | CODEC-003 | Separate network transport layer | HIGH | 5 | TODO |
 | CODEC-004 | Update libs/types for pure data | HIGH | 3 | TODO |
@@ -93,7 +93,7 @@ git worktree add -b refactor/network-layer
 
 ### 🔧 Maintainability
 - Data changes isolated to `libs/types`
-- Protocol changes isolated to `libs/alphapulse_codec`
+- Protocol changes isolated to `libs/codec`
 - Network changes isolated to `network/`
 
 ### 🧪 Testability  
@@ -118,7 +118,7 @@ libs/
 ├── types/                    # Pure data structures (no behavior)
 │   └── src/lib.rs           # TradeTLV, QuoteTLV, PoolType, etc.
 │
-├── alphapulse_codec/        # Protocol rules and logic
+├── codec/        # Protocol rules and logic
 │   ├── src/
 │   │   ├── lib.rs          # Main exports
 │   │   ├── instrument_id.rs # Bijective InstrumentId system
@@ -143,12 +143,12 @@ network/                     # Transport and connection management
 
 ### Single Responsibility
 - **libs/types**: "I define what data looks like"
-- **libs/alphapulse_codec**: "I define how data is encoded/decoded"  
+- **libs/codec**: "I define how data is encoded/decoded"  
 - **network/**: "I define how bytes move between systems"
 
 ### Dependency Direction
 ```
-network/ ──depends on──> libs/alphapulse_codec ──depends on──> libs/types
+network/ ──depends on──> libs/codec ──depends on──> libs/types
 ```
 - Network layer imports codec for message construction
 - Codec layer imports types for data structures

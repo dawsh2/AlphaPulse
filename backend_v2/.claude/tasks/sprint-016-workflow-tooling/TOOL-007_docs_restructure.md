@@ -1,12 +1,12 @@
 ---
 task_id: TOOL-007
-status: TODO
+status: COMPLETE
 priority: MEDIUM
 estimated_hours: 2
 assigned_branch: feat/docs-restructure
 assignee: TBD
 created: 2025-01-27
-completed: null
+completed: 2025-08-27
 # Dependencies: task IDs that must be COMPLETE before this can start
 depends_on: []
 # Blocks: task IDs that cannot start until this is COMPLETE

@@ -116,10 +116,11 @@ impl ArbitrageSignalTLV {
         let net_profit_usd_q8 =
             expected_profit_usd_q8 - dex_fees_usd_q8 - gas_cost_usd_q8 - slippage_usd_q8;
 
+        // Construct directly using struct literal
         Self {
-            strategy_id: 21,         // Flash arbitrage strategy
-            signal_id: timestamp_ns, // Use timestamp as unique ID for now
-            chain_id: 137,           // Polygon
+            strategy_id: 21, // Flash arbitrage strategy
+            signal_id: timestamp_ns, // use timestamp as unique ID
+            chain_id: 137, // Polygon
             source_pool,
             target_pool,
             source_venue,
@@ -134,9 +135,9 @@ impl ArbitrageSignalTLV {
             slippage_usd_q8,
             net_profit_usd_q8,
             slippage_tolerance_bps: 50, // 0.5% default
-            max_gas_price_gwei: 100,    // 100 gwei max
+            max_gas_price_gwei: 100, // 100 gwei max
             valid_until: (timestamp_ns / 1_000_000_000) as u32 + 300, // Valid for 5 minutes
-            priority: ((spread_bps as f64 * 10.0).min(65535.0)) as u16, // Priority based on spread
+            priority: ((spread_bps as f64 * 10.0).min(65535.0)) as u16, // based on spread
             reserved: [0u8; 2],
             timestamp_ns,
         }
@@ -169,10 +170,11 @@ impl ArbitrageSignalTLV {
         let net_profit_usd_q8 =
             expected_profit_usd_q8 - dex_fees_usd_q8 - gas_cost_usd_q8 - slippage_usd_q8;
 
+        // Construct directly using struct literal (fixed-point version)
         Self {
-            strategy_id: 21,         // Flash arbitrage strategy
-            signal_id: timestamp_ns, // Use timestamp as unique ID for now
-            chain_id: 137,           // Polygon
+            strategy_id: 21, // Flash arbitrage strategy
+            signal_id: timestamp_ns, // use timestamp as unique ID
+            chain_id: 137, // Polygon
             source_pool,
             target_pool,
             source_venue,
@@ -187,9 +189,9 @@ impl ArbitrageSignalTLV {
             slippage_usd_q8,
             net_profit_usd_q8,
             slippage_tolerance_bps: 50, // 0.5% default
-            max_gas_price_gwei: 100,    // 100 gwei max
+            max_gas_price_gwei: 100, // 100 gwei max
             valid_until: (timestamp_ns / 1_000_000_000) as u32 + 300, // Valid for 5 minutes
-            priority: ((spread_bps as f64 * 10.0).min(65535.0)) as u16, // Priority based on spread
+            priority: ((spread_bps as f64 * 10.0).min(65535.0)) as u16, // based on spread
             reserved: [0u8; 2],
             timestamp_ns,
         }
@@ -237,7 +239,7 @@ impl ArbitrageSignalTLV {
 }
 
 /// Expected size for ArbitrageSignalTLV
-pub const ARBITRAGE_SIGNAL_TLV_SIZE: usize = std::mem::size_of::<ArbitrageSignalTLV>();
+pub const ARBITRAGE_SIGNAL_TLV_SIZE: usize = 170; // Actual size of packed struct
 
 #[cfg(test)]
 mod tests {
@@ -246,20 +248,12 @@ mod tests {
     #[test]
     fn test_arbitrage_signal_size() {
         // Verify struct size for TLV encoding
-        // Size breakdown:
-        // strategy_id: u16 (2) + signal_id: u64 (8) + chain_id: u32 (4) = 14
-        // source_pool: [u8;20] + target_pool: [u8;20] = 40
-        // source_venue: u16 (2) + target_venue: u16 (2) = 4
-        // token_in: [u8;20] + token_out: [u8;20] = 40
-        // 7 i64 fields: 7 * 8 = 56
-        // spread_bps: u16 (2) + slippage_tolerance_bps: u16 (2) + priority: u16 (2) = 6
-        // max_gas_price_gwei: u32 (4) + valid_until: u32 (4) = 8
-        // reserved: [u8; 2] = 2
-        // timestamp_ns: u64 (8)
-        // Total: 14 + 40 + 4 + 40 + 56 + 6 + 8 + 2 + 8 = 178 bytes (but packed reduces alignment)
-        let actual_size = ARBITRAGE_SIGNAL_TLV_SIZE;
+        let actual_size = std::mem::size_of::<ArbitrageSignalTLV>();
         println!("ArbitrageSignalTLV actual size: {} bytes", actual_size);
-        assert_eq!(actual_size, 170); // Actual size with packed representation
+        
+        // Size should match expected value
+        assert_eq!(actual_size, ARBITRAGE_SIGNAL_TLV_SIZE);
+        assert_eq!(actual_size, 170); // Expected size for packed struct
     }
 
     #[test]

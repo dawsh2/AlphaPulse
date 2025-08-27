@@ -1,6 +1,11 @@
 use crate::SinkError;
 use std::fmt::Debug;
 
+// Import TLVType and RelayDomain from the canonical location in libs/types
+use alphapulse_types::protocol::RelayDomain;
+use alphapulse_types::protocol::tlv::types::TLVType;
+use num_enum::TryFromPrimitive;
+
 /// TLV message type safety - prevents mixing different protocol message types
 #[derive(Debug, Clone)]
 pub enum MessageType {
@@ -63,8 +68,8 @@ impl MessageType {
     }
 
     /// Get message domain for relay routing
-    pub fn message_domain(&self) -> Option<MessageDomain> {
-        self.tlv_type().map(|tlv_type| tlv_type.domain())
+    pub fn relay_domain(&self) -> Option<RelayDomain> {
+        self.tlv_type().map(|tlv_type| tlv_type.relay_domain())
     }
 }
 
@@ -124,7 +129,8 @@ impl TLVMessage {
         }
 
         // Validate minimum payload size for all TLV types
-        if self.payload.is_empty() && !self.tlv_type.allows_empty_payload() {
+        // No TLV types allow empty payloads in Protocol V2
+        if self.payload.is_empty() {
             return Err(SinkError::invalid_config(format!(
                 "TLV type {:?} requires non-empty payload",
                 self.tlv_type
@@ -293,116 +299,37 @@ impl MessageHeader {
     }
 }
 
-/// TLV type enumeration for Protocol V2
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(u16)]
-pub enum TLVType {
-    // Market Data Domain (1-19)
-    Trade = 1,
-    Quote = 2,
-    OrderBook = 3,
-    OHLC = 4,
-    Volume = 5,
+// TLVType is now imported from alphapulse_types::protocol::tlv::types
+// This provides the complete Protocol V2 type registry with all domains
 
-    // Signal Domain (20-39)
-    SignalIdentity = 20,
-    ArbitrageSignal = 21,
-    TrendSignal = 22,
+// TLVType methods are now available from the imported type in libs/types
+// The canonical implementation provides:
+// - relay_domain() method for routing (replaces domain())
+// - expected_payload_size() for fixed-size types
+// - size_constraint() for comprehensive size validation
 
-    // Execution Domain (40-79)
-    ExecutionOrder = 40,
-    ExecutionResult = 41,
-    PositionUpdate = 42,
-}
-
-impl TLVType {
-    /// Get message domain for this TLV type
-    pub fn domain(&self) -> MessageDomain {
-        match *self as u16 {
-            1..=19 => MessageDomain::MarketData,
-            20..=39 => MessageDomain::Signals,
-            40..=79 => MessageDomain::Execution,
-            _ => MessageDomain::Unknown,
-        }
-    }
-
-    /// Get expected payload size for this TLV type
-    pub fn expected_payload_size(&self) -> Option<usize> {
-        match self {
-            TLVType::Trade => Some(32),          // Fixed size trade structure
-            TLVType::Quote => Some(24),          // Fixed size quote structure
-            TLVType::ExecutionOrder => Some(48), // Fixed size order structure
-            TLVType::SignalIdentity => Some(16), // Fixed size signal ID
-            // Variable size types - return minimum expected size
-            TLVType::OrderBook => Some(8), // Min: header + at least one entry
-            TLVType::ArbitrageSignal => Some(20), // Min: pair addresses
-            TLVType::TrendSignal => Some(12), // Min: signal data
-            TLVType::OHLC => Some(40),     // Fixed: open,high,low,close,volume
-            TLVType::Volume => Some(16),   // Fixed: buy,sell volumes
-            TLVType::ExecutionResult => Some(32), // Fixed: result structure
-            TLVType::PositionUpdate => Some(24), // Fixed: position data
-        }
-    }
-
-    /// Get minimum payload size for validation
-    pub fn minimum_payload_size(&self) -> usize {
-        match self {
-            // All TLV types should have at least some data
-            TLVType::OrderBook | TLVType::ArbitrageSignal | TLVType::TrendSignal => 4,
-            _ => self.expected_payload_size().unwrap_or(1),
-        }
-    }
-
-    /// Check if this TLV type allows empty payloads
-    pub fn allows_empty_payload(&self) -> bool {
-        // Most TLV types require non-empty payloads
-        false
-    }
-}
-
+// TryFrom<u8> is implemented in the canonical TLVType via num_enum::TryFromPrimitive
+// We provide a u16 to u8 conversion wrapper for backward compatibility
 impl TryFrom<u16> for TLVType {
     type Error = SinkError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(TLVType::Trade),
-            2 => Ok(TLVType::Quote),
-            3 => Ok(TLVType::OrderBook),
-            4 => Ok(TLVType::OHLC),
-            5 => Ok(TLVType::Volume),
-            20 => Ok(TLVType::SignalIdentity),
-            21 => Ok(TLVType::ArbitrageSignal),
-            22 => Ok(TLVType::TrendSignal),
-            40 => Ok(TLVType::ExecutionOrder),
-            41 => Ok(TLVType::ExecutionResult),
-            42 => Ok(TLVType::PositionUpdate),
-            _ => Err(SinkError::invalid_config(format!(
-                "Unknown TLV type: {}",
+        if value > 255 {
+            return Err(SinkError::invalid_config(format!(
+                "TLV type {} exceeds u8 range",
                 value
-            ))),
+            )));
         }
+        
+        let type_u8 = value as u8;
+        TLVType::try_from(type_u8).map_err(|_| {
+            SinkError::invalid_config(format!("Unknown TLV type: {}", value))
+        })
     }
 }
 
-/// Message domains for relay routing
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum MessageDomain {
-    Unknown = 0,
-    MarketData = 1,
-    Signals = 2,
-    Execution = 3,
-}
-
-impl From<u8> for MessageDomain {
-    fn from(value: u8) -> Self {
-        match value {
-            1 => MessageDomain::MarketData,
-            2 => MessageDomain::Signals,
-            3 => MessageDomain::Execution,
-            _ => MessageDomain::Unknown,
-        }
-    }
-}
+// MessageDomain is replaced by RelayDomain from libs/types
+// RelayDomain provides the same functionality with consistent domain mapping
 
 #[cfg(test)]
 mod tests {
@@ -420,8 +347,8 @@ mod tests {
 
     #[test]
     fn test_tlv_message_validation() {
-        // Valid quote message (24 bytes expected)
-        let valid_payload = vec![0u8; 24];
+        // Valid quote message (52 bytes expected as per Protocol V2)
+        let valid_payload = vec![0u8; 52];
         let valid_msg = TLVMessage::new(TLVType::Quote, valid_payload);
         assert!(valid_msg.validate().is_ok());
 
@@ -476,22 +403,22 @@ mod tests {
 
     #[test]
     fn test_message_type() {
-        let tlv_msg = TLVMessage::new(TLVType::ExecutionOrder, vec![0u8; 48]);
+        let tlv_msg = TLVMessage::new(TLVType::OrderRequest, vec![0u8; 32]);
         let msg_type = MessageType::tlv(tlv_msg).unwrap();
 
         assert!(msg_type.is_tlv());
         assert!(!msg_type.is_raw());
-        assert_eq!(msg_type.tlv_type(), Some(TLVType::ExecutionOrder));
-        assert_eq!(msg_type.message_domain(), Some(MessageDomain::Execution));
-        assert_eq!(msg_type.size(), 48);
+        assert_eq!(msg_type.tlv_type(), Some(TLVType::OrderRequest));
+        assert_eq!(msg_type.relay_domain(), Some(RelayDomain::Execution));
+        assert_eq!(msg_type.size(), 32);
     }
 
     #[test]
     fn test_tlv_type_domains() {
-        assert_eq!(TLVType::Trade.domain(), MessageDomain::MarketData);
-        assert_eq!(TLVType::Quote.domain(), MessageDomain::MarketData);
-        assert_eq!(TLVType::SignalIdentity.domain(), MessageDomain::Signals);
-        assert_eq!(TLVType::ExecutionOrder.domain(), MessageDomain::Execution);
+        assert_eq!(TLVType::Trade.relay_domain(), RelayDomain::MarketData);
+        assert_eq!(TLVType::Quote.relay_domain(), RelayDomain::MarketData);
+        assert_eq!(TLVType::SignalIdentity.relay_domain(), RelayDomain::Signal);
+        assert_eq!(TLVType::OrderRequest.relay_domain(), RelayDomain::Execution);
     }
 
     #[test]

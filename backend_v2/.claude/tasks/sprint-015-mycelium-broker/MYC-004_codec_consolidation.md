@@ -7,10 +7,10 @@
 - **Priority**: High (enables clean broker integration)
 
 ## Description
-Consolidate all TLV parsing, building, and validation logic from the relay infrastructure into the alphapulse_codec library. This eliminates duplicate code, centralizes protocol handling, and ensures the broker can work with clean, validated messages without domain-specific logic.
+Consolidate all TLV parsing, building, and validation logic from the relay infrastructure into the codec library. This eliminates duplicate code, centralizes protocol handling, and ensures the broker can work with clean, validated messages without domain-specific logic.
 
 ## Objectives
-1. Move all TLV validation logic from relays/ to alphapulse_codec
+1. Move all TLV validation logic from relays/ to codec
 2. Remove duplicate parsing/building implementations
 3. Consolidate message header handling and validation
 4. Ensure zero-copy operations are preserved in consolidated code
@@ -21,7 +21,7 @@ Consolidate all TLV parsing, building, and validation logic from the relay infra
 ### Current State Analysis
 ```bash
 # Identify duplicate TLV code across codebase
-libs/alphapulse_codec/src/
+libs/codec/src/
 ├── parser.rs              # Basic TLV parsing
 ├── message_builder.rs     # Message construction
 └── tlv_types.rs          # Type definitions
@@ -35,7 +35,7 @@ relays/src/
 
 ### Consolidation Strategy
 ```rust
-// libs/alphapulse_codec/src/validator.rs - NEW FILE
+// libs/codec/src/validator.rs - NEW FILE
 pub struct TLVValidator {
     domain_rules: HashMap<RelayDomain, DomainValidationRules>,
     type_registry: TLVTypeRegistry,
@@ -78,7 +78,7 @@ impl TLVValidator {
 
 ### Enhanced Message Builder
 ```rust
-// libs/alphapulse_codec/src/message_builder.rs - ENHANCED
+// libs/codec/src/message_builder.rs - ENHANCED
 pub struct TLVMessageBuilder {
     domain: RelayDomain,
     source: MessageSource,
@@ -144,7 +144,7 @@ impl TLVMessageBuilder {
 
 ### Unified Parser Interface
 ```rust
-// libs/alphapulse_codec/src/parser.rs - ENHANCED
+// libs/codec/src/parser.rs - ENHANCED
 pub struct TLVParser {
     validator: TLVValidator,
     zero_copy_enabled: bool,
@@ -206,7 +206,7 @@ impl TLVParser {
 
 ### Domain-Specific Validation Consolidation
 ```rust
-// libs/alphapulse_codec/src/validation/mod.rs - NEW MODULE
+// libs/codec/src/validation/mod.rs - NEW MODULE
 pub mod market_data;
 pub mod signal;
 pub mod execution;
@@ -217,7 +217,7 @@ pub trait DomainValidator {
     fn get_allowed_types(&self) -> &[TLVType];
 }
 
-// libs/alphapulse_codec/src/validation/market_data.rs
+// libs/codec/src/validation/market_data.rs
 pub struct MarketDataValidator;
 
 impl DomainValidator for MarketDataValidator {
@@ -252,7 +252,7 @@ impl DomainValidator for MarketDataValidator {
 
 ### Migration Path
 ```rust
-// libs/alphapulse_codec/src/migration.rs - TEMPORARY COMPATIBILITY
+// libs/codec/src/migration.rs - TEMPORARY COMPATIBILITY
 /// Temporary compatibility layer for services migrating from relay-specific parsing
 #[deprecated(note = "Use TLVParser directly instead")]
 pub mod compat {
@@ -270,7 +270,7 @@ pub mod compat {
 ## Acceptance Criteria
 
 ### Code Consolidation
-- [ ] All TLV parsing logic moved from relays/ to alphapulse_codec
+- [ ] All TLV parsing logic moved from relays/ to codec
 - [ ] No duplicate validation functions across codebase
 - [ ] Single TLVValidator handles all domain-specific rules
 - [ ] Message builder supports all TLV types with validation
@@ -473,7 +473,7 @@ mod migration_tests {
 
 2. **Performance Validation**:
    ```bash
-   cargo test --package alphapulse_codec --release -- --ignored
+   cargo test --package codec --release -- --ignored
    ```
 
 3. **Integration Testing**:
@@ -485,7 +485,7 @@ mod migration_tests {
 4. **Backwards Compatibility**:
    ```bash
    # Verify compatibility layer works
-   cargo test --package alphapulse_codec migration_tests
+   cargo test --package codec migration_tests
    ```
 
 This consolidation creates a clean, unified codec that eliminates duplicate code while preserving all existing functionality and performance characteristics needed for the broker migration.

@@ -326,17 +326,17 @@ pub use dynamic_payload::{
 };
 pub use extended::*;
 // Timestamp functions temporarily unavailable - need to implement or find correct import
-// pub use alphapulse_network::{current_timestamp_ns as fast_timestamp_ns, current_timestamp_ns as precise_timestamp_ns};
+// pub use torq_network::{current_timestamp_ns as fast_timestamp_ns, current_timestamp_ns as precise_timestamp_ns};
 
-// Use safe timestamp function from network transport
+// Use safe timestamp function from time module
 pub fn fast_timestamp_ns() -> u64 {
     // Use safe conversion that prevents silent truncation on overflow
-    alphapulse_network::time::fast_timestamp_ns()
+    alphapulse_time::fast_timestamp_ns()
 }
 
 pub fn init_timestamp_system() {
     // Initialize the fast cached clock system for ultra-fast timestamps
-    alphapulse_network::time::init_timestamp_system()
+    alphapulse_time::init_timestamp_system()
 }
 pub use hot_path_buffers::{
     // build_and_send_message, // Temporarily commented out due to circular dependency

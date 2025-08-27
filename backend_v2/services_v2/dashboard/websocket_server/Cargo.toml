@@ -7,7 +7,7 @@ edition = "2021"
 default = []
 
 [dependencies]
-alphapulse-network = { path = "../../../network" }
+torq-network = { path = "../../../network" }
 
 # Protocol dependencies
 alphapulse-types = { path = "../../../libs/types" }

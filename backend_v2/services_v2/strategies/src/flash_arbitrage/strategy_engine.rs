@@ -48,11 +48,11 @@ use std::sync::Arc;
 // Removed: use tokio::sync::mpsc; - no longer using MPSC channels
 use tracing::{error, info, warn};
 
-use crate::config::DetectorConfig;
-use crate::detector::OpportunityDetector;
-use crate::executor::{Executor, ExecutorConfig};
-use crate::relay_consumer::{ArbitrageOpportunity, RelayConsumer};
-use crate::signal_output::SignalOutput;
+use crate::flash_arbitrage::config::DetectorConfig;
+use crate::flash_arbitrage::detector::OpportunityDetector;
+use crate::flash_arbitrage::executor::{Executor, ExecutorConfig};
+use crate::flash_arbitrage::relay_consumer::{ArbitrageOpportunity, RelayConsumer};
+use crate::flash_arbitrage::signal_output::SignalOutput;
 use alphapulse_state_market::PoolStateManager;
 
 /// Strategy configuration

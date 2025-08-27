@@ -68,7 +68,7 @@ rm -f scripts/monitor_relays.sh
 # Root Cargo.toml - REMOVE relay entries
 [workspace]
 members = [
-    "libs/alphapulse_codec",
+    "libs/codec",
     "libs/types", 
     "libs/message_sink",
     # REMOVE: "relays",
@@ -88,14 +88,14 @@ members = [
 ```rust
 // services_v2/adapters/Cargo.toml - REMOVE relay dependencies
 [dependencies]
-alphapulse_codec = { path = "../../libs/alphapulse_codec" }
+codec = { path = "../../libs/codec" }
 mycelium-transport = { path = "../../../mycelium/crates/mycelium-transport" }
 mycelium-broker = { path = "../../../mycelium/crates/mycelium-broker" }
 # REMOVE: relay-client = { workspace = true }
 
 # services_v2/strategies/flash_arbitrage/Cargo.toml - REMOVE relay dependencies
 [dependencies]
-alphapulse_codec = { path = "../../../libs/alphapulse_codec" }
+codec = { path = "../../../libs/codec" }
 mycelium-transport = { path = "../../../../mycelium/crates/mycelium-transport" }
 # REMOVE: relay-client = { workspace = true }
 ```

@@ -29,7 +29,7 @@ git worktree add -b refactor/core-protocol-logic
 **Estimated**: 6 hours
 
 ## Problem Statement
-Move the core protocol logic from protocol_v2 to libs/alphapulse_codec. This includes TLVMessageBuilder, parsing functions, and protocol validation - the "rules" that define how the AlphaPulse protocol works.
+Move the core protocol logic from protocol_v2 to libs/codec. This includes TLVMessageBuilder, parsing functions, and protocol validation - the "rules" that define how the AlphaPulse protocol works.
 
 ## Acceptance Criteria
 - [ ] TLVMessageBuilder moved to codec crate
@@ -65,7 +65,7 @@ Move the core protocol logic from protocol_v2 to libs/alphapulse_codec. This inc
 
 ### Files to Create/Modify
 
-#### libs/alphapulse_codec/src/message_builder.rs
+#### libs/codec/src/message_builder.rs
 ```rust
 // COPY from protocol_v2/src/message_builder.rs
 
@@ -108,7 +108,7 @@ impl TLVMessageBuilder {
 }
 ```
 
-#### libs/alphapulse_codec/src/parser.rs
+#### libs/codec/src/parser.rs
 ```rust
 // COPY from protocol_v2/src/parser.rs
 
@@ -158,7 +158,7 @@ pub fn validate_message(header: &MessageHeader, payload: &[u8]) -> Result<(), Pr
 }
 ```
 
-#### libs/alphapulse_codec/src/error.rs
+#### libs/codec/src/error.rs
 ```rust
 // COPY from protocol_v2/src/error.rs
 
@@ -195,25 +195,25 @@ pub enum ProtocolError {
 ### Implementation Steps
 
 #### Step 1: Move Message Builder (2 hours)
-1. **Copy TLVMessageBuilder** to libs/alphapulse_codec/src/message_builder.rs
+1. **Copy TLVMessageBuilder** to libs/codec/src/message_builder.rs
 2. **Update imports** to use alphapulse_types for data structures
 3. **Preserve exact functionality** - no behavior changes
 4. **Test construction performance** - maintain >1M msg/s
 
 #### Step 2: Move Parsing Logic (2 hours)  
-1. **Copy parsing functions** to libs/alphapulse_codec/src/parser.rs
+1. **Copy parsing functions** to libs/codec/src/parser.rs
 2. **Preserve parsing performance** - maintain >1.6M msg/s
 3. **Keep validation logic** exactly as-is
 4. **Test with existing protocol_v2 test cases**
 
 #### Step 3: Move Protocol Errors (1 hour)
-1. **Copy ProtocolError enum** to libs/alphapulse_codec/src/error.rs
+1. **Copy ProtocolError enum** to libs/codec/src/error.rs
 2. **Update all error handling** to use new location
 3. **Preserve error semantics** exactly
 
 #### Step 4: Update Exports and Integration (1 hour)
 ```rust
-// libs/alphapulse_codec/src/lib.rs - UPDATE
+// libs/codec/src/lib.rs - UPDATE
 pub mod message_builder;
 pub mod parser;
 pub mod error;
@@ -232,7 +232,7 @@ const TARGET_PARSING_RATE: u64 = 1_600_000;      // msg/s
 
 #### Unit Tests (Protocol Rules)
 ```rust
-// libs/alphapulse_codec/src/message_builder.rs
+// libs/codec/src/message_builder.rs
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -277,8 +277,8 @@ mod tests {
 
 #### Integration Tests (Parser + Builder)
 ```rust
-// libs/alphapulse_codec/tests/codec_integration.rs
-use alphapulse_codec::{TLVMessageBuilder, parse_header, parse_tlv_extensions};
+// libs/codec/tests/codec_integration.rs
+use codec::{TLVMessageBuilder, parse_header, parse_tlv_extensions};
 use alphapulse_types::TradeTLV;
 
 #[test]
@@ -307,13 +307,13 @@ fn test_round_trip_message_processing() {
 ### Testing Instructions
 ```bash
 # Test codec crate independently  
-cargo test --package alphapulse_codec
+cargo test --package codec
 
 # Test performance benchmarks
-cargo bench --package alphapulse_codec
+cargo bench --package codec
 
 # Test integration with types
-cargo test --package alphapulse_codec --test codec_integration
+cargo test --package codec --test codec_integration
 
 # Verify no regressions in protocol_v2
 cargo test --package protocol_v2
@@ -325,19 +325,19 @@ cargo test --package protocol_v2
 git worktree add -b refactor/core-protocol-logic
 
 # 2. Move message builder
-git add libs/alphapulse_codec/src/message_builder.rs
+git add libs/codec/src/message_builder.rs
 git commit -m "refactor: move TLVMessageBuilder to codec crate"
 
 # 3. Move parsing logic
-git add libs/alphapulse_codec/src/parser.rs  
+git add libs/codec/src/parser.rs  
 git commit -m "refactor: move core parsing functions to codec crate"
 
 # 4. Move protocol errors
-git add libs/alphapulse_codec/src/error.rs
+git add libs/codec/src/error.rs
 git commit -m "refactor: move ProtocolError to codec crate"
 
 # 5. Update integration and exports
-git add libs/alphapulse_codec/src/lib.rs
+git add libs/codec/src/lib.rs
 git commit -m "refactor: update codec crate exports and integration"
 
 # 6. Push and create PR
@@ -359,4 +359,4 @@ gh pr create --title "CODEC-002: Move core protocol logic to codec crate" \
 - [ ] **🚨 CRITICAL: Updated task status to COMPLETE** ← AGENTS MUST DO THIS!
 
 ## Notes
-This task moves the "brain" of the protocol - the logic that defines how messages are constructed and parsed. After this task, libs/alphapulse_codec will contain all the rules that define the AlphaPulse protocol format, separate from both data definitions (types) and transport concerns (network).
+This task moves the "brain" of the protocol - the logic that defines how messages are constructed and parsed. After this task, libs/codec will contain all the rules that define the AlphaPulse protocol format, separate from both data definitions (types) and transport concerns (network).

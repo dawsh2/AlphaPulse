@@ -5,15 +5,15 @@ edition = "2021"
 
 [[bin]]
 name = "start_market_data_relay"
-path = "start_market_data_relay.rs"
+path = "lib/deploy/start_market_data_relay.rs"
 
 [[bin]]
 name = "start_signal_relay" 
-path = "start_signal_relay.rs"
+path = "lib/deploy/start_signal_relay.rs"
 
 [[bin]]
 name = "start_execution_relay"
-path = "start_execution_relay.rs"
+path = "lib/deploy/start_execution_relay.rs"
 
 [dependencies]
 tokio = { version = "1.40", features = ["full"] }

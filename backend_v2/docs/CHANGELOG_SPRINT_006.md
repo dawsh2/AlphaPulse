@@ -76,7 +76,7 @@ ProtocolError::ChecksumMismatch {
 ### Module Dependency Cleanup
 - **Import Fixes**: Updated all cross-module dependencies to use proper paths
 - **Key Changes**:
-  - `recovery/snapshot.rs`: Use `alphapulse_codec::parser`
+  - `recovery/snapshot.rs`: Use `codec::parser`
   - `tlv/hot_path_buffers.rs`: Fixed TLVMessageBuilder imports
   - `common/identifiers.rs`: Corrected protocol codec references
 - **Build Status**: All packages now compile without errors

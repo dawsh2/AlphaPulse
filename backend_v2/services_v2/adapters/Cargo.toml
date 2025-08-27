@@ -41,7 +41,7 @@ metrics = ["prometheus"]
 [dependencies]
 alphapulse-dex = { workspace = true }
 alphapulse-state-market = { workspace = true }
-alphapulse-network = { path = "../../network" }
+torq-network = { path = "../../network" }
 # Core protocol
 alphapulse-types = { workspace = true }
 codec = { path = "../../libs/codec" }

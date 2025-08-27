@@ -33,12 +33,18 @@ show_usage() {
     echo "Usage: $0 <command> [options]"
     echo ""
     echo -e "${BOLD}Commands:${NC}"
-    echo -e "  ${GREEN}up${NC}       Start all AlphaPulse services"
-    echo -e "  ${GREEN}down${NC}     Stop all services gracefully"
-    echo -e "  ${GREEN}restart${NC}  Stop and start all services"
-    echo -e "  ${GREEN}status${NC}   Show status of all services"
-    echo -e "  ${GREEN}logs${NC}     Stream logs from all services"
-    echo -e "  ${GREEN}help${NC}     Show this help message"
+    echo -e "  ${GREEN}up${NC}         Start all AlphaPulse services"
+    echo -e "  ${GREEN}down${NC}       Stop all services gracefully"
+    echo -e "  ${GREEN}restart${NC}    Stop and start all services"
+    echo -e "  ${GREEN}status${NC}     Show status of all services"
+    echo -e "  ${GREEN}logs${NC}       Stream logs from all services"
+    echo ""
+    echo -e "  ${BLUE}validate${NC}   Run validation checks"
+    echo -e "  ${BLUE}test${NC}       Run test suite"
+    echo -e "  ${BLUE}demo${NC}       Run demonstration scripts"
+    echo -e "  ${BLUE}deploy${NC}     Deploy relay services"
+    echo ""
+    echo -e "  ${GREEN}help${NC}       Show this help message"
     echo ""
     echo -e "${BOLD}Options:${NC}"
     echo "  -v, --verbose    Enable verbose output"
@@ -158,6 +164,92 @@ case "${COMMAND}" in
             fi
         else
             print_error "Logs script not found: ${LIB_DIR}/logs.sh"
+            exit 1
+        fi
+        ;;
+    
+    validate)
+        print_info "Running validation checks..."
+        
+        # Run precision violation detection
+        print_info "Checking for precision violations..."
+        python3 "${LIB_DIR}/python/detect_precision_violations.py" "${PROJECT_ROOT}" || {
+            print_warning "Precision violations found - see output above"
+        }
+        
+        # Run other validation scripts
+        "${LIB_DIR}/validation/run_all_validation.sh" || {
+            print_error "Creating validation runner script"
+            cat > "${LIB_DIR}/validation/run_all_validation.sh" << 'EOF'
+#!/bin/bash
+set -e
+echo "Running all validation checks..."
+find "${SCRIPT_DIR}/lib/validation" -name "*.sh" -executable -exec echo "Running {}" \; -exec {} \;
+EOF
+            chmod +x "${LIB_DIR}/validation/run_all_validation.sh"
+            "${LIB_DIR}/validation/run_all_validation.sh"
+        }
+        ;;
+    
+    test)
+        print_info "Running test suite..."
+        if [[ -f "${LIB_DIR}/test/run_all_tests.sh" ]]; then
+            source "${LIB_DIR}/test/run_all_tests.sh"
+        else
+            print_info "Running available test scripts..."
+            find "${LIB_DIR}/test" -name "*.sh" -executable -exec echo "Running {}" \; -exec {} \;
+        fi
+        ;;
+    
+    demo)
+        print_info "Running demonstration..."
+        if [[ $# -gt 0 ]]; then
+            DEMO_SCRIPT="${1}"
+            case "${DEMO_SCRIPT}" in
+                arbitrage|arb)
+                    print_info "Starting demo arbitrage data generator..."
+                    python3 "${LIB_DIR}/python/send_demo_arbitrage.py"
+                    ;;
+                mock-relay|relay)
+                    print_info "Starting mock relay server..."
+                    python3 "${LIB_DIR}/python/mock_relay.py"
+                    ;;
+                tlv-info|tlv)
+                    print_info "Querying TLV type information..."
+                    python3 "${LIB_DIR}/python/query_tlv_info.py"
+                    ;;
+                *)
+                    # Try to find shell script demos
+                    if [[ -f "${LIB_DIR}/demo/${DEMO_SCRIPT}.sh" ]]; then
+                        source "${LIB_DIR}/demo/${DEMO_SCRIPT}.sh"
+                    else
+                        print_error "Demo script not found: ${DEMO_SCRIPT}"
+                        print_info "Available Python demos:"
+                        echo "  arbitrage    - Demo arbitrage data generator"
+                        echo "  mock-relay   - Mock relay server for testing"
+                        echo "  tlv-info     - TLV type information query"
+                        print_info "Shell script demos:"
+                        ls "${LIB_DIR}/demo/"*.sh 2>/dev/null | xargs -n1 basename | sed 's/.sh$//' | sed 's/^/  /' || echo "  No shell demo scripts found"
+                        exit 1
+                    fi
+                    ;;
+            esac
+        else
+            print_info "Available Python demos:"
+            echo "  arbitrage    - Demo arbitrage data generator"
+            echo "  mock-relay   - Mock relay server for testing"  
+            echo "  tlv-info     - TLV type information query"
+            print_info "Shell script demos:"
+            ls "${LIB_DIR}/demo/"*.sh 2>/dev/null | xargs -n1 basename | sed 's/.sh$//' | sed 's/^/  /' || echo "  No shell demo scripts found"
+        fi
+        ;;
+    
+    deploy)
+        print_info "Deploying relay services..."
+        if [[ -f "${LIB_DIR}/start_domain_relays.sh" ]]; then
+            source "${LIB_DIR}/start_domain_relays.sh"
+        else
+            print_error "Deployment script not found: ${LIB_DIR}/start_domain_relays.sh"
             exit 1
         fi
         ;;

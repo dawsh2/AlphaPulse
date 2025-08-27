@@ -167,6 +167,7 @@ macro_rules! define_tlv {
 
             /// Convert to bytes using zero-copy serialization
             pub fn to_bytes(&self) -> &[u8] {
+                // Use zerocopy's AsBytes trait to convert struct to bytes
                 self.as_bytes()
             }
         }

@@ -13,7 +13,7 @@ libs/
 ├── types/              // The "What": Pure data structures
 │   └── src/lib.rs      // TradeTLV, PoolType, etc.
 │
-└── alphapulse_codec/   // The "Rules": Protocol grammar & logic
+└── codec/   // The "Rules": Protocol grammar & logic
     └── src/lib.rs      // TLVMessageBuilder, parse_header, etc.
 
 network/                // The "How/Where": Transport layer
@@ -28,7 +28,7 @@ network/                // The "How/Where": Transport layer
 - **Examples**: `TradeTLV`, `QuoteTLV`, `PoolType`, `VenueId`
 - **No**: Parsing logic, network code, protocol rules
 
-#### 2. `libs/alphapulse_codec` (The "Rules")  
+#### 2. `libs/codec` (The "Rules")  
 - Protocol definition and encoding/decoding rules
 - The "grammar" of the AlphaPulse system
 - **Examples**: `TLVMessageBuilder`, `parse_header()`, `InstrumentId` system
@@ -42,7 +42,7 @@ network/                // The "How/Where": Transport layer
 
 ## 📋 Sprint Tasks
 
-### CODEC-001: Create libs/alphapulse_codec Foundation 
+### CODEC-001: Create libs/codec Foundation 
 **Priority**: CRITICAL  
 **Estimate**: 4 hours
 - Set up new codec crate structure
@@ -88,7 +88,7 @@ network/                // The "How/Where": Transport layer
 
 ### Clean Separation Achieved
 - [ ] `libs/types` contains only pure data structures
-- [ ] `libs/alphapulse_codec` contains only protocol rules/logic
+- [ ] `libs/codec` contains only protocol rules/logic
 - [ ] `network/` contains only transport/connection management
 - [ ] No circular dependencies between layers
 
@@ -148,7 +148,7 @@ network/                // The "How/Where": Transport layer
 
 ### Maintainability
 - Changes to data structures isolated to `libs/types`
-- Protocol logic changes isolated to `libs/alphapulse_codec`
+- Protocol logic changes isolated to `libs/codec`
 - Network improvements isolated to `network/`
 
 ### Testability
@@ -158,7 +158,7 @@ network/                // The "How/Where": Transport layer
 
 ### Scalability
 - Easy to add new data types in `libs/types`
-- Easy to extend protocol rules in `libs/alphapulse_codec`  
+- Easy to extend protocol rules in `libs/codec`  
 - Easy to swap network implementations in `network/`
 
 ### Developer Experience

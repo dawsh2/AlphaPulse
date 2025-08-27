@@ -368,5 +368,5 @@ impl ConnectionManager {
 
 /// Get current time in nanoseconds since epoch
 fn current_nanos() -> u64 {
-    alphapulse_network::time::safe_system_timestamp_ns()
+    torq_network::time::safe_system_timestamp_ns()
 }

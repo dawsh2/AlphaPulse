@@ -42,7 +42,7 @@ full-featured = [
 # Services should import TLVMessageBuilder directly from codec
 
 # Safe timestamp conversion functions
-alphapulse-network = { path = "../../network" }
+alphapulse-time = { path = "../time" }
 anyhow = "1.0"
 async-trait = { version = "0.1", optional = true }
 

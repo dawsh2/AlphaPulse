@@ -20,7 +20,7 @@
 //! - **Memory**: <50MB steady state with multiple symbol subscriptions
 
 use codec::{parse_header, parse_tlv_extensions};
-use alphapulse_network::time::init_timestamp_system;
+use torq_network::time::init_timestamp_system;
 use alphapulse_types::{
     tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };

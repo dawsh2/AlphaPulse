@@ -17,7 +17,7 @@ Synthesize the outcomes of all major refactoring sprints (protocol-to-codec migr
 
 ### Three-Layer Philosophy
 1. **The Data (`libs/types`)**: Pure data structures - the system's "vocabulary"
-2. **The Rules (`libs/alphapulse_codec`)**: Protocol logic - the system's "grammar"  
+2. **The Rules (`libs/codec`)**: Protocol logic - the system's "grammar"  
 3. **The Behavior (Services/Relays/Network)**: Active components that use types+codec
 
 ### Directory Structure (Target State)
@@ -25,7 +25,7 @@ Synthesize the outcomes of all major refactoring sprints (protocol-to-codec migr
 alphapulse_backend_v2/
 ├── libs/                 # Core shared libraries - the "foundation"
 │   ├── types/            # Pure data structs/enums (TradeTLV, PoolInfo)
-│   ├── alphapulse_codec/ # Protocol logic (parsing, building, validation)
+│   ├── codec/ # Protocol logic (parsing, building, validation)
 │   ├── health_check/     # Shared health check utilities
 │   └── config/           # Configuration loading and macros
 ├── network/              # Mycelium transport - handles bytes only
@@ -84,7 +84,7 @@ Document how all completed sprints contribute to target architecture:
 - [ ] Sprint 006 (Protocol Optimization) → libs/types and macros
 - [ ] Sprint 007 (Generic Relay) → relays/common engine
 - [ ] Sprint 009 (Testing Pyramid) → tests/ strategy
-- [ ] Sprint 010 (Codec Separation) → libs/alphapulse_codec
+- [ ] Sprint 010 (Codec Separation) → libs/codec
 - [ ] Sprint 011 (Control Script) → scripts/manage.sh
 
 ### 🟡 Visual Architecture
@@ -182,7 +182,7 @@ High-performance cryptocurrency trading system built on clean three-layer archit
 The system separates concerns across three distinct layers:
 
 1. **The Data (`libs/types`)**: Pure data structures - system vocabulary
-2. **The Rules (`libs/alphapulse_codec`)**: Protocol logic - system grammar  
+2. **The Rules (`libs/codec`)**: Protocol logic - system grammar  
 3. **The Behavior**: Active components using types+codec
 
 ## Quick Start
@@ -217,7 +217,7 @@ See [Architecture Guide](docs/ARCHITECTURE.md) for detailed design.
 graph TD
     subgraph "Data Layer"
         Types[libs/types<br/>TradeTLV, PoolInfo]
-        Codec[libs/alphapulse_codec<br/>Protocol Rules]
+        Codec[libs/codec<br/>Protocol Rules]
     end
     
     subgraph "Behavior Layer"
@@ -261,7 +261,7 @@ graph TD
 - [x] Sprint 006: Protocol optimization - Types/codec + macros  
 - [x] Sprint 007: Generic relay refactor - Unified relay architecture
 - [x] Sprint 009: Testing pyramid - Test strategy clarity
-- [x] Sprint 010: Codec separation - libs/alphapulse_codec extraction
+- [x] Sprint 010: Codec separation - libs/codec extraction
 - [x] Sprint 011: Control script - scripts/manage.sh orchestration
 
 **🎯 This Sprint SYNTHESIZES All Previous Work Into Coherent Vision**

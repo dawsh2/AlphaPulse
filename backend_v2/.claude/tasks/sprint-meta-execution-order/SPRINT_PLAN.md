@@ -20,7 +20,7 @@ This meta sprint tracks the proper chronological execution of all system refacto
 
 #### 2. Sprint 010: Codec Separation 
 - **Status**: BLOCKED (waiting on Sprint 013)
-- **Goal**: Split protocol_v2 into libs/types and libs/alphapulse_codec
+- **Goal**: Split protocol_v2 into libs/types and libs/codec
 - **Critical Path**: YES - Most critical architectural change
 - **Blocks**: Sprints 006, 007, 011, 009, 014, 005, 004, 012
 

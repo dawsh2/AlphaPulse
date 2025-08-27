@@ -14,7 +14,7 @@
 - ✅ QuoteTLV type now exported and accessible from protocol module
 - ✅ InvalidationReason enum exported for state management
 - ✅ SystemHealthTLV, TraceEvent, TraceEventType, StateInvalidationTLV, PoolSwapTLV exported
-- ✅ Circular dependency between libs/types and alphapulse_codec resolved
+- ✅ Circular dependency between libs/types and codec resolved
 
 **Files Modified:**
 - `libs/types/src/protocol/mod.rs` - Added missing type exports
@@ -29,7 +29,7 @@
 **Fixed:**
 - ✅ Dashboard websocket: Fixed ParseError, parse_header, parse_tlv_extensions imports
 - ✅ Relays: Fixed TLVExtensionEnum pattern matching and codec imports  
-- ✅ Flash arbitrage: Fixed TLVMessageBuilder imports to use alphapulse_codec
+- ✅ Flash arbitrage: Fixed TLVMessageBuilder imports to use codec
 - ✅ Relay binaries: Fixed `dyn std::error::Error` sizing issues by using `.into()`
 - ✅ Module exports: Added missing market_data, signal, execution module exports
 - ✅ Import disambiguation: Fixed Relay import conflicts
@@ -92,7 +92,7 @@
 
 ### 📊 BUILD STATUS
 - ✅ **alphapulse-types**: Compiles successfully with all exports
-- ✅ **alphapulse_codec**: Compiles successfully  
+- ✅ **codec**: Compiles successfully  
 - ✅ **alphapulse-transport**: Compiles successfully
 - ✅ **alphapulse-relays**: All binaries compile successfully
 - ✅ **alphapulse-dashboard-websocket**: Compiles successfully
@@ -129,7 +129,7 @@
 
 1. **Export Management**: Keep protocol module exports synchronized with implementations
 2. **Circular Dependencies**: Careful dependency management between core libraries
-3. **Import Paths**: Use specific imports from alphapulse_codec vs alphapulse_types
+3. **Import Paths**: Use specific imports from codec vs alphapulse_types
 4. **Testing Strategy**: Compilation validation is critical before functional testing
 5. **Documentation**: Keep task status synchronized with actual work progress
 

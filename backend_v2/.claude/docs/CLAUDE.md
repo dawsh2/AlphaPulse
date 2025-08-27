@@ -112,7 +112,7 @@ rq find parse --type function    # All parsing functions
 rq examples TradeTLV             # Show real usage
 ```
 
-See `.claude/docs/rq_tool.md` for complete documentation.
+See `.claude/docs/tools/rq_tool.md` for complete documentation.
 
 ### Running the System
 ```bash
@@ -140,7 +140,7 @@ cargo run --bin test_protocol --release
 # Must maintain: >1M msg/s construction, >1.6M msg/s parsing
 ```
 
-See `.claude/docs/testing.md` for complete testing guide.
+See `.claude/docs/core/testing.md` for complete testing guide.
 
 ## Current Migration Status
 
@@ -172,7 +172,7 @@ See `.claude/docs/testing.md` for complete testing guide.
 - Delete unused code - don't keep "just in case" code
 - Update ALL references when changing interfaces
 
-See `.claude/docs/development.md` for complete development workflow.
+See `.claude/docs/core/development.md` for complete development workflow.
 
 ## Documentation Standards
 **Write clear technical documentation for humans and AI agents:**
@@ -238,12 +238,12 @@ cargo clippy --workspace -- -D warnings
 6. **Check .claude/docs/**: Reference detailed guides for specific tasks
 
 For detailed information on:
-- **AlphaPulse practices** → `.claude/docs/practices.md` (CRITICAL: zero-copy, precision, TLV)
-- Engineering principles → `.claude/docs/principles.md`
-- Development workflows → `.claude/docs/development.md`
-- Testing & debugging → `.claude/docs/testing.md`
-- Code style guide → `.claude/docs/style.md`
-- Development tools → `.claude/docs/tools.md`
-- CI/CD & deployment → `.claude/docs/cicd.md`
-- rq tool usage → `.claude/docs/rq_tool.md`
-- Common mistakes → `.claude/docs/common_pitfalls.md`
+- **AlphaPulse practices** → `.claude/docs/core/practices.md` (CRITICAL: zero-copy, precision, TLV)
+- Engineering principles → `.claude/docs/core/principles.md`
+- Development workflows → `.claude/docs/core/development.md`
+- Testing & debugging → `.claude/docs/core/testing.md`
+- Code style guide → `.claude/docs/core/style.md`
+- Development tools → `.claude/docs/tools/tools.md`
+- CI/CD & deployment → `.claude/docs/tools/cicd.md`
+- rq tool usage → `.claude/docs/tools/rq_tool.md`
+- Common mistakes → `.claude/docs/operations/common_pitfalls.md`

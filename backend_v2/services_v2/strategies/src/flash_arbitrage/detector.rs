@@ -55,9 +55,9 @@ use std::sync::Arc;
 use thiserror::Error;
 use tracing::{debug, error, info, warn};
 
-use crate::gas_price::GasPriceFetcher;
+use crate::flash_arbitrage::gas_price::GasPriceFetcher;
 
-use crate::config::DetectorConfig;
+use crate::flash_arbitrage::config::DetectorConfig;
 use alphapulse_amm::optimal_size::{OptimalPosition, OptimalSizeCalculator, SizingConfig};
 use alphapulse_state_market::{
     PoolStateManager, StrategyArbitragePair as ArbitragePair, StrategyPoolState,
@@ -230,7 +230,7 @@ impl OpportunityDetector {
         token_out: u8,
         amount_in: i64,
         amount_out: i64,
-    ) -> Option<crate::relay_consumer::DetectedOpportunity> {
+    ) -> Option<crate::flash_arbitrage::relay_consumer::DetectedOpportunity> {
         // Convert to native precision format and delegate
         if amount_in <= 0 || amount_out <= 0 {
             return None;
@@ -270,7 +270,7 @@ impl OpportunityDetector {
         _amount_out: u128,
         _amount_in_decimals: u8,
         _amount_out_decimals: u8,
-    ) -> Option<crate::relay_consumer::DetectedOpportunity> {
+    ) -> Option<crate::flash_arbitrage::relay_consumer::DetectedOpportunity> {
         // Use full addresses directly - no precision loss
         // Find pools that trade the same token pair as the swapped pool
         let pools_with_same_pair = self
@@ -539,7 +539,7 @@ impl OpportunityDetector {
                     // Note: required_capital = trade_size_usd from line 381 & 474
                     let optimal_amount_usd = required_capital;
 
-                    return Some(crate::relay_consumer::DetectedOpportunity {
+                    return Some(crate::flash_arbitrage::relay_consumer::DetectedOpportunity {
                         expected_profit,
                         spread_percentage,
                         required_capital,
@@ -776,7 +776,7 @@ impl OpportunityDetector {
             expected_profit_usd: optimal_position.expected_profit_usd,
             slippage_bps: optimal_position.total_slippage_bps,
             gas_cost_usd: optimal_position.gas_cost_usd,
-            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns(),
+            timestamp_ns: torq_network::time::safe_system_timestamp_ns(),
             strategy_type,
         };
 

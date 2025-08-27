@@ -1,12 +1,12 @@
 ---
 task_id: ARCH-002
-status: TODO
+status: COMPLETE
 priority: HIGH
 estimated_hours: 6
 assigned_branch: feat/generic-relay-engine
 assignee: TBD
 created: 2025-08-26
-completed: null
+completed: 2025-08-27
 depends_on:
   - RELAY-ARCH-001  # Need RelayLogic trait first
 blocks:

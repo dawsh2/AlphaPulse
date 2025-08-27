@@ -26,7 +26,7 @@
 //! - **Complete transparency**: Log everything, hide nothing
 
 use codec::{parse_header, parse_tlv_extensions}; // Added
-use alphapulse_network::time::init_timestamp_system; // Added
+use torq_network::time::init_timestamp_system; // Added
 use alphapulse_types::{
     tlv::build_message_direct,
     tlv::market_data::{PoolBurnTLV, PoolMintTLV, PoolSwapTLV, PoolSyncTLV, PoolTickTLV},
@@ -932,7 +932,7 @@ impl UnifiedPolygonCollector {
             sqrt_price_x96, // liquidity_after - V3 specific, now extracted properly
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| alphapulse_network::time::safe_duration_to_ns(d))
+                .map(|d| torq_network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
             log.block_number.map(|n| n.as_u64()).unwrap_or(0),
             tick, // tick_after - V3 specific, now extracted properly
@@ -1069,7 +1069,7 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| alphapulse_network::time::safe_duration_to_ns(d))
+                .map(|d| torq_network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
         );
 
@@ -1187,7 +1187,7 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| alphapulse_network::time::safe_duration_to_ns(d))
+                .map(|d| torq_network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
         );
 
@@ -1227,7 +1227,7 @@ impl UnifiedPolygonCollector {
             7922816251426433759, // price_sqrt
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| alphapulse_network::time::safe_duration_to_ns(d))
+                .map(|d| torq_network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
         );
 
@@ -1306,7 +1306,7 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| alphapulse_network::time::safe_duration_to_ns(d))
+                .map(|d| torq_network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
             log.block_number.map(|n| n.as_u64()).unwrap_or(0),
         );

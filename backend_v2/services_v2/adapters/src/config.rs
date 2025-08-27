@@ -6,6 +6,41 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::time::Duration;
 
+/// Base configuration shared by all adapters
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BaseAdapterConfig {
+    /// Adapter name/identifier
+    pub name: String,
+    
+    /// Whether this adapter is enabled
+    pub enabled: bool,
+    
+    /// Maximum number of retry attempts
+    pub max_retries: u32,
+    
+    /// Connection timeout in milliseconds
+    pub connection_timeout_ms: u64,
+    
+    /// Initial reconnection delay in milliseconds
+    pub reconnect_delay_ms: u64,
+    
+    /// Maximum reconnection delay in milliseconds
+    pub max_reconnect_delay_ms: u64,
+}
+
+impl Default for BaseAdapterConfig {
+    fn default() -> Self {
+        Self {
+            name: "adapter".to_string(),
+            enabled: true,
+            max_retries: 5,
+            connection_timeout_ms: 10000,
+            reconnect_delay_ms: 1000,
+            max_reconnect_delay_ms: 60000,
+        }
+    }
+}
+
 /// Configuration for Polygon DEX collector
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolygonDexConfig {

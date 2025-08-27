@@ -8,7 +8,7 @@ use alphapulse_types::{
 };
 use base64::prelude::*;
 use serde_json::{json, Value};
-use alphapulse_network::time::safe_system_timestamp_ns_checked;
+use torq_network::time::safe_system_timestamp_ns_checked;
 
 /// Convert TLV message to JSON for dashboard consumption
 pub fn convert_tlv_to_json(tlv_type: u8, payload: &[u8], timestamp_ns: u64) -> Result<Value> {
@@ -266,18 +266,19 @@ pub fn create_arbitrage_opportunity(
         opportunity["executable"] = serde_json::Value::Bool(true);
 
         // Default values for fields the dashboard expects
-        opportunity["pair"] = json!("UNKNOWN-PAIR");
-        opportunity["token_a"] = json!("0x0000000000000000000000000000000000000000");
-        opportunity["token_b"] = json!("0x0000000000000000000000000000000000000000");
-        opportunity["dex_buy"] = json!("QuickSwap");
-        opportunity["dex_sell"] = json!("SushiSwap");
-        opportunity["dex_buy_router"] = json!("0x0000000000000000000000000000000000000000");
-        opportunity["dex_sell_router"] = json!("0x0000000000000000000000000000000000000000");
+        use crate::constants::defaults;
+        opportunity["pair"] = json!(defaults::UNKNOWN_PAIR);
+        opportunity["token_a"] = json!(defaults::DEFAULT_TOKEN_ADDRESS);
+        opportunity["token_b"] = json!(defaults::DEFAULT_TOKEN_ADDRESS);
+        opportunity["dex_buy"] = json!(defaults::DEFAULT_BUY_DEX);
+        opportunity["dex_sell"] = json!(defaults::DEFAULT_SELL_DEX);
+        opportunity["dex_buy_router"] = json!(defaults::DEFAULT_ROUTER_ADDRESS);
+        opportunity["dex_sell_router"] = json!(defaults::DEFAULT_ROUTER_ADDRESS);
         opportunity["price_buy"] = json!(0.0);
         opportunity["price_sell"] = json!(0.0);
-        opportunity["gas_fee_usd"] = json!(2.5);
-        opportunity["dex_fees_usd"] = json!(3.0);
-        opportunity["slippage_cost_usd"] = json!(1.0);
+        opportunity["gas_fee_usd"] = json!(defaults::DEFAULT_GAS_FEE_USD);
+        opportunity["dex_fees_usd"] = json!(defaults::DEFAULT_DEX_FEES_USD);
+        opportunity["slippage_cost_usd"] = json!(defaults::DEFAULT_SLIPPAGE_COST_USD);
     }
 
     opportunity
@@ -398,15 +399,7 @@ fn format_token_address(addr: &[u8; 20]) -> String {
 
 /// Map truncated 64-bit token IDs to symbols for Polygon tokens
 fn map_token_symbol(token_id: u64) -> &'static str {
-    match token_id {
-        0x2791bca1f2de4661u64 => "USDC", // USDC on Polygon: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-        0x0d500b1d8e8ef31eu64 => "WMATIC", // WMATIC on Polygon: 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
-        0x7ceB23fD6bC0adDBu64 => "WETH", // WETH on Polygon: 0x7ceB23fD6bC0adDBd44Bd6f21b62d628Fc157ae1
-        0xc2132d05d31c914au64 => "USDT", // USDT on Polygon: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
-        0x8f3cf7ad23cd3cabu64 => "DAI", // DAI on Polygon: 0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063 (truncated)
-        0x1bfd67037b42cf73u64 => "WBTC", // WBTC on Polygon: 0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6 (truncated)
-        _ => "UNKNOWN",                  // Fallback for unknown tokens
-    }
+    crate::constants::get_token_symbol(token_id)
 }
 
 fn convert_pool_liquidity_tlv(payload: &[u8], timestamp_ns: u64) -> Result<Value> {
@@ -592,7 +585,7 @@ mod tests {
     #[test]
     fn test_timestamp_conversion() {
         let now_ns =
-            alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or(1000000000); // Use a fixed timestamp for test
+            torq_network::time::safe_system_timestamp_ns_checked().unwrap_or(1000000000); // Use a fixed timestamp for test
 
         let iso = timestamp_to_iso(now_ns);
         assert!(!iso.is_empty());

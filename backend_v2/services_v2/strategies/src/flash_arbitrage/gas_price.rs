@@ -79,7 +79,7 @@ struct GasPriceCache {
 
 impl GasPriceCache {
     fn is_expired(&self, max_age_secs: u64) -> bool {
-        let now_ns = match alphapulse_network::time::safe_system_timestamp_ns_checked() {
+        let now_ns = match torq_network::time::safe_system_timestamp_ns_checked() {
             Ok(timestamp) => timestamp,
             Err(e) => {
                 tracing::error!("Failed to get current timestamp for cache expiry check: {}", e);
@@ -123,7 +123,7 @@ impl GasPriceFetcher {
         Ok(Self {
             provider,
             cache: RwLock::new(None),
-            matic_price_usd: 0.33, // Approximate MATIC price - could be dynamic
+            matic_price_usd_fixed: 33_000_000, // Approximate MATIC price $0.33 (8 decimal fixed-point)
             last_block_number: RwLock::new(0),
         })
     }
@@ -154,8 +154,8 @@ impl GasPriceFetcher {
                 // Update cache
                 let cache_entry = GasPriceCache {
                     gas_price_wei: gas_price,
-                    matic_price_usd: self.matic_price_usd,
-                    timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+                    matic_price_usd_fixed: self.matic_price_usd_fixed,
+                    timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                         tracing::error!("Failed to generate timestamp for gas price cache: {}", e);
                         0
                     }),
@@ -187,17 +187,23 @@ impl GasPriceFetcher {
         // Calculate total cost in wei
         let total_cost_wei = gas_price_wei * FLASH_ARBITRAGE_GAS_UNITS;
 
-        // Convert to MATIC (18 decimals)
-        let total_cost_matic = total_cost_wei.as_u128() as f64 / 1e18;
-
-        // Convert to USD
-        let cost_usd = total_cost_matic * self.matic_price_usd;
+        // Convert to USD using safe fixed-point arithmetic with overflow protection
+        // total_cost_wei is in wei (10^18), matic_price_usd_fixed is 8-decimal fixed-point (10^8)
+        let total_cost_wei_u128 = total_cost_wei.as_u128();
+        
+        // Check for potential overflow before multiplication
+        if total_cost_wei_u128 > u128::MAX / (self.matic_price_usd_fixed as u128) {
+            return Err(anyhow::anyhow!("Gas cost calculation would overflow"));
+        }
+        
+        // Perform safe multiplication and division
+        let total_cost_usd_fixed = (total_cost_wei_u128 * self.matic_price_usd_fixed as u128) / 1_000_000_000_000_000_000u128; // Divide by 10^18
+        let cost_usd = total_cost_usd_fixed as f64 / 100_000_000.0; // Convert back to float for return
 
         debug!(
-            "Gas cost calculation: {} gwei * {} gas = {:.6} MATIC = ${:.4}",
+            "Gas cost calculation: {} gwei * {} gas = ${:.4} USD",
             gas_price_wei / 1_000_000_000,
             FLASH_ARBITRAGE_GAS_UNITS,
-            total_cost_matic,
             cost_usd
         );
 
@@ -218,7 +224,7 @@ impl GasPriceFetcher {
         let cache_entry = GasPriceCache {
             gas_price_wei: total_wei,
             matic_price_usd: current_matic_price,
-            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+            timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                 tracing::error!("Failed to generate timestamp for WebSocket gas price update: {}", e);
                 0
             }),
@@ -301,7 +307,7 @@ mod tests {
         let cache = GasPriceCache {
             gas_price_wei: U256::from(30_000_000_000u64),
             matic_price_usd: 0.33,
-            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or(0),
+            timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or(0),
         };
 
         // Should not be expired immediately
@@ -311,7 +317,7 @@ mod tests {
         let expired_cache = GasPriceCache {
             gas_price_wei: U256::from(30_000_000_000u64),
             matic_price_usd: 0.33,
-            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or(0)
+            timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or(0)
                 - 60_000_000_000, // 60 seconds ago
         };
 

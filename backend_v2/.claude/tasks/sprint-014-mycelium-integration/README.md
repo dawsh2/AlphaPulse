@@ -278,7 +278,7 @@ graph TD
 - [MYC-001: Mycelium Platform Foundation](MYC-001_mycelium_platform_foundation.md)
 - [MYC-002: Transport Layer Implementation](MYC-002_transport_layer_implementation.md)  
 - [MYC-003: Broker Layer Implementation](MYC-003_broker_layer_implementation.md)
-- [MYC-004: AlphaPulse Codec Consolidation](MYC-004_alphapulse_codec_consolidation.md)
+- [MYC-004: AlphaPulse Codec Consolidation](MYC-004_codec_consolidation.md)
 - [MYC-005: Producer Service Migration](MYC-005_producer_service_migration.md)
 - [MYC-006: Consumer Service Migration](MYC-006_consumer_service_migration.md)
 - [MYC-007: Integration Testing and Validation](MYC-007_integration_testing_validation.md)

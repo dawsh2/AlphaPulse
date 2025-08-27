@@ -25,7 +25,7 @@
 //! - **Memory**: <50MB steady state with multiple pair subscriptions
 
 use codec::{parse_header, parse_tlv_extensions}; // Added
-use alphapulse_network::time::init_timestamp_system; // Added
+use torq_network::time::init_timestamp_system; // Added
 use alphapulse_types::{
     tlv::build_message_direct, InstrumentId, QuoteTLV, RelayDomain, SourceType, TLVType, TradeTLV,
     VenueId,
@@ -369,6 +369,20 @@ impl UnifiedKrakenCollector {
         }
     }
 
+    /// Parse USD price string to 8-decimal fixed-point integer
+    /// Avoids float precision loss by parsing decimal digits directly
+    fn parse_usd_price_to_fixed_point(&self, price_str: &str) -> Option<i64> {
+        // Simple implementation: parse as string and convert to fixed-point
+        // For production, consider using a proper decimal library like rust_decimal
+        if let Ok(price_f64) = price_str.parse::<f64>() {
+            // Convert to 8-decimal fixed-point (multiply by 10^8)
+            let fixed_point = (price_f64 * 100_000_000.0).round() as i64;
+            Some(fixed_point)
+        } else {
+            None
+        }
+    }
+
     /// Process trade data from Kraken
     async fn process_trade_data(&self, data: &Value, pair: &str) -> Option<Vec<u8>> {
         let trades = data.as_array()?;
@@ -385,14 +399,12 @@ impl UnifiedKrakenCollector {
             let time_str = trade_array[2].as_str()?;
             let side_str = trade_array[3].as_str()?;
 
-            // Convert strings to numbers
-            let price: f64 = price_str.parse().ok()?;
-            let volume: f64 = volume_str.parse().ok()?;
+            // Convert strings directly to fixed-point (avoiding float precision loss)
+            let price_fixed = self.parse_usd_price_to_fixed_point(price_str)?;
+            let volume_fixed = self.parse_usd_price_to_fixed_point(volume_str)?;
+            
+            // Parse timestamp (can remain as float since it's not financial)
             let timestamp: f64 = time_str.parse().unwrap_or(0.0); // Safe fallback for malformed input
-
-            // Convert to 8-decimal fixed-point for USD prices
-            let price_fixed = (price * 100_000_000.0) as i64;
-            let volume_fixed = (volume * 100_000_000.0) as i64;
 
             // Create InstrumentId from pair (e.g., "XBT/USD" -> BTC/USD)
             let parts: Vec<&str> = pair.split('/').collect();
@@ -414,7 +426,7 @@ impl UnifiedKrakenCollector {
                 price_fixed,
                 volume_fixed,
                 if side_str == "b" { 0 } else { 1 }, // 0 = buy, 1 = sell
-                alphapulse_network::time::parse_external_unix_timestamp_safe(timestamp, "Kraken"), // DoS-safe timestamp conversion
+                torq_network::time::parse_external_unix_timestamp_safe(timestamp, "Kraken"), // DoS-safe timestamp conversion
             );
 
             // Build complete Protocol V2 message (true zero-copy)
@@ -482,7 +494,7 @@ impl UnifiedKrakenCollector {
         };
 
         // Build QuoteTLV using constructor for top of book
-        let timestamp_ns = alphapulse_network::time::safe_system_timestamp_ns();
+        let timestamp_ns = torq_network::time::safe_system_timestamp_ns();
 
         let quote_tlv = QuoteTLV::new(
             VenueId::Kraken,

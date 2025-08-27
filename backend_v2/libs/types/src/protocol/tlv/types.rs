@@ -967,7 +967,7 @@ impl TLVType {
             TLVType::L2Reset => TLVSizeConstraint::Variable,   // Variable reset data
             TLVType::PriceUpdate => TLVSizeConstraint::Variable, // Variable price data
             TLVType::VolumeUpdate => TLVSizeConstraint::Variable, // Variable volume data
-            TLVType::QuoteUpdate => TLVSizeConstraint::Fixed(56), // QuoteTLV size (56 bytes padded)
+            TLVType::QuoteUpdate => TLVSizeConstraint::Fixed(52), // QuoteTLV size (52 bytes verified)
             TLVType::GasPrice => TLVSizeConstraint::Fixed(32), // Gas price updates (32 bytes as verified in gas_price.rs)
             TLVType::StateInvalidationReason => TLVSizeConstraint::Fixed(1), // Single byte enum
 

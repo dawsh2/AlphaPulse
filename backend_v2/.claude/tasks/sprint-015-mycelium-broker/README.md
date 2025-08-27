@@ -13,7 +13,7 @@ The current relay system (MarketDataRelay, SignalRelay, ExecutionRelay) adds unn
 2. **Performance Preservation**: Maintain >1M msg/s message throughput benchmarks
 3. **Simplified Topology**: Replace 3 domain relays with 1 configurable broker
 4. **Zero Downtime Migration**: Ensure seamless transition from relay to broker architecture
-5. **Codec Consolidation**: Move all TLV validation logic to alphapulse_codec
+5. **Codec Consolidation**: Move all TLV validation logic to codec
 
 ### Secondary Goals
 1. **Configuration Management**: TOML-based broker configuration system
@@ -62,7 +62,7 @@ Producer Services → Mycelium Broker → Consumer Services
 - [ ] Configuration system with TOML support
 
 ### Migration Components
-- [ ] Consolidated alphapulse_codec with validation logic
+- [ ] Consolidated codec with validation logic
 - [ ] Migrated producer services (PolygonAdapter, etc.)
 - [ ] Migrated consumer services (FlashArbitrage, etc.)
 - [ ] Integration tests validating message flow

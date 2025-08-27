@@ -107,7 +107,7 @@ AlphaPulse currently lacks a coherent, single-source-of-truth architectural over
    graph TD
        subgraph "Data Layer"
            Types[libs/types<br/>TradeTLV, PoolInfo]
-           Codec[libs/alphapulse_codec<br/>Protocol Rules]
+           Codec[libs/codec<br/>Protocol Rules]
        end
        
        subgraph "Behavior Layer"  
@@ -137,7 +137,7 @@ The system separates concerns across three distinct layers:
    - `TradeTLV`, `ArbitrageOpportunity`, `PoolInfo` 
    - System's "vocabulary" - what we talk about
 
-2. **The Rules (`libs/alphapulse_codec`)**: Protocol logic that defines communication
+2. **The Rules (`libs/codec`)**: Protocol logic that defines communication
    - Parsing, validation, construction of messages
    - System's "grammar" - how we communicate
 
@@ -167,7 +167,7 @@ The system separates concerns across three distinct layers:
 alphapulse_backend_v2/
 ├── libs/                 # 🏗️ Shared foundation
 │   ├── types/            #    Pure data structures  
-│   ├── alphapulse_codec/ #    Protocol rules
+│   ├── codec/ #    Protocol rules
 │   ├── health_check/     #    Health utilities
 │   └── config/           #    Configuration macros
 ├── network/              # 🌐 Mycelium transport (bytes only)
@@ -188,7 +188,7 @@ alphapulse_backend_v2/
 | Component | Purpose | Dependencies | Examples |
 |-----------|---------|--------------|----------|
 | **libs/types** | Define system vocabulary | None (pure data) | `TradeTLV`, `PoolInfo`, `ArbitrageSignal` |
-| **libs/alphapulse_codec** | Protocol rules & validation | libs/types | TLV parsing, message building |
+| **libs/codec** | Protocol rules & validation | libs/types | TLV parsing, message building |
 | **network/** | Byte transport (Mycelium) | None | Unix sockets, message passing |
 | **services_v2/adapters** | External data ingestion | types + codec | Polygon collector, Uniswap adapter |
 | **services_v2/strategies** | Trading logic | types + codec | Flash arbitrage, signal processing |
@@ -234,14 +234,14 @@ graph LR
 
 ### Adding New Features
 1. **Define data structures** in `libs/types/`
-2. **Add protocol rules** in `libs/alphapulse_codec/` if needed
+2. **Add protocol rules** in `libs/codec/` if needed
 3. **Implement behavior** in appropriate service/relay
 4. **Test end-to-end** using unified test framework
 
 ### Common Tasks
 - **Adding new exchange**: Create adapter in `services_v2/adapters/`
 - **New trading strategy**: Implement in `services_v2/strategies/`
-- **Protocol changes**: Update `libs/alphapulse_codec/`
+- **Protocol changes**: Update `libs/codec/`
 - **System monitoring**: Extend `scripts/lib/status.sh`
 
 ## 📖 Documentation
@@ -303,7 +303,7 @@ test_readme_structure() {
 
 test_referenced_files_exist() {
     # Verify all referenced files/directories actually exist
-    dirs=("libs/types" "libs/alphapulse_codec" "services_v2/adapters" "relays/src/common")
+    dirs=("libs/types" "libs/codec" "services_v2/adapters" "relays/src/common")
     for dir in "${dirs[@]}"; do
         if [[ ! -d "$dir" ]]; then
             echo "❌ Referenced directory missing: $dir"

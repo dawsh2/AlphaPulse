@@ -21,7 +21,7 @@ pub struct RelayMessageBuilder {
 impl RelayMessageBuilder {
     /// Create a new message builder for a specific relay domain
     pub fn new(relay_domain: RelayDomain, source: SourceType) -> Self {
-        let builder = TLVMessageBuilder::new(relay_domain as u8, source as u8);
+        let builder = TLVMessageBuilder::new(relay_domain, source);
         Self {
             builder,
             relay_domain,
@@ -29,7 +29,7 @@ impl RelayMessageBuilder {
     }
 
     /// Add a TLV extension to the message
-    pub fn add_tlv(&mut self, tlv_type: TLVType, data: &[u8]) -> RelayResult<()> {
+    pub fn add_tlv(mut self, tlv_type: TLVType, data: &[u8]) -> RelayResult<Self> {
         // Validate TLV type is appropriate for this relay domain
         if !Self::validate_tlv_for_domain(self.relay_domain, tlv_type) {
             return Err(RelayError::Validation(format!(
@@ -38,18 +38,18 @@ impl RelayMessageBuilder {
             )));
         }
 
-        self.builder.add_tlv(tlv_type, data);
-        Ok(())
+        self.builder = self.builder.add_tlv_slice(tlv_type, data);
+        Ok(self)
     }
 
     /// Add a trade TLV with instrument ID
     pub fn add_trade_tlv(
-        &mut self,
+        self,
         instrument_id: &InstrumentId,
         price: i64,
         quantity: i64,
         timestamp: u64,
-    ) -> RelayResult<()> {
+    ) -> RelayResult<Self> {
         // Ensure we're in the market data domain
         if self.relay_domain != RelayDomain::MarketData {
             return Err(RelayError::Validation(
@@ -69,12 +69,12 @@ impl RelayMessageBuilder {
 
     /// Add a signal TLV
     pub fn add_signal_tlv(
-        &mut self,
+        self,
         signal_id: u64,
         signal_type: u8,
         confidence: f32,
         data: &[u8],
-    ) -> RelayResult<()> {
+    ) -> RelayResult<Self> {
         // Ensure we're in the signal domain
         if self.relay_domain != RelayDomain::Signal {
             return Err(RelayError::Validation(
@@ -94,12 +94,12 @@ impl RelayMessageBuilder {
 
     /// Add an order status TLV
     pub fn add_order_status_tlv(
-        &mut self,
+        self,
         order_id: u64,
         status: u8,
         filled_quantity: i64,
         remaining_quantity: i64,
-    ) -> RelayResult<()> {
+    ) -> RelayResult<Self> {
         // Ensure we're in the execution domain
         if self.relay_domain != RelayDomain::Execution {
             return Err(RelayError::Validation(
@@ -118,14 +118,14 @@ impl RelayMessageBuilder {
     }
 
     /// Build the complete message with proper header and checksum
-    pub fn build(self) -> Bytes {
-        let message = self.builder.build();
+    pub fn build(self) -> Result<Bytes, codec::ProtocolError> {
+        let message = self.builder.build()?;
         debug!(
             "Built Protocol V2 message for domain {:?}: {} bytes",
             self.relay_domain,
             message.len()
         );
-        Bytes::from(message)
+        Ok(Bytes::from(message))
     }
 
     /// Validate that a TLV type is appropriate for a given relay domain
@@ -146,12 +146,12 @@ pub mod factory {
     use super::*;
 
     /// Create a heartbeat message for relay health monitoring
-    pub fn create_heartbeat(domain: RelayDomain, source: SourceType) -> Bytes {
-        let mut builder = RelayMessageBuilder::new(domain, source);
+    pub fn create_heartbeat(domain: RelayDomain, source: SourceType) -> Result<Bytes, codec::ProtocolError> {
+        let builder = RelayMessageBuilder::new(domain, source);
 
         // Add heartbeat TLV
         let heartbeat_data = b"HB";
-        builder
+        let builder = builder
             .add_tlv(TLVType::Heartbeat, heartbeat_data)
             .expect("Failed to add heartbeat TLV");
 
@@ -165,8 +165,8 @@ pub mod factory {
         connected_clients: u32,
         messages_processed: u64,
         uptime_seconds: u64,
-    ) -> Bytes {
-        let mut builder = RelayMessageBuilder::new(domain, source);
+    ) -> Result<Bytes, codec::ProtocolError> {
+        let builder = RelayMessageBuilder::new(domain, source);
 
         // Create status data
         let mut status_data = Vec::with_capacity(16);
@@ -174,7 +174,7 @@ pub mod factory {
         status_data.extend_from_slice(&messages_processed.to_le_bytes());
         status_data.extend_from_slice(&uptime_seconds.to_le_bytes());
 
-        builder
+        let builder = builder
             .add_tlv(TLVType::SystemHealth, &status_data)
             .expect("Failed to add status TLV");
 

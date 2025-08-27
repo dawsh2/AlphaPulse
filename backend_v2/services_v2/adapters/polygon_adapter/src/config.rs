@@ -160,15 +160,14 @@ impl Default for PolygonConfig {
         Self {
             base: BaseAdapterConfig {
                 adapter_id: "polygon_adapter".to_string(),
+                credentials: None,
                 connection_timeout_ms: 30000,
                 reconnect_interval_ms: 5000,
                 max_reconnect_attempts: 10,
                 circuit_breaker_enabled: true,
-                circuit_breaker_failure_threshold: 5,
-                circuit_breaker_recovery_ms: 30000,
-                circuit_breaker_half_open_attempts: 3,
                 rate_limit_requests_per_second: Some(1000),
-                ..Default::default()
+                metrics_enabled: true,
+                output_channel_capacity: 10000,
             },
             polygon_ws_url: "wss://polygon.drpc.org".to_string(),
             polygon_rpc_url: Some("https://polygon-rpc.com".to_string()),
@@ -225,86 +224,48 @@ impl PolygonConfig {
 
         // WebSocket configuration overrides
         if let Ok(url) = env::var("POLYGON_WS_URL") {
-            self.websocket.url = url;
+            self.polygon_ws_url = url;
         }
 
         if let Ok(rpc_url) = env::var("POLYGON_RPC_URL") {
-            self.websocket.rpc_url = Some(rpc_url);
+            self.polygon_rpc_url = Some(rpc_url);
         }
 
-        if let Ok(timeout) = env::var("POLYGON_WS_TIMEOUT_MS") {
+        if let Ok(timeout) = env::var("POLYGON_TIMEOUT_MS") {
             if let Ok(timeout) = timeout.parse() {
-                self.websocket.connection_timeout_ms = timeout;
-            }
-        }
-
-        // Relay configuration overrides
-        if let Ok(socket_path) = env::var("POLYGON_RELAY_SOCKET") {
-            self.relay.socket_path = socket_path;
-        }
-
-        if let Ok(domain) = env::var("POLYGON_RELAY_DOMAIN") {
-            self.relay.domain = domain;
-        }
-
-        if let Ok(source_id) = env::var("POLYGON_SOURCE_ID") {
-            if let Ok(source_id) = source_id.parse() {
-                self.relay.source_id = source_id;
-            }
-        }
-
-        // Validation configuration overrides
-        if let Ok(validation_seconds) = env::var("POLYGON_VALIDATION_SECONDS") {
-            if let Ok(validation_seconds) = validation_seconds.parse() {
-                self.validation.runtime_validation_seconds = validation_seconds;
+                self.base.connection_timeout_ms = timeout;
             }
         }
     }
 
-    /// Validate the complete configuration
+    /// Validate the configuration
     pub fn validate(&self) -> Result<()> {
         // Validate WebSocket URL
-        if self.websocket.url.is_empty() {
+        if self.polygon_ws_url.is_empty() {
             return Err(anyhow::anyhow!("WebSocket URL cannot be empty"));
         }
 
-        if !self.websocket.url.starts_with("ws://") && !self.websocket.url.starts_with("wss://") {
+        if !self.polygon_ws_url.starts_with("ws://") && !self.polygon_ws_url.starts_with("wss://") {
             return Err(anyhow::anyhow!(
                 "WebSocket URL must start with ws:// or wss://"
             ));
         }
 
-        // Validate relay domain
-        self.relay
-            .parse_domain()
-            .with_context(|| "Invalid relay domain configuration")?;
-
-        // Validate socket path
-        if self.relay.socket_path.is_empty() {
-            return Err(anyhow::anyhow!("Relay socket path cannot be empty"));
-        }
-
-        // Validate timeouts
-        if self.websocket.connection_timeout_ms == 0 {
+        // Validate base configuration
+        if self.base.connection_timeout_ms == 0 {
             return Err(anyhow::anyhow!("Connection timeout must be greater than 0"));
         }
 
-        if self.websocket.message_timeout_ms == 0 {
-            return Err(anyhow::anyhow!("Message timeout must be greater than 0"));
+        if self.max_processing_latency_us == 0 {
+            return Err(anyhow::anyhow!("Processing latency limit must be greater than 0"));
         }
-
-        // Event signatures now validated at runtime via libs/dex
-        // Contract addresses now handled by registry service
 
         Ok(())
     }
 
-    /// Convert WebSocket config to Duration values
-    pub fn websocket_timeouts(&self) -> (Duration, Duration) {
-        (
-            Duration::from_millis(self.websocket.connection_timeout_ms),
-            Duration::from_millis(self.websocket.message_timeout_ms),
-        )
+    /// Get connection timeout
+    pub fn connection_timeout(&self) -> Duration {
+        Duration::from_millis(self.base.connection_timeout_ms)
     }
 
     // Event signatures now provided by libs/dex::get_all_event_signatures()
@@ -333,82 +294,19 @@ mod tests {
     }
 
     #[test]
-    fn test_relay_domain_parsing() {
-        let mut config = PolygonConfig::default();
-
-        // Valid domains
-        config.relay.domain = "MarketData".to_string();
-        assert!(config.relay.parse_domain().is_ok());
-
-        config.relay.domain = "Signal".to_string();
-        assert!(config.relay.parse_domain().is_ok());
-
-        config.relay.domain = "Execution".to_string();
-        assert!(config.relay.parse_domain().is_ok());
-
-        // Invalid domain
-        config.relay.domain = "InvalidDomain".to_string();
-        assert!(config.relay.parse_domain().is_err());
-    }
-
-    #[test]
     fn test_env_overrides() {
         // Set test environment variables
         env::set_var("POLYGON_WS_URL", "wss://test.polygon.com");
-        env::set_var("POLYGON_RELAY_SOCKET", "/tmp/test.sock");
-        env::set_var("POLYGON_SOURCE_ID", "99");
+        env::set_var("POLYGON_TIMEOUT_MS", "10000");
 
         let mut config = PolygonConfig::default();
         config.apply_env_overrides();
 
-        assert_eq!(config.websocket.url, "wss://test.polygon.com");
-        assert_eq!(config.relay.socket_path, "/tmp/test.sock");
-        assert_eq!(config.relay.source_id, 99);
+        assert_eq!(config.polygon_ws_url, "wss://test.polygon.com");
+        assert_eq!(config.base.connection_timeout_ms, 10000);
 
         // Clean up
         env::remove_var("POLYGON_WS_URL");
-        env::remove_var("POLYGON_RELAY_SOCKET");
-        env::remove_var("POLYGON_SOURCE_ID");
-    }
-
-    #[test]
-    fn test_toml_roundtrip() {
-        let config = PolygonConfig::default();
-
-        // Serialize to TOML
-        let toml_str = toml::to_string(&config).unwrap();
-
-        // Deserialize back
-        let deserialized: PolygonConfig = toml::from_str(&toml_str).unwrap();
-
-        // Should be identical
-        assert_eq!(config.websocket.url, deserialized.websocket.url);
-        assert_eq!(config.relay.socket_path, deserialized.relay.socket_path);
-        assert_eq!(
-            config.validation.runtime_validation_seconds,
-            deserialized.validation.runtime_validation_seconds
-        );
-    }
-
-    #[test]
-    fn test_invalid_config_validation() {
-        let mut config = PolygonConfig::default();
-
-        // Invalid WebSocket URL
-        config.websocket.url = "http://invalid.com".to_string();
-        assert!(config.validate().is_err());
-
-        // Empty WebSocket URL
-        config.websocket.url = "".to_string();
-        assert!(config.validate().is_err());
-
-        // Invalid relay domain
-        config.websocket.url = "wss://valid.com".to_string();
-        config.relay.domain = "InvalidDomain".to_string();
-        assert!(config.validate().is_err());
-
-        // Valid configuration (event signatures now handled by libs/dex)
-        config.relay.domain = "MarketData".to_string();
-        assert!(config.validate().is_ok());
+        env::remove_var("POLYGON_TIMEOUT_MS");
     }
 }

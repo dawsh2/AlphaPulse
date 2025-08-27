@@ -5,7 +5,7 @@ edition = "2021"
 
 [[bin]]
 name = "debug_tlv"
-path = "debug_tlv_corruption.rs"
+path = "lib/debug/debug_tlv_corruption.rs"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }

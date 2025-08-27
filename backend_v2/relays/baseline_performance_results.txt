@@ -592,7 +592,7 @@ warning: unused import: `TransportAdapterConfig`
 warning: unused import: `ProtocolError`
  --> relays/src/relay.rs:7:38
   |
-7 | use alphapulse_codec::{parse_header, ProtocolError};
+7 | use codec::{parse_header, ProtocolError};
   |                                      ^^^^^^^^^^^^^
 
 warning: unused import: `RelayDomain`

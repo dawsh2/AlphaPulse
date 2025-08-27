@@ -1,0 +1,19 @@
+#+TITLE: AlphaPulse Active Tasks
+#+TODO: TODO NEXT IN-PROGRESS WAITING | DONE CANCELLED
+#+STARTUP: overview
+#+STARTUP: hidestars
+#+STARTUP: logdone
+
+* DONE Test task for validation                                        :test:
+CLOSED: [2025-08-27 Wed 12:56]
+  :PROPERTIES:
+  :ID:          TEST-001
+  :EFFORT:      2h
+  :PRIORITY:    A
+  :END:
+  
+  This is a test task to validate the parsing system.
+
+* TODO Second test task
+
+* TODO [#A] Setup database schema

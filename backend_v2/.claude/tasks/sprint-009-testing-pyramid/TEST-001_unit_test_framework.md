@@ -31,7 +31,7 @@ git worktree add -b test/unit-test-framework
 ```
 
 ## Status
-**Status**: TODO
+**Status**: COMPLETE
 **Priority**: CRITICAL
 **Branch**: `test/unit-test-framework`
 **Estimated**: 4 hours

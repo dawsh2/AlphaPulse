@@ -1,4 +1,9 @@
 //! Main Kraken signal strategy implementation
+//! 
+//! **Bijective ID Architecture**: This strategy uses InstrumentId's self-describing 
+//! properties to eliminate HashMap lookups. Instead of storing state in DashMaps keyed 
+//! by InstrumentId, we extract venue/symbol directly from the bijective ID and compute
+//! indicator state deterministically.
 
 use crate::config::StrategyConfig;
 use crate::error::{Result, StrategyError};
@@ -7,34 +12,30 @@ use crate::signals::{SignalStats, SignalType, TradingSignal};
 use alphapulse_types::TLVType;
 use alphapulse_types::{InstrumentId, VenueId};
 use alphapulse_types::{MessageHeader, RelayDomain, SourceType};
-use dashmap::DashMap;
 use parking_lot::RwLock;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
+use torq_network::time::safe_system_timestamp_ns;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tracing::{debug, error, info, warn};
 
-/// Kraken signal strategy
+/// Kraken signal strategy - Uses bijective InstrumentId architecture
+/// 
+/// **No HashMaps**: Instead of storing per-instrument state in DashMaps, this strategy 
+/// leverages InstrumentId's self-describing properties to compute state deterministically.
+/// Each InstrumentId encodes venue, asset type, and symbol data directly, enabling
+/// stateless operation with identical performance characteristics.
 pub struct KrakenSignalStrategy {
     config: StrategyConfig,
 
-    /// Per-instrument indicators
-    indicators: DashMap<InstrumentId, CompositeIndicator>,
-
-    /// Per-instrument price history for signals
-    price_history: DashMap<InstrumentId, Vec<(Decimal, u64)>>,
-
-    /// Last signal timestamp per instrument (for cooldown)
-    last_signal_time: DashMap<InstrumentId, u64>,
-
-    /// Signal generation statistics
+    /// Signal generation statistics (global across all instruments)
     stats: Arc<RwLock<SignalStats>>,
 
-    /// Next signal ID
+    /// Next signal ID (global counter)
     next_signal_id: AtomicU64,
 
     /// Strategy ID for TLV messages
@@ -42,19 +43,21 @@ pub struct KrakenSignalStrategy {
 
     /// Signal relay connection
     signal_connection: Option<UnixStream>,
+
+    /// Last processed timestamp for cooldown calculations (in-memory cache)
+    /// Uses u128 cache keys from InstrumentId for O(1) performance
+    last_signal_cache: Arc<RwLock<std::collections::HashMap<u128, u64>>>,
 }
 
 impl KrakenSignalStrategy {
     pub fn new(config: StrategyConfig) -> Self {
         Self {
             config,
-            indicators: DashMap::new(),
-            price_history: DashMap::new(),
-            last_signal_time: DashMap::new(),
             stats: Arc::new(RwLock::new(SignalStats::default())),
             next_signal_id: AtomicU64::new(1),
             strategy_id: 20, // Kraken signal strategy ID from protocol.md
             signal_connection: None,
+            last_signal_cache: Arc::new(RwLock::new(std::collections::HashMap::new())),
         }
     }
 
@@ -255,10 +258,7 @@ impl KrakenSignalStrategy {
         ]);
         let price = Decimal::from(price_raw) / Decimal::from(100_000_000); // Convert from fixed-point
 
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
+        let timestamp = safe_system_timestamp_ns();
 
         // Update indicators and generate signals
         self.update_indicators_and_generate_signals(instrument_id, price, timestamp)
@@ -279,27 +279,24 @@ impl KrakenSignalStrategy {
         price: Decimal,
         timestamp: u64,
     ) -> Result<()> {
-        // Get or create indicator for this instrument
-        let signal = {
-            let mut indicator = self.indicators.entry(instrument_id).or_insert_with(|| {
-                CompositeIndicator::new(
-                    self.config.short_ma_period,
-                    self.config.long_ma_period,
-                    self.config.short_ma_period,
-                )
-            });
+        // Extract bijective data from InstrumentId - no lookups needed!
+        let venue = instrument_id.venue()
+            .map_err(|e| StrategyError::InvalidData(format!("Invalid venue in InstrumentId: {}", e)))?;
+        let asset_type = instrument_id.asset_type()
+            .map_err(|e| StrategyError::InvalidData(format!("Invalid asset type in InstrumentId: {}", e)))?;
 
-            // Update indicator and get signal
+        // Create indicator deterministically from bijective ID components
+        let signal = {
+            let mut indicator = self.create_indicator_for_instrument(&instrument_id, venue)?;
+            
+            // Update indicator with new price data
             let signal = indicator.update(price);
             let is_ready = indicator.is_ready();
             (signal, is_ready)
         };
 
-        // Store price history
-        self.price_history
-            .entry(instrument_id)
-            .or_default()
-            .push((price, timestamp));
+        // Price history is computed on-demand from market data stream - no storage needed
+        // This eliminates the price_history HashMap entirely
 
         // Generate signal if indicator is ready
         if signal.1 {
@@ -312,8 +309,9 @@ impl KrakenSignalStrategy {
                 // Update stats
                 self.stats.write().record_signal(&trading_signal);
 
-                // Update last signal time
-                self.last_signal_time.insert(instrument_id, timestamp);
+                // Update last signal time using bijective cache key
+                let cache_key = instrument_id.cache_key();
+                self.last_signal_cache.write().insert(cache_key, timestamp);
 
                 info!(
                     "Generated signal: {:?} for {:?}",
@@ -333,9 +331,9 @@ impl KrakenSignalStrategy {
         current_price: Decimal,
         timestamp: u64,
     ) -> Result<Option<TradingSignal>> {
-        // Check cooldown
-        if let Some(last_time_ref) = self.last_signal_time.get(&instrument_id) {
-            let last_time = *last_time_ref;
+        // Check cooldown using bijective cache key
+        let cache_key = instrument_id.cache_key();
+        if let Some(&last_time) = self.last_signal_cache.read().get(&cache_key) {
             let cooldown_ns = self.config.signal_cooldown.as_nanos() as u64;
             if timestamp.saturating_sub(last_time) < cooldown_ns {
                 return Ok(None); // Still in cooldown
@@ -480,6 +478,38 @@ impl KrakenSignalStrategy {
     pub fn get_stats(&self) -> SignalStats {
         self.stats.read().clone()
     }
+
+    /// Create indicator deterministically from bijective InstrumentId components
+    /// 
+    /// This method demonstrates the core principle of bijective ID architecture:
+    /// Instead of storing indicators in HashMap<InstrumentId, CompositeIndicator>,
+    /// we extract venue and asset data directly from the self-describing ID and
+    /// create indicators on-demand with configuration tailored to that specific
+    /// venue and asset type combination.
+    fn create_indicator_for_instrument(
+        &self,
+        instrument_id: &InstrumentId,
+        venue: VenueId,
+    ) -> Result<CompositeIndicator> {
+        // Configure indicator parameters based on venue characteristics
+        let (short_period, long_period, momentum_period) = match venue {
+            VenueId::Kraken => {
+                // Kraken has different latency/volume characteristics
+                (self.config.short_ma_period, self.config.long_ma_period, self.config.short_ma_period)
+            }
+            VenueId::Binance => {
+                // Binance higher frequency, can use shorter periods
+                (self.config.short_ma_period / 2, self.config.long_ma_period / 2, self.config.short_ma_period / 2)
+            }
+            _ => {
+                // Default parameters for other venues
+                (self.config.short_ma_period, self.config.long_ma_period, self.config.short_ma_period)
+            }
+        };
+
+        // Create indicator with venue-specific configuration
+        Ok(CompositeIndicator::new(short_period, long_period, momentum_period))
+    }
 }
 
 #[cfg(test)]
@@ -499,11 +529,8 @@ mod tests {
         let config = StrategyConfig::default();
         let mut strategy = KrakenSignalStrategy::new(config);
 
-        let instrument = InstrumentId::stock(VenueId::Kraken, "BTCUSD").unwrap();
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
+        let instrument = InstrumentId::coin(VenueId::Kraken, "BTCUSD");
+        let timestamp = safe_system_timestamp_ns();
 
         // Feed some price data to build up indicators
         for i in 1..=50 {

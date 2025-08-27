@@ -7,6 +7,7 @@
 
 pub mod client;
 pub mod config;
+pub mod constants;
 pub mod error;
 pub mod message_converter;
 pub mod relay_consumer;

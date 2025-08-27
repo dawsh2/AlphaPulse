@@ -89,6 +89,18 @@ pub enum TransportError {
         message: String,
         source: std::io::Error,
     },
+
+    /// Feature not implemented yet
+    #[error("Feature '{feature}' not implemented: {reason}")]
+    NotImplemented { feature: String, reason: String },
+
+    /// Precision and financial calculation errors
+    #[error("Precision error: {message}")]
+    Precision { message: String },
+
+    /// System-level errors
+    #[error("System error: {message}")]
+    System { message: String },
 }
 
 /// Result type alias for transport operations
@@ -264,6 +276,42 @@ impl TransportError {
         Self::topology(msg)
     }
 
+    /// Create a not implemented error
+    pub fn not_implemented(feature: impl Into<String>, reason: impl Into<String>) -> Self {
+        Self::NotImplemented {
+            feature: feature.into(),
+            reason: reason.into(),
+        }
+    }
+
+    /// Create a precision error
+    pub fn precision(message: impl Into<String>) -> Self {
+        Self::Precision {
+            message: message.into(),
+        }
+    }
+
+    /// Create a system error
+    pub fn system(message: impl Into<String>) -> Self {
+        Self::System {
+            message: message.into(),
+        }
+    }
+
+    /// Create a protocol error with detailed context preservation
+    pub fn protocol_with_field(message: impl Into<String>, field: Option<&str>) -> Self {
+        let context_message = if let Some(f) = field {
+            format!("{} (field: {})", message.into(), f)
+        } else {
+            message.into()
+        };
+        
+        Self::Protocol {
+            message: context_message,
+            source: None,
+        }
+    }
+
     /// Check if this is a retryable error
     pub fn is_retryable(&self) -> bool {
         match self {
@@ -280,6 +328,9 @@ impl TransportError {
             TransportError::Monitoring { .. } => true,
             TransportError::HealthCheck { .. } => true,
             TransportError::Io { .. } => true,
+            TransportError::NotImplemented { .. } => false,
+            TransportError::Precision { .. } => false,
+            TransportError::System { .. } => true,
         }
     }
 
@@ -290,6 +341,7 @@ impl TransportError {
             TransportError::Connection { .. } => true,
             TransportError::Timeout { .. } => true,
             TransportError::ResourceExhausted { .. } => true,
+            TransportError::System { .. } => true,
             _ => false,
         }
     }
@@ -310,6 +362,113 @@ impl TransportError {
             TransportError::Monitoring { .. } => "monitoring",
             TransportError::HealthCheck { .. } => "health_check",
             TransportError::Io { .. } => "io",
+            TransportError::NotImplemented { .. } => "not_implemented",
+            TransportError::Precision { .. } => "precision",
+            TransportError::System { .. } => "system",
+        }
+    }
+}
+
+// Custom Clone implementation since Box<dyn Error> doesn't implement Clone
+impl Clone for TransportError {
+    fn clone(&self) -> Self {
+        match self {
+            TransportError::Network { message, .. } => {
+                TransportError::Network {
+                    message: message.clone(),
+                    source: None, // Source errors are not cloneable, so we omit them
+                }
+            }
+            TransportError::Connection { message, remote_addr, .. } => {
+                TransportError::Connection {
+                    message: message.clone(),
+                    remote_addr: *remote_addr,
+                    source: None,
+                }
+            }
+            TransportError::Protocol { message, .. } => {
+                TransportError::Protocol {
+                    message: message.clone(),
+                    source: None,
+                }
+            }
+            TransportError::Configuration { message, field } => {
+                TransportError::Configuration {
+                    message: message.clone(),
+                    field: field.clone(),
+                }
+            }
+            TransportError::MessageQueue { backend, message, .. } => {
+                TransportError::MessageQueue {
+                    backend: backend.clone(),
+                    message: message.clone(),
+                    source: None,
+                }
+            }
+            TransportError::Security { message, .. } => {
+                TransportError::Security {
+                    message: message.clone(),
+                    source: None,
+                }
+            }
+            TransportError::Compression { codec, message } => {
+                TransportError::Compression {
+                    codec: codec.clone(),
+                    message: message.clone(),
+                }
+            }
+            TransportError::Timeout { operation, timeout_ms } => {
+                TransportError::Timeout {
+                    operation: operation.clone(),
+                    timeout_ms: *timeout_ms,
+                }
+            }
+            TransportError::ResourceExhausted { resource, message } => {
+                TransportError::ResourceExhausted {
+                    resource: resource.clone(),
+                    message: message.clone(),
+                }
+            }
+            TransportError::Topology { message, .. } => {
+                TransportError::Topology {
+                    message: message.clone(),
+                    source: None,
+                }
+            }
+            TransportError::Monitoring { message, .. } => {
+                TransportError::Monitoring {
+                    message: message.clone(),
+                    source: None,
+                }
+            }
+            TransportError::HealthCheck { check_type, message } => {
+                TransportError::HealthCheck {
+                    check_type: check_type.clone(),
+                    message: message.clone(),
+                }
+            }
+            TransportError::Io { message, source } => {
+                TransportError::Io {
+                    message: message.clone(),
+                    source: std::io::Error::new(source.kind(), message.as_str()),
+                }
+            }
+            TransportError::NotImplemented { feature, reason } => {
+                TransportError::NotImplemented {
+                    feature: feature.clone(),
+                    reason: reason.clone(),
+                }
+            }
+            TransportError::Precision { message } => {
+                TransportError::Precision {
+                    message: message.clone(),
+                }
+            }
+            TransportError::System { message } => {
+                TransportError::System {
+                    message: message.clone(),
+                }
+            }
         }
     }
 }
@@ -325,9 +484,29 @@ impl From<std::io::Error> for TransportError {
 }
 
 /// Convert topology errors to transport errors
-impl From<alphapulse_topology::error::TopologyError> for TransportError {
-    fn from(error: alphapulse_topology::error::TopologyError) -> Self {
-        TransportError::topology_with_source("Topology integration failed", error)
+impl From<crate::topology::error::TopologyError> for TransportError {
+    fn from(error: crate::topology::error::TopologyError) -> Self {
+        // Preserve context from topology error for better debugging
+        let context_message = match &error {
+            crate::topology::error::TopologyError::ActorNotFound { actor } => {
+                format!("Topology integration failed: Actor '{}' not found", actor)
+            },
+            crate::topology::error::TopologyError::NodeNotFound { node } => {
+                format!("Topology integration failed: Node '{}' not found", node)
+            },
+            crate::topology::error::TopologyError::Config { message } => {
+                format!("Topology integration failed: Configuration error: {}", message)
+            },
+            crate::topology::error::TopologyError::TransportResolution { reason } => {
+                format!("Topology integration failed: Transport resolution: {}", reason)
+            },
+            crate::topology::error::TopologyError::NotImplemented { feature, planned_phase } => {
+                format!("Topology integration failed: {} not implemented (planned for {})", feature, planned_phase)
+            },
+            _ => format!("Topology integration failed: {}", error),
+        };
+        
+        TransportError::topology_with_source(context_message, error)
     }
 }
 

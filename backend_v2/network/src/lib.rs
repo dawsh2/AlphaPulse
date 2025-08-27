@@ -1,63 +1,124 @@
-//! AlphaPulse Transport System
+//! # High-Performance Network Transport System
 //!
-//! High-performance network transport system for actor communication across
-//! nodes in the AlphaPulse trading infrastructure. Provides both direct
-//! peer-to-peer transport for ultra-low latency and optional message queue
-//! integration for reliability-critical channels.
+//! The `torq-network` crate provides a unified network transport system for AlphaPulse
+//! that consolidates topology management and transport protocols into a single,
+//! high-performance solution.
 //!
-//! # Features
+//! ## Features
 //!
-//! - **Direct Transport**: TCP/UDP/QUIC for low-latency communication
-//! - **Message Queues**: RabbitMQ/Kafka/Redis integration for reliability
-//! - **Hybrid Routing**: Automatic selection between direct and MQ transport
-//! - **Topology Integration**: Seamless integration with topology system
-//! - **Security**: TLS and ChaCha20Poly1305 encryption support
-//! - **Compression**: LZ4, Zstd, and Snappy compression options
-//! - **Monitoring**: Comprehensive metrics and health monitoring
+//! - **Multiple Transport Modes**: Direct (TCP/UDP/QUIC), Message Queue, and Hybrid routing
+//! - **Protocol V2 Integration**: TLV message validation with domain separation
+//! - **Precision Handling**: DEX token and traditional exchange precision preservation
+//! - **Topology Management**: Actor placement with NUMA awareness and resource optimization
+//! - **Zero-Copy Operations**: High-performance serialization with zerocopy traits
+//! - **Comprehensive Error Handling**: Context-preserving error types with retry logic
 //!
-//! ## Architecture Role
+//! ## Migration Guide
 //!
-//! ```mermaid
-//! graph TB
-//!     ActorA[Actor A] -->|Same Node| SharedMem[Shared Memory <35μs]
-//!     ActorA -->|Different Node| TCPUDP[TCP/UDP <5ms]
-//!     ActorA -->|Reliable Delivery| MessageQueue[Message Queue <50ms]
-//!     
-//!     SharedMem --> ActorB[Actor B - Same Node]
-//!     TCPUDP --> ActorC[Actor C - Different Node]
-//!     MessageQueue --> ActorD[Actor D - Reliable Delivery]
-//!     
-//!     subgraph "Transport Selection Logic"
-//!         Distance{Distance Check}
-//!         Reliability{Reliability Required?}
-//!         Performance{Latency Priority?}
-//!         
-//!         Distance -->|Same Node| SharedMem
-//!         Distance -->|Different Node| Reliability
-//!         Reliability -->|Yes| MessageQueue
-//!         Reliability -->|No| Performance
-//!         Performance -->|Yes| UDP[UDP Direct]
-//!         Performance -->|No| TCP[TCP Reliable]
-//!     end
-//!     
-//!     subgraph "Hybrid Transport Layer"
-//!         Router[Transport Router]
-//!         Bridge[Protocol Bridge]
-//!         Factory[Connection Factory]
-//!     end
-//!     
-//!     classDef fast fill:#90EE90
-//!     classDef medium fill:#FFE4B5
-//!     classDef reliable fill:#FFA07A
-//!     class SharedMem,UDP fast
-//!     class TCP,TCPUDP medium  
-//!     class MessageQueue reliable
+//! This crate consolidates three previously separate crates into a unified solution:
+//!
+//! ### From `alphapulse-topology`
+//! ```rust
+//! // OLD (separate crate)
+//! use alphapulse_topology::{TopologyConfig, TopologyResolver, Actor, ActorType};
+//!
+//! // NEW (unified crate)  
+//! use torq_network::{TopologyConfig, TopologyResolver, Actor, ActorType};
 //! ```
+//!
+//! ### From `alphapulse-transport`
+//! ```rust
+//! // OLD (separate crate)
+//! use alphapulse_transport::{TransportConfig, TransportMode, ProtocolType};
+//!
+//! // NEW (unified crate)
+//! use torq_network::{TransportConfig, TransportMode, ProtocolType};
+//! ```
+//!
+//! ### From `alphapulse-network`
+//! ```rust
+//! // OLD (separate crate)
+//! use alphapulse_network::{NetworkConfig, NetworkTransport};
+//!
+//! // NEW (unified crate - now called torq-network)
+//! use torq_network::{NetworkConfig, NetworkTransport};
+//! ```
+//!
+//! ### ChannelConfig Name Collision Resolution
+//! The consolidation resolved a name collision between transport and topology `ChannelConfig` types:
+//! ```rust
+//! // Explicit type selection
+//! use torq_network::{TransportChannelConfig, TopologyChannelConfig};
+//!
+//! // Default (backward compatible - uses transport version)
+//! use torq_network::ChannelConfig; // Same as TransportChannelConfig
+//! ```
+//!
+//! ### Cargo.toml Updates
+//! ```toml
+//! # OLD (separate crates)
+//! [dependencies]
+//! alphapulse-topology = { path = "../network/topology" }
+//! alphapulse-transport = { path = "../network/transport" } 
+//! alphapulse-network = { path = "../network" }
+//!
+//! # NEW (unified crate)
+//! [dependencies]
+//! torq-network = { path = "../network" }
+//! ```
+//!
+//! ## Module Structure
+//! ```
+//! torq-network/
+//! ├── topology/          # Actor placement and NUMA optimization (from alphapulse-topology)
+//! │   ├── actors/        # Actor definitions and resource requirements
+//! │   ├── nodes/         # Node configuration and capabilities  
+//! │   ├── runtime/       # Actor runtime and lifecycle management
+//! │   └── resolver/      # Actor-to-node placement resolution
+//! ├── transport/         # Core transport abstractions (from alphapulse-transport)
+//! │   ├── hybrid/        # Hybrid routing for different message types
+//! │   ├── direct/        # Direct peer-to-peer networking
+//! │   └── message_queue/ # Message queue backends (RabbitMQ, Kafka, Redis)
+//! ├── network/           # Low-level network protocols (from alphapulse-network)
+//! │   ├── tcp/           # TCP connection management
+//! │   ├── udp/           # UDP high-frequency messaging
+//! │   └── security/      # TLS encryption and authentication
+//! ├── protocol_v2/       # Protocol V2 TLV message validation (new)
+//! ├── precision/         # Financial precision handling (new)
+//! └── error/            # Unified error types with context preservation
+//! ```
+//!
+//! ## Key Design Decisions
+//! - **Zero Breaking Changes**: All original APIs preserved with backward-compatible aliases
+//! - **Feature Flags**: Optional dependencies for Protocol V2 integration and NUMA optimization
+//! - **Performance First**: Maintains >1M msg/s throughput requirements
+//! - **Error Context**: Improved error messages preserve original error context during conversion
+//!
+//! ## Protocol V2 Support
+//!
+//! Built-in support for AlphaPulse Protocol V2 TLV messages:
+//! - 32-byte MessageHeader + variable TLV payload
+//! - Domain separation: Market Data (1-19), Signals (20-39), Execution (40-79)
+//! - Nanosecond timestamp precision
+//! - Zero floating-point financial calculations
+//!
+//! Enable Protocol V2 features:
+//! ```toml
+//! [dependencies]
+//! torq-network = { path = "../network", features = ["protocol-integration"] }
+//! ```
+//!
+//! ## Performance Characteristics
+//!
+//! - **TCP Direct**: <5ms latency for inter-node communication
+//! - **UDP Direct**: <1ms latency for trading signals
+//! - **Shared Memory**: <35μs for same-node communication
+//! - **Throughput**: >10,000 messages/second per connection
 //!
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use alphapulse_transport::{TransportConfig, NetworkTransport, TransportMode};
+//! use torq_network::{TransportConfig, NetworkTransport, TransportMode, ProtocolType, CompressionType};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create transport configuration
@@ -97,8 +158,13 @@
 #![warn(clippy::all)]
 
 pub mod error;
+pub mod mycelium;
 pub mod network;
+pub mod performance;
+pub mod precision;
+pub mod protocol_v2;
 pub mod time;
+pub mod topology;
 pub mod transport;
 
 pub mod hybrid;
@@ -117,12 +183,34 @@ pub use network::{
 
 // Re-export hybrid transport types
 pub use hybrid::{
-    ChannelConfig, HybridTransport, TransportBridge, TransportConfig, TransportMode,
+    ChannelConfig as TransportChannelConfig, HybridTransport, TransportBridge, TransportConfig, TransportMode,
     TransportRouter,
+};
+
+// Re-export topology types
+pub use topology::{
+    Actor, ActorPersistence, ActorState, ActorType, ActorPlacement,
+    ChannelConfig as TopologyChannelConfig, DeploymentEngine, Node, TopologyConfig,
+    TopologyError, TopologyResolver, TOPOLOGY_VERSION, MAX_ACTORS_PER_NODE, MAX_CPU_CORES_PER_ACTOR,
 };
 
 // Re-export topology integration
 pub use topology_integration::{TopologyIntegration, TopologyTransportResolver, TransportFactory};
+
+// Convenience re-exports with clear naming to avoid confusion
+pub use TransportChannelConfig as ChannelConfig; // Default to transport version for backward compatibility
+
+// Re-export Protocol V2 validation
+pub use protocol_v2::{
+    ProtocolV2Validator, ValidationResult, TLVValidation, TLVTypeRange,
+    validate_timestamp_precision, validate_no_float_in_price,
+};
+
+// Re-export precision handling
+pub use precision::{
+    TokenAmount, ExchangePrice, TokenSymbol, PrecisionConverter,
+    validate_precision, validate_no_floating_point, create_precision_registry,
+};
 
 // Re-export time system
 pub use time::{

@@ -39,7 +39,7 @@ pub struct TradeTLV {
 - Represents "what" we work with
 - Examples: `TradeTLV`, `PoolInfo`, `ArbitrageSignal`, `OrderRequest`
 
-### 2️⃣ **The Rules Layer** (`libs/alphapulse_codec/`)
+### 2️⃣ **The Rules Layer** (`libs/codec/`)
 Protocol logic that defines how data is communicated - the "grammar" of AlphaPulse.
 
 ```rust
@@ -84,7 +84,7 @@ backend_v2/
 │   ├── types/                   # [DATA] Pure data structures
 │   │   ├── protocol/            # Protocol-specific types (TLVs)
 │   │   └── common/              # Shared types (FixedPoint, Errors)
-│   ├── alphapulse_codec/        # [RULES] Protocol implementation
+│   ├── codec/        # [RULES] Protocol implementation
 │   │   ├── message_builder.rs   # Message construction rules
 │   │   ├── parser.rs            # Message parsing rules
 │   │   └── tlv_types.rs         # TLV type registry
@@ -166,7 +166,7 @@ ProtocolError::ChecksumMismatch {
 # Configure at runtime
 export ALPHAPULSE_MAX_ORDER_LEVELS=75
 export ALPHAPULSE_MAX_POOL_TOKENS=16
-./services/start_system
+./scripts/manage.sh up
 ```
 
 ## 🚀 Quick Start
@@ -210,7 +210,7 @@ graph TB
     end
 
     subgraph "Rules Layer"
-        Codec[libs/alphapulse_codec<br/>Protocol Rules]
+        Codec[libs/codec<br/>Protocol Rules]
     end
 
     subgraph "Behavior Layer - Ingestion"
@@ -335,7 +335,7 @@ pub struct TradeTLV {
 
 ### Creating a New TLV Type
 1. Define struct in `libs/types/src/protocol/tlv/`
-2. Add type number to `libs/alphapulse_codec/src/tlv_types.rs`
+2. Add type number to `libs/codec/src/tlv_types.rs`
 3. Implement size constraints and validation
 4. Update relay routing if needed
 5. Write round-trip serialization tests
@@ -396,6 +396,70 @@ pub struct TradeTLV {
 - [ ] ML-based signal generation
 - [ ] Cross-chain arbitrage
 - [ ] Institutional API gateway
+
+## 🔬 Architecture Validation & Development Infrastructure
+
+### Architecture Validation Tests (`tests/architecture_validation/`)
+Comprehensive automated testing suite that enforces architectural principles:
+
+```bash
+# Run architecture validation tests
+cargo run --manifest-path tests/architecture_validation/Cargo.toml
+
+# Or through manage.sh
+./scripts/manage.sh validate
+```
+
+**Validation Categories:**
+- **Dependency Validation**: Ensures services use codec library, no protocol duplication
+- **Plugin Compliance**: Validates adapter trait implementation and directory structure
+- **Typed ID Usage**: Enforces InstrumentId usage over raw primitives, bijective patterns
+- **Code Quality**: Detects mocks in production, float usage in finance, error patterns
+
+**Key Features:**
+- Integration with CI/CD pipelines
+- Detailed violation reporting with actionable suggestions
+- File-level and line-level precision
+- Performance-optimized validation (<5 seconds for entire codebase)
+
+### Consolidated Python Development Utilities (`scripts/lib/python/`)
+Organized Python tooling for development and validation:
+
+```bash
+# Available through manage.sh demo commands
+./scripts/manage.sh demo arbitrage     # Demo arbitrage data generator
+./scripts/manage.sh demo mock-relay    # Mock relay server
+./scripts/manage.sh demo tlv-info      # TLV type information query
+
+# Direct access to utilities
+python3 scripts/lib/python/detect_precision_violations.py <path>
+python3 scripts/lib/python/send_demo_arbitrage.py
+python3 scripts/lib/python/mock_relay.py
+python3 scripts/lib/python/query_tlv_info.py
+```
+
+**Capabilities:**
+- **Precision Violation Detection**: Automatically detects float usage in financial contexts
+- **Demo Data Generation**: Creates realistic arbitrage opportunities for dashboard testing
+- **Mock Infrastructure**: Provides mock relay servers for isolated development
+- **Protocol Inspection**: Queries TLV type definitions and documentation
+- **Integration**: Seamlessly integrated with manage.sh workflow
+
+### System Management Interface (`scripts/manage.sh`)
+Unified control interface for the entire system:
+
+```bash
+# Core system lifecycle
+./scripts/manage.sh up|down|restart|status|logs
+
+# Development and testing
+./scripts/manage.sh validate          # Architecture validation tests
+./scripts/manage.sh test             # Comprehensive test suite
+./scripts/manage.sh demo <type>      # Development demo tools
+./scripts/manage.sh deploy           # Deploy relay services
+```
+
+This infrastructure ensures architectural compliance, provides rich development tooling, and maintains system quality across the entire codebase.
 
 ## 📚 Additional Documentation
 

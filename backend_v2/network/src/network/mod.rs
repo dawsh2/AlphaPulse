@@ -1,5 +1,15 @@
 //! Network Transport Module
 //!
+//! ## Consolidation Note
+//!
+//! This module contains functionality originally from the `alphapulse-network`
+//! crate, consolidated into the unified `torq-network` crate. All original APIs
+//! are preserved for backward compatibility.
+//!
+//! **Migration**: Replace `use alphapulse_network::*` with `use torq_network::network::*`
+//!
+//! ## Overview
+//!
 //! Direct peer-to-peer network transport implementation supporting TCP, UDP,
 //! and QUIC protocols for low-latency actor communication.
 
@@ -18,7 +28,7 @@ pub use compression::{CompressionEngine, CompressionType};
 pub use connection::{Connection, ConnectionManager, ConnectionPool, ConnectionStats};
 pub use envelope::{NetworkEnvelope, WireFormat};
 pub use security::{EncryptionType, SecurityLayer};
-pub use tcp::{TcpConfig, TcpConnection, TcpTransport};
+pub use tcp::{TcpNetworkConfig as TcpConfig, TcpConnection, TcpNetworkTransport as TcpTransport, TcpNetworkTransport, TcpNetworkConfig, TcpConnectionStats};
 pub use udp::{UdpConfig, UdpTransport};
 pub use unix::{UnixSocketConfig, UnixSocketConnection, UnixSocketTransport};
 
@@ -457,19 +467,28 @@ impl NetworkTransport {
 
     // Private helper methods for starting protocol-specific servers
     async fn start_tcp_server(&mut self) -> Result<()> {
-        // Implementation will be in tcp.rs
-        todo!("TCP server implementation")
+        // Implementation delegated to tcp.rs module
+        Err(TransportError::not_implemented(
+            "TCP server implementation", 
+            "Use TcpTransport directly from tcp module"
+        ))
     }
 
     async fn start_udp_server(&mut self) -> Result<()> {
-        // Implementation will be in udp.rs
-        todo!("UDP server implementation")
+        // Implementation delegated to udp.rs module  
+        Err(TransportError::not_implemented(
+            "UDP server implementation",
+            "Use UdpTransport directly from udp module"
+        ))
     }
 
     #[cfg(feature = "quic")]
     async fn start_quic_server(&mut self) -> Result<()> {
-        // Implementation will be in quic.rs
-        todo!("QUIC server implementation")
+        // Implementation delegated to quic.rs module (when available)
+        Err(TransportError::not_implemented(
+            "QUIC server implementation",
+            "QUIC feature not yet implemented"
+        ))
     }
 }
 

@@ -153,7 +153,7 @@ services_v2/adapters/src/polygon/
 ### 2. Polygon Adapter Foundation
 - Clean adapter architecture implemented
 - Proper module structure with collector, parser, types
-- alphapulse_codec integration demonstrated
+- codec integration demonstrated
 
 ### 3. Network Layer Progress  
 - Transport consolidation largely complete

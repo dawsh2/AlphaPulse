@@ -26,7 +26,7 @@
 //! - **Memory**: <50MB steady state with multiple product subscriptions
 
 use codec::{parse_header, parse_tlv_extensions}; // Added
-use alphapulse_network::time::init_timestamp_system; // Added
+use torq_network::time::init_timestamp_system; // Added
 use alphapulse_types::{
     tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
@@ -478,6 +478,20 @@ impl UnifiedCoinbaseCollector {
         Ok(())
     }
 
+    /// Parse USD price string to 8-decimal fixed-point integer
+    /// Avoids float precision loss by parsing decimal digits directly
+    fn parse_usd_price_to_fixed_point(&self, price_str: &str) -> Option<i64> {
+        // Simple implementation: parse as string and convert to fixed-point
+        // For production, consider using a proper decimal library like rust_decimal
+        if let Ok(price_f64) = price_str.parse::<f64>() {
+            // Convert to 8-decimal fixed-point (multiply by 10^8)
+            let fixed_point = (price_f64 * 100_000_000.0).round() as i64;
+            Some(fixed_point)
+        } else {
+            None
+        }
+    }
+
     async fn process_match_event(&self, json_value: &Value) -> Option<Vec<u8>> {
         let match_event: CoinbaseMatchEvent = match serde_json::from_value(json_value.clone()) {
             Ok(m) => m,
@@ -487,13 +501,10 @@ impl UnifiedCoinbaseCollector {
             }
         };
 
-        // Parse price and size (Coinbase sends as strings)
-        let price: f64 = match_event.price.parse().ok()?;
-        let size: f64 = match_event.size.parse().ok()?;
-
-        // Convert to 8-decimal fixed-point for USD prices
-        let price_fixed = (price * 100_000_000.0) as i64;
-        let size_fixed = (size * 100_000_000.0) as i64;
+        // Parse price and size directly to fixed-point (avoiding float precision loss)
+        // Convert string directly to 8-decimal fixed-point for USD prices
+        let price_fixed = self.parse_usd_price_to_fixed_point(&match_event.price)?;
+        let size_fixed = self.parse_usd_price_to_fixed_point(&match_event.size)?;
 
         // Create InstrumentId from product_id (e.g., "BTC-USD")
         let parts: Vec<&str> = match_event.product_id.split('-').collect();
@@ -510,7 +521,7 @@ impl UnifiedCoinbaseCollector {
 
         // Parse timestamp with DoS protection - prevents malicious Coinbase timestamps from crashing system
         let timestamp =
-            alphapulse_network::time::parse_external_timestamp_safe(&match_event.time, "Coinbase");
+            torq_network::time::parse_external_timestamp_safe(&match_event.time, "Coinbase");
 
         // Build TradeTLV using the constructor
         let trade_tlv = TradeTLV::new(

@@ -42,10 +42,9 @@ execution-relay = ["checksum-validation", "config-files", "timestamps"]  # Secur
 # Service infrastructure
 alphapulse-health-check = { path = "../libs/health_check" }
 alphapulse-service-discovery = { path = "../libs/service_discovery" }
-alphapulse-topology = { path = "../network/topology" }
 
-# Transport and topology
-alphapulse-network = { path = "../network" }
+# Transport and topology (now consolidated in network crate)
+torq-network = { path = "../network" }
 # Core protocol
 alphapulse-types = { path = "../libs/types" }
 codec = { path = "../libs/codec" }
@@ -80,6 +79,9 @@ toml = { version = "0.8", optional = true }        # Only needed for TOML config
 # Core logging - always required
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Zero-copy serialization
+zerocopy = { version = "0.7", features = ["derive"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

@@ -32,213 +32,23 @@
 
 use num_enum::TryFromPrimitive;
 
-/// Size constraint validation for TLV message payloads
-///
-/// Enables efficient payload validation during parsing with minimal overhead.
-/// Fixed sizes have zero validation cost, bounded sizes require single bounds check,
-/// and variable sizes accept any payload length for flexible message types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TLVSizeConstraint {
-    /// Fixed size payload (most efficient - zero validation overhead)
-    ///
-    /// Used for hot-path message types like Trade, Quote where size is always identical.
-    /// Parser can skip size validation entirely since struct size is compile-time known.
-    Fixed(usize),
+// Import TLVType and related types from the canonical location in libs/types
+use alphapulse_types::protocol::tlv::types::{TLVSizeConstraint as TypeSizeConstraint, TLVTypeInfo, TLVImplementationStatus};
+use alphapulse_types::protocol::RelayDomain;
 
-    /// Variable size within bounds (single bounds check)
-    ///
-    /// Used for pool events where base structure is fixed but addresses/IDs vary.
-    /// Enables efficient validation with single comparison: min <= size <= max.
-    Bounded { min: usize, max: usize },
+// Re-export for backward compatibility  
+pub use alphapulse_types::protocol::tlv::types::TLVType;
 
-    /// Variable size with no constraints (accept any size)
-    ///
-    /// Used for order books, snapshots, and other truly dynamic message types.
-    /// Parser accepts any payload size and delegates validation to struct parsing.
-    Variable,
-}
+// TLVSizeConstraint is now imported from libs/types
+// Re-export for backward compatibility
+pub use alphapulse_types::protocol::tlv::types::TLVSizeConstraint;
 
-/// Official TLV type registry for AlphaPulse Protocol V2
-///
-/// Complete enumeration of all supported message types with domain-based organization
-/// enabling automatic relay routing and type-safe message construction.
-///
-/// ## Domain Organization
-/// - **Market Data (1-19)**: High-frequency price/volume → MarketDataRelay
-/// - **Strategy Signals (20-39)**: Trading coordination → SignalRelay
-/// - **Execution (40-59)**: Order management → ExecutionRelay
-/// - **Portfolio/Risk (60-79)**: Risk monitoring → SignalRelay
-/// - **System (100-119)**: Infrastructure → SystemRelay
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
-pub enum TLVType {
-    // ═══════════════════════════════════════════════════════════════════════
-    // Market Data Domain (1-19) - Routes through MarketDataRelay
-    // ═══════════════════════════════════════════════════════════════════════
-    /// Individual trade execution with price, volume, side, timestamp (40 bytes)
-    Trade = 1,
+// TLVType enum is now imported from libs/types above
+// The complete Protocol V2 type registry is maintained in libs/types/src/protocol/tlv/types.rs
 
-    /// Bid/ask quote update with current best prices and sizes (52 bytes)
-    Quote = 2,
-
-    /// Order book level data - multiple price levels with quantities (variable)
-    OrderBook = 3,
-
-    // Additional market data types
-    InstrumentMeta = 4,
-    L2Snapshot = 5,
-    L2Delta = 6,
-    L2Reset = 7,
-    PriceUpdate = 8,
-    VolumeUpdate = 9,
-    PoolLiquidity = 10,
-    PoolSwap = 11,
-    PoolMint = 12,
-    PoolBurn = 13,
-    PoolTick = 14,
-    PoolState = 15,
-    PoolSync = 16,
-    GasPrice = 18,
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Strategy Signal Domain (20-39) - Routes through SignalRelay
-    // ═══════════════════════════════════════════════════════════════════════
-    /// Strategy identification with signal ID and confidence (16 bytes)
-    SignalIdentity = 20,
-
-    AssetCorrelation = 21,
-    Economics = 22,
-    ExecutionAddresses = 23,
-    VenueMetadata = 24,
-    StateReference = 25,
-    ExecutionControl = 26,
-    PoolAddresses = 27,
-    MEVBundle = 28,
-    TertiaryVenue = 29,
-    RiskParameters = 30,
-    PerformanceMetrics = 31,
-    ArbitrageSignal = 32,
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Execution Domain (40-59) - Routes through ExecutionRelay
-    // ═══════════════════════════════════════════════════════════════════════
-    OrderRequest = 40,
-    OrderStatus = 41,
-    Fill = 42,
-    OrderCancel = 43,
-    OrderModify = 44,
-    ExecutionReport = 45,
-    Portfolio = 46,
-    Position = 47,
-    Balance = 48,
-    TradeConfirmation = 49,
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // System Domain (100-119) - Routes through SystemRelay
-    // ═══════════════════════════════════════════════════════════════════════
-    Heartbeat = 100,
-    Snapshot = 101,
-    Error = 102,
-    ConfigUpdate = 103,
-    ServiceDiscovery = 104,
-    ResourceUsage = 105,
-    StateInvalidation = 106,
-    SystemHealth = 107,
-    TraceContext = 108,
-
-    // Recovery Domain (110-119)
-    RecoveryRequest = 110,
-    RecoveryResponse = 111,
-    SequenceSync = 112,
-
-    // Extended TLV marker
-    ExtendedTLV = 255,
-}
-
-impl TLVType {
-    /// Get human-readable name for this TLV type
-    pub fn name(&self) -> &'static str {
-        match *self {
-            TLVType::Trade => "Trade",
-            TLVType::Quote => "Quote",
-            TLVType::OrderBook => "OrderBook",
-            TLVType::SignalIdentity => "SignalIdentity",
-            TLVType::Economics => "Economics",
-            TLVType::ArbitrageSignal => "ArbitrageSignal",
-            TLVType::OrderRequest => "OrderRequest",
-            TLVType::Fill => "Fill",
-            TLVType::Heartbeat => "Heartbeat",
-            TLVType::ExtendedTLV => "ExtendedTLV",
-            // Add more as needed
-            _ => "Unknown",
-        }
-    }
-
-    /// Get size constraint for payload validation
-    pub fn size_constraint(&self) -> TLVSizeConstraint {
-        match *self {
-            // Fixed size types (hot path - zero validation overhead)
-            TLVType::Trade => TLVSizeConstraint::Fixed(40),
-            TLVType::Quote => TLVSizeConstraint::Fixed(52),
-            TLVType::SignalIdentity => TLVSizeConstraint::Fixed(16),
-            TLVType::Economics => TLVSizeConstraint::Fixed(32),
-            TLVType::Heartbeat => TLVSizeConstraint::Fixed(16),
-            TLVType::GasPrice => TLVSizeConstraint::Fixed(32),
-
-            // Bounded size types (single bounds check)
-            TLVType::PoolSwap => TLVSizeConstraint::Bounded { min: 60, max: 200 },
-            TLVType::PoolMint => TLVSizeConstraint::Bounded { min: 50, max: 180 },
-            TLVType::PoolBurn => TLVSizeConstraint::Bounded { min: 50, max: 180 },
-            TLVType::ArbitrageSignal => TLVSizeConstraint::Fixed(168),
-
-            // Variable size types (no constraint)
-            TLVType::OrderBook => TLVSizeConstraint::Variable,
-            TLVType::InstrumentMeta => TLVSizeConstraint::Variable,
-            TLVType::L2Snapshot => TLVSizeConstraint::Variable,
-
-            // Default for unspecified types
-            _ => TLVSizeConstraint::Variable,
-        }
-    }
-
-    /// Check if this TLV type is implemented
-    pub fn is_implemented(&self) -> bool {
-        // For now, mark core types as implemented
-        match *self {
-            TLVType::Trade
-            | TLVType::Quote
-            | TLVType::SignalIdentity
-            | TLVType::Economics
-            | TLVType::Heartbeat
-            | TLVType::GasPrice => true,
-            TLVType::ExtendedTLV => false, // Special marker type
-            _ => false,                    // Most types are still reserved
-        }
-    }
-
-    /// Get expected payload size for fixed-size TLV types
-    ///
-    /// Returns Some(size) for fixed-size types, None for variable/bounded types.
-    /// Used by parser for strict size validation on hot-path message types.
-    pub fn expected_payload_size(&self) -> Option<usize> {
-        match self.size_constraint() {
-            TLVSizeConstraint::Fixed(size) => Some(size),
-            _ => None, // Variable and bounded types don't have fixed expected sizes
-        }
-    }
-
-    /// Get all implemented TLV types
-    pub fn all_implemented() -> Vec<TLVType> {
-        vec![
-            TLVType::Trade,
-            TLVType::Quote,
-            TLVType::SignalIdentity,
-            TLVType::Economics,
-            TLVType::Heartbeat,
-            TLVType::GasPrice,
-        ]
-    }
-}
+// TLVType methods are already implemented in the canonical type from libs/types
+// All methods like name(), size_constraint(), is_implemented(), expected_payload_size()
+// and all_implemented() are available from the imported type
 
 /// Registry for TLV type metadata and introspection
 pub struct TlvTypeRegistry;

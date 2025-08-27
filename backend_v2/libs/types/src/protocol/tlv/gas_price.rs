@@ -3,41 +3,33 @@
 //! Streams gas prices via WebSocket to avoid RPC rate limiting
 //! and provide accurate, real-time transaction cost estimates.
 
+use crate::{define_tlv, define_tlv_with_padding};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
-/// Gas price update TLV structure  
-/// Total: 32 bytes for efficient packing
-///
-/// # Field Ordering Strategy
-/// Fields are ordered by alignment requirements to ensure efficient packing without padding:
-/// - u64 fields first (8-byte aligned): block_number, timestamp_ns  
-/// - u32 fields next (4-byte aligned): gas_price_gwei, base_fee_gwei, priority_fee_gwei
-/// - u16 fields last (2-byte aligned): venue, reserved
-///
-/// This ordering eliminates padding bytes and maintains zerocopy compatibility.
-#[derive(Debug, Clone, Copy, AsBytes, FromBytes, FromZeroes)]
-#[repr(C)]
-pub struct GasPriceTLV {
-    /// Block number this price applies to
-    pub block_number: u64, // 8-byte aligned
-
-    /// Timestamp when observed (nanoseconds)
-    pub timestamp_ns: u64, // 8-byte aligned
-
-    /// Current gas price in gwei (base + priority)
-    pub gas_price_gwei: u32, // 4-byte aligned
-
-    /// Base fee per gas in gwei (from block header)
-    pub base_fee_gwei: u32, // 4-byte aligned
-
-    /// Priority fee (tip) in gwei (from market observation)
-    pub priority_fee_gwei: u32, // 4-byte aligned
-
-    /// Network ID (137 for Polygon)  
-    pub venue: u16, // 2-byte aligned
-
-    /// Reserved for future expansion
-    pub reserved: u16, // 2-byte aligned
+// Gas price update TLV using macro for consistent alignment and validation
+define_tlv_with_padding! {
+    /// Gas price update TLV structure - 32 bytes for efficient packing
+    ///
+    /// Provides real-time gas cost information for transaction cost estimation
+    /// and optimal gas price selection during arbitrage execution.
+    GasPriceTLV {
+        size: 32,
+        u64: {
+            block_number: u64,    // Block number this price applies to
+            timestamp_ns: u64     // Timestamp when observed (nanoseconds)
+        }
+        u32: {
+            gas_price_gwei: u32,    // Current gas price in gwei (base + priority)
+            base_fee_gwei: u32,     // Base fee per gas in gwei (from block header)
+            priority_fee_gwei: u32  // Priority fee (tip) in gwei (from market observation)
+        }
+        u16: {
+            venue: u16,     // Network ID (137 for Polygon)
+            reserved: u16   // Reserved for future expansion
+        }
+        u8: {}
+        special: {}
+    }
 }
 
 impl GasPriceTLV {
@@ -49,15 +41,16 @@ impl GasPriceTLV {
         block_number: u64,
         timestamp_ns: u64,
     ) -> Self {
-        Self {
-            venue,
-            gas_price_gwei: base_fee_gwei.saturating_add(priority_fee_gwei),
-            base_fee_gwei,
-            priority_fee_gwei,
+        // Use macro-generated constructor with proper field order
+        Self::new_raw(
             block_number,
             timestamp_ns,
-            reserved: 0,
-        }
+            base_fee_gwei.saturating_add(priority_fee_gwei), // gas_price_gwei
+            base_fee_gwei,
+            priority_fee_gwei,
+            venue,
+            0, // reserved
+        )
     }
 
     /// Get total gas price in wei

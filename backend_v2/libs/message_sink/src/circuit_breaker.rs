@@ -385,7 +385,7 @@ impl<T: MessageSink> CircuitBreakerSink<T> {
     fn create_circuit_breaker_error(&self, message: Message) -> SinkError {
         let context = SendContext::new(
             message.size(),
-            alphapulse_network::safe_system_timestamp_ns(),
+            torq_network::safe_system_timestamp_ns(),
         )
         .with_correlation_id(
             message

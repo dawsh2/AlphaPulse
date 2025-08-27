@@ -168,7 +168,7 @@ pub fn current_millis() -> u64 {
 
 /// Get current timestamp in nanoseconds
 pub fn current_nanos() -> u64 {
-    alphapulse_network::time::safe_system_timestamp_ns()
+    torq_network::time::safe_system_timestamp_ns()
 }
 
 /// Common subscription message builder for WebSocket venues

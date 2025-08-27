@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
-use alphapulse_network::time::safe_system_timestamp_ns;
+use torq_network::time::safe_system_timestamp_ns;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, UnixListener, UnixStream};
 use tracing::{debug, error, info, warn};
@@ -198,11 +198,12 @@ fn parse_trace_event(json_bytes: &[u8]) -> Result<TraceEvent> {
 async fn update_stats(
     traces: &Arc<DashMap<String, Vec<TraceEvent>>>,
     stats: &Arc<RwLock<TraceStats>>,
-    start_time: SystemTime,
+    start_time: u64,
 ) {
     let mut stats = stats.write();
     stats.active_traces = traces.len();
-    stats.uptime_seconds = start_time.elapsed().unwrap_or_default().as_secs();
+    let current_time = safe_system_timestamp_ns();
+    stats.uptime_seconds = (current_time - start_time) / 1_000_000_000;
 
     // Calculate events per second
     if stats.uptime_seconds > 0 {

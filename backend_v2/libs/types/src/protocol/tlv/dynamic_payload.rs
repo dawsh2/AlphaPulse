@@ -5,7 +5,11 @@
 //! tension between Vec<T> (bijective but not zero-copy due to heap indirection) and
 //! fixed arrays (zero-copy but bounded at compile time).
 //!
-//! **Critical Design Decision**: PoolLiquidityTLV uses `FixedVec<u128, N>` NOT `Vec<u128>`
+//! **Critical Design Decision**: Uses custom `FixedVec<T, N>` instead of standard crates
+//! (heapless::Vec, arrayvec::ArrayVec) because zerocopy crate cannot derive AsBytes/FromBytes
+//! generically. Manual trait implementations for specific types enable >1M msg/s performance.
+//!
+//! **Performance Impact**: PoolLiquidityTLV uses `FixedVec<u128, N>` NOT `Vec<u128>`
 //! This enables >1M msg/s zero-copy performance while maintaining dynamic sizing.
 //!
 //! ## Architecture Role
@@ -119,6 +123,12 @@ pub trait DynamicPayload<T> {
 
 /// Fixed-capacity vector with zero-copy serialization support
 ///
+/// **Custom FixedVec implementation instead of heapless::Vec because:**
+/// 1. Zero-copy serialization requires manual AsBytes/FromBytes impls
+/// 2. Standard crates can't provide generic zerocopy support  
+/// 3. High-frequency trading demands sub-microsecond serialization
+/// 4. Only need support for specific types (OrderLevel, u128, InstrumentId)
+///
 /// **Key Distinction: FixedVec ≠ Vec**
 /// - `Vec<T>`: Heap-allocated, pointer indirection → **Cannot be zero-copy**
 /// - `FixedVec<T, N>`: Stack-allocated, inline storage → **Enables zero-copy**
@@ -146,6 +156,15 @@ pub trait DynamicPayload<T> {
 /// - **Bijection methods** (`to_vec()`, `from_slice()`): For interoperability with existing Vec-based APIs
 ///
 /// The bijection methods exist for convenience, not because internal storage uses `Vec<T>`.
+///
+/// ## Alternative Comparison
+/// 
+/// | Option | Zero-Copy | Generic | Performance | Ecosystem |
+/// |--------|-----------|---------|-------------|-----------|
+/// | `Vec<T>` | ❌ (heap) | ✅ | Slow | Standard |
+/// | `heapless::Vec<T, N>` | ❌ (generic) | ✅ | Medium | Popular |
+/// | `arrayvec::ArrayVec<T, N>` | ❌ (generic) | ✅ | Medium | Popular |
+/// | Custom `FixedVec<T, N>` | ✅ | ❌ | >1M msg/s | Domain-specific |
 ///
 /// Note: Due to zerocopy crate limitations with generics, zero-copy serialization
 /// must be implemented manually for specific instantiations.

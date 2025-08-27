@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-alphapulse-network = { path = "../../network" }
+torq-network = { path = "../../network" }
 alphapulse-types = { path = "../types" }
 async-trait = "0.1"
 futures-util = "0.3"
+num_enum = "0.7"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.21"

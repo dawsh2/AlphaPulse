@@ -1,12 +1,12 @@
 ---
 task_id: TOOL-008
-status: TODO
+status: COMPLETE
 priority: LOW
 estimated_hours: 1
 assigned_branch: feat/agents-consolidation
 assignee: TBD
 created: 2025-01-27
-completed: null
+completed: 2025-08-27
 # Dependencies: task IDs that must be COMPLETE before this can start
 depends_on: [TOOL-007]
 # Blocks: task IDs that cannot start until this is COMPLETE

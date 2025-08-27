@@ -1,6 +1,6 @@
 ---
 task_id: TEST-007
-status: TODO
+status: COMPLETE
 priority: HIGH
 estimated_hours: 2
 assigned_branch: test/update-templates
@@ -23,7 +23,7 @@ git worktree add -b test/update-templates
 ```
 
 ## Status
-**Status**: TODO
+**Status**: COMPLETE
 **Priority**: HIGH
 **Branch**: `test/update-templates`
 **Estimated**: 2 hours

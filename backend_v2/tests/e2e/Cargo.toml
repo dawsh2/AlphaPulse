@@ -12,15 +12,14 @@ path = "src/main.rs"
 # Adapters and strategies
 services_v2_adapters = { path = "../../services_v2/adapters", package = "alphapulse-adapter-service" }
 alphapulse-dashboard-websocket = { path = "../../services_v2/dashboard/websocket_server" }
-alphapulse-flash-arbitrage = { path = "../../services_v2/strategies/flash_arbitrage" }
-alphapulse-kraken-signals = { path = "../../services_v2/strategies/kraken_signals" }
+alphapulse-strategies = { path = "../../services_v2/strategies" }
 
 # Relays
 alphapulse-relays = { path = "../../relays" }
 
 # Protocol and transport layers
 alphapulse-types = { path = "../../libs/types" }
-alphapulse-network = { path = "../../network" }
+torq-network = { path = "../../network" }
 codec = { path = "../../libs/codec" }
 anyhow = "1.0"
 

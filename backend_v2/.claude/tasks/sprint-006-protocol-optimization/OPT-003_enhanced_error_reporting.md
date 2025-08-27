@@ -12,7 +12,7 @@ depends_on:
   - CODEC-001  # Need codec foundation with basic error types
 blocks: []
 scope:
-  - "libs/alphapulse_codec/src/errors.rs"  # Enhance error definitions
+  - "libs/codec/src/errors.rs"  # Enhance error definitions
   - "protocol_v2/src/validation/*.rs"  # Add contextual validation errors
   - "libs/types/src/common/errors.rs"  # Common error patterns
 ---

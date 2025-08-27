@@ -50,7 +50,7 @@ use std::sync::Arc;
 use tracing::{debug, info};
 use zerocopy::AsBytes;
 
-use crate::relay_consumer::ArbitrageOpportunity;
+use crate::flash_arbitrage::relay_consumer::ArbitrageOpportunity;
 use alphapulse_adapter_service::output::RelayOutput;
 use alphapulse_types::common::fixed_point::UsdFixedPoint8;
 use alphapulse_types::{
@@ -163,7 +163,7 @@ impl SignalOutput {
     /// TODO: Remove this entire function once dashboard is updated to use real ArbitrageSignalTLV
     pub async fn send_arbitrage_analysis(
         &self,
-        _analysis: &crate::relay_consumer::ArbitrageAnalysis,
+        _analysis: &crate::flash_arbitrage::relay_consumer::ArbitrageAnalysis,
     ) -> Result<()> {
         // DISABLED: This function was sending fake hardcoded data
         // The dashboard should consume real ArbitrageSignalTLV messages instead
