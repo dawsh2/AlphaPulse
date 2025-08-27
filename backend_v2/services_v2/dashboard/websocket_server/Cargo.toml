@@ -7,7 +7,7 @@ edition = "2021"
 default = []
 
 [dependencies]
-alphapulse-transport = { path = "../../../network/transport" }
+alphapulse-network = { path = "../../../network" }
 
 # Protocol dependencies
 alphapulse-types = { path = "../../../libs/types" }

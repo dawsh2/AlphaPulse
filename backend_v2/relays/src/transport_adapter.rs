@@ -2,7 +2,7 @@
 
 use crate::{ConsumerId, RelayError, RelayResult, Transport as RelayTransport};
 use alphapulse_topology::TopologyConfig;
-use alphapulse_transport::{
+use alphapulse_network::{
     ChannelConfig, NetworkTransport, Priority, TopologyIntegration, TransportConfig,
     TransportError, TransportMode, TransportStatistics,
 };
@@ -16,7 +16,7 @@ use tracing::{debug, error, info, warn};
 /// Adapter that bridges relay transport trait with infra/transport system
 pub struct InfraTransportAdapter {
     /// The underlying transport from infra
-    transport: Option<Box<dyn alphapulse_transport::Transport>>,
+    transport: Option<Box<dyn alphapulse_network::Transport>>,
     /// Topology integration for advanced routing
     topology: Option<Arc<TopologyIntegration>>,
     /// Transport configuration
@@ -105,7 +105,7 @@ impl InfraTransportAdapter {
         }
 
         // Create Unix socket transport
-        let config = alphapulse_transport::UnixSocketConfig {
+        let config = alphapulse_network::UnixSocketConfig {
             path: socket_path.into(),
             buffer_size: 64 * 1024,
             max_message_size: 16 * 1024 * 1024,
@@ -113,7 +113,7 @@ impl InfraTransportAdapter {
         };
 
         let mut transport =
-            alphapulse_transport::UnixSocketTransport::new(config).map_err(|e| {
+            alphapulse_network::UnixSocketTransport::new(config).map_err(|e| {
                 RelayError::Transport(format!("Failed to create Unix socket transport: {}", e))
             })?;
 
@@ -298,13 +298,13 @@ struct TcpTransportStub {
 }
 
 #[async_trait]
-impl alphapulse_transport::Transport for TcpTransportStub {
-    async fn start(&mut self) -> alphapulse_transport::Result<()> {
+impl alphapulse_network::Transport for TcpTransportStub {
+    async fn start(&mut self) -> alphapulse_network::Result<()> {
         info!("TCP transport stub started at: {}", self.address);
         Ok(())
     }
 
-    async fn stop(&mut self) -> alphapulse_transport::Result<()> {
+    async fn stop(&mut self) -> alphapulse_network::Result<()> {
         info!("TCP transport stub stopped");
         Ok(())
     }
@@ -314,8 +314,8 @@ impl alphapulse_transport::Transport for TcpTransportStub {
         _target_node: &str,
         _target_actor: &str,
         _message: &[u8],
-    ) -> alphapulse_transport::Result<()> {
-        Err(alphapulse_transport::TransportError::Configuration {
+    ) -> alphapulse_network::Result<()> {
+        Err(alphapulse_network::TransportError::Configuration {
             message: "TCP transport is not implemented (placeholder stub)".to_string(),
             field: Some("tcp_implementation".to_string()),
         })
@@ -327,8 +327,8 @@ impl alphapulse_transport::Transport for TcpTransportStub {
         _target_actor: &str,
         _message: &[u8],
         _priority: Priority,
-    ) -> alphapulse_transport::Result<()> {
-        Err(alphapulse_transport::TransportError::Configuration {
+    ) -> alphapulse_network::Result<()> {
+        Err(alphapulse_network::TransportError::Configuration {
             message: "TCP transport is not implemented (placeholder stub)".to_string(),
             field: Some("tcp_implementation".to_string()),
         })
@@ -345,12 +345,12 @@ impl alphapulse_transport::Transport for TcpTransportStub {
 
 /// Adapter to wrap UnixSocketTransport as a generic Transport
 struct UnixTransportAdapter {
-    transport: alphapulse_transport::UnixSocketTransport,
-    connections: Arc<RwLock<HashMap<String, alphapulse_transport::UnixSocketConnection>>>,
+    transport: alphapulse_network::UnixSocketTransport,
+    connections: Arc<RwLock<HashMap<String, alphapulse_network::UnixSocketConnection>>>,
 }
 
 impl UnixTransportAdapter {
-    fn new(transport: alphapulse_transport::UnixSocketTransport) -> Self {
+    fn new(transport: alphapulse_network::UnixSocketTransport) -> Self {
         Self {
             transport,
             connections: Arc::new(RwLock::new(HashMap::new())),
@@ -358,7 +358,7 @@ impl UnixTransportAdapter {
     }
 
     /// Connect to a socket and store the connection
-    async fn connect(&self, socket_path: &str) -> alphapulse_transport::Result<()> {
+    async fn connect(&self, socket_path: &str) -> alphapulse_network::Result<()> {
         // Check if already connected
         {
             let connections = self.connections.read().await;
@@ -369,7 +369,7 @@ impl UnixTransportAdapter {
         }
 
         // Create new connection
-        let connection = alphapulse_transport::UnixSocketTransport::connect(socket_path).await?;
+        let connection = alphapulse_network::UnixSocketTransport::connect(socket_path).await?;
 
         // Store connection in map
         {
@@ -382,7 +382,7 @@ impl UnixTransportAdapter {
     }
 
     /// Remove a connection from the map
-    async fn disconnect(&self, socket_path: &str) -> alphapulse_transport::Result<()> {
+    async fn disconnect(&self, socket_path: &str) -> alphapulse_network::Result<()> {
         let mut connections = self.connections.write().await;
         if connections.remove(socket_path).is_some() {
             info!("Removed connection to {}", socket_path);
@@ -393,7 +393,7 @@ impl UnixTransportAdapter {
     }
 
     /// Send data using a stored connection
-    async fn send_data(&self, socket_path: &str, data: &[u8]) -> alphapulse_transport::Result<()> {
+    async fn send_data(&self, socket_path: &str, data: &[u8]) -> alphapulse_network::Result<()> {
         let mut connections = self.connections.write().await;
 
         if let Some(connection) = connections.get_mut(socket_path) {
@@ -406,7 +406,7 @@ impl UnixTransportAdapter {
                 }
             }
         } else {
-            Err(alphapulse_transport::TransportError::Connection {
+            Err(alphapulse_network::TransportError::Connection {
                 message: format!("No connection to {}", socket_path),
                 remote_addr: None,
                 source: None,
@@ -422,13 +422,13 @@ impl UnixTransportAdapter {
 }
 
 #[async_trait]
-impl alphapulse_transport::Transport for UnixTransportAdapter {
-    async fn start(&mut self) -> alphapulse_transport::Result<()> {
+impl alphapulse_network::Transport for UnixTransportAdapter {
+    async fn start(&mut self) -> alphapulse_network::Result<()> {
         // Transport is already bound in init_unix_socket
         Ok(())
     }
 
-    async fn stop(&mut self) -> alphapulse_transport::Result<()> {
+    async fn stop(&mut self) -> alphapulse_network::Result<()> {
         self.transport.shutdown().await
     }
 
@@ -437,9 +437,9 @@ impl alphapulse_transport::Transport for UnixTransportAdapter {
         _target_node: &str,
         _target_actor: &str,
         _message: &[u8],
-    ) -> alphapulse_transport::Result<()> {
+    ) -> alphapulse_network::Result<()> {
         // For relays, we use a different sending pattern through RelayTransport trait
-        Err(alphapulse_transport::TransportError::Configuration {
+        Err(alphapulse_network::TransportError::Configuration {
             message: "Use RelayTransport::send for relay-specific messaging".to_string(),
             field: Some("relay_transport_send".to_string()),
         })
@@ -451,8 +451,8 @@ impl alphapulse_transport::Transport for UnixTransportAdapter {
         _target_actor: &str,
         _message: &[u8],
         _priority: Priority,
-    ) -> alphapulse_transport::Result<()> {
-        Err(alphapulse_transport::TransportError::Configuration {
+    ) -> alphapulse_network::Result<()> {
+        Err(alphapulse_network::TransportError::Configuration {
             message: "Priority sending not implemented for Unix sockets".to_string(),
             field: Some("priority_send_implementation".to_string()),
         })
@@ -518,14 +518,14 @@ mod tests {
         let socket_path = temp_dir.path().join("test.sock");
 
         // Create Unix transport adapter
-        let config = alphapulse_transport::UnixSocketConfig {
+        let config = alphapulse_network::UnixSocketConfig {
             path: socket_path.clone(),
             buffer_size: 64 * 1024,
             max_message_size: 16 * 1024 * 1024,
             cleanup_on_drop: true,
         };
 
-        let transport = alphapulse_transport::UnixSocketTransport::new(config)
+        let transport = alphapulse_network::UnixSocketTransport::new(config)
             .expect("Failed to create Unix transport");
         let adapter = UnixTransportAdapter::new(transport);
 
@@ -576,7 +576,7 @@ mod tests {
 
         if let Err(e) = send_result {
             match e {
-                alphapulse_transport::TransportError::Connection { message, .. } => {
+                alphapulse_network::TransportError::Connection { message, .. } => {
                     assert!(
                         message.contains(&test_socket_path),
                         "Error should mention the socket path"

@@ -371,8 +371,9 @@ pub enum TLVType {
     PoolTick = 14,  // Tick crossing event (V3)
     PoolState = 15, // Pool state snapshot (full state)
     PoolSync = 16,  // V2 Sync event (complete reserves)
-    GasPrice = 18,  // Gas price updates from WebSocket stream (Market Data domain)
-    // Reserved 17, 19 for future market data types
+    QuoteUpdate = 17,  // Quote update events (GAP-001 implementation)
+    GasPrice = 18,     // Gas price updates from WebSocket stream (Market Data domain)
+    StateInvalidationReason = 19,  // State invalidation reasons (GAP-001 implementation)
 
     // Strategy Signal Domain (20-39) - Routes through SignalRelay
     SignalIdentity = 20,
@@ -540,6 +541,9 @@ impl TLVType {
             TLVType::PoolTick => "PoolTick",
             TLVType::PoolState => "PoolState",
             TLVType::PoolSync => "PoolSync",
+            TLVType::QuoteUpdate => "QuoteUpdate",
+            TLVType::GasPrice => "GasPrice",
+            TLVType::StateInvalidationReason => "StateInvalidationReason",
             TLVType::SignalIdentity => "SignalIdentity",
             TLVType::AssetCorrelation => "AssetCorrelation",
             TLVType::Economics => "Economics",
@@ -584,6 +588,9 @@ impl TLVType {
             TLVType::Quote => "Bid/ask quote update with current best prices and sizes",
             TLVType::OrderBook => "Multiple price levels with quantities for market depth",
             TLVType::PoolSwap => "DEX swap event with V3 state updates and reserves",
+            TLVType::QuoteUpdate => "Best bid/ask update with sizes for order book maintenance",
+            TLVType::GasPrice => "Ethereum gas price updates for transaction cost optimization",
+            TLVType::StateInvalidationReason => "Reason for state invalidation (disconnection, rate limit, etc.)",
             TLVType::SignalIdentity => "Strategy identification with signal ID and confidence",
             TLVType::Economics => "Profit estimates and capital requirements for execution",
             TLVType::ArbitrageSignal => {
@@ -683,6 +690,9 @@ impl TLVType {
             TLVType::PoolTick,
             TLVType::PoolState,
             TLVType::PoolSync,
+            TLVType::QuoteUpdate,
+            TLVType::GasPrice,
+            TLVType::StateInvalidationReason,
             // Strategy Signal Domain (20-39)
             TLVType::SignalIdentity,
             TLVType::AssetCorrelation,
@@ -955,7 +965,9 @@ impl TLVType {
             TLVType::L2Reset => TLVSizeConstraint::Variable,   // Variable reset data
             TLVType::PriceUpdate => TLVSizeConstraint::Variable, // Variable price data
             TLVType::VolumeUpdate => TLVSizeConstraint::Variable, // Variable volume data
+            TLVType::QuoteUpdate => TLVSizeConstraint::Fixed(56), // QuoteTLV size (56 bytes padded)
             TLVType::GasPrice => TLVSizeConstraint::Fixed(32), // Gas price updates (32 bytes as verified in gas_price.rs)
+            TLVType::StateInvalidationReason => TLVSizeConstraint::Fixed(1), // Single byte enum
 
             // System TLVs (100-119)
             TLVType::Snapshot => TLVSizeConstraint::Bounded { min: 32, max: 1024 },

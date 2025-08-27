@@ -1,4 +1,4 @@
-use alphapulse_transport::current_timestamp_ns;
+use alphapulse_network::current_timestamp_ns;
 use crate::SinkError;
 
 /// Maximum message size in bytes (16MB default)

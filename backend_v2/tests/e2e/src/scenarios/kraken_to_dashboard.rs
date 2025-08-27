@@ -15,6 +15,7 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
+use tokio::process; // Added
 use futures_util::StreamExt; // Added
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, info, warn};
@@ -85,12 +86,20 @@ impl TestScenario for KrakenToDashboardTest {
         framework.start_service(
             "kraken_collector".to_string(),
             || async {
-                let mut collector = if self.use_live_data {
-                    KrakenCollector::new_live().await?
+                // Execute the kraken binary directly
+                // Assuming the kraken binary is in the target/release or target/debug directory
+                let kraken_binary_path = if cfg!(debug_assertions) {
+                    "../../target/debug/kraken".to_string()
                 } else {
-                    KrakenCollector::new_with_url("ws://127.0.0.1:8080/ws").await?
+                    "../../target/release/kraken".to_string()
                 };
-                collector.run().await
+
+                let mut command = tokio::process::Command::new(kraken_binary_path);
+                if !self.use_live_data {
+                    command.arg("--url").arg("ws://127.0.0.1:8080/ws");
+                }
+                command.spawn()?.wait().await?;
+                Ok(())
             }
         ).await?;
 
@@ -207,8 +216,8 @@ impl TestScenario for KrakenToDashboardTest {
                             Some("trading_signal") => {
                                 signal_count += 1;
                                 info!("Received trading signal: confidence={}, profit={}",
-                                      message.get("confidence").unwrap_or(&Value::Null),
-                                      message.get("expected_profit_usd").unwrap_or(&Value::Null));
+                                      message.get("confidence").unwrap_or(&serde_json::Value::Null),
+                                      message.get("expected_profit_usd").unwrap_or(&serde_json::Value::Null));
                             }
                             Some("heartbeat") => {
                                 debug!("Received heartbeat");

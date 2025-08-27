@@ -108,5 +108,5 @@ impl HealthStatus {
 
 /// Get current time in nanoseconds since epoch (protocol-consistent)
 fn current_nanos() -> u64 {
-    alphapulse_transport::time::safe_system_timestamp_ns()
+    alphapulse_network::time::safe_system_timestamp_ns()
 }

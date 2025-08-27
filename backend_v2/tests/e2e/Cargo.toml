@@ -20,7 +20,7 @@ alphapulse-relays = { path = "../../relays" }
 
 # Protocol and transport layers
 alphapulse-types = { path = "../../libs/types" }
-alphapulse-transport = { path = "../../network/transport" }
+alphapulse-network = { path = "../../network" }
 alphapulse_codec = { path = "../../libs/alphapulse_codec" }
 anyhow = "1.0"
 

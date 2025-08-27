@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-alphapulse-transport = { path = "../../../network/transport" }
+alphapulse-network = { path = "../../../network" }
 # Protocol
 alphapulse-types = { workspace = true }
 alphapulse_codec = { path = "../../../libs/alphapulse_codec" }

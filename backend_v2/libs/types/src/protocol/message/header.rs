@@ -166,7 +166,7 @@ pub fn current_timestamp_ns() -> u64 {
 pub fn precise_timestamp_ns() -> u64 {
     // Use safe conversion from network transport module
     // Prevents silent truncation on overflow - will panic if timestamp overflows u64
-    alphapulse_transport::time::safe_system_timestamp_ns()
+    alphapulse_network::time::safe_system_timestamp_ns()
 }
 
 #[cfg(test)]

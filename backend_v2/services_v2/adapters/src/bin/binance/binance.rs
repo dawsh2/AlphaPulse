@@ -24,7 +24,7 @@ use alphapulse_types::{
     TradeTLV, VenueId,
 };
 use alphapulse_codec::{parse_header, parse_tlv_extensions};
-use alphapulse_transport::time::init_timestamp_system;
+use alphapulse_network::time::init_timestamp_system;
 use alphapulse_codec::{parse_header, parse_tlv_extensions};
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};

@@ -29,7 +29,7 @@ use alphapulse_types::{
     TLVType, TradeTLV, VenueId,
 };
 use alphapulse_codec::{parse_header, parse_tlv_extensions}; // Added
-use alphapulse_transport::time::init_timestamp_system; // Added
+use alphapulse_network::time::init_timestamp_system; // Added
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
@@ -414,7 +414,7 @@ impl UnifiedKrakenCollector {
                 price_fixed,
                 volume_fixed,
                 if side_str == "b" { 0 } else { 1 }, // 0 = buy, 1 = sell
-                alphapulse_transport::time::parse_external_unix_timestamp_safe(timestamp, "Kraken"), // DoS-safe timestamp conversion
+                alphapulse_network::time::parse_external_unix_timestamp_safe(timestamp, "Kraken"), // DoS-safe timestamp conversion
             );
 
             // Build complete Protocol V2 message (true zero-copy)
@@ -482,7 +482,7 @@ impl UnifiedKrakenCollector {
         };
 
         // Build QuoteTLV using constructor for top of book
-        let timestamp_ns = alphapulse_transport::time::safe_system_timestamp_ns();
+        let timestamp_ns = alphapulse_network::time::safe_system_timestamp_ns();
 
         let quote_tlv = QuoteTLV::new(
             VenueId::Kraken,

@@ -130,7 +130,7 @@ impl SinkError {
 
     /// Create a send failed error (legacy method, creates minimal context)
     pub fn send_failed(msg: impl Into<String>) -> Self {
-        let timestamp = alphapulse_transport::safe_system_timestamp_ns_checked()
+        let timestamp = alphapulse_network::safe_system_timestamp_ns_checked()
             .unwrap_or_else(|e| {
                 // Log error but continue - this is error handling code itself
                 eprintln!("WARNING: Timestamp error in error handling: {}", e);

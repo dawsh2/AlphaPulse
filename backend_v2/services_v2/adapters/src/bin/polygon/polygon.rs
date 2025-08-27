@@ -32,7 +32,7 @@ use alphapulse_types::{
     SourceType, TLVType, VenueId,
 };
 use alphapulse_codec::{parse_header, parse_tlv_extensions}; // Added
-use alphapulse_transport::time::init_timestamp_system; // Added
+use alphapulse_network::time::init_timestamp_system; // Added
 use anyhow::{Context, Result};
 use ethabi::{Event, EventParam, ParamType, RawLog};
 use futures_util::{SinkExt, StreamExt};
@@ -932,7 +932,7 @@ impl UnifiedPolygonCollector {
             sqrt_price_x96, // liquidity_after - V3 specific, now extracted properly
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| alphapulse_transport::time::safe_duration_to_ns(d))
+                .map(|d| alphapulse_network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
             log.block_number.map(|n| n.as_u64()).unwrap_or(0),
             tick, // tick_after - V3 specific, now extracted properly
@@ -1069,7 +1069,7 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| alphapulse_transport::time::safe_duration_to_ns(d))
+                .map(|d| alphapulse_network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
         );
 
@@ -1187,7 +1187,7 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| alphapulse_transport::time::safe_duration_to_ns(d))
+                .map(|d| alphapulse_network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
         );
 
@@ -1227,7 +1227,7 @@ impl UnifiedPolygonCollector {
             7922816251426433759, // price_sqrt
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| alphapulse_transport::time::safe_duration_to_ns(d))
+                .map(|d| alphapulse_network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
         );
 
@@ -1306,7 +1306,7 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| alphapulse_transport::time::safe_duration_to_ns(d))
+                .map(|d| alphapulse_network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
             log.block_number.map(|n| n.as_u64()).unwrap_or(0),
         );

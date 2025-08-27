@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{QuoteTLV, InvalidationReason, InstrumentId, VenueId};
-    use alphapulse_transport::time::safe_system_timestamp_ns;
+    use alphapulse_network::time::safe_system_timestamp_ns;
     use std::time::Duration;
 
 #[tokio::test]

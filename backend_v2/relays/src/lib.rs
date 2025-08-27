@@ -6,6 +6,7 @@ pub mod common;
 pub mod config;
 pub mod execution;
 pub mod market_data;
+pub mod message_construction;
 pub mod relay;
 pub mod signal;
 pub mod signal_relay;

@@ -12,17 +12,17 @@ members = [
     "libs/state/market",
     # Shared libraries
     "libs/types",
+    "network",
     "network/topology",
-    "network/transport",
     "relays",
     "relays/execution_relay",
     "relays/market_data_relay",
     "relays/signal_relay",
     "services_v2/adapters",
+    "services_v2/adapters/gas_price_collector",
     "services_v2/dashboard/websocket_server",
     "services_v2/observability/trace_collector",
-    "services_v2/strategies/flash_arbitrage",
-    "services_v2/strategies/kraken_signals",
+    "services_v2/strategies",
     # Tests
     "tests/e2e",
 ]

@@ -13,7 +13,7 @@ alphapulse-amm = { path = "../../../libs/amm" }
 alphapulse-state-core = { path = "../../../libs/state/core" }
 # State management - embedded for microsecond latency
 alphapulse-state-market = { path = "../../../libs/state/market" }
-alphapulse-transport = { path = "../../../network/transport" }
+alphapulse-network = { path = "../../../network" }
 # Protocol dependencies
 alphapulse-types = { workspace = true }
 alphapulse_codec = { path = "../../../libs/alphapulse_codec" }

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-alphapulse-transport = { path = "../../network/transport" }
+alphapulse-network = { path = "../../network" }
 alphapulse-types = { path = "../types" }
 async-trait = "0.1"
 futures-util = "0.3"

@@ -123,7 +123,7 @@
 //! - Consider exact topic subscriptions for high-frequency signals
 
 use crate::{ConsumerId, RelayError, RelayResult, TopicConfig, TopicExtractionStrategy};
-use alphapulse_codec::{parse_tlv_extensions, TLVType};
+use alphapulse_codec::{parse_tlv_extensions, TLVType, InstrumentId, VenueId};
 use alphapulse_types::protocol::{InstrumentId, MessageHeader, SourceType, VenueId};
 use dashmap::DashMap;
 use std::collections::HashSet;
@@ -305,17 +305,21 @@ impl TopicRegistry {
                     // These TLVs typically contain instrument IDs
                     // Try to extract instrument ID from the TLV data
 
-                    if tlv_data.len() >= 8 {
-                        // Assuming instrument ID is the first 8 bytes
-                        let instrument_bytes = &tlv_data[0..8];
-                        let instrument_id =
-                            u64::from_le_bytes(instrument_bytes.try_into().map_err(|_| {
-                                RelayError::Validation("Invalid instrument ID".to_string())
-                            })?);
-
-                        // Extract venue information from instrument ID using proper decoding
-                        // The venue information is embedded in the upper bits of the instrument ID
-                        let venue = self.decode_venue_from_instrument_id(instrument_id);
+                    // InstrumentId is 20 bytes according to the codec
+                    if tlv_data.len() >= InstrumentId::SIZE {
+                        // Extract the InstrumentId bytes
+                        let instrument_bytes = &tlv_data[0..InstrumentId::SIZE];
+                        
+                        // Deserialize using zerocopy
+                        let instrument_id = InstrumentId::read_from(instrument_bytes)
+                            .ok_or_else(|| RelayError::Validation("Failed to parse InstrumentId".to_string()))?;
+                        
+                        // Get the venue from the InstrumentId
+                        let venue_id = instrument_id.venue()
+                            .map_err(|e| RelayError::Validation(format!("Invalid venue: {:?}", e)))?;
+                        
+                        // Convert VenueId to string for topic routing
+                        let venue = self.venue_id_to_string(venue_id);
                         return Ok(venue);
                     }
                 }
@@ -328,73 +332,42 @@ impl TopicRegistry {
         ))
     }
 
-    /// Decode venue from instrument ID using standard bit layout
+    /// Convert VenueId to string for topic routing
     ///
-    /// InstrumentId encoding uses a predictable bit layout where venue information
-    /// is embedded in specific bit ranges. This method extracts venue identifiers
-    /// using pattern matching on the embedded venue bits.
+    /// Uses the proper VenueId enum from alphapulse_codec to get
+    /// accurate venue names instead of heuristic decoding.
     ///
     /// # Arguments
-    /// * `instrument_id` - Packed instrument ID containing venue information
+    /// * `venue_id` - VenueId enum from alphapulse_codec
     ///
     /// # Returns
     /// * String representation of the venue for topic routing
-    ///
-    /// # Implementation Notes
-    /// This uses a heuristic approach based on observed instrument ID patterns
-    /// rather than full bijective decoding, which provides reasonable venue
-    /// extraction while avoiding complex InstrumentId reconstruction.
-    fn decode_venue_from_instrument_id(&self, instrument_id: u64) -> String {
-        // Extract venue hint from upper bits (simplified heuristic)
-        let venue_bits = (instrument_id >> 48) & 0xFFFF;
-        let symbol_hash = instrument_id & 0xFFFFFFFFFFFF;
-
-        // Use venue bits and symbol patterns to determine likely venue
-        match venue_bits {
-            v if v >= 100 && v <= 199 => {
-                // CEX range - use symbol patterns for disambiguation
-                match symbol_hash % 5 {
-                    0 => "binance",
-                    1 => "kraken",
-                    2 => "coinbase",
-                    3 => "gemini",
-                    _ => "other_cex",
-                }
-            }
-            v if v >= 200 && v <= 299 => {
-                // Blockchain range
-                match v {
-                    200..=205 => "ethereum",
-                    206..=210 => "polygon",
-                    211..=215 => "arbitrum",
-                    216..=220 => "optimism",
-                    _ => "other_chain",
-                }
-            }
-            v if v >= 300 && v <= 699 => {
-                // DeFi protocol range
-                match v {
-                    300..=349 => "uniswap_v2",
-                    350..=399 => "uniswap_v3",
-                    400..=449 => "sushiswap",
-                    450..=499 => "curve",
-                    500..=549 => "quickswap",
-                    550..=599 => "pancakeswap",
-                    _ => "other_defi",
-                }
-            }
-            _ => {
-                // Fallback to symbol-based heuristic for unknown ranges
-                match symbol_hash % 8 {
-                    0 => "binance",
-                    1 => "kraken",
-                    2 => "coinbase",
-                    3 => "polygon",
-                    4 => "uniswap_v3",
-                    5 => "ethereum",
-                    _ => "unknown",
-                }
-            }
+    fn venue_id_to_string(&self, venue_id: VenueId) -> String {
+        // Use the actual VenueId variant to determine the venue string
+        match venue_id {
+            // Traditional Finance
+            VenueId::NYSE => "nyse",
+            VenueId::NASDAQ => "nasdaq",
+            VenueId::LSE => "lse",
+            
+            // Crypto CEX
+            VenueId::Binance => "binance",
+            VenueId::Kraken => "kraken",
+            VenueId::Coinbase => "coinbase",
+            
+            // Blockchain Networks
+            VenueId::Ethereum => "ethereum",
+            VenueId::Polygon => "polygon",
+            VenueId::BinanceSmartChain => "bsc",
+            VenueId::Arbitrum => "arbitrum",
+            
+            // DeFi Protocols
+            VenueId::UniswapV2 => "uniswap_v2",
+            VenueId::UniswapV3 => "uniswap_v3",
+            VenueId::SushiSwap => "sushiswap",
+            VenueId::Curve => "curve",
+            VenueId::QuickSwap => "quickswap",
+            VenueId::PancakeSwap => "pancakeswap",
         }
         .to_string()
     }

@@ -584,7 +584,7 @@ mod tests {
 
     #[test]
     fn test_timestamp_conversion() {
-        let now_ns = alphapulse_transport::time::safe_system_timestamp_ns_checked()
+        let now_ns = alphapulse_network::time::safe_system_timestamp_ns_checked()
             .unwrap_or(1000000000); // Use a fixed timestamp for test
 
         let iso = timestamp_to_iso(now_ns);

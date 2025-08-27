@@ -113,7 +113,7 @@ impl MessageSink for CollectorSink {
     async fn send(&self, message: Message) -> Result<(), SinkError> {
         if !self.is_connected() {
             self.messages_failed.fetch_add(1, Ordering::Relaxed);
-            let timestamp = alphapulse_transport::safe_system_timestamp_ns_checked()
+            let timestamp = alphapulse_network::safe_system_timestamp_ns_checked()
                 .unwrap_or_else(|e| {
                     tracing::error!("Timestamp error in test: {}", e);
                     0
@@ -127,7 +127,7 @@ impl MessageSink for CollectorSink {
 
         if self.fail_on_send.swap(false, Ordering::Relaxed) {
             self.messages_failed.fetch_add(1, Ordering::Relaxed);
-            let timestamp = alphapulse_transport::safe_system_timestamp_ns_checked()
+            let timestamp = alphapulse_network::safe_system_timestamp_ns_checked()
                 .unwrap_or_else(|e| {
                     tracing::error!("Timestamp error in test: {}", e);
                     0
@@ -238,7 +238,7 @@ impl Default for FailingSink {
 #[async_trait]
 impl MessageSink for FailingSink {
     async fn send(&self, message: Message) -> Result<(), SinkError> {
-        let timestamp = alphapulse_transport::safe_system_timestamp_ns_checked()
+        let timestamp = alphapulse_network::safe_system_timestamp_ns_checked()
             .unwrap_or_else(|e| {
                 tracing::error!("Timestamp error in test: {}", e);
                 0

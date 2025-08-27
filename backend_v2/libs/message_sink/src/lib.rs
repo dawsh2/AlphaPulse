@@ -21,7 +21,7 @@ use std::fmt::Debug;
 use std::time::SystemTime;
 
 pub use batch::BatchResult;
-pub use alphapulse_transport::{current_timestamp_ns as fast_timestamp_ns};
+pub use alphapulse_network::{current_timestamp_ns as fast_timestamp_ns};
 pub use circuit_breaker::{CircuitBreakerSink, CircuitBreakerConfig, CircuitBreakerStats, CircuitState};
 pub use concurrent::{ConcurrentBatchSink, ConcurrentConfig, PipelinedSink};
 pub use config::{ServiceConfig, ServicesConfig, SinkType, CompositePattern, LazyConfigToml, PrecisionContext};
@@ -407,7 +407,7 @@ mod tests {
         assert!(!timeout_err.is_connection_error());
         assert!(timeout_err.is_recoverable());
 
-        let timestamp = alphapulse_transport::safe_system_timestamp_ns_checked()
+        let timestamp = alphapulse_network::safe_system_timestamp_ns_checked()
             .unwrap_or(0);
         let context = SendContext::new(100, timestamp);
         let buffer_err = SinkError::buffer_full_with_context(context);

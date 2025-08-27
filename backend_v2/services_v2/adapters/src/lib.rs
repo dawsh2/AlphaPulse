@@ -205,6 +205,7 @@ pub mod error;
 pub mod input;
 pub mod latency_instrumentation;
 pub mod output;
+pub mod polygon;
 pub mod validation;
 
 // Re-export common adapter infrastructure
