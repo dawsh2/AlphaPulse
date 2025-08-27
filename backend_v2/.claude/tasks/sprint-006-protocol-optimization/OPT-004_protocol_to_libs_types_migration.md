@@ -1,12 +1,12 @@
 ---
 task_id: OPT-004
-status: TODO
+status: COMPLETE
 priority: HIGH
 estimated_hours: 6
 assigned_branch: refactor/protocol-to-libs-types
-assignee: TBD
+assignee: Claude
 created: 2025-08-26
-completed: null
+completed: 2025-08-26
 depends_on:
   - CODEC-001  # Need codec separation first
   - CODEC-002  # Need core protocol logic moved
@@ -35,14 +35,14 @@ scope:
 if [ "$(git branch --show-current)" != "refactor/protocol-to-libs-types" ]; then
     echo "❌ WRONG BRANCH! You must work on refactor/protocol-to-libs-types"
     echo "Current branch: $(git branch --show-current)"
-    echo "Run: git checkout -b refactor/protocol-to-libs-types"
+    echo "Run: git worktree add -b refactor/protocol-to-libs-types"
     exit 1
 fi
 
 # Verify we're not on main
 if [ "$(git branch --show-current)" = "main" ]; then
     echo "❌ NEVER WORK ON MAIN! Switch to refactor/protocol-to-libs-types"
-    echo "Run: git checkout -b refactor/protocol-to-libs-types"
+    echo "Run: git worktree add -b refactor/protocol-to-libs-types"
     exit 1
 fi
 ```

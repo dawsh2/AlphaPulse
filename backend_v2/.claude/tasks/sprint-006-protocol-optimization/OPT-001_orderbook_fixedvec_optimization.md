@@ -41,14 +41,14 @@ status: TODO → status: IN_PROGRESS
 if [ "$(git branch --show-current)" != "perf/orderbook-fixedvec" ]; then
     echo "❌ WRONG BRANCH! You must work on perf/orderbook-fixedvec"
     echo "Current branch: $(git branch --show-current)"
-    echo "Run: git checkout -b perf/orderbook-fixedvec"
+    echo "Run: git worktree add -b perf/orderbook-fixedvec"
     exit 1
 fi
 
 # Verify we're not on main
 if [ "$(git branch --show-current)" = "main" ]; then
     echo "❌ NEVER WORK ON MAIN! Switch to perf/orderbook-fixedvec"
-    echo "Run: git checkout -b perf/orderbook-fixedvec"
+    echo "Run: git worktree add -b perf/orderbook-fixedvec"
     exit 1
 fi
 ```

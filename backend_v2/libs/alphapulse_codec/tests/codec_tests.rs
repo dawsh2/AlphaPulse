@@ -7,7 +7,8 @@
 //! - Performance characteristics and error handling
 
 use alphapulse_codec::{
-    AssetType, CodecError, InstrumentId, TLVType, VenueId, MESSAGE_MAGIC, PROTOCOL_VERSION,
+    AssetType, InstrumentId, TLVType, VenueId, MESSAGE_MAGIC, PROTOCOL_VERSION,
+    instrument_id::CodecError,
 };
 use zerocopy::{AsBytes, FromBytes};
 

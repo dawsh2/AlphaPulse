@@ -7,28 +7,6 @@
 //! The parser enforces message integrity through checksum validation and strict size constraints
 //! while maintaining >1.6M messages/second parsing throughput.
 //!
-//! ## Integration Points
-//!
-//! - **Input**: Raw binary message bytes from Unix sockets, shared memory, or network transports
-//! - **Output**: Parsed MessageHeader and typed TLV extensions ready for business logic
-//! - **Validation**: Checksum verification, size constraints, and payload integrity checking
-//! - **Error Handling**: Comprehensive ProtocolError reporting with context for debugging
-//! - **Zero-Copy**: Direct memory references via zerocopy::Ref without allocation overhead
-//!
-//! ## Architecture Role
-//!
-//! ```text
-//! Transport Layer → [TLV Parser] → Business Logic
-//!       ↑              ↓               ↓
-//!   Raw Binary    Zero-Copy        Typed TLV
-//!   Messages      Parsing          Extensions
-//!                                      ↓
-//!                                Service Handlers
-//! ```
-//!
-//! The parser sits at the critical boundary between binary transport and typed business logic,
-//! providing safe deserialization with comprehensive validation and performance optimization.
-//!
 //! ## Performance Profile
 //!
 //! - **Parsing Speed**: >1.6M messages/second (measured: 1,643,779 msg/s)
@@ -45,454 +23,433 @@ use alphapulse_types::MESSAGE_MAGIC;
 use std::mem::size_of;
 use zerocopy::Ref;
 
-/// Result type for codec parsing operations
-pub type ParseResult<T> = Result<T, CodecError>;
+/// Result type for parsing operations
+pub type ParseResult<T> = ProtocolResult<T>;
 
-/// Parse message header with validation
+/// Calculate checksum for a message buffer without mutating it
 ///
-/// Performs zero-copy parsing of the 32-byte message header with comprehensive validation
-/// including magic number checking, version verification, and bounds checking.
+/// Used for diagnostic error messages when checksum validation fails.
+/// Duplicates the logic from MessageHeader::verify_checksum to extract
+/// the calculated checksum value for error reporting.
+fn calculate_checksum_non_mutating(full_message: &[u8]) -> u32 {
+    const HEADER_SIZE: usize = 32;
+    const CHECKSUM_OFFSET: usize = 28;
+    
+    if full_message.len() < HEADER_SIZE {
+        return 0; // Invalid message, return 0
+    }
+    
+    let before_checksum = &full_message[..CHECKSUM_OFFSET];
+    let after_checksum = &full_message[CHECKSUM_OFFSET + 4..HEADER_SIZE];
+    let payload = &full_message[HEADER_SIZE..];
+    
+    let mut hasher = crc32fast::Hasher::new();
+    hasher.update(before_checksum);
+    hasher.update(after_checksum);
+    hasher.update(payload);
+    hasher.finalize()
+}
+
+/// Parse and validate message header with comprehensive integrity checking
 ///
-/// # Arguments
-/// * `data` - Raw message bytes (must be at least 32 bytes)
-///
-/// # Returns
-/// * `Ok(&MessageHeader)` - Reference to parsed header (zero-copy)
-/// * `Err(CodecError)` - Validation failure with specific error details
-///
-/// # Performance
-/// * Zero allocation - direct memory reference
-/// * <100ns parsing time for valid headers
-/// * Comprehensive validation in <500ns
-///
-/// # Safety
-/// Uses unsafe pointer casting for zero-copy parsing. Safe because:
-/// 1. Bounds checking ensures sufficient data length
-/// 2. MessageHeader is zerocopy-safe (repr(C), all fields are primitive)
-/// 3. Memory alignment verified by zerocopy traits
-///
-/// # Examples
-/// ```rust
-/// use alphapulse_codec::parse_header;
-///
-/// let message_bytes = receive_from_socket();
-/// match parse_header(&message_bytes) {
-///     Ok(header) => {
-///         println!("Sequence: {}, Domain: {}", header.sequence, header.relay_domain);
-///     }
-///     Err(e) => {
-///         error!("Header parsing failed: {}", e);
-///     }
-/// }
-/// ```
+/// Performs zero-copy parsing of the 32-byte MessageHeader with full validation
+/// including magic number verification, size bounds checking, and checksum validation.
+/// This is the entry point for all message processing and must pass for any valid message.
 pub fn parse_header(data: &[u8]) -> ParseResult<&MessageHeader> {
-    // Bounds check
-    if data.len() < std::mem::size_of::<MessageHeader>() {
-        return Err(CodecError::MessageTooSmall {
-            need: std::mem::size_of::<MessageHeader>(),
-            got: data.len(),
-        });
+    if data.len() < size_of::<MessageHeader>() {
+        return Err(ProtocolError::message_too_small(
+            size_of::<MessageHeader>(),
+            data.len(),
+            "MessageHeader parsing"
+        ));
     }
 
-    // Zero-copy parsing - safe due to bounds check and zerocopy validation
-    let header = unsafe { &*(data.as_ptr() as *const MessageHeader) };
+    let header = Ref::<_, MessageHeader>::new(&data[..size_of::<MessageHeader>()])
+        .ok_or_else(|| ProtocolError::message_too_small(
+            size_of::<MessageHeader>(),
+            data.len(),
+            "MessageHeader zerocopy conversion"
+        ))?
+        .into_ref();
 
-    // Validate magic number
     if header.magic != MESSAGE_MAGIC {
-        return Err(CodecError::InvalidMagic {
-            expected: MESSAGE_MAGIC,
-            actual: header.magic,
-        });
+        return Err(ProtocolError::invalid_magic(
+            MESSAGE_MAGIC,
+            header.magic,
+            0  // Magic is at start of header
+        ));
     }
 
-    // Validate payload size doesn't exceed buffer
-    let header_size = std::mem::size_of::<MessageHeader>();
-    if data.len() < header_size + header.payload_size as usize {
-        return Err(CodecError::MessageTooSmall {
-            need: header_size + header.payload_size as usize,
-            got: data.len(),
-        });
+    // Validate checksum
+    if !header.verify_checksum(data) {
+        // Calculate actual checksum for better diagnostics
+        let calculated_checksum = calculate_checksum_non_mutating(data);
+        return Err(ProtocolError::checksum_mismatch(
+            header.checksum,
+            calculated_checksum,
+            data.len(),
+            0  // TLV count could be extracted but would require parsing payload
+        ));
     }
 
     Ok(header)
 }
 
-/// Validate TLV payload size against type constraints
+/// Parse message header without checksum validation (for internal relay use only)
 ///
-/// Uses the TLV type registry to enforce size constraints for message validation.
-/// This prevents malformed messages from causing buffer overflows or parsing errors.
-///
-/// # Arguments
-/// * `tlv_type` - TLV type number to validate
-/// * `payload_size` - Actual payload size in bytes
-///
-/// # Returns
-/// * `Ok(())` - Payload size is valid for this TLV type
-/// * `Err(CodecError)` - Size constraint violation
-///
-/// # Examples
-/// ```rust
-/// use alphapulse_codec::{validate_tlv_size, TLVType};
-///
-/// // Validate trade message size (should be exactly 40 bytes)
-/// validate_tlv_size(TLVType::Trade as u8, 40)?; // OK
-/// validate_tlv_size(TLVType::Trade as u8, 39)?; // Error - too small
-/// ```
-pub fn validate_tlv_size(tlv_type: u8, payload_size: usize) -> ParseResult<()> {
-    let tlv_type_enum =
-        TLVType::try_from(tlv_type).map_err(|_| CodecError::UnknownTLVType(tlv_type))?;
-
-    if !TlvTypeRegistry::validate_size(tlv_type_enum, payload_size) {
-        return Err(CodecError::InvalidPayloadSize {
-            tlv_type,
-            expected: format!("{:?}", tlv_type_enum.size_constraint()),
-            actual: payload_size,
-        });
+/// **WARNING**: This function bypasses checksum validation and should ONLY be used
+/// for messages that are guaranteed to be from trusted internal sources.
+pub fn parse_header_without_checksum(data: &[u8]) -> ParseResult<&MessageHeader> {
+    if data.len() < size_of::<MessageHeader>() {
+        return Err(ProtocolError::message_too_small(
+            size_of::<MessageHeader>(),
+            data.len(),
+            "MessageHeader parsing (without checksum)"
+        ));
     }
 
-    Ok(())
+    let header = Ref::<_, MessageHeader>::new(&data[..size_of::<MessageHeader>()])
+        .ok_or_else(|| ProtocolError::message_too_small(
+            size_of::<MessageHeader>(),
+            data.len(),
+            "MessageHeader zerocopy conversion"
+        ))?
+        .into_ref();
+
+    if header.magic != MESSAGE_MAGIC {
+        return Err(ProtocolError::invalid_magic(
+            MESSAGE_MAGIC,
+            header.magic,
+            0  // Magic is at start of header
+        ));
+    }
+
+    // WARNING: Checksum validation intentionally skipped for performance
+
+    Ok(header)
 }
 
-/// Parse TLV extensions from message payload
+/// Parse complete TLV payload with automatic format detection and validation
 ///
-/// Parses the variable-length TLV payload section after the 32-byte header.
-/// Supports both standard and extended TLV formats with comprehensive validation.
-///
-/// # Arguments
-/// * `payload` - TLV payload bytes (after 32-byte header)
-///
-/// # Returns
-/// * `Ok(Vec<TlvExtension>)` - Parsed and validated TLV extensions
-/// * `Err(CodecError)` - Parsing or validation failure
-///
-/// # Performance
-/// * Zero-copy parsing where possible
-/// * Validates each TLV against type registry
-/// * Early termination on validation failure
-///
-/// # Examples
-/// ```rust
-/// use alphapulse_codec::{parse_header, parse_tlv_extensions};
-///
-/// let message = receive_message();
-/// let header = parse_header(&message)?;
-/// let payload = &message[32..32 + header.payload_size as usize];
-/// let extensions = parse_tlv_extensions(payload)?;
-///
-/// for ext in extensions {
-///     match ext.tlv_type {
-///         1 => handle_trade(&ext.payload),
-///         2 => handle_quote(&ext.payload),
-///         _ => warn!("Unknown TLV type: {}", ext.tlv_type),
-///     }
-/// }
-/// ```
-pub fn parse_tlv_extensions(payload: &[u8]) -> ParseResult<Vec<TlvExtension<'_>>> {
+/// Processes the variable-length TLV payload section of a Protocol V2 message,
+/// automatically detecting and parsing both standard (≤255 bytes) and extended (>255 bytes)
+/// TLV formats. Returns a vector of parsed extensions ready for type-specific processing.
+pub fn parse_tlv_extensions(tlv_data: &[u8]) -> ParseResult<Vec<TLVExtensionEnum>> {
     let mut extensions = Vec::new();
     let mut offset = 0;
 
-    while offset < payload.len() {
-        // Need at least 3 bytes for TLV header: type (1) + length (2)
-        if offset + 3 > payload.len() {
-            return Err(CodecError::TruncatedTLV {
-                offset,
-                need: 3,
-                available: payload.len() - offset,
-            });
+    while offset < tlv_data.len() {
+        if offset + 2 > tlv_data.len() {
+            return Err(ProtocolError::truncated_tlv(
+                tlv_data.len(),
+                offset + 2,  // Need at least 2 more bytes for TLV header
+                0,  // TLV type unknown at this point
+                offset
+            ));
         }
 
-        let tlv_type = payload[offset];
-        let length = u16::from_le_bytes([payload[offset + 1], payload[offset + 2]]) as usize;
+        let tlv_type = tlv_data[offset];
 
-        // Check if we have enough data for the payload
-        if offset + 3 + length > payload.len() {
-            return Err(CodecError::TruncatedTLV {
-                offset,
-                need: 3 + length,
-                available: payload.len() - offset,
-            });
+        if tlv_type == TLVType::ExtendedTLV as u8 {
+            // Parse extended TLV (Type 255)
+            let ext_tlv = parse_extended_tlv(&tlv_data[offset..])?;
+            offset += 5 + ext_tlv.header.tlv_length as usize;
+            extensions.push(TLVExtensionEnum::Extended(ext_tlv));
+        } else {
+            // Parse standard TLV
+            let std_tlv = parse_standard_tlv(&tlv_data[offset..])?;
+            offset += 2 + std_tlv.header.tlv_length as usize;
+            extensions.push(TLVExtensionEnum::Standard(std_tlv));
         }
-
-        // Validate TLV size against type registry
-        validate_tlv_size(tlv_type, length)?;
-
-        // Extract payload
-        let tlv_payload = &payload[offset + 3..offset + 3 + length];
-
-        extensions.push(TlvExtension {
-            tlv_type,
-            length: length as u16,
-            payload: tlv_payload,
-        });
-
-        offset += 3 + length;
     }
 
     Ok(extensions)
 }
 
-/// TLV extension structure
-///
-/// Represents a parsed TLV extension with zero-copy payload reference.
-/// This structure provides access to TLV data without allocation overhead.
+/// Unified TLV extension container supporting both standard and extended formats
 #[derive(Debug, Clone)]
-pub struct TlvExtension<'a> {
-    /// TLV type number
-    pub tlv_type: u8,
-    /// Payload length in bytes
-    pub length: u16,
-    /// Payload data (zero-copy reference)
-    pub payload: &'a [u8],
+pub enum TLVExtensionEnum {
+    /// Standard TLV format with 2-byte header and ≤255 byte payload
+    Standard(SimpleTLVExtension),
+    /// Extended TLV format with 5-byte header and ≤65,535 byte payload
+    Extended(ExtendedTLVExtension),
 }
 
-impl<'a> TlvExtension<'a> {
-    /// Get TLV type as enum if known
-    pub fn get_tlv_type(&self) -> Result<TLVType, CodecError> {
-        TLVType::try_from(self.tlv_type).map_err(|_| CodecError::UnknownTLVType(self.tlv_type))
+/// Parse standard TLV format with type-specific size validation
+fn parse_standard_tlv(data: &[u8]) -> ParseResult<SimpleTLVExtension> {
+    if data.len() < 2 {
+        return Err(ProtocolError::truncated_tlv(data.len(), 2, 0, 0));
     }
 
-    /// Decode payload as specific TLV structure with comprehensive validation
-    ///
-    /// Performs type-safe zero-copy deserialization with multiple safety checks:
-    /// - Size validation against target type
-    /// - Alignment verification via zerocopy traits  
-    /// - TLV type compatibility checking when possible
-    /// - Bounds checking for payload access
-    ///
-    /// # Type Requirements
-    /// * `T: zerocopy::FromBytes` - Type must support safe zero-copy deserialization
-    /// * Payload must contain at least `size_of::<T>()` bytes
-    /// * Memory layout must be compatible with target platform alignment
-    ///
-    /// # Safety Guarantees
-    /// - **No Panics**: All error conditions return Result types
-    /// - **Bounds Checking**: Validates payload size before access
-    /// - **Alignment Safety**: zerocopy::Ref handles platform alignment requirements
-    /// - **Type Safety**: Compile-time guarantee of safe byte interpretation
-    ///
-    /// # Performance
-    /// - **Zero-Copy**: Direct memory reference without data copying
-    /// - **Validation Cost**: <100ns for size and alignment checks
-    /// - **Cache Friendly**: Sequential memory access pattern
-    ///
-    /// # Arguments
-    /// * `expected_tlv_type` - Optional TLV type for additional validation
-    ///
-    /// # Returns
-    /// * `Ok(&T)` - Zero-copy reference to decoded structure
-    /// * `Err(CodecError)` - Size, alignment, or type validation failure
-    ///
-    /// # Examples
-    /// ```rust
-    /// use alphapulse_types::protocol::tlv::TradeTLV;
-    /// use alphapulse_codec::TLVType;
-    ///
-    /// // Recommended: Verify TLV type first
-    /// if extension.get_tlv_type()? == TLVType::Trade {
-    ///     let trade = extension.decode_as::<TradeTLV>(Some(TLVType::Trade))?;
-    ///     println!("Trade price: {}", trade.price);
-    /// }
-    ///
-    /// // Alternative: Skip type validation if confident
-    /// let trade = extension.decode_as::<TradeTLV>(None)?;
-    /// ```
-    pub fn decode_as<T>(&self, expected_tlv_type: Option<TLVType>) -> ParseResult<&T>
-    where
-        T: zerocopy::FromBytes,
-    {
-        // Validate TLV type if provided
-        if let Some(expected) = expected_tlv_type {
-            let actual_type = self
-                .get_tlv_type()
-                .map_err(|_| CodecError::InvalidPayloadSize {
-                    tlv_type: self.tlv_type,
-                    expected: format!("valid TLV type for {}", std::any::type_name::<T>()),
-                    actual: self.payload.len(),
-                })?;
+    let tlv_type = data[0];
+    let tlv_length = data[1] as usize;
 
-            if actual_type != expected {
-                return Err(CodecError::InvalidPayloadSize {
-                    tlv_type: self.tlv_type,
-                    expected: format!("TLV type {:?} for {}", expected, std::any::type_name::<T>()),
-                    actual: self.payload.len(),
+    if data.len() < 2 + tlv_length {
+        return Err(ProtocolError::truncated_tlv(
+            data.len(),
+            2 + tlv_length,  // Need header + payload
+            tlv_type as u16,
+            0
+        ));
+    }
+
+    let header = SimpleTLVHeader {
+        tlv_type,
+        tlv_length: tlv_length as u8,
+    };
+    let payload = data[2..2 + tlv_length].to_vec();
+
+    // Validate payload size for known fixed-size TLVs
+    if let Ok(tlv_type_enum) = TLVType::try_from(tlv_type) {
+        if let Some(expected_size) = tlv_type_enum.expected_payload_size() {
+            if payload.len() != expected_size {
+                return Err(ProtocolError::PayloadSizeMismatch {
+                    tlv_type,
+                    expected: expected_size,
+                    got: payload.len(),
+                    struct_name: "Standard TLV struct".to_string(),
                 });
             }
         }
+    }
 
-        // Validate payload size
-        let required_size = std::mem::size_of::<T>();
-        if self.payload.len() < required_size {
-            return Err(CodecError::InvalidPayloadSize {
-                tlv_type: self.tlv_type,
-                expected: format!(
-                    "at least {} bytes for {}",
-                    required_size,
-                    std::any::type_name::<T>()
+    Ok(SimpleTLVExtension { header, payload })
+}
+
+/// Parse extended TLV format for large payloads with comprehensive validation
+fn parse_extended_tlv(data: &[u8]) -> ParseResult<ExtendedTLVExtension> {
+    if data.len() < 5 {
+        return Err(ProtocolError::truncated_tlv(
+            data.len(),
+            5,  // Extended TLV needs at least 5 bytes
+            0,  // Type unknown
+            0
+        ));
+    }
+
+    if data[0] != 255 {
+        return Err(ProtocolError::invalid_extended_tlv(0, 0xFF, data[0] as u16));
+    }
+
+    if data[1] != 0 {
+        return Err(ProtocolError::invalid_extended_tlv(1, 0x00, data[1] as u16));
+    }
+
+    let actual_type = data[2];
+    let length = u16::from_le_bytes([data[3], data[4]]) as usize;
+
+    if data.len() < 5 + length {
+        return Err(ProtocolError::truncated_tlv(
+            data.len(),
+            5 + length,  // Extended header + payload
+            actual_type as u16,
+            0
+        ));
+    }
+
+    let header = ExtendedTLVHeader {
+        marker: 255,
+        reserved: 0,
+        tlv_type: actual_type,
+        tlv_length: length as u16,
+    };
+
+    let payload = data[5..5 + length].to_vec();
+
+    Ok(ExtendedTLVExtension { header, payload })
+}
+
+/// High-performance TLV lookup by type with zero-copy payload extraction
+pub fn find_tlv_by_type(tlv_data: &[u8], target_type: u8) -> Option<&[u8]> {
+    let mut offset = 0;
+
+    while offset + 2 <= tlv_data.len() {
+        let tlv_type = tlv_data[offset];
+
+        if tlv_type == TLVType::ExtendedTLV as u8 {
+            // Handle extended TLV
+            if offset + 5 <= tlv_data.len() {
+                let actual_type = tlv_data[offset + 2];
+                let length =
+                    u16::from_le_bytes([tlv_data[offset + 3], tlv_data[offset + 4]]) as usize;
+
+                if actual_type == target_type {
+                    let start = offset + 5;
+                    let end = start + length;
+                    if end <= tlv_data.len() {
+                        return Some(&tlv_data[start..end]);
+                    }
+                }
+                offset += 5 + length;
+            } else {
+                break;
+            }
+        } else {
+            // Handle standard TLV
+            let tlv_length = tlv_data[offset + 1] as usize;
+
+            if tlv_type == target_type {
+                let start = offset + 2;
+                let end = start + tlv_length;
+                if end <= tlv_data.len() {
+                    return Some(&tlv_data[start..end]);
+                }
+            }
+            offset += 2 + tlv_length;
+        }
+    }
+
+    None
+}
+
+/// Type-safe TLV payload extraction with zero-copy deserialization
+pub fn extract_tlv_payload<T>(tlv_data: &[u8], target_type: TLVType) -> ParseResult<Option<T>>
+where
+    T: zerocopy::FromBytes + Copy,
+{
+    if let Some(payload_bytes) = find_tlv_by_type(tlv_data, target_type as u8) {
+        if payload_bytes.len() >= size_of::<T>() {
+            // Use read_from for better compatibility with different alignments
+            let result = T::read_from(&payload_bytes[..size_of::<T>()]).ok_or(
+                ProtocolError::message_too_small(
+                    size_of::<T>(),
+                    payload_bytes.len(),
+                    "TLV payload struct conversion - read_from failed"
                 ),
-                actual: self.payload.len(),
-            });
+            )?;
+            Ok(Some(result))
+        } else {
+            Err(ProtocolError::message_too_small(
+                size_of::<T>(),
+                payload_bytes.len(),
+                "TLV payload struct conversion (insufficient bytes)"
+            ))
         }
-
-        // Safe zero-copy deserialization with alignment checking
-        let result =
-            T::ref_from_prefix(self.payload).ok_or_else(|| CodecError::InvalidPayloadSize {
-                tlv_type: self.tlv_type,
-                expected: format!("properly aligned {} structure", std::any::type_name::<T>()),
-                actual: self.payload.len(),
-            })?;
-
-        Ok(result)
+    } else {
+        Ok(None)
     }
+}
 
-    /// Fast decode without type validation for performance-critical paths
-    ///
-    /// **WARNING**: This method skips TLV type validation and should only be used
-    /// when the caller has already verified the TLV type through other means.
-    /// Using this with incorrect types could result in undefined behavior.
-    ///
-    /// # Safety Requirements
-    /// - Caller MUST verify TLV type matches T before calling
-    /// - Payload MUST be large enough for type T
-    /// - Type T MUST be compatible with the actual TLV data layout
-    ///
-    /// # Performance
-    /// - **Optimized Path**: Skips type checking for maximum performance
-    /// - **Hot Path Usage**: Designed for >1M msg/s parsing scenarios
-    /// - **Zero Overhead**: Only size and alignment validation
-    ///
-    /// # Examples
-    /// ```rust
-    /// // Only use after explicit type verification
-    /// match extension.tlv_type {
-    ///     1 => { // TLVType::Trade
-    ///         let trade = extension.decode_as_unchecked::<TradeTLV>()?;
-    ///         process_trade(trade);
-    ///     }
-    ///     _ => return Err(CodecError::UnknownTLVType(extension.tlv_type)),
-    /// }
-    /// ```
-    pub fn decode_as_unchecked<T>(&self) -> ParseResult<&T>
-    where
-        T: zerocopy::FromBytes,
-    {
-        let required_size = std::mem::size_of::<T>();
-        if self.payload.len() < required_size {
-            return Err(CodecError::InvalidPayloadSize {
-                tlv_type: self.tlv_type,
-                expected: format!("at least {} bytes", required_size),
-                actual: self.payload.len(),
-            });
+/// Simple TLV Header for basic parsing (types 1-254)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct SimpleTLVHeader {
+    /// TLV type number (1-254, 255 reserved for extended format)
+    pub tlv_type: u8,
+    /// Payload length in bytes (0-255)
+    pub tlv_length: u8,
+}
+
+/// Extended TLV Header for type 255 (large payloads)
+#[repr(C, packed)]
+#[derive(Debug, Clone, Copy)]
+pub struct ExtendedTLVHeader {
+    /// Marker byte (always 255) indicating extended format
+    pub marker: u8,
+    /// Reserved byte (always 0) for future use
+    pub reserved: u8,
+    /// Actual TLV type embedded in extended header
+    pub tlv_type: u8,
+    /// Payload length as 16-bit value (up to 65,535 bytes)
+    pub tlv_length: u16,
+}
+
+/// A parsed simple TLV extension with payload
+#[derive(Debug, Clone)]
+pub struct SimpleTLVExtension {
+    pub header: SimpleTLVHeader,
+    pub payload: Vec<u8>,
+}
+
+/// An extended TLV extension with larger payload
+#[derive(Debug, Clone)]
+pub struct ExtendedTLVExtension {
+    pub header: ExtendedTLVHeader,
+    pub payload: Vec<u8>,
+}
+
+/// Validate TLV payload size against type constraints
+pub fn validate_tlv_size(tlv_type: u8, payload_size: usize) -> ParseResult<()> {
+    if let Ok(tlv_type_enum) = TLVType::try_from(tlv_type) {
+        if let Some(expected_size) = tlv_type_enum.expected_payload_size() {
+            if payload_size != expected_size {
+                return Err(ProtocolError::PayloadSizeMismatch {
+                    tlv_type,
+                    expected: expected_size,
+                    got: payload_size,
+                    struct_name: "Extended TLV struct".to_string(),
+                });
+            }
         }
-
-        T::ref_from_prefix(self.payload).ok_or_else(|| CodecError::InvalidPayloadSize {
-            tlv_type: self.tlv_type,
-            expected: format!("valid alignment for {}", std::any::type_name::<T>()),
-            actual: self.payload.len(),
-        })
     }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alphapulse_types::protocol::{MessageHeader, RelayDomain, SourceType};
+    use alphapulse_types::protocol::message::header::MessageHeader;
+    use alphapulse_types::{RelayDomain, SourceType};
 
     #[test]
-    fn test_parse_header_success() {
-        let mut header = MessageHeader {
-            magic: MESSAGE_MAGIC,
-            version: 1,
-            relay_domain: RelayDomain::MarketData as u8,
-            source: SourceType::BinanceCollector as u8,
-            sequence: 12345,
-            timestamp_ns: 1234567890000,
-            payload_size: 100,
-            checksum: 0xABCDEF,
-            reserved: [0; 8],
-        };
+    fn test_parse_standard_tlv() {
+        // Create a simple TLV with a vendor-specific type that accepts any size
+        // type=200 (vendor-specific), length=4, payload=[0x01, 0x02, 0x03, 0x04]
+        let tlv_data = vec![200, 4, 0x01, 0x02, 0x03, 0x04];
 
-        let header_bytes = unsafe {
-            std::slice::from_raw_parts(
-                &header as *const _ as *const u8,
-                std::mem::size_of::<MessageHeader>(),
-            )
-        };
-
-        // Create message with header + payload
-        let mut message = Vec::with_capacity(32 + 100);
-        message.extend_from_slice(header_bytes);
-        message.resize(32 + 100, 0); // Add payload space
-
-        let parsed = parse_header(&message).unwrap();
-        assert_eq!(parsed.magic, MESSAGE_MAGIC);
-        assert_eq!(parsed.sequence, 12345);
-        assert_eq!(parsed.payload_size, 100);
+        let tlv = parse_standard_tlv(&tlv_data).unwrap();
+        assert_eq!(tlv.header.tlv_type, 200);
+        assert_eq!(tlv.header.tlv_length, 4);
+        assert_eq!(tlv.payload, vec![0x01, 0x02, 0x03, 0x04]);
     }
 
     #[test]
-    fn test_parse_header_invalid_magic() {
-        let mut header = MessageHeader {
-            magic: 0x12345678, // Wrong magic
-            version: 1,
-            relay_domain: 1,
-            source: 1,
-            sequence: 1,
-            timestamp_ns: 1,
-            payload_size: 0,
-            checksum: 0,
-            reserved: [0; 8],
-        };
+    fn test_parse_extended_tlv() {
+        // Create extended TLV: marker=255, reserved=0, type=200, length=300, payload=[0x01; 300]
+        let mut tlv_data = vec![255, 0, 200];
+        tlv_data.extend_from_slice(&300u16.to_le_bytes());
+        tlv_data.extend(vec![0x01; 300]);
 
-        let header_bytes = unsafe {
-            std::slice::from_raw_parts(
-                &header as *const _ as *const u8,
-                std::mem::size_of::<MessageHeader>(),
-            )
-        };
-
-        match parse_header(header_bytes) {
-            Err(CodecError::InvalidMagic { expected, actual }) => {
-                assert_eq!(expected, MESSAGE_MAGIC);
-                assert_eq!(actual, 0x12345678);
-            }
-            _ => panic!("Expected InvalidMagic error"),
-        }
+        let ext_tlv = parse_extended_tlv(&tlv_data).unwrap();
+        assert_eq!(ext_tlv.header.marker, 255);
+        assert_eq!(ext_tlv.header.reserved, 0);
+        assert_eq!(ext_tlv.header.tlv_type, 200);
+        let tlv_length = ext_tlv.header.tlv_length;
+        assert_eq!(tlv_length, 300);
+        assert_eq!(ext_tlv.payload.len(), 300);
+        assert!(ext_tlv.payload.iter().all(|&b| b == 0x01));
     }
 
     #[test]
-    fn test_validate_tlv_size() {
-        // Trade TLV should be exactly 40 bytes
-        assert!(validate_tlv_size(TLVType::Trade as u8, 40).is_ok());
-        assert!(validate_tlv_size(TLVType::Trade as u8, 39).is_err());
-        assert!(validate_tlv_size(TLVType::Trade as u8, 41).is_err());
+    fn test_find_tlv_by_type() {
+        // Create multiple TLVs
+        let mut tlv_data = Vec::new();
+        // TLV 1: type=1, length=2, payload=[0xAA, 0xBB]
+        tlv_data.extend_from_slice(&[1, 2, 0xAA, 0xBB]);
+        // TLV 2: type=2, length=3, payload=[0xCC, 0xDD, 0xEE]
+        tlv_data.extend_from_slice(&[2, 3, 0xCC, 0xDD, 0xEE]);
+        // TLV 3: type=1, length=1, payload=[0xFF]
+        tlv_data.extend_from_slice(&[1, 1, 0xFF]);
 
-        // OrderBook TLV can be variable size
-        assert!(validate_tlv_size(TLVType::OrderBook as u8, 100).is_ok());
-        assert!(validate_tlv_size(TLVType::OrderBook as u8, 1000).is_ok());
+        // Find first TLV of type 1
+        let payload = find_tlv_by_type(&tlv_data, 1).unwrap();
+        assert_eq!(payload, &[0xAA, 0xBB]);
+
+        // Find TLV of type 2
+        let payload = find_tlv_by_type(&tlv_data, 2).unwrap();
+        assert_eq!(payload, &[0xCC, 0xDD, 0xEE]);
+
+        // Try to find non-existent type
+        assert!(find_tlv_by_type(&tlv_data, 99).is_none());
     }
 
     #[test]
-    fn test_parse_empty_tlv_extensions() {
-        let payload = &[];
-        let extensions = parse_tlv_extensions(payload).unwrap();
-        assert!(extensions.is_empty());
-    }
+    fn test_truncated_tlv_error() {
+        // TLV claims length=10 but only has 5 bytes
+        let tlv_data = vec![1, 10, 0x01, 0x02, 0x03, 0x04, 0x05];
 
-    #[test]
-    fn test_parse_single_tlv_extension() {
-        // Create a simple TLV: type=1 (Trade), length=40, payload=40 bytes of 0xAB
-        let mut payload = Vec::new();
-        payload.push(1); // type
-        payload.extend_from_slice(&40u16.to_le_bytes()); // length
-        payload.extend(std::iter::repeat(0xAB).take(40)); // payload
-
-        let extensions = parse_tlv_extensions(&payload).unwrap();
-        assert_eq!(extensions.len(), 1);
-
-        let ext = &extensions[0];
-        assert_eq!(ext.tlv_type, 1);
-        assert_eq!(ext.length, 40);
-        assert_eq!(ext.payload.len(), 40);
-        assert!(ext.payload.iter().all(|&b| b == 0xAB));
+        let result = parse_standard_tlv(&tlv_data);
+        assert!(result.is_err());
+        matches!(result.unwrap_err(), ProtocolError::TruncatedTLV { .. });
     }
 }

@@ -310,68 +310,76 @@ mod tests {
     use super::*;
 
     #[repr(C)]
-    #[derive(AsBytes, zerocopy::FromBytes, zerocopy::FromZeroes)]
+    #[derive(AsBytes, zerocopy::FromBytes, zerocopy::FromZeroes, PartialEq, Eq, Debug)]
     struct TestTradeTLV {
         instrument_id: u64,
         price: i64,
         volume: i64,
     }
 
+    // Unit Tests - Testing internal logic and private functions only
+
+    #[test]
+    fn test_tlv_data_enum_internal_structure() {
+        // Test private enum used internally
+        let standard_tlv = TLVData::Standard {
+            tlv_type: 1,
+            payload: vec![0u8; 100],
+        };
+        let extended_tlv = TLVData::Extended {
+            tlv_type: 1,
+            payload: vec![0u8; 300],
+        };
+
+        // Test that internal size calculations are correct
+        match standard_tlv {
+            TLVData::Standard { payload, .. } => assert_eq!(2 + payload.len(), 102),
+            _ => panic!("Expected standard TLV"),
+        }
+
+        match extended_tlv {
+            TLVData::Extended { payload, .. } => assert_eq!(5 + payload.len(), 305),
+            _ => panic!("Expected extended TLV"),
+        }
+    }
+
+    #[test]
+    fn test_automatic_format_selection_internal() {
+        // Test internal format selection logic
+        let mut builder = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector);
+        
+        // Test access to internal tlvs vec (private field)
+        builder = builder.add_tlv_bytes(TLVType::Trade, vec![0u8; 100]);
+        assert_eq!(builder.tlvs.len(), 1);
+        match &builder.tlvs[0] {
+            TLVData::Standard { .. } => {},
+            _ => panic!("Expected standard format for small payload"),
+        }
+
+        builder = builder.add_tlv_bytes(TLVType::Quote, vec![0u8; 300]);
+        assert_eq!(builder.tlvs.len(), 2);
+        match &builder.tlvs[1] {
+            TLVData::Extended { .. } => {},
+            _ => panic!("Expected extended format for large payload"),
+        }
+    }
+
+    // Basic public API tests (minimal, most moved to integration tests)
+
     #[test]
     fn test_basic_message_building() {
         let test_data = TestTradeTLV {
             instrument_id: 0x123456789ABCDEF0,
-            price: 12345678,
-            volume: 1000000000,
+            price: 4500000000000, 
+            volume: 100000000,
         };
 
         let message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
             .add_tlv(TLVType::Trade, &test_data)
-            .with_sequence(42)
             .build()
             .expect("Failed to build message");
 
-        // Message should be header (32) + TLV header (2) + payload (24) = 58 bytes
-        assert_eq!(message.len(), 58);
-    }
-
-    #[test]
-    fn test_extended_tlv_building() {
-        // Create a large payload (>255 bytes)
-        let large_payload = vec![0x42u8; 1000];
-
-        let message = TLVMessageBuilder::new(RelayDomain::Signal, SourceType::ArbitrageStrategy)
-            .add_tlv_bytes(TLVType::SignalIdentity, large_payload.clone())
-            .build()
-            .expect("Failed to build extended message");
-
-        // Should use extended format: header (32) + extended TLV header (5) + payload (1000)
-        assert_eq!(message.len(), 32 + 5 + 1000);
-    }
-
-    #[test]
-    fn test_multiple_tlvs() {
-        let order_request = [0u8; 32];
-        let order_status = [0u8; 24];
-
-        let message = TLVMessageBuilder::new(RelayDomain::Execution, SourceType::ExecutionEngine)
-            .add_tlv_bytes(TLVType::OrderRequest, order_request.to_vec())
-            .add_tlv_bytes(TLVType::OrderStatus, order_status.to_vec())
-            .build()
-            .expect("Failed to build multi-TLV message");
-
-        // Check that message was constructed (exact size depends on TLV headers)
-        assert!(message.len() > 32); // At least header size
-    }
-
-    #[test]
-    fn test_size_checking() {
-        let builder = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::KrakenCollector)
-            .add_tlv_bytes(TLVType::Trade, vec![0; 100]);
-
-        assert_eq!(builder.payload_size(), 102); // 2 + 100
-        assert!(!builder.would_exceed_size(200));
-        assert!(builder.would_exceed_size(130)); // 32 + 102 = 134 > 130
+        assert_eq!(message.len(), 58); // Header (32) + TLV header (2) + payload (24)
     }
 
     #[test]
