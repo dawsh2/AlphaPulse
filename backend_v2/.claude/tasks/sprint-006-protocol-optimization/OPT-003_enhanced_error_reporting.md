@@ -1,12 +1,13 @@
 ---
 task_id: OPT-003
-status: TODO
+status: COMPLETE
 priority: HIGH
 estimated_hours: 3
+actual_hours: 2
 assigned_branch: feat/enhanced-error-context
-assignee: TBD
+assignee: Claude
 created: 2025-08-26
-completed: null
+completed: 2025-08-27
 depends_on:
   - CODEC-001  # Need codec foundation with basic error types
 blocks: []
@@ -32,14 +33,14 @@ scope:
 if [ "$(git branch --show-current)" != "feat/enhanced-error-context" ]; then
     echo "❌ WRONG BRANCH! You must work on feat/enhanced-error-context"
     echo "Current branch: $(git branch --show-current)"
-    echo "Run: git checkout -b feat/enhanced-error-context"
+    echo "Run: git worktree add -b feat/enhanced-error-context"
     exit 1
 fi
 
 # Verify we're not on main
 if [ "$(git branch --show-current)" = "main" ]; then
     echo "❌ NEVER WORK ON MAIN! Switch to feat/enhanced-error-context"
-    echo "Run: git checkout -b feat/enhanced-error-context"
+    echo "Run: git worktree add -b feat/enhanced-error-context"
     exit 1
 fi
 ```

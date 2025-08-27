@@ -1,0 +1,173 @@
+# Timestamp Migration Checklist
+
+Generated: Tue Aug 26 18:09:22 PDT 2025
+Total instances:      100
+
+## Files to migrate:
+
+- [ ] `libs/types/examples/orderbook_example.rs` (       1 instances)
+- [ ] `libs/types/examples/orderbook_simple.rs` (       1 instances)
+- [ ] `libs/types/src/protocol/bin/test_protocol.rs` (       1 instances)
+- [ ] `libs/types/src/protocol/message/header.rs` (       1 instances)
+- [ ] `libs/types/src/protocol/message/mod.rs` (       1 instances)
+- [ ] `libs/types/src/protocol/recovery/snapshot.rs` (       1 instances)
+- [ ] `libs/types/src/protocol/tlv/mod.rs` (       1 instances)
+- [ ] `libs/types/tests/common/mod.rs` (       1 instances)
+- [ ] `libs/types/tests/integration/e2e_collector_relay.rs` (       1 instances)
+- [ ] `libs/types/tests/integration/e2e_live_validation.rs` (       1 instances)
+- [ ] `libs/types/tests/integration/live_e2e_integration.rs` (       2 instances)
+- [ ] `libs/types/tests/integration/live_polygon_dex.rs` (       2 instances)
+- [ ] `libs/types/tests/integration/pool_events_live.rs` (       3 instances)
+- [ ] `libs/types/tests/real_polygon_swaps.rs` (       1 instances)
+- [ ] `libs/types/tests/validation/precision_boundary.rs` (       2 instances)
+- [ ] `network/transport/src/time.rs` (       3 instances)
+- [ ] `relays/examples/realistic_test_standalone.rs` (       1 instances)
+- [ ] `relays/tests/e2e_collector_relay.rs` (       1 instances)
+- [ ] `relays/tests/live_blockchain_integration.rs` (       1 instances)
+- [ ] `relays/tests/live_multi_source_roundtrip_test.rs` (       1 instances)
+- [ ] `relays/tests/live_polygon_complete_validation.rs` (       1 instances)
+- [ ] `relays/tests/live_polygon_real.rs` (       1 instances)
+- [ ] `relays/tests/live_polygon_validation.rs` (       1 instances)
+- [ ] `relays/tests/polygon_parsing_demo.rs` (       1 instances)
+- [ ] `relays/tests/realistic_protocol_test.rs` (       2 instances)
+- [ ] `relays/tests/standalone_live_test.rs` (       1 instances)
+- [ ] `scripts/start_market_data_relay.rs` (       4 instances)
+- [ ] `services_v2/adapters/gas_price_collector/src/lib.rs` (       1 instances)
+- [ ] `services_v2/adapters/src/bin/benchmark_mpsc_elimination.rs` (       1 instances)
+- [ ] `services_v2/adapters/src/bin/coinbase/coinbase.rs` (       1 instances)
+- [ ] `services_v2/adapters/src/bin/kraken/kraken.rs` (       1 instances)
+- [ ] `services_v2/adapters/src/bin/polygon/polygon.rs` (       5 instances)
+- [ ] `services_v2/adapters/src/input/components/parsing_utils.rs` (       1 instances)
+- [ ] `services_v2/adapters/src/input/connection.rs` (       1 instances)
+- [ ] `services_v2/adapters/src/input/mod.rs` (       1 instances)
+- [ ] `services_v2/adapters/src/input/state_manager.rs` (       1 instances)
+- [ ] `services_v2/adapters/tests/e2e_pool_cache_validation.rs` (       1 instances)
+- [ ] `services_v2/adapters/tests/integration/polygon_to_relay_validation.rs` (       2 instances)
+- [ ] `services_v2/dashboard/websocket_server/src/message_converter.rs` (       1 instances)
+- [ ] `services_v2/observability/trace_collector/src/api.rs` (       1 instances)
+- [ ] `services_v2/observability/trace_collector/src/health.rs` (       1 instances)
+- [ ] `services_v2/strategies/flash_arbitrage/src/detector.rs` (       1 instances)
+- [ ] `services_v2/strategies/flash_arbitrage/src/gas_price.rs` (       5 instances)
+- [ ] `services_v2/strategies/flash_arbitrage/src/relay_consumer.rs` (       5 instances)
+- [ ] `services_v2/strategies/flash_arbitrage/tests/integration/relay_consumer_integration.rs` (       2 instances)
+- [ ] `services_v2/strategies/flash_arbitrage/tests/live_arbitrage_validation.rs` (       1 instances)
+- [ ] `services_v2/strategies/flash_arbitrage/tests/tlv_integration_test.rs` (       2 instances)
+- [ ] `services_v2/strategies/flash_arbitrage/tests/unit/pool_state_tests.rs` (       1 instances)
+- [ ] `services_v2/strategies/kraken_signals/src/signals.rs` (       2 instances)
+- [ ] `services_v2/strategies/kraken_signals/src/strategy.rs` (       3 instances)
+- [ ] `tests/e2e/golden_path/arbitrage_golden_path.rs` (       1 instances)
+- [ ] `tests/e2e/src/fixtures.rs` (       1 instances)
+- [ ] `tests/e2e/src/scenarios/kraken_to_dashboard.rs` (       1 instances)
+- [ ] `tests/e2e/src/scenarios/polygon_arbitrage.rs` (       2 instances)
+- [ ] `tests/e2e/src/validation.rs` (       1 instances)
+- [ ] `tests/e2e/tests/arbitrage_dashboard_e2e.rs` (       2 instances)
+- [ ] `tests/e2e/tests/continuous_polygon_streaming.rs` (       1 instances)
+- [ ] `tests/e2e/tests/polygon_live_streaming_validation.rs` (       1 instances)
+- [ ] `tests/e2e/tests/signal_relay_integration.rs` (       2 instances)
+- [ ] `tests/polygon_test_suite.rs` (       2 instances)
+- [ ] `tests/relay_io_test_framework.rs` (       4 instances)
+- [ ] `tests/replay/capture/market_data_capture.rs` (       2 instances)
+- [ ] `tests/validation/token_address_validator.rs` (       1 instances)
+
+## Detailed locations:
+
+- [ ] `scripts/start_market_data_relay.rs:106`
+- [ ] `scripts/start_market_data_relay.rs:142`
+- [ ] `scripts/start_market_data_relay.rs:168`
+- [ ] `scripts/start_market_data_relay.rs:191`
+- [ ] `tests/validation/token_address_validator.rs:492`
+- [ ] `network/transport/src/time.rs:221`
+- [ ] `network/transport/src/time.rs:318`
+- [ ] `network/transport/src/time.rs:327`
+- [ ] `relays/examples/realistic_test_standalone.rs:142`
+- [ ] `tests/e2e/src/scenarios/polygon_arbitrage.rs:230`
+- [ ] `tests/e2e/src/scenarios/polygon_arbitrage.rs:447`
+- [ ] `tests/e2e/src/scenarios/kraken_to_dashboard.rs:194`
+- [ ] `tests/e2e/src/fixtures.rs:22`
+- [ ] `tests/e2e/src/validation.rs:92`
+- [ ] `tests/e2e/tests/arbitrage_dashboard_e2e.rs:110`
+- [ ] `tests/e2e/tests/arbitrage_dashboard_e2e.rs:276`
+- [ ] `relays/tests/realistic_protocol_test.rs:97`
+- [ ] `relays/tests/realistic_protocol_test.rs:350`
+- [ ] `tests/e2e/tests/continuous_polygon_streaming.rs:426`
+- [ ] `tests/e2e/tests/polygon_live_streaming_validation.rs:455`
+- [ ] `tests/e2e/tests/signal_relay_integration.rs:60`
+- [ ] `tests/e2e/tests/signal_relay_integration.rs:450`
+- [ ] `tests/polygon_test_suite.rs:192`
+- [ ] `tests/polygon_test_suite.rs:264`
+- [ ] `tests/e2e/golden_path/arbitrage_golden_path.rs:189`
+- [ ] `relays/tests/live_blockchain_integration.rs:381`
+- [ ] `relays/tests/standalone_live_test.rs:205`
+- [ ] `tests/replay/capture/market_data_capture.rs:114`
+- [ ] `tests/replay/capture/market_data_capture.rs:148`
+- [ ] `tests/relay_io_test_framework.rs:524`
+- [ ] `tests/relay_io_test_framework.rs:549`
+- [ ] `tests/relay_io_test_framework.rs:574`
+- [ ] `tests/relay_io_test_framework.rs:610`
+- [ ] `relays/tests/e2e_collector_relay.rs:73`
+- [ ] `relays/tests/live_polygon_real.rs:270`
+- [ ] `relays/tests/live_multi_source_roundtrip_test.rs:340`
+- [ ] `libs/types/examples/orderbook_example.rs:30`
+- [ ] `services_v2/adapters/gas_price_collector/src/lib.rs:147`
+- [ ] `libs/types/examples/orderbook_simple.rs:21`
+- [ ] `libs/types/tests/validation/precision_boundary.rs:127`
+- [ ] `libs/types/tests/validation/precision_boundary.rs:216`
+- [ ] `services_v2/adapters/src/input/connection.rs:374`
+- [ ] `relays/tests/polygon_parsing_demo.rs:89`
+- [ ] `libs/types/src/protocol/recovery/snapshot.rs:312`
+- [ ] `relays/tests/live_polygon_validation.rs:190`
+- [ ] `libs/types/tests/integration/e2e_live_validation.rs:503`
+- [ ] `services_v2/adapters/src/input/mod.rs:114`
+- [ ] `libs/types/tests/real_polygon_swaps.rs:133`
+- [ ] `libs/types/tests/common/mod.rs:139`
+- [ ] `libs/types/tests/integration/live_e2e_integration.rs:152`
+- [ ] `libs/types/tests/integration/live_e2e_integration.rs:252`
+- [ ] `services_v2/adapters/src/input/components/parsing_utils.rs:174`
+- [ ] `libs/types/src/protocol/bin/test_protocol.rs:77`
+- [ ] `relays/tests/live_polygon_complete_validation.rs:181`
+- [ ] `libs/types/src/protocol/message/mod.rs:274`
+- [ ] `libs/types/src/protocol/message/header.rs:171`
+- [ ] `libs/types/tests/integration/e2e_collector_relay.rs:66`
+- [ ] `libs/types/tests/integration/pool_events_live.rs:78`
+- [ ] `libs/types/tests/integration/pool_events_live.rs:126`
+- [ ] `libs/types/tests/integration/pool_events_live.rs:298`
+- [ ] `services_v2/adapters/src/input/state_manager.rs:312`
+- [ ] `libs/types/tests/integration/live_polygon_dex.rs:117`
+- [ ] `libs/types/tests/integration/live_polygon_dex.rs:359`
+- [ ] `services_v2/adapters/tests/integration/polygon_to_relay_validation.rs:88`
+- [ ] `services_v2/adapters/tests/integration/polygon_to_relay_validation.rs:223`
+- [ ] `libs/types/src/protocol/tlv/mod.rs:335`
+- [ ] `services_v2/adapters/tests/e2e_pool_cache_validation.rs:120`
+- [ ] `services_v2/observability/trace_collector/src/api.rs:485`
+- [ ] `services_v2/adapters/src/bin/coinbase/coinbase.rs:517`
+- [ ] `services_v2/adapters/src/bin/kraken/kraken.rs:487`
+- [ ] `services_v2/adapters/src/bin/benchmark_mpsc_elimination.rs:52`
+- [ ] `services_v2/dashboard/websocket_server/src/message_converter.rs:590`
+- [ ] `services_v2/adapters/src/bin/polygon/polygon.rs:936`
+- [ ] `services_v2/adapters/src/bin/polygon/polygon.rs:1073`
+- [ ] `services_v2/adapters/src/bin/polygon/polygon.rs:1191`
+- [ ] `services_v2/adapters/src/bin/polygon/polygon.rs:1231`
+- [ ] `services_v2/adapters/src/bin/polygon/polygon.rs:1310`
+- [ ] `services_v2/observability/trace_collector/src/health.rs:323`
+- [ ] `services_v2/strategies/kraken_signals/src/signals.rs:67`
+- [ ] `services_v2/strategies/kraken_signals/src/signals.rs:88`
+- [ ] `services_v2/strategies/kraken_signals/src/strategy.rs:261`
+- [ ] `services_v2/strategies/kraken_signals/src/strategy.rs:339`
+- [ ] `services_v2/strategies/kraken_signals/src/strategy.rs:506`
+- [ ] `services_v2/strategies/flash_arbitrage/src/relay_consumer.rs:191`
+- [ ] `services_v2/strategies/flash_arbitrage/src/relay_consumer.rs:206`
+- [ ] `services_v2/strategies/flash_arbitrage/src/relay_consumer.rs:229`
+- [ ] `services_v2/strategies/flash_arbitrage/src/relay_consumer.rs:255`
+- [ ] `services_v2/strategies/flash_arbitrage/src/relay_consumer.rs:422`
+- [ ] `services_v2/strategies/flash_arbitrage/src/gas_price.rs:85`
+- [ ] `services_v2/strategies/flash_arbitrage/src/gas_price.rs:158`
+- [ ] `services_v2/strategies/flash_arbitrage/src/gas_price.rs:221`
+- [ ] `services_v2/strategies/flash_arbitrage/src/gas_price.rs:304`
+- [ ] `services_v2/strategies/flash_arbitrage/src/gas_price.rs:317`
+- [ ] `services_v2/strategies/flash_arbitrage/src/detector.rs:784`
+- [ ] `services_v2/strategies/flash_arbitrage/tests/live_arbitrage_validation.rs:268`
+- [ ] `services_v2/strategies/flash_arbitrage/tests/tlv_integration_test.rs:67`
+- [ ] `services_v2/strategies/flash_arbitrage/tests/tlv_integration_test.rs:217`
+- [ ] `services_v2/strategies/flash_arbitrage/tests/integration/relay_consumer_integration.rs:40`
+- [ ] `services_v2/strategies/flash_arbitrage/tests/integration/relay_consumer_integration.rs:170`
+- [ ] `services_v2/strategies/flash_arbitrage/tests/unit/pool_state_tests.rs:202`

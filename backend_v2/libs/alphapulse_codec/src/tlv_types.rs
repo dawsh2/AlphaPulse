@@ -216,6 +216,17 @@ impl TLVType {
         }
     }
 
+    /// Get expected payload size for fixed-size TLV types
+    /// 
+    /// Returns Some(size) for fixed-size types, None for variable/bounded types.
+    /// Used by parser for strict size validation on hot-path message types.
+    pub fn expected_payload_size(&self) -> Option<usize> {
+        match self.size_constraint() {
+            TLVSizeConstraint::Fixed(size) => Some(size),
+            _ => None, // Variable and bounded types don't have fixed expected sizes
+        }
+    }
+
     /// Get all implemented TLV types
     pub fn all_implemented() -> Vec<TLVType> {
         vec![

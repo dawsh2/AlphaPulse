@@ -47,14 +47,21 @@
 //! - **Zero-Copy Operations**: zerocopy traits for minimal allocation overhead
 
 pub mod constants;
+pub mod error;
 pub mod instrument_id;
+pub mod message_builder;
 pub mod parser;
 pub mod tlv_types;
 
 // Re-export key types for convenience
 pub use constants::*;
-pub use instrument_id::{AssetType, CodecError, InstrumentId, VenueId};
+pub use error::{ProtocolError, ProtocolResult, ParseError, ParseResult};
+pub use instrument_id::{AssetType, InstrumentId, VenueId};
+pub use message_builder::{TLVMessageBuilder, VendorTLVBuilder};
 pub use parser::{
-    parse_header, parse_tlv_extensions, validate_tlv_size, ParseResult, TlvExtension,
+    parse_header, parse_header_without_checksum, parse_tlv_extensions, 
+    find_tlv_by_type, extract_tlv_payload, validate_tlv_size,
+    TLVExtensionEnum, SimpleTLVExtension, ExtendedTLVExtension,
+    SimpleTLVHeader, ExtendedTLVHeader
 };
 pub use tlv_types::{TLVSizeConstraint, TLVType, TlvTypeRegistry};

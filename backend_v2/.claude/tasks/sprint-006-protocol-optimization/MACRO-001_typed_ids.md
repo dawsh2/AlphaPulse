@@ -1,6 +1,6 @@
 ---
 task_id: MACRO-001
-status: COMPLETED
+status: COMPLETE
 priority: CRITICAL
 estimated_hours: 4
 assigned_branch: feat/typed-id-wrappers

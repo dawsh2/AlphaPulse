@@ -1,6 +1,6 @@
 ---
 task_id: OPT-002
-status: COMPLETED
+status: COMPLETE
 priority: HIGH
 estimated_hours: 2
 assigned_branch: feat/packed-struct-evaluation
@@ -32,14 +32,14 @@ scope:
 if [ "$(git branch --show-current)" != "feat/packed-struct-evaluation" ]; then
     echo "❌ WRONG BRANCH! You must work on feat/packed-struct-evaluation"
     echo "Current branch: $(git branch --show-current)"
-    echo "Run: git checkout -b feat/packed-struct-evaluation"
+    echo "Run: git worktree add -b feat/packed-struct-evaluation"
     exit 1
 fi
 
 # Verify we're not on main
 if [ "$(git branch --show-current)" = "main" ]; then
     echo "❌ NEVER WORK ON MAIN! Switch to feat/packed-struct-evaluation"
-    echo "Run: git checkout -b feat/packed-struct-evaluation"
+    echo "Run: git worktree add -b feat/packed-struct-evaluation"
     exit 1
 fi
 ```
