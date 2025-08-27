@@ -1,5 +1,5 @@
 //! Real arbitrage signal TLV for production use
-//!
+//! TODO - USE MACRO FOR THIS CUSTOM TYPE
 //! This replaces the demo TLV with actual arbitrage opportunity data
 
 use crate::common::fixed_point::UsdFixedPoint8;

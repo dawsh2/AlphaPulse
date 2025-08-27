@@ -9,10 +9,14 @@ path = "src/main.rs"
 
 [dependencies]
 
-# Adapters and strategies  
+# Adapters and strategies
 services_v2_adapters = { path = "../../services_v2/adapters", package = "alphapulse-adapter-service" }
 alphapulse-dashboard-websocket = { path = "../../services_v2/dashboard/websocket_server" }
 alphapulse-flash-arbitrage = { path = "../../services_v2/strategies/flash_arbitrage" }
+alphapulse-kraken-signals = { path = "../../services_v2/strategies/kraken_signals" }
+
+# Relays
+alphapulse-relays = { path = "../../relays" }
 
 # Protocol and transport layers
 alphapulse-types = { path = "../../libs/types" }

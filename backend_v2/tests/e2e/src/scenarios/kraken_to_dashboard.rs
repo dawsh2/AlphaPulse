@@ -8,14 +8,14 @@ use crate::fixtures::MockKrakenServer;
 use crate::validation::DataFlowValidator;
 
 use anyhow::{Context, Result};
-use alphapulse_adapters::input::collectors::kraken::KrakenCollector;
 use alphapulse_dashboard_websocket::{DashboardConfig, DashboardServer};
-use alphapulse_kraken_signals::strategy::KrakenSignalsStrategy;
-use alphapulse_types::relay::{MarketDataRelay, SignalRelay};
+use alphapulse_kraken_signals::KrakenSignalsStrategy;
+use alphapulse_relays::{MarketDataRelay, SignalRelay, RelayConfig};
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
+use futures_util::StreamExt; // Added
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, info, warn};
 
@@ -56,9 +56,11 @@ impl TestScenario for KrakenToDashboardTest {
         framework.start_service(
             "market_data_relay".to_string(),
             move || {
-                let path = market_relay_path;
+                let path = market_relay_path.clone(); // Clone path for config
                 async move {
-                    let relay = MarketDataRelay::new(&path).await?;
+                    let mut config = RelayConfig::market_data_defaults();
+                    config.transport.path = Some(path); // Set socket path
+                    let relay = alphapulse_relays::Relay::new(config).await?; // Use generic Relay
                     relay.run().await
                 }
             }
@@ -69,9 +71,11 @@ impl TestScenario for KrakenToDashboardTest {
         framework.start_service(
             "signal_relay".to_string(),
             move || {
-                let path = signal_relay_path;
+                let path = signal_relay_path.clone(); // Clone path for config
                 async move {
-                    let relay = SignalRelay::new(&path).await?;
+                    let mut config = RelayConfig::signal_defaults();
+                    config.transport.path = Some(path); // Set socket path
+                    let relay = alphapulse_relays::Relay::new(config).await?; // Use generic Relay
                     relay.run().await
                 }
             }
@@ -170,7 +174,7 @@ impl TestScenario for KrakenToDashboardTest {
             tokio::select! {
                 msg = message_rx.recv() => {
                     if let Some(message) = msg {
-                        let received_time = Instant::now();
+                        let received_time = SystemTime::now();
                         collected_messages.push(message.clone());
 
                         // Validate message structure
@@ -190,8 +194,13 @@ impl TestScenario for KrakenToDashboardTest {
                                 trade_count += 1;
                                 if let Some(timestamp) = message.get("timestamp").and_then(|v| v.as_u64()) {
                                     let message_time = std::time::UNIX_EPOCH + Duration::from_nanos(timestamp);
-                                    if let Ok(latency) = received_time.duration_since(message_time) {
-                                        latencies.push(latency.as_nanos() as u64);
+                                    match received_time.duration_since(message_time) {
+                                        Ok(latency) => {
+                                            latencies.push(latency.as_nanos() as u64);
+                                        },
+                                        Err(e) => {
+                                            warn!("Failed to calculate latency: {}", e);
+                                        }
                                     }
                                 }
                             }

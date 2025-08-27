@@ -7,8 +7,8 @@ use crate::framework::{TestFramework, TestResult, TestScenario, TestMetrics, Val
 use crate::validation::{DataFlowValidator, PrecisionValidator};
 
 use anyhow::{Context, Result};
-use alphapulse_flash_arbitrage::strategy_engine::FlashArbitrageEngine;
-use alphapulse_types::relay::{MarketDataRelay, SignalRelay, ExecutionRelay};
+use alphapulse_flash_arbitrage::strategy_engine::StrategyEngine;
+use alphapulse_relays::{MarketDataRelay, SignalRelay, ExecutionRelay, RelayConfig};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -50,9 +50,11 @@ impl TestScenario for PolygonArbitrageTest {
         framework.start_service(
             "market_data_relay".to_string(),
             move || {
-                let path = market_relay_path;
+                let path = market_relay_path.clone();
                 async move {
-                    let relay = MarketDataRelay::new(&path).await?;
+                    let mut config = RelayConfig::market_data_defaults();
+                    config.transport.path = Some(path);
+                    let relay = alphapulse_relays::Relay::new(config).await?;
                     relay.run().await
                 }
             }
@@ -62,9 +64,11 @@ impl TestScenario for PolygonArbitrageTest {
         framework.start_service(
             "signal_relay".to_string(),
             move || {
-                let path = signal_relay_path;
+                let path = signal_relay_path.clone();
                 async move {
-                    let relay = SignalRelay::new(&path).await?;
+                    let mut config = RelayConfig::signal_defaults();
+                    config.transport.path = Some(path);
+                    let relay = alphapulse_relays::Relay::new(config).await?;
                     relay.run().await
                 }
             }
@@ -74,9 +78,11 @@ impl TestScenario for PolygonArbitrageTest {
         framework.start_service(
             "execution_relay".to_string(),
             move || {
-                let path = execution_relay_path;
+                let path = execution_relay_path.clone();
                 async move {
-                    let relay = ExecutionRelay::new(&path).await?;
+                    let mut config = RelayConfig::execution_defaults();
+                    config.transport.path = Some(path);
+                    let relay = alphapulse_relays::Relay::new(config).await?;
                     relay.run().await
                 }
             }
@@ -99,13 +105,18 @@ impl TestScenario for PolygonArbitrageTest {
         framework.start_service(
             "flash_arbitrage_engine".to_string(),
             move || async move {
-                let mut engine = FlashArbitrageEngine::new_with_config(
-                    alphapulse_flash_arbitrage::ArbitrageConfig {
-                        min_profit_usd: rust_decimal::Decimal::from_f64_retain(min_profit).unwrap(),
-                        max_gas_cost_usd: rust_decimal::Decimal::from_f64_retain(50.0).unwrap(),
-                        min_spread_percentage: rust_decimal::Decimal::from_f64_retain(0.001).unwrap(), // 0.1%
-                        max_slippage_percentage: rust_decimal::Decimal::from_f64_retain(0.005).unwrap(), // 0.5%
-                        enabled_dexes: vec!["uniswap_v2", "uniswap_v3", "sushiswap"].into_iter().map(String::from).collect(),
+                let mut engine = StrategyEngine::new_with_config(
+                                        alphapulse_flash_arbitrage::FlashArbitrageConfig {
+                        detector: alphapulse_flash_arbitrage::config::DetectorConfig {
+                            min_profit_usd: rust_decimal::Decimal::from_f64_retain(min_profit).unwrap(),
+                            gas_cost_usd: rust_decimal::Decimal::from_f64_retain(50.0).unwrap(),
+                            slippage_tolerance_bps: 50,
+                            ..Default::default()
+                        },
+                        executor: alphapulse_flash_arbitrage::config::ExecutorConfig::default(),
+                        signal_output: alphapulse_flash_arbitrage::config::SignalOutputConfig::default(),
+                        risk: alphapulse_flash_arbitrage::config::RiskConfig::default(),
+                        network: alphapulse_flash_arbitrage::config::NetworkConfig::default(),
                     }
                 ).await?;
                 engine.run().await
@@ -159,7 +170,7 @@ impl TestScenario for PolygonArbitrageTest {
             tokio::select! {
                 signal = signal_rx.recv() => {
                     if let Some(signal_data) = signal {
-                        let received_time = Instant::now();
+                        let received_time = SystemTime::now();
 
                         // Validate execution signal structure
                         if let Err(e) = validator.validate_message(&signal_data) {
@@ -224,10 +235,15 @@ impl TestScenario for PolygonArbitrageTest {
                                 }
 
                                 // Calculate detection latency
-                                if let Some(timestamp) = signal_data.get("timestamp").and_then(|v| v.as_u64()) {
+                                if let Some(timestamp) = signal.get("timestamp_ns").and_then(|v| v.as_u64()) {
                                     let signal_time = std::time::UNIX_EPOCH + Duration::from_nanos(timestamp);
-                                    if let Ok(latency) = received_time.duration_since(signal_time) {
-                                        signal_latencies.push(latency.as_nanos() as u64);
+                                    match received_time.duration_since(signal_time) {
+                                        Ok(latency) => {
+                                            signal_latencies.push(latency.as_nanos() as u64);
+                                        },
+                                        Err(e) => {
+                                            warn!("Failed to calculate latency: {}", e);
+                                        }
                                     }
                                 }
                             }

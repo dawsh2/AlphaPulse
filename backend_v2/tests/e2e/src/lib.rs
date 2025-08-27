@@ -7,7 +7,7 @@ pub mod framework;
 pub mod scenarios;
 pub mod fixtures;
 pub mod validation;
-pub mod orchestration;
+// pub mod orchestration; // Commented out - file not found
 
 pub use framework::{TestFramework, TestResult, TestScenario};
 pub use scenarios::*;

@@ -244,6 +244,8 @@ mod tests {
     use crate::hybrid::config::{BridgeConfig, ChannelConfig, TransportConfig, TransportMode};
     use crate::{Criticality, Reliability};
     use std::collections::HashMap;
+    use std::time::Duration;
+    use crate::hybrid::config::RetryConfig;
 
     fn create_test_config() -> TransportConfig {
         let mut channels = HashMap::new();
@@ -271,10 +273,17 @@ mod tests {
         channels.insert(
             "normal_actor".to_string(),
             ChannelConfig {
+                name: "normal_actor".to_string(),
                 mode: TransportMode::MessageQueue,
                 criticality: Criticality::Normal,
                 reliability: Reliability::Guaranteed,
                 queue_name: Some("normal_queue".to_string()),
+                default_priority: Priority::Normal,
+                max_message_size: 1024 * 1024,
+                timeout: Duration::from_millis(100),
+                retry: RetryConfig::default(),
+                circuit_breaker: None,
+                mq_config: None,
             },
         );
 
@@ -283,7 +292,7 @@ mod tests {
             channels,
             routes: Vec::new(),
             enable_bridge: false,
-            bridge: BridgeConfig::default(),
+            bridge: crate::hybrid::config::BridgeConfig::default(),
         }
     }
 
@@ -354,7 +363,7 @@ mod tests {
         // Test adding new config
         let new_config = ChannelConfig {
             mode: TransportMode::Direct,
-            criticality: Criticality::High,
+            criticality: Criticality::Normal,
             reliability: Reliability::BestEffort,
             queue_name: None,
         };

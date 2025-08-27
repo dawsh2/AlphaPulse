@@ -26,10 +26,11 @@
 //! - **Memory**: <50MB steady state with multiple product subscriptions
 
 use alphapulse_types::{
-    parse_header, parse_tlv_extensions, tlv::build_message_direct,
-    tlv::fast_timestamp::init_timestamp_system, InstrumentId, RelayDomain, SourceType, TLVType,
+    tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType,
     TradeTLV, VenueId,
 };
+use alphapulse_codec::{parse_header, parse_tlv_extensions}; // Added
+use alphapulse_transport::time::init_timestamp_system; // Added
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};

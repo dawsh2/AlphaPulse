@@ -2,7 +2,7 @@
 //!
 //! Provides dynamic service discovery to replace hardcoded socket paths throughout the system.
 //! Enables automatic failover, load balancing, and environment-aware configuration.
-//!
+//! TODO: MOVE TO MYCELIUM
 //! ## Problem Solved
 //!
 //! The current system has 47+ hardcoded socket paths like `/tmp/alphapulse/market_data.sock`

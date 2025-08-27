@@ -1,10 +1,10 @@
 //! Test fixtures and mock servers
 
 pub mod mock_kraken;
-pub mod test_data;
+// pub mod test_data; // Commented out - file not found
 
 pub use mock_kraken::MockKrakenServer;
-pub use test_data::*;
+// pub use test_data::*; // Commented out
 
 /// Mock arbitrage signal fixture for testing
 pub struct ArbitrageSignalFixture {
@@ -20,7 +20,7 @@ impl ArbitrageSignalFixture {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos() as u64;
-            
+
         Self {
             signal_id: now,
             expected_profit_usd: 42.50,
@@ -28,12 +28,12 @@ impl ArbitrageSignalFixture {
             timestamp_ns: now,
         }
     }
-    
+
     pub fn with_profit(mut self, profit: f64) -> Self {
         self.expected_profit_usd = profit;
         self
     }
-    
+
     pub fn with_capital(mut self, capital: f64) -> Self {
         self.required_capital_usd = capital;
         self
