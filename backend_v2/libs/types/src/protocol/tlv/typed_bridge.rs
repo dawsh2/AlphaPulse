@@ -60,24 +60,24 @@ macro_rules! with_typed_ids {
                     pub fn [<$field _typed>](&self) -> $type {
                         <$type>::from(self.$field)
                     }
-                    
+
                     #[inline(always)]
                     pub fn [<set_ $field _typed>](&mut self, id: $type) {
                         self.$field = id.into();
                     }
-                    
+
                     pub fn [<validate_ $field>](&self) -> Result<(), crate::common::errors::ValidationError> {
                         <$type>::new_validated(self.$field)?;
                         Ok(())
                     }
                 }
             )*
-            
+
             pub fn validate_all_typed_ids(&self) -> Result<(), crate::common::errors::ValidationError> {
                 $(paste::paste! { self.[<validate_ $field>]()?; })*
                 Ok(())
             }
-            
+
             pub fn extract_all_typed_ids(&self) -> ($($type,)*) {
                 (
                     $(
@@ -94,7 +94,7 @@ macro_rules! with_typed_ids {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::identifiers::{SignalId, PoolId, StrategyId};
+    use crate::common::identifiers::{PoolId, SignalId, StrategyId};
     use crate::define_tlv;
     use zerocopy::AsBytes;
 
@@ -210,7 +210,7 @@ mod tests {
 
         // Direct field access
         let raw_value = tlv.signal_id;
-        
+
         // Typed access - should compile to identical assembly
         let typed_value = tlv.signal_id_typed();
 
@@ -254,15 +254,15 @@ mod tests {
 
         // Usage in service code
         let signal_tlv = RealArbitrageSignalTLV::new_raw(
-            12345, // signal_id
-            67890, // pool_a_id
-            11111, // pool_b_id
-            22222, // strategy_id
-            1000,  // profit_potential (not typed)
+            12345,               // signal_id
+            67890,               // pool_a_id
+            11111,               // pool_b_id
+            22222,               // strategy_id
+            1000,                // profit_potential (not typed)
             1640995200000000000, // timestamp_ns (not typed)
-            1,     // venue_id (not typed)
-            0,     // status (not typed)
-            [0; 1] // padding (not typed)
+            1,                   // venue_id (not typed)
+            0,                   // status (not typed)
+            [0; 1],              // padding (not typed)
         );
 
         // Service layer gets type safety for ID fields
@@ -281,7 +281,7 @@ mod tests {
             signal: SignalId,
             pool_a: PoolId,
             pool_b: PoolId,
-            strategy: StrategyId
+            strategy: StrategyId,
         ) -> bool {
             // Compiler prevents: process_arbitrage(pool_a, signal, pool_b, strategy)
             true

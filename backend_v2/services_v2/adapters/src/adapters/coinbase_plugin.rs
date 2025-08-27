@@ -12,10 +12,9 @@
 
 use crate::{
     Adapter, AdapterError, AdapterHealth, BaseAdapterConfig, CircuitBreaker, CircuitBreakerConfig,
-    CircuitState, ConnectionStatus, InstrumentType, RateLimiter, Result,
-    SafeAdapter,
+    CircuitState, ConnectionStatus, InstrumentType, RateLimiter, Result, SafeAdapter,
 };
-use alphapulse_codec::{TLVMessageBuilder, TLVType};
+use codec::{TLVMessageBuilder, TLVType};
 use alphapulse_types::{InstrumentId, RelayDomain, SourceType, TradeTLV, VenueId};
 use async_trait::async_trait;
 use chrono;
@@ -113,11 +112,16 @@ impl CoinbasePluginAdapter {
     pub fn new(config: CoinbaseAdapterConfig) -> Result<Self> {
         // Validate configuration
         if config.products.is_empty() {
-            return Err(AdapterError::Configuration("No products configured".to_string()));
+            return Err(AdapterError::Configuration(
+                "No products configured".to_string(),
+            ));
         }
 
-        if !config.websocket_url.starts_with("wss://") && !config.websocket_url.starts_with("ws://") {
-            return Err(AdapterError::Configuration("Invalid WebSocket URL scheme".to_string()));
+        if !config.websocket_url.starts_with("wss://") && !config.websocket_url.starts_with("ws://")
+        {
+            return Err(AdapterError::Configuration(
+                "Invalid WebSocket URL scheme".to_string(),
+            ));
         }
 
         // Initialize circuit breaker
@@ -129,7 +133,7 @@ impl CoinbasePluginAdapter {
         };
         let circuit_breaker = Arc::new(RwLock::new(CircuitBreaker::new(circuit_config)));
 
-        // Initialize rate limiter 
+        // Initialize rate limiter
         let mut rate_limiter = RateLimiter::new();
         if let Some(rpm) = config.base.rate_limit_requests_per_second {
             // Convert requests per second to requests per minute
@@ -154,31 +158,36 @@ impl CoinbasePluginAdapter {
     /// Parse Coinbase timestamp to nanoseconds since Unix epoch
     fn parse_coinbase_timestamp(time_str: &str) -> Result<i64> {
         // Coinbase uses ISO 8601 format: "2024-01-01T12:00:00.123456Z"
-        let parsed = chrono::DateTime::parse_from_rfc3339(time_str)
-            .map_err(|e: chrono::ParseError| AdapterError::ParseError {
-                venue: VenueId::Coinbase,
-                message: format!("Invalid timestamp: {}", time_str),
-                error: e.to_string(),
+        let parsed =
+            chrono::DateTime::parse_from_rfc3339(time_str).map_err(|e: chrono::ParseError| {
+                AdapterError::ParseError {
+                    venue: VenueId::Coinbase,
+                    message: format!("Invalid timestamp: {}", time_str),
+                    error: e.to_string(),
+                }
             })?;
-        
+
         Ok(parsed.timestamp_nanos_opt().unwrap_or_default())
     }
 
     /// Convert Coinbase match event to TradeTLV
     fn convert_match_to_trade_tlv(&self, event: &CoinbaseMatchEvent) -> Result<TradeTLV> {
         // Parse price and size to fixed-point (8 decimals)
-        let price_f64: f64 = event.price.parse()
+        let price_f64: f64 = event
+            .price
+            .parse()
             .map_err(|e: std::num::ParseFloatError| AdapterError::ParseError {
                 venue: VenueId::Coinbase,
                 message: format!("Invalid price: {}", event.price),
                 error: e.to_string(),
             })?;
-        let size_f64: f64 = event.size.parse()
-            .map_err(|e: std::num::ParseFloatError| AdapterError::ParseError {
+        let size_f64: f64 = event.size.parse().map_err(|e: std::num::ParseFloatError| {
+            AdapterError::ParseError {
                 venue: VenueId::Coinbase,
                 message: format!("Invalid size: {}", event.size),
                 error: e.to_string(),
-            })?;
+            }
+        })?;
 
         // Convert to 8-decimal fixed-point for USD prices
         let price_fixed = (price_f64 * 100_000_000.0) as i64;
@@ -194,11 +203,13 @@ impl CoinbasePluginAdapter {
         let side = match event.side.as_str() {
             "buy" => 0u8,
             "sell" => 1u8,
-            _ => return Err(AdapterError::ParseError {
-                venue: VenueId::Coinbase,
-                message: format!("Unknown side: {}", event.side),
-                error: "Invalid trade side".to_string(),
-            }),
+            _ => {
+                return Err(AdapterError::ParseError {
+                    venue: VenueId::Coinbase,
+                    message: format!("Unknown side: {}", event.side),
+                    error: "Invalid trade side".to_string(),
+                })
+            }
         };
 
         Ok(TradeTLV::new(
@@ -218,8 +229,9 @@ impl CoinbasePluginAdapter {
 
         let (ws_stream, _) = tokio::time::timeout(
             Duration::from_millis(self.config.base.connection_timeout_ms),
-            connect_async(&self.config.websocket_url)
-        ).await
+            connect_async(&self.config.websocket_url),
+        )
+        .await
         .map_err(|_| AdapterError::ConnectionTimeout {
             venue: VenueId::Coinbase,
             timeout_ms: self.config.base.connection_timeout_ms,
@@ -240,14 +252,19 @@ impl CoinbasePluginAdapter {
             "channels": self.config.channels
         });
 
-        ws_sink.send(Message::Text(subscription.to_string())).await
+        ws_sink
+            .send(Message::Text(subscription.to_string()))
+            .await
             .map_err(|e| AdapterError::ConnectionFailed {
                 venue: VenueId::Coinbase,
                 reason: format!("Failed to send subscription: {}", e),
             })?;
 
         *self.connection_status.write().await = ConnectionStatus::Connected;
-        info!("✅ Connected to Coinbase WebSocket and subscribed to {:?}", self.config.products);
+        info!(
+            "✅ Connected to Coinbase WebSocket and subscribed to {:?}",
+            self.config.products
+        );
 
         // Process messages
         while *self.is_running.read().await {
@@ -277,7 +294,7 @@ impl CoinbasePluginAdapter {
                         _ => {} // Ignore other message types
                     }
                 }
-                
+
                 // Handle outgoing WebSocket messages
                 msg = rx.recv() => {
                     if let Some(msg) = msg {
@@ -297,20 +314,19 @@ impl CoinbasePluginAdapter {
     #[allow(dead_code)]
     async fn process_websocket_message(&self, text: &str) -> Result<()> {
         // Parse JSON message
-        let value: Value = serde_json::from_str(text)
-            .map_err(|e| AdapterError::ParseError {
-                venue: VenueId::Coinbase,
-                message: format!("Invalid JSON: {}", text),
-                error: e.to_string(),
-            })?;
+        let value: Value = serde_json::from_str(text).map_err(|e| AdapterError::ParseError {
+            venue: VenueId::Coinbase,
+            message: format!("Invalid JSON: {}", text),
+            error: e.to_string(),
+        })?;
 
         // Check message type
         if let Some(msg_type) = value.get("type").and_then(|t| t.as_str()) {
             match msg_type {
                 "match" => {
                     // Parse match event
-                    let match_event: CoinbaseMatchEvent = serde_json::from_value(value)
-                        .map_err(|e| AdapterError::ParseError {
+                    let match_event: CoinbaseMatchEvent =
+                        serde_json::from_value(value).map_err(|e| AdapterError::ParseError {
                             venue: VenueId::Coinbase,
                             message: "Invalid match event".to_string(),
                             error: e.to_string(),
@@ -318,7 +334,7 @@ impl CoinbasePluginAdapter {
 
                     // Convert to TradeTLV (we'll store for later processing)
                     let _trade_tlv = self.convert_match_to_trade_tlv(&match_event)?;
-                    
+
                     // Increment message counter
                     *self.messages_processed.write().await += 1;
                 }
@@ -326,7 +342,8 @@ impl CoinbasePluginAdapter {
                     debug!("Subscription confirmation received");
                 }
                 "error" => {
-                    let error_msg = value.get("message")
+                    let error_msg = value
+                        .get("message")
                         .and_then(|m| m.as_str())
                         .unwrap_or("Unknown error");
                     return Err(AdapterError::ConnectionFailed {
@@ -350,12 +367,14 @@ impl Adapter for CoinbasePluginAdapter {
 
     async fn start(&self) -> Result<()> {
         info!("🚀 Starting Coinbase Plugin Adapter");
-        
+
         *self.is_running.write().await = true;
 
         // Check circuit breaker state
         if !self.circuit_breaker.read().await.should_attempt().await {
-            return Err(AdapterError::CircuitBreakerOpen { venue: VenueId::Coinbase });
+            return Err(AdapterError::CircuitBreakerOpen {
+                venue: VenueId::Coinbase,
+            });
         }
 
         // For now, we'll start WebSocket processing synchronously
@@ -379,7 +398,10 @@ impl Adapter for CoinbasePluginAdapter {
         let rate_remaining = 100; // Simplified for now
 
         AdapterHealth {
-            is_healthy: matches!(*self.connection_status.read().await, ConnectionStatus::Connected),
+            is_healthy: matches!(
+                *self.connection_status.read().await,
+                ConnectionStatus::Connected
+            ),
             connection_status: self.connection_status.read().await.clone(),
             messages_processed: *self.messages_processed.read().await,
             error_count: *self.error_count.read().await,
@@ -407,7 +429,7 @@ impl Adapter for CoinbasePluginAdapter {
     async fn configure_instruments(&mut self, instruments: Vec<String>) -> Result<()> {
         // Update configuration
         self.config.products = instruments;
-        
+
         // Resubscribe if connected
         if let Some(sender) = self.websocket_sender.read().await.as_ref() {
             let subscription = json!({
@@ -416,37 +438,43 @@ impl Adapter for CoinbasePluginAdapter {
                 "channels": self.config.channels
             });
 
-            sender.send(Message::Text(subscription.to_string())).await
-                .map_err(|e| AdapterError::Configuration(format!("Failed to update subscription: {}", e)))?;
+            sender
+                .send(Message::Text(subscription.to_string()))
+                .await
+                .map_err(|e| {
+                    AdapterError::Configuration(format!("Failed to update subscription: {}", e))
+                })?;
         }
 
         Ok(())
     }
 
-    async fn process_message(&self, raw_data: &[u8], output_buffer: &mut [u8]) -> Result<Option<usize>> {
+    async fn process_message(
+        &self,
+        raw_data: &[u8],
+        output_buffer: &mut [u8],
+    ) -> Result<Option<usize>> {
         let start = Instant::now();
 
         // Parse the raw data as JSON (from WebSocket)
-        let text = std::str::from_utf8(raw_data)
-            .map_err(|e| AdapterError::ParseError {
-                venue: VenueId::Coinbase,
-                message: "Invalid UTF-8 data".to_string(),
-                error: e.to_string(),
-            })?;
+        let text = std::str::from_utf8(raw_data).map_err(|e| AdapterError::ParseError {
+            venue: VenueId::Coinbase,
+            message: "Invalid UTF-8 data".to_string(),
+            error: e.to_string(),
+        })?;
 
-        let value: Value = serde_json::from_str(text)
-            .map_err(|e| AdapterError::ParseError {
-                venue: VenueId::Coinbase,
-                message: format!("Invalid JSON: {}", text),
-                error: e.to_string(),
-            })?;
+        let value: Value = serde_json::from_str(text).map_err(|e| AdapterError::ParseError {
+            venue: VenueId::Coinbase,
+            message: format!("Invalid JSON: {}", text),
+            error: e.to_string(),
+        })?;
 
         // Process only "match" type messages for trades
         if let Some(msg_type) = value.get("type").and_then(|t| t.as_str()) {
             if msg_type == "match" {
                 // Parse match event
-                let match_event: CoinbaseMatchEvent = serde_json::from_value(value)
-                    .map_err(|e| AdapterError::ParseError {
+                let match_event: CoinbaseMatchEvent =
+                    serde_json::from_value(value).map_err(|e| AdapterError::ParseError {
                         venue: VenueId::Coinbase,
                         message: "Invalid match event".to_string(),
                         error: e.to_string(),
@@ -456,16 +484,16 @@ impl Adapter for CoinbasePluginAdapter {
                 let trade_tlv = self.convert_match_to_trade_tlv(&match_event)?;
 
                 // Build TLV message into output buffer
-                let builder = TLVMessageBuilder::new(
-                    RelayDomain::MarketData,
-                    SourceType::CoinbaseCollector
-                );
+                let builder =
+                    TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::CoinbaseCollector);
 
                 // Build message to bytes (builder methods consume self)
                 let tlv_bytes = builder
                     .add_tlv(TLVType::Trade, &trade_tlv)
                     .build()
-                    .map_err(|e| AdapterError::TLVBuildFailed(format!("TLV serialization failed: {}", e)))?;
+                    .map_err(|e| {
+                        AdapterError::TLVBuildFailed(format!("TLV serialization failed: {}", e))
+                    })?;
 
                 if output_buffer.len() < tlv_bytes.len() {
                     return Ok(None); // Buffer too small
@@ -474,12 +502,13 @@ impl Adapter for CoinbasePluginAdapter {
                 output_buffer[..tlv_bytes.len()].copy_from_slice(&tlv_bytes);
 
                 let elapsed = start.elapsed();
-                
+
                 // Enforce hot path latency requirement
                 if elapsed > Duration::from_nanos(35_000) {
-                    return Err(AdapterError::Internal(
-                        format!("Hot path latency violation: {}μs > 35μs", elapsed.as_nanos() / 1000)
-                    ));
+                    return Err(AdapterError::Internal(format!(
+                        "Hot path latency violation: {}μs > 35μs",
+                        elapsed.as_nanos() / 1000
+                    )));
                 }
 
                 return Ok(Some(tlv_bytes.len()));
@@ -525,10 +554,13 @@ impl SafeAdapter for CoinbasePluginAdapter {
 
     async fn validate_connection(&self, timeout_ms: u64) -> Result<bool> {
         let start = Instant::now();
-        
+
         // Simple health check - verify WebSocket connection state
-        let is_connected = matches!(*self.connection_status.read().await, ConnectionStatus::Connected);
-        
+        let is_connected = matches!(
+            *self.connection_status.read().await,
+            ConnectionStatus::Connected
+        );
+
         let elapsed = start.elapsed();
         if elapsed > Duration::from_millis(timeout_ms) {
             return Ok(false); // Timeout
@@ -553,7 +585,7 @@ mod tests {
     fn test_invalid_config() {
         let mut config = CoinbaseAdapterConfig::default();
         config.products = vec![]; // Empty products should fail
-        
+
         let adapter = CoinbasePluginAdapter::new(config);
         assert!(adapter.is_err());
     }
@@ -572,7 +604,9 @@ mod tests {
 
         // Test initial state
         assert_eq!(adapter.identifier(), "coinbase_plugin");
-        assert!(adapter.supported_instruments().contains(&InstrumentType::CryptoSpot));
+        assert!(adapter
+            .supported_instruments()
+            .contains(&InstrumentType::CryptoSpot));
 
         // Test health check
         let health = adapter.health_check().await;

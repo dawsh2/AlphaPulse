@@ -126,27 +126,32 @@ define_tlv! {
 
 fn main() {
     println!("✅ OrderBookTLV macro syntax is valid!");
-    
+
     // Test constructor
     let order_book = OrderBookTLV::new_raw(
         1640995200000000000, // timestamp_ns
         1000,                // sequence
-        100_000_000,        // precision_factor
-        12345,              // asset_id
-        1,                  // venue_id
-        0,                  // asset_type
-        0,                  // reserved
-        FixedVec::new(),    // bids
-        FixedVec::new(),    // asks
+        100_000_000,         // precision_factor
+        12345,               // asset_id
+        1,                   // venue_id
+        0,                   // asset_type
+        0,                   // reserved
+        FixedVec::new(),     // bids
+        FixedVec::new(),     // asks
     );
 
-    println!("✅ Created OrderBookTLV: {} bytes", std::mem::size_of::<OrderBookTLV>());
-    println!("Fields: timestamp={}, asset_id={}, venue_id={}", 
-             order_book.timestamp_ns, order_book.asset_id, order_book.venue_id);
-    
-    // Test zero-copy traits  
+    println!(
+        "✅ Created OrderBookTLV: {} bytes",
+        std::mem::size_of::<OrderBookTLV>()
+    );
+    println!(
+        "Fields: timestamp={}, asset_id={}, venue_id={}",
+        order_book.timestamp_ns, order_book.asset_id, order_book.venue_id
+    );
+
+    // Test zero-copy traits
     let bytes = order_book.as_bytes();
     println!("✅ Serialized to {} bytes", bytes.len());
-    
+
     println!("🎉 OrderBookTLV macro conversion is syntactically correct!");
 }

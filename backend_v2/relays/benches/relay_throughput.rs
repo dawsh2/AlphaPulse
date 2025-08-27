@@ -5,11 +5,11 @@
 //! - Signal Relay: >100K messages/second  
 //! - Execution Relay: >50K messages/second
 
-use alphapulse_types::protocol::{MessageHeader, MESSAGE_MAGIC};
 use alphapulse_relays::{
     create_validator, ConsumerId, MessageValidator, TopicConfig, TopicExtractionStrategy,
     TopicRegistry, ValidationPolicy,
 };
+use alphapulse_types::protocol::{MessageHeader, MESSAGE_MAGIC};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::time::Duration;
 
@@ -86,7 +86,11 @@ fn bench_topic_extraction(c: &mut Criterion) {
         b.iter(|| {
             let header = &headers[idx % headers.len()];
             idx += 1;
-            black_box(registry.extract_topic(header, None, &TopicExtractionStrategy::InstrumentVenue))
+            black_box(registry.extract_topic(
+                header,
+                None,
+                &TopicExtractionStrategy::InstrumentVenue,
+            ))
         })
     });
 
@@ -96,10 +100,11 @@ fn bench_topic_extraction(c: &mut Criterion) {
         b.iter(|| {
             let header = &headers[idx % headers.len()];
             idx += 1;
-            black_box(
-                registry
-                    .extract_topic(header, None, &TopicExtractionStrategy::Fixed("fixed".to_string())),
-            )
+            black_box(registry.extract_topic(
+                header,
+                None,
+                &TopicExtractionStrategy::Fixed("fixed".to_string()),
+            ))
         })
     });
 

@@ -7,7 +7,7 @@ edition = "2021"
 alphapulse-network = { path = "../../../network" }
 # Protocol
 alphapulse-types = { workspace = true }
-alphapulse_codec = { path = "../../../libs/alphapulse_codec" }
+codec = { path = "../../../libs/codec" }
 anyhow = "1.0"
 
 # Time handling

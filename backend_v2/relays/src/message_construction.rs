@@ -1,15 +1,16 @@
 //! # Message Construction Module - Protocol V2 TLV Message Building
 //!
 //! ## Purpose
-//! Provides relay-specific message construction utilities leveraging alphapulse_codec's
+//! Provides relay-specific message construction utilities leveraging codec's
 //! TLVMessageBuilder for proper Protocol V2 compliance. Ensures all messages constructed
 //! by relays follow correct format with proper headers, checksums, and TLV encoding.
 
-use alphapulse_codec::{TLVMessageBuilder, TLVType, InstrumentId};
-use alphapulse_types::protocol::{MessageHeader, RelayDomain, SourceType};
 use crate::{RelayError, RelayResult};
+use codec::{InstrumentId, TLVMessageBuilder, TLVType};
+use alphapulse_types::protocol::{MessageHeader, RelayDomain, SourceType};
 use bytes::Bytes;
 use tracing::debug;
+use zerocopy::{AsBytes, FromBytes};
 
 /// Relay message builder wrapper for Protocol V2 compliance
 pub struct RelayMessageBuilder {
@@ -134,6 +135,8 @@ impl RelayMessageBuilder {
             RelayDomain::MarketData => (1..=19).contains(&type_num),
             RelayDomain::Signal => (20..=39).contains(&type_num),
             RelayDomain::Execution => (40..=79).contains(&type_num),
+            RelayDomain::System => (100..=119).contains(&type_num),
+            _ => false, // Unknown domains
         }
     }
 }
@@ -141,19 +144,20 @@ impl RelayMessageBuilder {
 /// Factory functions for common message types
 pub mod factory {
     use super::*;
-    
+
     /// Create a heartbeat message for relay health monitoring
     pub fn create_heartbeat(domain: RelayDomain, source: SourceType) -> Bytes {
         let mut builder = RelayMessageBuilder::new(domain, source);
-        
-        // Add vendor TLV with heartbeat data
+
+        // Add heartbeat TLV
         let heartbeat_data = b"HB";
-        builder.add_tlv(TLVType::VendorSpecific, heartbeat_data)
+        builder
+            .add_tlv(TLVType::Heartbeat, heartbeat_data)
             .expect("Failed to add heartbeat TLV");
-        
+
         builder.build()
     }
-    
+
     /// Create a relay status message
     pub fn create_status_message(
         domain: RelayDomain,
@@ -163,16 +167,17 @@ pub mod factory {
         uptime_seconds: u64,
     ) -> Bytes {
         let mut builder = RelayMessageBuilder::new(domain, source);
-        
+
         // Create status data
         let mut status_data = Vec::with_capacity(16);
         status_data.extend_from_slice(&connected_clients.to_le_bytes());
         status_data.extend_from_slice(&messages_processed.to_le_bytes());
         status_data.extend_from_slice(&uptime_seconds.to_le_bytes());
-        
-        builder.add_tlv(TLVType::VendorSpecific, &status_data)
+
+        builder
+            .add_tlv(TLVType::SystemHealth, &status_data)
             .expect("Failed to add status TLV");
-        
+
         builder.build()
     }
 }
@@ -180,31 +185,28 @@ pub mod factory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alphapulse_codec::parse_header;
+    use codec::parse_header;
 
     #[test]
     fn test_relay_message_builder() {
-        let mut builder = RelayMessageBuilder::new(
-            RelayDomain::MarketData,
-            SourceType::Kraken,
-        );
-        
+        let mut builder = RelayMessageBuilder::new(RelayDomain::MarketData, SourceType::Kraken);
+
         // Create a simple instrument ID
-        let instrument_id = InstrumentId::coin(
-            alphapulse_codec::VenueId::Kraken,
-            "BTC-USD"
-        ).unwrap();
-        
+        let instrument_id =
+            InstrumentId::coin(codec::VenueId::Kraken, "BTC-USD").unwrap();
+
         // Add a trade TLV
-        builder.add_trade_tlv(
-            &instrument_id,
-            4500000000000, // $45,000.00
-            100000000,     // 1 BTC
-            1234567890000000000,
-        ).unwrap();
-        
+        builder
+            .add_trade_tlv(
+                &instrument_id,
+                4500000000000, // $45,000.00
+                100000000,     // 1 BTC
+                1234567890000000000,
+            )
+            .unwrap();
+
         let message = builder.build();
-        
+
         // Verify message can be parsed
         let header = parse_header(&message).unwrap();
         assert_eq!(header.relay_domain, RelayDomain::MarketData as u8);
@@ -213,30 +215,22 @@ mod tests {
 
     #[test]
     fn test_domain_validation() {
-        let mut builder = RelayMessageBuilder::new(
-            RelayDomain::MarketData,
-            SourceType::Kraken,
-        );
-        
+        let mut builder = RelayMessageBuilder::new(RelayDomain::MarketData, SourceType::Kraken);
+
         // Try to add a signal TLV to market data domain - should fail
-        let result = builder.add_signal_tlv(
-            123,
-            1,
-            0.95,
-            b"test",
-        );
-        
+        let result = builder.add_signal_tlv(123, 1, 0.95, b"test");
+
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Signal TLVs only valid in Signal domain"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Signal TLVs only valid in Signal domain"));
     }
 
     #[test]
     fn test_heartbeat_creation() {
-        let heartbeat = factory::create_heartbeat(
-            RelayDomain::MarketData,
-            SourceType::Kraken,
-        );
-        
+        let heartbeat = factory::create_heartbeat(RelayDomain::MarketData, SourceType::Kraken);
+
         // Parse and verify
         let header = parse_header(&heartbeat).unwrap();
         assert_eq!(header.relay_domain, RelayDomain::MarketData as u8);

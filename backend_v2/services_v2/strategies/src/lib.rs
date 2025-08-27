@@ -8,10 +8,10 @@ pub mod kraken_signals;
 
 // Re-export commonly used types
 pub use flash_arbitrage::{
-    ArbitrageCalculator,
-    ArbitrageConfig,
-    ArbitrageDetector,
-    SignalOutput,
+    arbitrage_calculator::ArbitrageCalculator,
+    config::FlashArbitrageConfig as ArbitrageConfig,
+    detector::OpportunityDetector as ArbitrageDetector,
+    signal_output::SignalOutput,
 };
 
 /// Common strategy traits and types

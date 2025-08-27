@@ -57,7 +57,7 @@ use alphapulse_types::{
     tlv::{zero_copy_builder_v2::build_message_direct, ArbitrageSignalTLV},
     RelayDomain, SourceType, TLVType, VenueId,
 };
-use alphapulse_codec::TLVMessageBuilder;
+use codec::TLVMessageBuilder;
 
 const FLASH_ARBITRAGE_STRATEGY_ID: u16 = 21;
 

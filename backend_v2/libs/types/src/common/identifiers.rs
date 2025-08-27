@@ -120,7 +120,7 @@
 //! };
 //!
 //! // For message building, services import codec separately:
-//! // use alphapulse_codec::TLVMessageBuilder;
+//! // use codec::TLVMessageBuilder;
 //! // let message = TLVMessageBuilder::new(RelayDomain::Signal, SourceType::Strategy)
 //! //     .add_tlv(TLVType::ArbitrageSignal, &signal_data)
 //! //     .build();
@@ -136,7 +136,7 @@
 //!         .await?;
 //!     
 //!     Ok(rows.into_iter()
-//!         .map(|row| (OrderId::new(row.order_id as u64), 
+//!         .map(|row| (OrderId::new(row.order_id as u64),
 //!                     PositionId::new(row.position_id as u64)))
 //!         .collect())
 //! }
@@ -189,9 +189,9 @@
 //!
 //! // Custom validation - application-specific rules
 //! let strategy_id = StrategyId::new_with_validator(123, |id| {
-//!     if id < 100 { 
-//!         return Err(ValidationError::Custom { 
-//!             message: "Strategy IDs must be >= 100".to_string() 
+//!     if id < 100 {
+//!         return Err(ValidationError::Custom {
+//!             message: "Strategy IDs must be >= 100".to_string()
 //!         });
 //!     }
 //!     Ok(())
@@ -407,7 +407,7 @@ macro_rules! define_typed_id {
             }
 
             /// Create a new typed ID with validation
-            /// 
+            ///
             /// Validates that the ID is not null/zero, which helps catch common bugs
             /// where uninitialized or default IDs are accidentally used.
             #[inline]
@@ -419,13 +419,13 @@ macro_rules! define_typed_id {
             }
 
             /// Create a new typed ID with range validation
-            /// 
+            ///
             /// Validates that the ID is within the specified range [min, max].
             /// Useful for database IDs that have known constraints.
             #[inline]
             pub fn new_with_range(
-                id: u64, 
-                min: u64, 
+                id: u64,
+                min: u64,
                 max: u64
             ) -> Result<Self, crate::common::errors::ValidationError> {
                 if id < min {
@@ -438,7 +438,7 @@ macro_rules! define_typed_id {
             }
 
             /// Create a new typed ID with custom validation
-            /// 
+            ///
             /// Allows application-specific validation logic while maintaining type safety.
             #[inline]
             pub fn new_with_validator<F>(id: u64, validator: F) -> Result<Self, crate::common::errors::ValidationError>
@@ -1406,17 +1406,26 @@ mod tests {
 
         // Test null ID validation
         let null_result = OrderId::new_validated(0);
-        assert!(matches!(null_result, Err(crate::common::errors::ValidationError::NullId)));
+        assert!(matches!(
+            null_result,
+            Err(crate::common::errors::ValidationError::NullId)
+        ));
 
         // Test range validation
         let valid_pool = PoolId::new_with_range(50, 1, 100).unwrap();
         assert_eq!(valid_pool.inner(), 50);
 
         let too_small = PoolId::new_with_range(0, 1, 100);
-        assert!(matches!(too_small, Err(crate::common::errors::ValidationError::ValueTooSmall { .. })));
+        assert!(matches!(
+            too_small,
+            Err(crate::common::errors::ValidationError::ValueTooSmall { .. })
+        ));
 
         let too_large = PoolId::new_with_range(200, 1, 100);
-        assert!(matches!(too_large, Err(crate::common::errors::ValidationError::ValueTooLarge { .. })));
+        assert!(matches!(
+            too_large,
+            Err(crate::common::errors::ValidationError::ValueTooLarge { .. })
+        ));
 
         // Test custom validation
         let custom_valid = StrategyId::new_with_validator(150, |id| {
@@ -1426,7 +1435,8 @@ mod tests {
                 });
             }
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
         assert_eq!(custom_valid.inner(), 150);
 
         let custom_invalid = StrategyId::new_with_validator(50, |id| {
@@ -1437,18 +1447,21 @@ mod tests {
             }
             Ok(())
         });
-        assert!(matches!(custom_invalid, Err(crate::common::errors::ValidationError::Custom { .. })));
+        assert!(matches!(
+            custom_invalid,
+            Err(crate::common::errors::ValidationError::Custom { .. })
+        ));
     }
 
     #[cfg(feature = "protocol")]
     #[test]
     fn test_typed_ids_with_tlv_integration() {
-        // TLVMessageBuilder moved to alphapulse_codec to avoid circular dependency
+        // TLVMessageBuilder moved to codec to avoid circular dependency
         use crate::protocol::tlv::market_data::TradeTLV;
         use crate::{RelayDomain, SourceType, TLVType};
         // Import the correct types for TLV structures
-        use crate::protocol::identifiers::{
-            instrument::{core::InstrumentId as CoreInstrumentId, venues::VenueId as CoreVenueId},
+        use crate::protocol::identifiers::instrument::{
+            core::InstrumentId as CoreInstrumentId, venues::VenueId as CoreVenueId,
         };
 
         // Create typed IDs (our new system)
@@ -1490,18 +1503,20 @@ mod tests {
 
         // Demonstrate the integration pattern: typed IDs for service layer,
         // raw values for TLV structures, with clear conversion points
-        println!("Processed TLV message with typed IDs - Signal: {}, Strategy: {}, Order: {}", 
-                 signal, strategy, order);
+        println!(
+            "Processed TLV message with typed IDs - Signal: {}, Strategy: {}, Order: {}",
+            signal, strategy, order
+        );
     }
 
     #[test]
     fn test_typed_id_arithmetic_and_conversions() {
         let order1 = OrderId::new_validated(100).unwrap();
         let order2 = order1.next();
-        
+
         assert_eq!(order2.inner(), 101);
         assert!(!order1.is_null());
-        
+
         let null_order = OrderId::null();
         assert!(null_order.is_null());
         assert_eq!(null_order.inner(), 0);
@@ -1509,25 +1524,34 @@ mod tests {
         // Test conversions
         let raw_id: u64 = order1.into();
         assert_eq!(raw_id, 100);
-        
+
         let converted_order: OrderId = raw_id.into();
         assert_eq!(converted_order, order1);
     }
 
-    #[test] 
+    #[test]
     fn test_error_display() {
         use crate::common::errors::ValidationError;
-        
+
         let null_err = ValidationError::NullId;
         assert_eq!(null_err.to_string(), "ID cannot be null/zero");
-        
-        let range_err = ValidationError::ValueTooLarge { value: 1000, max: 500 };
-        assert_eq!(range_err.to_string(), "ID value 1000 exceeds maximum allowed value 500");
-        
-        let custom_err = ValidationError::Custom { 
-            message: "Custom validation failed".to_string() 
+
+        let range_err = ValidationError::ValueTooLarge {
+            value: 1000,
+            max: 500,
         };
-        assert_eq!(custom_err.to_string(), "Validation failed: Custom validation failed");
+        assert_eq!(
+            range_err.to_string(),
+            "ID value 1000 exceeds maximum allowed value 500"
+        );
+
+        let custom_err = ValidationError::Custom {
+            message: "Custom validation failed".to_string(),
+        };
+        assert_eq!(
+            custom_err.to_string(),
+            "Validation failed: Custom validation failed"
+        );
     }
 
     #[test]

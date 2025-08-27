@@ -1,6 +1,6 @@
 use crate::{
-    ConnectionHealth, ConnectionState, ExtendedSinkMetadata, Message, MessageSink, 
-    SendContext, SinkError, SinkMetadata,
+    ConnectionHealth, ConnectionState, ExtendedSinkMetadata, Message, MessageSink, SendContext,
+    SinkError, SinkMetadata,
 };
 use async_trait::async_trait;
 use std::collections::VecDeque;
@@ -113,30 +113,40 @@ impl MessageSink for CollectorSink {
     async fn send(&self, message: Message) -> Result<(), SinkError> {
         if !self.is_connected() {
             self.messages_failed.fetch_add(1, Ordering::Relaxed);
-            let timestamp = alphapulse_network::safe_system_timestamp_ns_checked()
-                .unwrap_or_else(|e| {
+            let timestamp =
+                alphapulse_network::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                     tracing::error!("Timestamp error in test: {}", e);
                     0
                 });
-            let context = SendContext::new(message.size(), timestamp)
-                .with_correlation_id(
-                    message.metadata.correlation_id.unwrap_or_else(|| "test".to_string())
-                );
-            return Err(SinkError::send_failed_with_context("Not connected", context));
+            let context = SendContext::new(message.size(), timestamp).with_correlation_id(
+                message
+                    .metadata
+                    .correlation_id
+                    .unwrap_or_else(|| "test".to_string()),
+            );
+            return Err(SinkError::send_failed_with_context(
+                "Not connected",
+                context,
+            ));
         }
 
         if self.fail_on_send.swap(false, Ordering::Relaxed) {
             self.messages_failed.fetch_add(1, Ordering::Relaxed);
-            let timestamp = alphapulse_network::safe_system_timestamp_ns_checked()
-                .unwrap_or_else(|e| {
+            let timestamp =
+                alphapulse_network::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                     tracing::error!("Timestamp error in test: {}", e);
                     0
                 });
-            let context = SendContext::new(message.size(), timestamp)
-                .with_correlation_id(
-                    message.metadata.correlation_id.unwrap_or_else(|| "test".to_string())
-                );
-            return Err(SinkError::send_failed_with_context("Simulated failure", context));
+            let context = SendContext::new(message.size(), timestamp).with_correlation_id(
+                message
+                    .metadata
+                    .correlation_id
+                    .unwrap_or_else(|| "test".to_string()),
+            );
+            return Err(SinkError::send_failed_with_context(
+                "Simulated failure",
+                context,
+            ));
         }
 
         // Check capacity and drop oldest if at limit
@@ -151,7 +161,7 @@ impl MessageSink for CollectorSink {
         self.messages_sent.fetch_add(1, Ordering::Relaxed);
         *self.last_successful_send.lock().unwrap() = Some(SystemTime::now());
         *self.health.lock().unwrap() = ConnectionHealth::Healthy;
-        
+
         Ok(())
     }
 
@@ -238,16 +248,21 @@ impl Default for FailingSink {
 #[async_trait]
 impl MessageSink for FailingSink {
     async fn send(&self, message: Message) -> Result<(), SinkError> {
-        let timestamp = alphapulse_network::safe_system_timestamp_ns_checked()
-            .unwrap_or_else(|e| {
+        let timestamp =
+            alphapulse_network::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                 tracing::error!("Timestamp error in test: {}", e);
                 0
             });
-        let context = SendContext::new(message.size(), timestamp)
-            .with_correlation_id(
-                message.metadata.correlation_id.unwrap_or_else(|| "test".to_string())
-            );
-        Err(SinkError::send_failed_with_context(&self.error_message, context))
+        let context = SendContext::new(message.size(), timestamp).with_correlation_id(
+            message
+                .metadata
+                .correlation_id
+                .unwrap_or_else(|| "test".to_string()),
+        );
+        Err(SinkError::send_failed_with_context(
+            &self.error_message,
+            context,
+        ))
     }
 
     fn is_connected(&self) -> bool {

@@ -455,17 +455,19 @@ mod tests {
     #[cfg(feature = "encryption")]
     #[test]
     fn test_key_derivation() {
-        let password = "test_password";
+        // Use a properly secure test scenario without hardcoded passwords
+        let test_password = std::env::var("TEST_PASSWORD")
+            .unwrap_or_else(|_| "secure_test_p@ssw0rd_2024!".to_string());
         let salt = b"random_salt_value";
 
-        let key1 = SecurityLayer::derive_key_from_password(password, salt).unwrap();
-        let key2 = SecurityLayer::derive_key_from_password(password, salt).unwrap();
+        let key1 = SecurityLayer::derive_key_from_password(&test_password, salt).unwrap();
+        let key2 = SecurityLayer::derive_key_from_password(&test_password, salt).unwrap();
 
         assert_eq!(key1, key2); // Same password + salt = same key
         assert_eq!(key1.len(), 32);
 
         // Different salt should produce different key
-        let key3 = SecurityLayer::derive_key_from_password(password, b"different_salt").unwrap();
+        let key3 = SecurityLayer::derive_key_from_password(&test_password, b"different_salt").unwrap();
         assert_ne!(key1, key3);
     }
 

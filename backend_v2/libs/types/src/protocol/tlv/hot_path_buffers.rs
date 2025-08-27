@@ -325,7 +325,7 @@ where
 ///     |message_bytes| socket.send(message_bytes)
 /// )?;
 /// ```
-// TODO: Move this function to alphapulse_codec to avoid circular dependency
+// TODO: Move this function to codec to avoid circular dependency
 // This function uses TLVMessageBuilder which creates a circular dependency
 /*
 pub fn build_and_send_message<T, BuilderFn, SendFn>(
@@ -471,7 +471,7 @@ mod tests {
             // Test direct TLV serialization without codec dependency
             let serialized = trade.to_bytes();
             let size = serialized.len();
-            
+
             if size <= buffer.len() {
                 buffer[..size].copy_from_slice(&serialized);
             } else {

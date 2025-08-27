@@ -12,7 +12,7 @@ use alphapulse_types::recovery::request::{RecoveryRequestTLV, RecoveryRequestTyp
 use alphapulse_types::*;
 
 // Import codec functionality for message building and parsing
-use alphapulse_codec::{
+use codec::{
     TLVMessageBuilder, VendorTLVBuilder, parse_header, parse_header_without_checksum,
     parse_tlv_extensions, find_tlv_by_type, extract_tlv_payload, validate_tlv_size,
     TLVExtensionEnum, SimpleTLVExtension, ExtendedTLVExtension,

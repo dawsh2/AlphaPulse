@@ -7,7 +7,8 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
+use alphapulse_network::time::safe_system_timestamp_ns;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, UnixListener, UnixStream};
 use tracing::{debug, error, info, warn};
@@ -37,7 +38,7 @@ pub struct TraceStats {
 pub struct SimpleTraceCollector {
     traces: Arc<DashMap<String, Vec<TraceEvent>>>,
     stats: Arc<RwLock<TraceStats>>,
-    start_time: SystemTime,
+    start_time: u64, // Store as nanoseconds since epoch
 }
 
 impl SimpleTraceCollector {
@@ -51,7 +52,7 @@ impl SimpleTraceCollector {
                 events_per_second: 0.0,
                 uptime_seconds: 0,
             })),
-            start_time: SystemTime::now(),
+            start_time: safe_system_timestamp_ns(),
         }
     }
 
@@ -305,10 +306,7 @@ async fn get_stats_response(stats: &Arc<RwLock<TraceStats>>) -> String {
 async fn get_health_response() -> String {
     let health = serde_json::json!({
         "status": "healthy",
-        "timestamp": SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis()
+        "timestamp": safe_system_timestamp_ns() / 1_000_000 // Convert to milliseconds
     });
 
     let json = health.to_string();

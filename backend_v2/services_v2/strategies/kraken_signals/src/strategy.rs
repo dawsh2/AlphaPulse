@@ -13,7 +13,8 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
+use alphapulse_network::time::safe_system_timestamp_ns;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tracing::{debug, error, info, warn};
@@ -255,10 +256,7 @@ impl KrakenSignalStrategy {
         ]);
         let price = Decimal::from(price_raw) / Decimal::from(100_000_000); // Convert from fixed-point
 
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
+        let timestamp = safe_system_timestamp_ns();
 
         // Update indicators and generate signals
         self.update_indicators_and_generate_signals(instrument_id, price, timestamp)
@@ -500,10 +498,7 @@ mod tests {
         let mut strategy = KrakenSignalStrategy::new(config);
 
         let instrument = InstrumentId::stock(VenueId::Kraken, "BTCUSD").unwrap();
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
+        let timestamp = safe_system_timestamp_ns();
 
         // Feed some price data to build up indicators
         for i in 1..=50 {

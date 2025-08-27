@@ -12,18 +12,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         instrument,
         1640995200000000000, // timestamp_ns
         1000,                // sequence
-        100_000_000,        // precision_factor for 8-decimal places
+        100_000_000,         // precision_factor for 8-decimal places
     );
 
     println!("✅ Created OrderBook with macro");
     println!("Size: {} bytes", std::mem::size_of::<OrderBookTLV>());
-    println!("Bids: {}, Asks: {}", order_book.bids.len(), order_book.asks.len());
+    println!(
+        "Bids: {}, Asks: {}",
+        order_book.bids.len(),
+        order_book.asks.len()
+    );
 
     // Test zero-copy serialization
     let bytes = order_book.as_bytes();
     println!("✅ Serialized to {} bytes", bytes.len());
 
-    // Test zero-copy deserialization  
+    // Test zero-copy deserialization
     let deserialized = OrderBookTLV::from_bytes(bytes)?;
     println!("✅ Deserialized successfully");
 

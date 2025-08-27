@@ -84,7 +84,7 @@ impl RelayLogic for SignalLogic {
     fn should_forward(&self, header: &MessageHeader) -> bool {
         // Use default domain filtering for now
         header.relay_domain == self.domain() as u8
-        
+
         // Future extensions could include:
         // - Parse TLV payload to check type range
         // - Validate signal metadata
@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn test_signal_logic() {
         let logic = SignalLogic;
-        
+
         assert_eq!(logic.domain(), RelayDomain::Signal);
         assert_eq!(logic.socket_path(), "/tmp/alphapulse/signals.sock");
     }
@@ -108,7 +108,7 @@ mod tests {
     #[test]
     fn test_message_filtering() {
         let logic = SignalLogic;
-        
+
         // Create test header for signal domain
         let header = MessageHeader {
             magic: alphapulse_types::protocol::MESSAGE_MAGIC,

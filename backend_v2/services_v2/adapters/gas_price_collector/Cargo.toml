@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 # Protocol
 alphapulse-types = { path = "../../../libs/types" }
-alphapulse_codec = { path = "../../../libs/alphapulse_codec" }
+codec = { path = "../../../libs/codec" }
 alphapulse-network = { path = "../../../network" }
 
 # Async runtime

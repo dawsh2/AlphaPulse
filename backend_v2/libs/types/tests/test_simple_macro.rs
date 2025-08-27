@@ -78,8 +78,8 @@ macro_rules! define_tlv {
 
 // Test the macro syntax from the OrderBookTLV conversion
 define_tlv! {
-    /// OrderBook TLV structure for complete order book snapshots  
-    /// 
+    /// OrderBook TLV structure for complete order book snapshots
+    ///
     /// Field ordering optimized by macro: u64 fields first for cache alignment
     OrderBookTLV {
         u64: {
@@ -103,18 +103,18 @@ define_tlv! {
 
 fn main() {
     println!("✅ OrderBookTLV macro syntax is valid!");
-    
+
     // Test constructor with proper field order (macro puts u64 fields first)
     let order_book = OrderBookTLV::new_raw(
         1640995200000000000, // timestamp_ns (u64 - first)
-        1000,                // sequence (u64 - second) 
-        100_000_000,        // precision_factor (i64 - third)
-        12345,              // asset_id (u64 - fourth)
-        1,                  // venue_id (u16)
-        0,                  // asset_type (u8)
-        0,                  // reserved (u8)
-        FixedVec::new(),    // bids (special)
-        FixedVec::new(),    // asks (special)
+        1000,                // sequence (u64 - second)
+        100_000_000,         // precision_factor (i64 - third)
+        12345,               // asset_id (u64 - fourth)
+        1,                   // venue_id (u16)
+        0,                   // asset_type (u8)
+        0,                   // reserved (u8)
+        FixedVec::new(),     // bids (special)
+        FixedVec::new(),     // asks (special)
     );
 
     println!("✅ Created OrderBookTLV successfully!");
@@ -127,22 +127,28 @@ fn main() {
     println!("  venue_id: {}", order_book.venue_id);
     println!("  asset_type: {}", order_book.asset_type);
     println!("  reserved: {}", order_book.reserved);
-    
+
     // Verify field order is correct (u64s come first)
     let expected_layout = [
-        ("timestamp_ns", std::mem::offset_of!(OrderBookTLV, timestamp_ns)),
+        (
+            "timestamp_ns",
+            std::mem::offset_of!(OrderBookTLV, timestamp_ns),
+        ),
         ("sequence", std::mem::offset_of!(OrderBookTLV, sequence)),
-        ("precision_factor", std::mem::offset_of!(OrderBookTLV, precision_factor)),
+        (
+            "precision_factor",
+            std::mem::offset_of!(OrderBookTLV, precision_factor),
+        ),
         ("asset_id", std::mem::offset_of!(OrderBookTLV, asset_id)),
         ("venue_id", std::mem::offset_of!(OrderBookTLV, venue_id)),
         ("asset_type", std::mem::offset_of!(OrderBookTLV, asset_type)),
         ("reserved", std::mem::offset_of!(OrderBookTLV, reserved)),
     ];
-    
+
     println!("✅ Field layout (cache-friendly ordering):");
     for (name, offset) in expected_layout {
         println!("  {}: offset {} bytes", name, offset);
     }
-    
+
     println!("🎉 OrderBookTLV macro conversion is syntactically correct and properly ordered!");
 }

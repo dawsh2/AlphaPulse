@@ -159,18 +159,18 @@ pub fn validate_execution_domain_fast(tlv_data: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // TLVMessageBuilder moved to alphapulse_codec to avoid circular dependency
+    // TLVMessageBuilder moved to codec to avoid circular dependency
     use crate::{RelayDomain, SourceType, TLVType};
 
     #[test]
     fn test_relay_tlv_parsing() {
         // Create a TLV payload manually (without codec dependency)
         let mut tlv_payload = Vec::new();
-        
+
         // TLV header: Type=1 (Trade), Length=100
         tlv_payload.push(1u8); // TLV Type: Trade
         tlv_payload.push(100u8); // TLV Length: 100 bytes
-        
+
         // Add 100 bytes of payload
         tlv_payload.extend_from_slice(&vec![0u8; 100]);
 

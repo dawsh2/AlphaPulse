@@ -16,7 +16,7 @@ alphapulse-state-market = { path = "../../../libs/state/market" }
 alphapulse-network = { path = "../../../network" }
 # Protocol dependencies
 alphapulse-types = { workspace = true }
-alphapulse_codec = { path = "../../../libs/alphapulse_codec" }
+codec = { path = "../../../libs/codec" }
 anyhow = { workspace = true }
 dashmap = { workspace = true }
 

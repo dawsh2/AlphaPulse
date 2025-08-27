@@ -1,6 +1,6 @@
-use crate::{SinkError, Message};
+use crate::{Message, SinkError};
+use alphapulse_types::common::identifiers::{AssetType, InstrumentId, VenueId};
 use std::fmt::Debug;
-use alphapulse_types::common::identifiers::{InstrumentId, VenueId, AssetType};
 
 /// Routing target that can use either InstrumentID or string-based routing
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -114,13 +114,13 @@ impl From<&str> for RoutingTarget {
 pub trait MessageRouter: Send + Sync + Debug {
     /// Resolve a routing target to concrete destinations
     fn resolve_target(&self, target: &RoutingTarget) -> Result<Vec<String>, SinkError>;
-    
+
     /// Get preferred routing target for a message
     fn route_message(&self, message: &Message) -> Result<RoutingTarget, SinkError>;
-    
+
     /// Check if router supports a specific routing target type
     fn supports_target(&self, target: &RoutingTarget) -> bool;
-    
+
     /// Get routing statistics
     fn routing_stats(&self) -> RoutingStats;
 }
@@ -147,7 +147,11 @@ pub struct RoutingStats {
 impl RoutingStats {
     /// Calculate total successful routes
     pub fn total_successful(&self) -> u64 {
-        self.instrument_routes + self.service_routes + self.node_routes + self.broadcast_routes + self.content_based_routes
+        self.instrument_routes
+            + self.service_routes
+            + self.node_routes
+            + self.broadcast_routes
+            + self.content_based_routes
     }
 
     /// Calculate routing success rate
@@ -198,7 +202,7 @@ mod tests {
     #[test]
     fn test_routing_target_creation() {
         let eth_usdc = InstrumentId::stock(VenueId::NYSE, "AAPL");
-        
+
         let instrument_target = RoutingTarget::from_instrument(eth_usdc);
         assert!(instrument_target.is_instrument_route());
         assert_eq!(instrument_target.venue_id(), Some(VenueId::NYSE)); // venue 1 = NYSE
@@ -217,7 +221,7 @@ mod tests {
         let original = InstrumentId::stock(VenueId::NASDAQ, "MSFT");
         let packed = original.to_u64();
         let unpacked = InstrumentId::from_u64(packed);
-        
+
         assert_eq!(original, unpacked);
         // Note: exact field values depend on InstrumentId internal implementation
     }
@@ -250,12 +254,12 @@ mod tests {
     fn test_target_string_representation() {
         let eth_usdc = InstrumentId::stock(VenueId::NYSE, "GOOGL");
         let instrument_target = RoutingTarget::from_instrument(eth_usdc);
-        
+
         assert!(instrument_target.target_string().starts_with("instrument:"));
-        
+
         let service_target = RoutingTarget::to_service("market-data");
         assert_eq!(service_target.target_string(), "service:market-data");
-        
+
         let broadcast_target = RoutingTarget::broadcast();
         assert_eq!(broadcast_target.target_string(), "broadcast");
     }

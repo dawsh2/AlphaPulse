@@ -90,12 +90,8 @@ use crate::error::{DashboardError, Result};
 use crate::message_converter::{
     convert_tlv_to_json, create_arbitrage_opportunity, create_combined_signal,
 };
-use alphapulse_types::{
-    message::header::MessageHeader, RelayDomain, MESSAGE_MAGIC,
-};
-use alphapulse_codec::{
-    parse_header, parse_tlv_extensions, ParseError, TLVExtensionEnum,
-};
+use codec::{parse_header, parse_tlv_extensions, ParseError, TLVExtensionEnum};
+use alphapulse_types::{message::header::MessageHeader, RelayDomain, MESSAGE_MAGIC};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::mem::size_of;
@@ -741,24 +737,22 @@ impl RelayConsumer {
             return Err(ParseError::message_too_small(
                 size_of::<MessageHeader>(),
                 data.len(),
-                "MessageHeader parsing in dashboard"
+                "MessageHeader parsing in dashboard",
             ));
         }
 
         let header = Ref::<_, MessageHeader>::new(&data[..size_of::<MessageHeader>()])
-            .ok_or_else(|| ParseError::message_too_small(
-                size_of::<MessageHeader>(),
-                data.len(),
-                "MessageHeader zerocopy conversion"
-            ))?
+            .ok_or_else(|| {
+                ParseError::message_too_small(
+                    size_of::<MessageHeader>(),
+                    data.len(),
+                    "MessageHeader zerocopy conversion",
+                )
+            })?
             .into_ref();
 
         if header.magic != MESSAGE_MAGIC {
-            return Err(ParseError::invalid_magic(
-                MESSAGE_MAGIC,
-                header.magic,
-                0
-            ));
+            return Err(ParseError::invalid_magic(MESSAGE_MAGIC, header.magic, 0));
         }
 
         // Skip checksum validation for MarketData performance

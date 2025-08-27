@@ -3,20 +3,22 @@
 //! Tests the complete data flow:
 //! Kraken API → Adapter → Relay → Strategy → Dashboard
 
-use crate::framework::{TestFramework, TestResult, TestScenario, TestMetrics, ValidationResult, ValidationSeverity};
 use crate::fixtures::MockKrakenServer;
+use crate::framework::{
+    TestFramework, TestMetrics, TestResult, TestScenario, ValidationResult, ValidationSeverity,
+};
 use crate::validation::DataFlowValidator;
 
-use anyhow::{Context, Result};
 use alphapulse_dashboard_websocket::{DashboardConfig, DashboardServer};
 use alphapulse_kraken_signals::KrakenSignalsStrategy;
-use alphapulse_relays::{MarketDataRelay, SignalRelay, RelayConfig};
+use alphapulse_relays::{MarketDataRelay, RelayConfig, SignalRelay};
+use anyhow::{Context, Result};
+use futures_util::StreamExt; // Added
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::mpsc;
 use tokio::process; // Added
-use futures_util::StreamExt; // Added
+use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, info, warn};
 
@@ -43,20 +45,18 @@ impl TestScenario for KrakenToDashboardTest {
 
         // 1. Start mock Kraken server (if not using live data)
         if !self.use_live_data {
-            framework.start_service(
-                "mock_kraken".to_string(),
-                || async {
+            framework
+                .start_service("mock_kraken".to_string(), || async {
                     let server = MockKrakenServer::new(8080).await?;
                     server.run().await
-                }
-            ).await?;
+                })
+                .await?;
         }
 
         // 2. Start market data relay
         let market_relay_path = framework.relay_paths().market_data.clone();
-        framework.start_service(
-            "market_data_relay".to_string(),
-            move || {
+        framework
+            .start_service("market_data_relay".to_string(), move || {
                 let path = market_relay_path.clone(); // Clone path for config
                 async move {
                     let mut config = RelayConfig::market_data_defaults();
@@ -64,14 +64,13 @@ impl TestScenario for KrakenToDashboardTest {
                     let relay = alphapulse_relays::Relay::new(config).await?; // Use generic Relay
                     relay.run().await
                 }
-            }
-        ).await?;
+            })
+            .await?;
 
         // 3. Start signal relay
         let signal_relay_path = framework.relay_paths().signals.clone();
-        framework.start_service(
-            "signal_relay".to_string(),
-            move || {
+        framework
+            .start_service("signal_relay".to_string(), move || {
                 let path = signal_relay_path.clone(); // Clone path for config
                 async move {
                     let mut config = RelayConfig::signal_defaults();
@@ -79,13 +78,12 @@ impl TestScenario for KrakenToDashboardTest {
                     let relay = alphapulse_relays::Relay::new(config).await?; // Use generic Relay
                     relay.run().await
                 }
-            }
-        ).await?;
+            })
+            .await?;
 
         // 4. Start Kraken collector
-        framework.start_service(
-            "kraken_collector".to_string(),
-            || async {
+        framework
+            .start_service("kraken_collector".to_string(), || async {
                 // Execute the kraken binary directly
                 // Assuming the kraken binary is in the target/release or target/debug directory
                 let kraken_binary_path = if cfg!(debug_assertions) {
@@ -100,30 +98,28 @@ impl TestScenario for KrakenToDashboardTest {
                 }
                 command.spawn()?.wait().await?;
                 Ok(())
-            }
-        ).await?;
+            })
+            .await?;
 
         // 5. Start Kraken signals strategy
-        framework.start_service(
-            "kraken_strategy".to_string(),
-            || async {
+        framework
+            .start_service("kraken_strategy".to_string(), || async {
                 let mut strategy = KrakenSignalsStrategy::new().await?;
                 strategy.run().await
-            }
-        ).await?;
+            })
+            .await?;
 
         // 6. Start dashboard WebSocket server
-        framework.start_service(
-            "dashboard_server".to_string(),
-            || async {
+        framework
+            .start_service("dashboard_server".to_string(), || async {
                 let config = DashboardConfig {
                     port: 8081,
                     ..Default::default()
                 };
                 let server = DashboardServer::new(config);
                 server.start().await
-            }
-        ).await?;
+            })
+            .await?;
 
         // Give all services time to start and connect
         tokio::time::sleep(Duration::from_secs(2)).await;
@@ -247,7 +243,8 @@ impl TestScenario for KrakenToDashboardTest {
 
         // Calculate metrics
         let total_duration = start_time.elapsed();
-        metrics.throughput_msg_per_sec = metrics.messages_processed as f64 / total_duration.as_secs_f64();
+        metrics.throughput_msg_per_sec =
+            metrics.messages_processed as f64 / total_duration.as_secs_f64();
 
         if !latencies.is_empty() {
             metrics.avg_latency_ns = latencies.iter().sum::<u64>() / latencies.len() as u64;
@@ -285,8 +282,11 @@ impl TestScenario for KrakenToDashboardTest {
             validation_results.push(ValidationResult {
                 validator: "latency".to_string(),
                 passed: false,
-                message: format!("Max latency {}ms exceeds threshold {}ms",
-                                metrics.max_latency_ns / 1_000_000, self.max_latency_ms),
+                message: format!(
+                    "Max latency {}ms exceeds threshold {}ms",
+                    metrics.max_latency_ns / 1_000_000,
+                    self.max_latency_ms
+                ),
                 severity: ValidationSeverity::Warning,
                 details: None,
             });
@@ -294,8 +294,10 @@ impl TestScenario for KrakenToDashboardTest {
             validation_results.push(ValidationResult {
                 validator: "latency".to_string(),
                 passed: true,
-                message: format!("Max latency {}ms within threshold",
-                                metrics.max_latency_ns / 1_000_000),
+                message: format!(
+                    "Max latency {}ms within threshold",
+                    metrics.max_latency_ns / 1_000_000
+                ),
                 severity: ValidationSeverity::Info,
                 details: None,
             });
@@ -324,8 +326,10 @@ impl TestScenario for KrakenToDashboardTest {
         let health_results = framework.validate_system_health().await?;
         validation_results.extend(health_results);
 
-        info!("Test completed: {} messages, {} trades, {} signals",
-              metrics.messages_processed, trade_count, signal_count);
+        info!(
+            "Test completed: {} messages, {} trades, {} signals",
+            metrics.messages_processed, trade_count, signal_count
+        );
 
         Ok(TestResult {
             scenario_name: self.name().to_string(),
@@ -343,7 +347,10 @@ impl TestScenario for KrakenToDashboardTest {
         framework.stop_all_services().await?;
 
         // Remove any test data files
-        if let Err(e) = tokio::fs::remove_dir_all(format!("/tmp/alphapulse_e2e_test_{}", framework.test_id())).await {
+        if let Err(e) =
+            tokio::fs::remove_dir_all(format!("/tmp/alphapulse_e2e_test_{}", framework.test_id()))
+                .await
+        {
             warn!("Failed to cleanup test directory: {}", e);
         }
 

@@ -4,10 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "flash_arbitrage_service"
-path = "src/bin/flash_arbitrage_service.rs"
-
-[[bin]]
 name = "kraken_signals_service"
 path = "src/bin/kraken_signals_service.rs"
 
@@ -21,7 +17,7 @@ alphapulse-network = { path = "../../network" }
 
 # Protocol dependencies
 alphapulse-types = { workspace = true }
-alphapulse_codec = { path = "../../libs/alphapulse_codec" }
+codec = { path = "../../libs/codec" }
 
 # Common dependencies
 anyhow = { workspace = true }

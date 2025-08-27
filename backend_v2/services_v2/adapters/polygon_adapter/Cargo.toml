@@ -1,0 +1,52 @@
+[package]
+name = "alphapulse-polygon-adapter"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Polygon DEX adapter plugin for AlphaPulse Protocol V2"
+
+[[bin]]
+name = "polygon_adapter"
+path = "src/bin/polygon_adapter.rs"
+
+[dependencies]
+# Core adapter library with shared traits
+alphapulse-adapter-service = { path = "../" }
+
+# Protocol dependencies
+alphapulse-types = { workspace = true }
+codec = { workspace = true }
+alphapulse-dex = { workspace = true }
+
+# Web3 for Polygon RPC
+web3 = { workspace = true }
+ethabi = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling and logging
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Utilities
+hex = { workspace = true }
+dashmap = { workspace = true }
+memmap2 = { workspace = true }
+chrono = { workspace = true }
+
+# Configuration
+toml = { workspace = true }
+clap = { version = "4.5", features = ["derive"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.0"

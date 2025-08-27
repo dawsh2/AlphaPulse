@@ -250,7 +250,7 @@ impl RecoveryResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Parser functions moved to alphapulse_codec to avoid circular dependency
+    // Parser functions moved to codec to avoid circular dependency
 
     #[test]
     fn test_recovery_request_tlv_creation() {

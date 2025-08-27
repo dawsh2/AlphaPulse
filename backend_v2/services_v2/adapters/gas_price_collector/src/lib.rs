@@ -1,15 +1,16 @@
 //! WebSocket-based gas price collector for Polygon
-//! 
+//!
 //! Subscribes to newHeads events to get real-time base fee updates
 //! without RPC rate limiting issues.
 
+use codec::TLVMessageBuilder;
+use alphapulse_types::tlv::gas_price::GasPriceTLV;
+use alphapulse_types::{RelayDomain, SourceType};
+use codec::TLVType;
 use anyhow::{Context, Result};
 use ethers::prelude::*;
-use alphapulse_types::tlv::gas_price::GasPriceTLV;
-use alphapulse_types::tlv::types::TLVType;
-use alphapulse_codec::TLVMessageBuilder;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::net::UnixStream;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
@@ -65,8 +66,11 @@ pub struct GasPriceCollector {
 impl GasPriceCollector {
     /// Create a new gas price collector
     pub async fn new(config: GasPriceCollectorConfig) -> Result<Self> {
-        info!("⛽ Connecting to WebSocket endpoint: {}", config.ws_endpoint);
-        
+        info!(
+            "⛽ Connecting to WebSocket endpoint: {}",
+            config.ws_endpoint
+        );
+
         // Connect with automatic reconnection
         let provider = Provider::<Ws>::connect_with_reconnects(
             &config.ws_endpoint,
@@ -74,9 +78,9 @@ impl GasPriceCollector {
         )
         .await
         .context("Failed to connect to WebSocket")?;
-        
+
         info!("✅ WebSocket connected successfully");
-        
+
         let stats = Arc::new(RwLock::new(GasPriceStats {
             last_base_fee_gwei: 30,
             last_priority_fee_gwei: config.priority_fee_gwei,
@@ -84,7 +88,7 @@ impl GasPriceCollector {
             block_number: 0,
             timestamp_ns: 0,
         }));
-        
+
         Ok(Self {
             config,
             provider,
@@ -92,11 +96,14 @@ impl GasPriceCollector {
             stats,
         })
     }
-    
+
     /// Connect to the market data relay
     async fn connect_to_relay(&self) -> Result<()> {
-        info!("🌐 Connecting to MarketDataRelay at {}", self.config.relay_socket_path);
-        
+        info!(
+            "🌐 Connecting to MarketDataRelay at {}",
+            self.config.relay_socket_path
+        );
+
         match UnixStream::connect(&self.config.relay_socket_path).await {
             Ok(socket) => {
                 let mut relay = self.relay_socket.write().await;
@@ -110,7 +117,7 @@ impl GasPriceCollector {
             }
         }
     }
-    
+
     /// Start streaming gas prices via WebSocket with automatic reconnection
     pub async fn start_streaming(self: Arc<Self>) -> Result<()> {
         loop {
@@ -121,28 +128,29 @@ impl GasPriceCollector {
             }
         }
     }
-    
+
     async fn stream_with_reconnect(&self) -> Result<()> {
         // Connect to relay
         self.connect_to_relay().await?;
-        
+
         info!("⛽ Subscribing to newHeads events...");
-        
+
         // Subscribe to new block headers
-        let mut stream = self.provider
+        let mut stream = self
+            .provider
             .subscribe_blocks()
             .await
             .context("Failed to subscribe to blocks")?;
-        
+
         info!("✅ Subscription active, streaming gas prices...");
-        
+
         while let Some(block) = stream.next().await {
             // Extract gas price information
             if let Some(base_fee) = block.base_fee_per_gas {
                 let base_fee_gwei = (base_fee.as_u64() / 1_000_000_000) as u32;
                 let block_number = block.number.unwrap_or_default().as_u64();
                 let timestamp_ns = alphapulse_network::time::safe_system_timestamp_ns();
-                
+
                 // Create GasPriceTLV
                 let gas_price_tlv = GasPriceTLV::new(
                     self.config.network_id,
@@ -151,7 +159,7 @@ impl GasPriceCollector {
                     block_number,
                     timestamp_ns,
                 );
-                
+
                 // Update stats
                 {
                     let mut stats = self.stats.write().await;
@@ -159,7 +167,7 @@ impl GasPriceCollector {
                     stats.block_number = block_number;
                     stats.timestamp_ns = timestamp_ns;
                 }
-                
+
                 debug!(
                     "📊 Block {}: base_fee={}gwei, priority={}gwei, total={}gwei",
                     block_number,
@@ -167,7 +175,7 @@ impl GasPriceCollector {
                     self.config.priority_fee_gwei,
                     gas_price_tlv.gas_price_gwei
                 );
-                
+
                 // Send to relay
                 if let Err(e) = self.send_to_relay(gas_price_tlv).await {
                     warn!("Failed to send gas price to relay: {}", e);
@@ -178,32 +186,36 @@ impl GasPriceCollector {
                 }
             }
         }
-        
+
         warn!("⚠️ Block stream ended, WebSocket may have disconnected");
         Ok(())
     }
-    
+
     /// Send gas price TLV to relay via Unix socket
     async fn send_to_relay(&self, tlv: GasPriceTLV) -> Result<()> {
         // Build TLV message
         let mut builder = TLVMessageBuilder::new(
-            1, // Market Data domain  
-            4, // Source: Gas Price Collector
+            RelayDomain::MarketData,
+            SourceType::GasPriceCollector,
         );
-        
+
         builder.add_tlv(TLVType::GasPrice, &tlv);
         let message = builder.build()?;
-        
+
         // Write to Unix socket (thread-safe)
         {
             let mut relay_guard = self.relay_socket.write().await;
             if let Some(socket) = relay_guard.as_mut() {
                 use tokio::io::AsyncWriteExt;
-                socket.write_all(&message).await
+                socket
+                    .write_all(&message)
+                    .await
                     .context("Failed to write message to relay socket")?;
-                socket.flush().await
+                socket
+                    .flush()
+                    .await
                     .context("Failed to flush relay socket")?;
-                
+
                 debug!("✅ Sent {} byte gas price message to relay", message.len());
                 Ok(())
             } else {
@@ -211,7 +223,7 @@ impl GasPriceCollector {
             }
         }
     }
-    
+
     /// Get current gas price statistics
     pub async fn get_stats(&self) -> GasPriceStats {
         self.stats.read().await.clone()
@@ -234,29 +246,25 @@ impl PriorityFeeCalculator {
             sample_count: RwLock::new(0),
         }
     }
-    
+
     /// Update priority fee estimate from observed transaction
-    pub async fn update_from_transaction(
-        &self,
-        tx_gas_price: U256,
-        block_base_fee: U256,
-    ) {
+    pub async fn update_from_transaction(&self, tx_gas_price: U256, block_base_fee: U256) {
         let priority_fee_wei = tx_gas_price.saturating_sub(block_base_fee);
         let priority_fee_gwei = (priority_fee_wei.as_u64() / 1_000_000_000) as f64;
-        
+
         // Update moving average
         let mut avg = self.avg_priority_fee.write().await;
         let mut count = self.sample_count.write().await;
-        
+
         *count += 1;
         *avg = (*avg * (*count - 1) as f64 + priority_fee_gwei) / *count as f64;
-        
+
         debug!(
             "Updated priority fee estimate: {:.2} gwei (from {} samples)",
             *avg, *count
         );
     }
-    
+
     /// Get current priority fee recommendation
     pub async fn get_priority_fee_gwei(&self) -> u32 {
         let avg = *self.avg_priority_fee.read().await;
@@ -268,24 +276,26 @@ impl PriorityFeeCalculator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_priority_fee_calculator() {
         let calc = PriorityFeeCalculator::new();
-        
+
         // Simulate some transactions
         let base_fee = U256::from(30_000_000_000u64); // 30 gwei
-        
+
         calc.update_from_transaction(
             U256::from(32_000_000_000u64), // 32 gwei total
             base_fee,
-        ).await;
-        
+        )
+        .await;
+
         calc.update_from_transaction(
             U256::from(33_000_000_000u64), // 33 gwei total
             base_fee,
-        ).await;
-        
+        )
+        .await;
+
         let recommended = calc.get_priority_fee_gwei().await;
         assert!(recommended >= 2); // Should be at least 2 gwei
         assert!(recommended <= 5); // Should be reasonable

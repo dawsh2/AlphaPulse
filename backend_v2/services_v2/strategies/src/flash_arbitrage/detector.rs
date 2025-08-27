@@ -776,12 +776,7 @@ impl OpportunityDetector {
             expected_profit_usd: optimal_position.expected_profit_usd,
             slippage_bps: optimal_position.total_slippage_bps,
             gas_cost_usd: optimal_position.gas_cost_usd,
-            timestamp_ns: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_err(|e| DetectorError::OpportunityGenerationFailed {
-                    reason: format!("System time error: {}", e),
-                })?
-                .as_nanos() as u64,
+            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns(),
             strategy_type,
         };
 

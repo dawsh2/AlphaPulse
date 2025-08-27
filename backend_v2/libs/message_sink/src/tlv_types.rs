@@ -116,7 +116,9 @@ impl TLVMessage {
             if self.payload.len() != expected_size {
                 return Err(SinkError::invalid_config(format!(
                     "TLV payload size mismatch: expected {} bytes for {:?}, got {}",
-                    expected_size, self.tlv_type, self.payload.len()
+                    expected_size,
+                    self.tlv_type,
+                    self.payload.len()
                 )));
             }
         }
@@ -132,12 +134,13 @@ impl TLVMessage {
         // Validate header if present
         if let Some(header) = &self.header {
             header.validate()?;
-            
+
             // Check header payload size matches actual payload
             if header.payload_size as usize != self.payload.len() {
                 return Err(SinkError::invalid_config(format!(
                     "Header payload size {} doesn't match actual payload size {}",
-                    header.payload_size, self.payload.len()
+                    header.payload_size,
+                    self.payload.len()
                 )));
             }
         }
@@ -157,7 +160,7 @@ impl TLVMessage {
         // Add TLV type and length
         result.extend_from_slice(&(self.tlv_type as u16).to_le_bytes());
         result.extend_from_slice(&(self.payload.len() as u16).to_le_bytes());
-        
+
         // Add payload
         result.extend_from_slice(&self.payload);
 
@@ -167,14 +170,18 @@ impl TLVMessage {
     /// Parse TLV message from bytes
     pub fn parse(bytes: &[u8]) -> Result<Self, SinkError> {
         if bytes.len() < 4 {
-            return Err(SinkError::invalid_config("TLV message too short".to_string()));
+            return Err(SinkError::invalid_config(
+                "TLV message too short".to_string(),
+            ));
         }
 
         let tlv_type = u16::from_le_bytes([bytes[0], bytes[1]]);
         let payload_len = u16::from_le_bytes([bytes[2], bytes[3]]) as usize;
 
         if bytes.len() < 4 + payload_len {
-            return Err(SinkError::invalid_config("TLV payload truncated".to_string()));
+            return Err(SinkError::invalid_config(
+                "TLV payload truncated".to_string(),
+            ));
         }
 
         let tlv_type = TLVType::try_from(tlv_type)?;
@@ -206,7 +213,7 @@ pub struct MessageHeader {
 impl MessageHeader {
     /// Protocol V2 magic number
     pub const MAGIC: u32 = 0xDEADBEEF;
-    
+
     /// Header size in bytes
     pub const SIZE: usize = 32;
 
@@ -227,7 +234,8 @@ impl MessageHeader {
         if self.magic != Self::MAGIC {
             return Err(SinkError::invalid_config(format!(
                 "Invalid magic number: expected 0x{:08X}, got 0x{:08X}",
-                Self::MAGIC, self.magic
+                Self::MAGIC,
+                self.magic
             )));
         }
 
@@ -265,8 +273,7 @@ impl MessageHeader {
         let relay_domain = bytes[8];
         let source = bytes[9];
         let sequence = u64::from_le_bytes([
-            bytes[10], bytes[11], bytes[12], bytes[13],
-            bytes[14], bytes[15], bytes[16], bytes[17],
+            bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15], bytes[16], bytes[17],
         ]);
 
         let mut reserved = [0u8; 14];
@@ -296,12 +303,12 @@ pub enum TLVType {
     OrderBook = 3,
     OHLC = 4,
     Volume = 5,
-    
+
     // Signal Domain (20-39)
     SignalIdentity = 20,
     ArbitrageSignal = 21,
     TrendSignal = 22,
-    
+
     // Execution Domain (40-79)
     ExecutionOrder = 40,
     ExecutionResult = 41,
@@ -327,16 +334,16 @@ impl TLVType {
             TLVType::ExecutionOrder => Some(48), // Fixed size order structure
             TLVType::SignalIdentity => Some(16), // Fixed size signal ID
             // Variable size types - return minimum expected size
-            TLVType::OrderBook => Some(8),       // Min: header + at least one entry
+            TLVType::OrderBook => Some(8), // Min: header + at least one entry
             TLVType::ArbitrageSignal => Some(20), // Min: pair addresses
-            TLVType::TrendSignal => Some(12),    // Min: signal data
-            TLVType::OHLC => Some(40),          // Fixed: open,high,low,close,volume
-            TLVType::Volume => Some(16),        // Fixed: buy,sell volumes
+            TLVType::TrendSignal => Some(12), // Min: signal data
+            TLVType::OHLC => Some(40),     // Fixed: open,high,low,close,volume
+            TLVType::Volume => Some(16),   // Fixed: buy,sell volumes
             TLVType::ExecutionResult => Some(32), // Fixed: result structure
             TLVType::PositionUpdate => Some(24), // Fixed: position data
         }
     }
-    
+
     /// Get minimum payload size for validation
     pub fn minimum_payload_size(&self) -> usize {
         match self {
@@ -369,7 +376,10 @@ impl TryFrom<u16> for TLVType {
             40 => Ok(TLVType::ExecutionOrder),
             41 => Ok(TLVType::ExecutionResult),
             42 => Ok(TLVType::PositionUpdate),
-            _ => Err(SinkError::invalid_config(format!("Unknown TLV type: {}", value))),
+            _ => Err(SinkError::invalid_config(format!(
+                "Unknown TLV type: {}",
+                value
+            ))),
         }
     }
 }
@@ -402,7 +412,7 @@ mod tests {
     fn test_tlv_message_creation() {
         let payload = vec![1, 2, 3, 4];
         let tlv_msg = TLVMessage::new(TLVType::Quote, payload.clone());
-        
+
         assert_eq!(tlv_msg.tlv_type(), TLVType::Quote);
         assert_eq!(tlv_msg.payload, payload);
         assert_eq!(tlv_msg.total_size(), 4);
@@ -429,13 +439,13 @@ mod tests {
     #[test]
     fn test_message_header() {
         let header = MessageHeader::new(100, 1, 42, 12345);
-        
+
         assert_eq!(header.magic, MessageHeader::MAGIC);
         assert_eq!(header.payload_size, 100);
         assert_eq!(header.relay_domain, 1);
         assert_eq!(header.source, 42);
         assert_eq!(header.sequence, 12345);
-        
+
         assert!(header.validate().is_ok());
     }
 
@@ -444,7 +454,7 @@ mod tests {
         let original = MessageHeader::new(200, 2, 50, 67890);
         let bytes = original.serialize();
         let parsed = MessageHeader::parse(&bytes).unwrap();
-        
+
         assert_eq!(original.magic, parsed.magic);
         assert_eq!(original.payload_size, parsed.payload_size);
         assert_eq!(original.relay_domain, parsed.relay_domain);
@@ -456,10 +466,10 @@ mod tests {
     fn test_tlv_serialization() {
         let payload = vec![1, 2, 3, 4, 5];
         let tlv_msg = TLVMessage::new(TLVType::Trade, payload);
-        
+
         let bytes = tlv_msg.serialize();
         let parsed = TLVMessage::parse(&bytes).unwrap();
-        
+
         assert_eq!(tlv_msg.tlv_type, parsed.tlv_type);
         assert_eq!(tlv_msg.payload, parsed.payload);
     }
@@ -468,7 +478,7 @@ mod tests {
     fn test_message_type() {
         let tlv_msg = TLVMessage::new(TLVType::ExecutionOrder, vec![0u8; 48]);
         let msg_type = MessageType::tlv(tlv_msg).unwrap();
-        
+
         assert!(msg_type.is_tlv());
         assert!(!msg_type.is_raw());
         assert_eq!(msg_type.tlv_type(), Some(TLVType::ExecutionOrder));
@@ -488,7 +498,7 @@ mod tests {
     fn test_invalid_magic_number() {
         let mut header = MessageHeader::new(100, 1, 42, 12345);
         header.magic = 0x12345678; // Wrong magic
-        
+
         assert!(header.validate().is_err());
     }
 

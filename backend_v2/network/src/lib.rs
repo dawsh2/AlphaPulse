@@ -126,17 +126,10 @@ pub use topology_integration::{TopologyIntegration, TopologyTransportResolver, T
 
 // Re-export time system
 pub use time::{
-    fast_timestamp_ns as current_timestamp_ns,
-    fast_timestamp_ns,
-    precise_timestamp_ns,
-    init_timestamp_system,
-    timestamp_accuracy_info,
-    timestamp_system_stats,
-    safe_duration_to_ns,
-    safe_system_timestamp_ns,
-    safe_duration_to_ns_checked,
-    safe_system_timestamp_ns_checked,
-    TimestampError,
+    fast_timestamp_ns as current_timestamp_ns, fast_timestamp_ns, init_timestamp_system,
+    precise_timestamp_ns, safe_duration_to_ns, safe_duration_to_ns_checked,
+    safe_system_timestamp_ns, safe_system_timestamp_ns_checked, timestamp_accuracy_info,
+    timestamp_system_stats, TimestampError,
 };
 
 // #[cfg(feature = "monitoring")]
@@ -166,7 +159,9 @@ pub const DEFAULT_HEARTBEAT_INTERVAL_SECS: u64 = 5;
 pub const DEFAULT_CONNECTION_TIMEOUT_SECS: u64 = 10;
 
 /// Transport criticality levels for automatic selection
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub enum Criticality {
     /// Ultra-low latency required (<1ms) - trading signals
     UltraLowLatency,
@@ -359,7 +354,7 @@ pub struct TransportStatistics {
 }
 
 /// Current nanosecond timestamp
-/// 
+///
 /// **Deprecated**: Use `fast_timestamp_ns()` from the time module instead.
 /// This function is kept for backward compatibility and delegates to the
 /// authoritative timestamp implementation.

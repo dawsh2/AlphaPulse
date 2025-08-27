@@ -55,6 +55,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tracing::{debug, error, info, warn};
 
+use codec::parse_header_without_checksum;
 use alphapulse_types::protocol::tlv::system::TraceId;
 use alphapulse_types::{
     PoolSwapTLV,
@@ -63,7 +64,6 @@ use alphapulse_types::{
     TraceEvent,
     TraceEventType,
 };
-use alphapulse_codec::parse_header_without_checksum;
 
 // Import from shared types library for financial calculations
 use alphapulse_types::common::errors::FixedPointError;
@@ -203,10 +203,14 @@ impl RelayConsumer {
             trace_id,
             service: SourceType::ArbitrageStrategy,
             event_type: TraceEventType::MessageReceived,
-            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
-                tracing::error!("Failed to generate timestamp for MessageReceived event: {}", e);
-                0
-            }),
+            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked()
+                .unwrap_or_else(|e| {
+                    tracing::error!(
+                        "Failed to generate timestamp for MessageReceived event: {}",
+                        e
+                    );
+                    0
+                }),
             duration_ns: None,
             metadata: {
                 let mut meta = HashMap::new();
@@ -226,10 +230,14 @@ impl RelayConsumer {
             trace_id,
             service: SourceType::ArbitrageStrategy,
             event_type: TraceEventType::MessageProcessed,
-            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
-                tracing::error!("Failed to generate timestamp for MessageProcessed event: {}", e);
-                0
-            }),
+            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked()
+                .unwrap_or_else(|e| {
+                    tracing::error!(
+                        "Failed to generate timestamp for MessageProcessed event: {}",
+                        e
+                    );
+                    0
+                }),
             duration_ns: Some(processing_duration),
             metadata: {
                 let mut meta = HashMap::new();
@@ -252,10 +260,14 @@ impl RelayConsumer {
             trace_id,
             service: SourceType::ArbitrageStrategy,
             event_type: TraceEventType::ExecutionTriggered,
-            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
-                tracing::error!("Failed to generate timestamp for ExecutionTriggered event: {}", e);
-                0
-            }),
+            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked()
+                .unwrap_or_else(|e| {
+                    tracing::error!(
+                        "Failed to generate timestamp for ExecutionTriggered event: {}",
+                        e
+                    );
+                    0
+                }),
             duration_ns: None,
             metadata: {
                 let mut meta = HashMap::new();
@@ -423,13 +435,15 @@ impl RelayConsumer {
             .await?;
 
         // Use safe duration conversion from transport module
-        let processing_duration = match alphapulse_network::time::safe_duration_to_ns_checked(processing_start.elapsed()) {
-            Ok(duration) => duration,
-            Err(e) => {
-                tracing::error!("Failed to convert processing duration: {}", e);
-                0
-            }
-        };
+        let processing_duration =
+            match alphapulse_network::time::safe_duration_to_ns_checked(processing_start.elapsed())
+            {
+                Ok(duration) => duration,
+                Err(e) => {
+                    tracing::error!("Failed to convert processing duration: {}", e);
+                    0
+                }
+            };
 
         // Emit MessageProcessed trace event
         self.emit_message_processed_event(trace_id, processing_duration)
@@ -474,6 +488,13 @@ impl RelayConsumer {
             // Process different TLV types
             debug!("🔍 STRATEGY: Received TLV type: {}", tlv_type);
             match tlv_type {
+                2 | 17 => {
+                    // QuoteTLV (type 2) or QuoteUpdate (type 17) - Process quote updates
+                    debug!("📊 Processing Quote TLV (type {}) for market state update", tlv_type);
+                    // Note: QuoteTLV processing can be used to update market state
+                    // and detect arbitrage opportunities from quote spreads
+                    // Currently not implemented - add quote-based arbitrage detection here
+                }
                 11 => {
                     // PoolSwapTLV - Swap event - ALWAYS process and send analysis
                     info!("🔍 Processing TLV type 11 (PoolSwap) event for arbitrage analysis");

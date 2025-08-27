@@ -31,7 +31,7 @@ impl PolygonEventParser {
     /// Parse raw events into TLV messages
     pub fn parse_events(&self, events: Vec<Log>) -> Result<Vec<MessageHeader>> {
         let mut messages = Vec::new();
-        
+
         for event in events {
             match self.parse_single_event(&event) {
                 Ok(Some(msg)) => messages.push(msg),
@@ -43,30 +43,44 @@ impl PolygonEventParser {
                 }
             }
         }
-        
+
         Ok(messages)
     }
 
     /// Parse single event
     fn parse_single_event(&self, log: &Log) -> Result<Option<MessageHeader>> {
         // Extract topic signature
-        let topic_sig = log.topics.get(0)
+        let topic_sig = log
+            .topics
+            .get(0)
             .ok_or_else(|| anyhow::anyhow!("No topic signature"))?;
 
         match topic_sig.as_bytes() {
             // Uniswap V3 Swap
-            sig if sig == &hex_literal::hex!("c42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67") => {
+            sig if sig
+                == &hex_literal::hex!(
+                    "c42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67"
+                ) =>
+            {
                 self.parse_v3_swap(log)
             }
-            // Uniswap V2 Swap  
-            sig if sig == &hex_literal::hex!("d78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822") => {
+            // Uniswap V2 Swap
+            sig if sig
+                == &hex_literal::hex!(
+                    "d78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
+                ) =>
+            {
                 self.parse_v2_swap(log)
             }
             // Uniswap V2 Sync
-            sig if sig == &hex_literal::hex!("1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1") => {
+            sig if sig
+                == &hex_literal::hex!(
+                    "1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1"
+                ) =>
+            {
                 self.parse_v2_sync(log)
             }
-            _ => Ok(None)
+            _ => Ok(None),
         }
     }
 
@@ -82,7 +96,7 @@ impl PolygonEventParser {
     }
 
     fn parse_v2_sync(&self, log: &Log) -> Result<Option<MessageHeader>> {
-        // V2 sync parsing logic  
+        // V2 sync parsing logic
         Ok(None)
     }
 }

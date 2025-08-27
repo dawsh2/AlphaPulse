@@ -124,10 +124,13 @@ impl ConnectionHealth {
     pub fn is_usable(&self) -> bool {
         matches!(self, ConnectionHealth::Healthy | ConnectionHealth::Degraded)
     }
-    
+
     /// Check if connection needs attention
     pub fn needs_attention(&self) -> bool {
-        matches!(self, ConnectionHealth::Degraded | ConnectionHealth::Unhealthy)
+        matches!(
+            self,
+            ConnectionHealth::Degraded | ConnectionHealth::Unhealthy
+        )
     }
 }
 
@@ -136,25 +139,25 @@ impl ConnectionHealth {
 pub struct ExtendedSinkMetadata {
     /// Basic sink metadata
     pub metadata: SinkMetadata,
-    
+
     /// Connection health status
     pub health: ConnectionHealth,
-    
+
     /// Last successful send timestamp
     pub last_successful_send: Option<std::time::SystemTime>,
-    
+
     /// Average latency in nanoseconds (rolling window)
     pub avg_latency_ns: Option<u64>,
-    
+
     /// Error rate over last N operations (0.0 to 1.0)
     pub error_rate: Option<f64>,
-    
+
     /// Current active connections
     pub active_connections: usize,
-    
+
     /// Preferred connection count
     pub preferred_connections: usize,
-    
+
     /// Whether sink supports multiplexing
     pub supports_multiplexing: bool,
 }
@@ -182,12 +185,12 @@ impl ExtendedSinkMetadata {
             ..Default::default()
         }
     }
-    
+
     /// Update health based on recent metrics
     pub fn update_health(&mut self, recent_success_rate: f64, recent_avg_latency_ns: u64) {
         self.error_rate = Some(1.0 - recent_success_rate);
         self.avg_latency_ns = Some(recent_avg_latency_ns);
-        
+
         self.health = if recent_success_rate >= 0.99 && recent_avg_latency_ns < 10_000_000 {
             // >99% success rate and <10ms latency = healthy
             ConnectionHealth::Healthy
@@ -202,13 +205,13 @@ impl ExtendedSinkMetadata {
             ConnectionHealth::Unknown
         };
     }
-    
+
     /// Record successful operation
     pub fn record_successful_operation(&mut self) {
         self.last_successful_send = Some(std::time::SystemTime::now());
         self.metadata.record_success();
     }
-    
+
     /// Record failed operation
     pub fn record_failed_operation(&mut self, error: String) {
         self.metadata.record_failure(Some(error));

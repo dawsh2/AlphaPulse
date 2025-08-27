@@ -38,8 +38,8 @@ full-featured = [
 ]
 
 [dependencies]
-# Note: Removed alphapulse_codec dependency to avoid circular dependency
-# Services should import TLVMessageBuilder directly from alphapulse_codec
+# Note: Removed codec dependency to avoid circular dependency
+# Services should import TLVMessageBuilder directly from codec
 
 # Safe timestamp conversion functions
 alphapulse-network = { path = "../../network" }
@@ -84,7 +84,7 @@ tokio-test = "0.4"
 tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
 web3 = "0.19"
 
-# Commented out to avoid circular dependency - should be moved to alphapulse_codec or separate crate
+# Commented out to avoid circular dependency - should be moved to codec or separate crate
 # [[bin]]
 # name = "test_protocol"
 # path = "src/protocol/bin/test_protocol.rs"

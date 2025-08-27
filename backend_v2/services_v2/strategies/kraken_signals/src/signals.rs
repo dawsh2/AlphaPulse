@@ -2,7 +2,7 @@
 
 use alphapulse_types::InstrumentId;
 use rust_decimal::Decimal;
-use std::time::{SystemTime, UNIX_EPOCH};
+use alphapulse_network::time::safe_system_timestamp_ns;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SignalType {
@@ -61,10 +61,7 @@ pub struct SignalConfig {
 impl TradingSignal {
     /// Create a new trading signal from config
     pub fn new(config: SignalConfig) -> Self {
-        let timestamp_ns = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
+        let timestamp_ns = safe_system_timestamp_ns();
 
         Self {
             signal_id: config.signal_id,
@@ -82,10 +79,7 @@ impl TradingSignal {
 
     /// Check if signal is still valid (not too old)
     pub fn is_valid(&self, max_age_secs: u64) -> bool {
-        let current_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
+        let current_time = safe_system_timestamp_ns();
 
         let age_ns = current_time.saturating_sub(self.timestamp_ns);
         let age_secs = age_ns / 1_000_000_000;

@@ -7,8 +7,8 @@ pub mod collector;
 pub mod parser;
 pub mod types;
 
+use codec::TlvTypeRegistry;
 use alphapulse_types::protocol::{MessageHeader, TLVType};
-use alphapulse_codec::TlvTypeRegistry;
 use anyhow::Result;
 
 /// Main Polygon adapter for processing DEX events
@@ -22,10 +22,10 @@ impl PolygonAdapter {
     pub fn new(config: PolygonConfig) -> Result<Self> {
         let collector = collector::PolygonCollector::new(config.rpc_url)?;
         let parser = parser::PolygonEventParser::new();
-        
+
         Ok(Self { collector, parser })
     }
-    
+
     /// Process incoming Polygon events
     pub async fn process_events(&mut self) -> Result<Vec<MessageHeader>> {
         let events = self.collector.fetch_events().await?;

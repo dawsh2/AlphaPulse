@@ -11,7 +11,7 @@ alphapulse-network = { path = "../../../network" }
 
 # Protocol dependencies
 alphapulse-types = { path = "../../../libs/types" }
-alphapulse_codec = { path = "../../../libs/alphapulse_codec" }
+codec = { path = "../../../libs/codec" }
 anyhow = "1.0"
 
 # Base64 encoding

@@ -1,14 +1,11 @@
 //! End-to-end integration test for the complete arbitrage flow
 
+use codec::TLVMessageBuilder;
 use alphapulse_flash_arbitrage::{
     detector::{DetectorConfig, OpportunityDetector},
     pool_state::{PoolState, PoolStateManager},
 };
-use alphapulse_types::{
-    InstrumentId, VenueId,
-    SourceType, TLVType,
-};
-use alphapulse_codec::TLVMessageBuilder;
+use alphapulse_types::{InstrumentId, SourceType, TLVType, VenueId};
 use rust_decimal_macros::dec;
 use std::sync::Arc;
 use tokio::sync::mpsc;

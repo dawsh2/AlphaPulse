@@ -21,9 +21,9 @@ impl Default for DynamicPayloadConfig {
     fn default() -> Self {
         Self {
             // Default values with generous headroom based on real usage patterns
-            max_instruments: 16,   // Real usage: 1-5
-            max_pool_tokens: 8,    // Real usage: 2-4 (handles complex Balancer pools)
-            max_order_levels: 50,  // Real usage: 10-30
+            max_instruments: 16,  // Real usage: 1-5
+            max_pool_tokens: 8,   // Real usage: 2-4 (handles complex Balancer pools)
+            max_order_levels: 50, // Real usage: 10-30
         }
     }
 }
@@ -46,7 +46,7 @@ impl DynamicPayloadConfig {
                 .unwrap_or(50),
         }
     }
-    
+
     /// Validate configuration values
     pub fn validate(&self) -> Result<(), String> {
         if self.max_instruments == 0 {
@@ -114,15 +114,15 @@ mod tests {
     #[test]
     fn test_validation() {
         let mut config = DynamicPayloadConfig::default();
-        
+
         // Test zero values
         config.max_instruments = 0;
         assert!(config.validate().is_err());
-        
+
         // Test excessive values
         config.max_instruments = 1000;
         assert!(config.validate().is_err());
-        
+
         // Test valid range
         config.max_instruments = 32;
         config.max_pool_tokens = 16;

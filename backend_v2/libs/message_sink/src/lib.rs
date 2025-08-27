@@ -20,27 +20,30 @@ use async_trait::async_trait;
 use std::fmt::Debug;
 use std::time::SystemTime;
 
+pub use alphapulse_network::current_timestamp_ns as fast_timestamp_ns;
 pub use batch::BatchResult;
-pub use alphapulse_network::{current_timestamp_ns as fast_timestamp_ns};
-pub use circuit_breaker::{CircuitBreakerSink, CircuitBreakerConfig, CircuitBreakerStats, CircuitState};
+pub use circuit_breaker::{
+    CircuitBreakerConfig, CircuitBreakerSink, CircuitBreakerStats, CircuitState,
+};
 pub use concurrent::{ConcurrentBatchSink, ConcurrentConfig, PipelinedSink};
-pub use config::{ServiceConfig, ServicesConfig, SinkType, CompositePattern, LazyConfigToml, PrecisionContext};
-pub use connection::{ConnectionPool, ConnectionGuard};
+pub use config::{
+    CompositePattern, LazyConfigToml, PrecisionContext, ServiceConfig, ServicesConfig, SinkType,
+};
+pub use connection::{ConnectionGuard, ConnectionPool};
 pub use error::{SendContext, SinkError};
 pub use factory::{SinkFactory, SinkFactoryStats};
-pub use lazy::{LazyMessageSink, LazyConfig, LazyMetrics, LazyConnectionState, BoxFuture};
-pub use pool::{LazyConnectionPool, PoolConfig, PoolStats, PooledSinkGuard};
+pub use lazy::{BoxFuture, LazyConfig, LazyConnectionState, LazyMessageSink, LazyMetrics};
 pub use message::{Message, MessageMetadata, MessagePriority, DEFAULT_MAX_MESSAGE_SIZE};
 pub use metadata::{ConnectionHealth, ConnectionState, ExtendedSinkMetadata, SinkMetadata};
 pub use metrics::{
-    SinkMetrics, DefaultSinkMetrics, NoOpMetrics, 
-    ThroughputMetrics, LatencyMetrics, ReliabilityMetrics, ResourceMetrics,
-    MetricsSnapshot, MetricsFormat
+    DefaultSinkMetrics, LatencyMetrics, MetricsFormat, MetricsSnapshot, NoOpMetrics,
+    ReliabilityMetrics, ResourceMetrics, SinkMetrics, ThroughputMetrics,
 };
-pub use registry::{ServiceRegistry, RegistryMetadata};
-pub use routing::{RoutingTarget, MessageRouter};
-pub use sinks::{CompositeSink, DirectSink, RelaySink, CompositeMetrics, ConnectionType};
-pub use tlv_types::{MessageType, TLVMessage, MessageHeader, TLVType, MessageDomain};
+pub use pool::{LazyConnectionPool, PoolConfig, PoolStats, PooledSinkGuard};
+pub use registry::{RegistryMetadata, ServiceRegistry};
+pub use routing::{MessageRouter, RoutingTarget};
+pub use sinks::{CompositeMetrics, CompositeSink, ConnectionType, DirectSink, RelaySink};
+pub use tlv_types::{MessageDomain, MessageHeader, MessageType, TLVMessage, TLVType};
 
 /// A destination for messages that abstracts away connection details
 #[async_trait]
@@ -51,31 +54,34 @@ pub trait MessageSink: Send + Sync + Debug {
     /// Send multiple messages efficiently, returning partial results
     async fn send_batch(&self, messages: Vec<Message>) -> Result<BatchResult, SinkError> {
         let mut result = BatchResult::new(messages.len());
-        
+
         for (index, message) in messages.into_iter().enumerate() {
             match self.send(message).await {
                 Ok(()) => result.record_success(),
                 Err(e) => result.record_failure(index, e),
             }
         }
-        
+
         Ok(result)
     }
 
     /// Send multiple messages with priority ordering
-    async fn send_batch_prioritized(&self, messages: Vec<Message>) -> Result<BatchResult, SinkError> {
+    async fn send_batch_prioritized(
+        &self,
+        messages: Vec<Message>,
+    ) -> Result<BatchResult, SinkError> {
         let mut sorted_messages: Vec<_> = messages.into_iter().enumerate().collect();
         sorted_messages.sort_by(|(_, a), (_, b)| b.metadata.priority.cmp(&a.metadata.priority));
-        
+
         let mut result = BatchResult::new(sorted_messages.len());
-        
+
         for (original_index, message) in sorted_messages {
             match self.send(message).await {
                 Ok(()) => result.record_success(),
                 Err(e) => result.record_failure(original_index, e),
             }
         }
-        
+
         Ok(result)
     }
 
@@ -213,7 +219,10 @@ mod tests {
         // Connection should fail
         let result = sink.connect().await;
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), SinkError::ConnectionFailed(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            SinkError::ConnectionFailed(_)
+        ));
 
         // Send should fail
         let msg = Message::new_unchecked(b"test".to_vec());
@@ -269,7 +278,10 @@ mod tests {
         // Should fail with oversized message using default limit
         let big_msg = Message::new(vec![0u8; DEFAULT_MAX_MESSAGE_SIZE + 1]);
         assert!(big_msg.is_err());
-        assert!(matches!(big_msg.unwrap_err(), SinkError::MessageTooLarge { .. }));
+        assert!(matches!(
+            big_msg.unwrap_err(),
+            SinkError::MessageTooLarge { .. }
+        ));
 
         // Custom limit should work
         let custom_msg = Message::new_with_limit(vec![0u8; 100], 50);
@@ -293,14 +305,14 @@ mod tests {
 
         // Send first message successfully
         sink.send(messages[0].clone()).await.unwrap();
-        
+
         // Configure to fail next send
         sink.fail_next_send();
 
         // Send batch - should get partial success
         let remaining = vec![messages[1].clone(), messages[2].clone()];
         let result = sink.send_batch(remaining).await.unwrap();
-        
+
         assert!(!result.is_complete_success());
         assert!(result.has_partial_success());
         assert_eq!(result.succeeded, 1); // msg3 succeeds after msg2 fails
@@ -315,17 +327,20 @@ mod tests {
 
         let messages = vec![
             Message::with_metadata(
-                b"low".to_vec(), 
-                MessageMetadata::new().with_priority(MessagePriority::Low)
-            ).unwrap(),
+                b"low".to_vec(),
+                MessageMetadata::new().with_priority(MessagePriority::Low),
+            )
+            .unwrap(),
             Message::with_metadata(
-                b"critical".to_vec(), 
-                MessageMetadata::new().with_priority(MessagePriority::Critical)
-            ).unwrap(),
+                b"critical".to_vec(),
+                MessageMetadata::new().with_priority(MessagePriority::Critical),
+            )
+            .unwrap(),
             Message::with_metadata(
                 b"normal".to_vec(),
-                MessageMetadata::new().with_priority(MessagePriority::Normal)
-            ).unwrap(),
+                MessageMetadata::new().with_priority(MessagePriority::Normal),
+            )
+            .unwrap(),
         ];
 
         let result = sink.send_batch_prioritized(messages).await.unwrap();
@@ -346,12 +361,18 @@ mod tests {
         // Add messages up to capacity
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            sink.send(Message::new_unchecked(b"msg1".to_vec())).await.unwrap();
-            sink.send(Message::new_unchecked(b"msg2".to_vec())).await.unwrap();
+            sink.send(Message::new_unchecked(b"msg1".to_vec()))
+                .await
+                .unwrap();
+            sink.send(Message::new_unchecked(b"msg2".to_vec()))
+                .await
+                .unwrap();
             assert_eq!(sink.message_count(), 2);
 
             // Adding third message should drop the first
-            sink.send(Message::new_unchecked(b"msg3".to_vec())).await.unwrap();
+            sink.send(Message::new_unchecked(b"msg3".to_vec()))
+                .await
+                .unwrap();
             assert_eq!(sink.message_count(), 2);
 
             let messages = sink.received_messages();
@@ -363,15 +384,17 @@ mod tests {
     #[test]
     fn test_connection_health() {
         let sink = CollectorSink::new();
-        
+
         // Initially unknown
         assert_eq!(sink.connection_health(), ConnectionHealth::Unknown);
-        
+
         sink.force_connect();
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             // After successful send, should be healthy
-            sink.send(Message::new_unchecked(b"test".to_vec())).await.unwrap();
+            sink.send(Message::new_unchecked(b"test".to_vec()))
+                .await
+                .unwrap();
             assert_eq!(sink.connection_health(), ConnectionHealth::Healthy);
         });
     }
@@ -407,8 +430,7 @@ mod tests {
         assert!(!timeout_err.is_connection_error());
         assert!(timeout_err.is_recoverable());
 
-        let timestamp = alphapulse_network::safe_system_timestamp_ns_checked()
-            .unwrap_or(0);
+        let timestamp = alphapulse_network::safe_system_timestamp_ns_checked().unwrap_or(0);
         let context = SendContext::new(100, timestamp);
         let buffer_err = SinkError::buffer_full_with_context(context);
         assert!(buffer_err.is_recoverable());

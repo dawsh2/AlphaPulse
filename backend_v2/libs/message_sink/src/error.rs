@@ -20,12 +20,12 @@ impl SendContext {
             target: None,
         }
     }
-    
+
     pub fn with_correlation_id(mut self, id: String) -> Self {
         self.correlation_id = Some(id);
         self
     }
-    
+
     pub fn with_target(mut self, target: String) -> Self {
         self.target = Some(target);
         self
@@ -44,23 +44,15 @@ pub enum SinkError {
             size = context.message_size,
             correlation_id = context.correlation_id,
             target = context.target)]
-    SendFailed {
-        error: String,
-        context: SendContext,
-    },
+    SendFailed { error: String, context: SendContext },
 
     #[error("Buffer full, message dropped (size: {size}B, id: {correlation_id:?})",
             size = context.message_size,
             correlation_id = context.correlation_id)]
-    BufferFull {
-        context: SendContext,
-    },
+    BufferFull { context: SendContext },
 
     #[error("Message too large: {size}B exceeds limit of {limit}B")]
-    MessageTooLarge {
-        size: usize,
-        limit: usize,
-    },
+    MessageTooLarge { size: usize, limit: usize },
 
     #[error("Sink closed")]
     Closed,
@@ -88,7 +80,7 @@ impl SinkError {
             _ => "n/a",
         }
     }
-    
+
     /// Get target from error context
     fn target(&self) -> &str {
         match self {
@@ -130,8 +122,8 @@ impl SinkError {
 
     /// Create a send failed error (legacy method, creates minimal context)
     pub fn send_failed(msg: impl Into<String>) -> Self {
-        let timestamp = alphapulse_network::safe_system_timestamp_ns_checked()
-            .unwrap_or_else(|e| {
+        let timestamp =
+            alphapulse_network::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                 // Log error but continue - this is error handling code itself
                 eprintln!("WARNING: Timestamp error in error handling: {}", e);
                 0

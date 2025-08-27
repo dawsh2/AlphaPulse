@@ -5,8 +5,8 @@
 //! variable-length payload support.
 
 use crate::network::{CompressionType, EncryptionType};
-use crate::{generate_message_id, Result, TransportError};
 use crate::time::fast_timestamp_ns;
+use crate::{generate_message_id, Result, TransportError};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Write};
@@ -40,7 +40,7 @@ pub struct NetworkEnvelope {
     pub target_node: String,
     /// Target actor identifier
     pub target_actor: String,
-    
+
     // Transport-layer timing (infrastructure timestamps)
     /// When message entered the transport layer (nanoseconds since UNIX epoch)
     /// Set automatically when envelope is created
@@ -48,7 +48,7 @@ pub struct NetworkEnvelope {
     /// When message was received at destination (nanoseconds since UNIX epoch)
     /// Set automatically when envelope is received (0 until then)
     pub received_at_ns: u64,
-    
+
     /// Compression type used for payload
     pub compression: CompressionType,
     /// Encryption type used for payload
@@ -378,7 +378,8 @@ impl NetworkEnvelope {
         if self.received_at_ns == 0 {
             0
         } else {
-            self.received_at_ns.saturating_sub(business_event_timestamp_ns)
+            self.received_at_ns
+                .saturating_sub(business_event_timestamp_ns)
         }
     }
 

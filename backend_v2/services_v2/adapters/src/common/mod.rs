@@ -3,7 +3,7 @@
 //! Shared trait definitions and utilities for all AlphaPulse adapter implementations.
 //! Provides a unified interface for data collection, transformation, and output routing.
 
-use crate::{AdapterError, Result, CircuitState};
+use crate::{AdapterError, CircuitState, Result};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
@@ -29,7 +29,7 @@ pub trait Adapter: Send + Sync {
     /// 4. Handle automatic reconnection on failures
     /// 5. Transform raw data into Protocol V2 TLV messages
     /// 6. Route messages to appropriate relay domains
-    /// 
+    ///
     /// # Safety Requirements
     /// - **Circuit Breaker**: Must implement circuit breaker pattern
     /// - **Connection Timeout**: Must respect connection_timeout_ms
@@ -66,19 +66,23 @@ pub trait Adapter: Send + Sync {
     ///
     /// This is the core transformation function that converts
     /// raw exchange data into Protocol V2 TLV messages.
-    /// 
+    ///
     /// # Performance Requirements
     /// - **Hot Path Latency**: Must complete in <35μs for high-frequency trading
     /// - **Zero-Copy**: Uses buffer writes, no Vec allocations in hot path
     /// - **Single Message Output**: Returns single TLV message to avoid allocations
-    /// 
+    ///
     /// # Arguments
     /// * `raw_data` - Raw bytes from exchange WebSocket/API
     /// * `output_buffer` - Pre-allocated buffer for zero-copy message construction
-    /// 
+    ///
     /// # Returns
     /// * `Option<usize>` - Number of bytes written to output_buffer, or None if no message
-    async fn process_message(&self, raw_data: &[u8], output_buffer: &mut [u8]) -> Result<Option<usize>>;
+    async fn process_message(
+        &self,
+        raw_data: &[u8],
+        output_buffer: &mut [u8],
+    ) -> Result<Option<usize>>;
 }
 
 /// Health status information for an adapter
@@ -248,11 +252,11 @@ pub trait SafeAdapter: Adapter {
 #[async_trait]
 pub trait AdapterOutput: Send + Sync {
     /// Send a single Protocol V2 message from buffer slice
-    /// 
+    ///
     /// # Performance Requirements
     /// - **Zero-Copy**: Sends message directly from buffer without allocation
     /// - **Hot Path**: Must complete in <10μs for relay forwarding
-    /// 
+    ///
     /// # Arguments
     /// * `message_data` - Pre-constructed TLV message bytes
     async fn send_message(&self, message_data: &[u8]) -> Result<()>;

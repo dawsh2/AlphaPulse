@@ -3,7 +3,7 @@
 //! Handles Snapshot TLV (Type 101) for large gap recovery
 
 use super::super::{ProtocolError, RelayDomain, SourceType};
-// use crate::tlv::{TLVMessageBuilder, TLVType}; // TLVMessageBuilder moved to alphapulse_codec
+// use crate::tlv::{TLVMessageBuilder, TLVType}; // TLVMessageBuilder moved to codec
 use crate::tlv::TLVType;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -191,9 +191,11 @@ impl SnapshotBuilder {
             _padding: 0,
         };
 
-        // TODO: Move this functionality to alphapulse_codec to avoid circular dependency
+        // TODO: Move this functionality to codec to avoid circular dependency
         // let mut builder = TLVMessageBuilder::new(relay_domain, source);
-        return Err(ProtocolError::InvalidInstrument("Snapshot functionality temporarily disabled".to_string()));
+        return Err(ProtocolError::InvalidInstrument(
+            "Snapshot functionality temporarily disabled".to_string(),
+        ));
 
         // TODO: Complete this functionality when TLVMessageBuilder is available
         /*
@@ -315,7 +317,7 @@ fn current_timestamp_ns() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Parser functions moved to alphapulse_codec to avoid circular dependency
+    // Parser functions moved to codec to avoid circular dependency
 
     fn create_test_relay_state() -> RelayState {
         let mut consumer_sequences = HashMap::new();

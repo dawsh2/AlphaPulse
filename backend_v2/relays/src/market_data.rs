@@ -6,7 +6,7 @@
 //! ## Architecture Role
 //!
 //! Implements the `RelayLogic` trait for the Market Data domain, providing:
-//! - Domain identification (RelayDomain::MarketData) 
+//! - Domain identification (RelayDomain::MarketData)
 //! - Socket path configuration
 //! - Message filtering for market data types
 //!
@@ -63,7 +63,7 @@ impl RelayLogic for MarketDataLogic {
     }
 
     /// Returns the Unix socket path for market data relay
-    /// 
+    ///
     /// **CRITICAL**: This path must match the path used by:
     /// - `polygon_publisher` and other market data producers
     /// - Dashboard websocket server and other consumers
@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn test_market_data_logic() {
         let logic = MarketDataLogic;
-        
+
         assert_eq!(logic.domain(), RelayDomain::MarketData);
         assert_eq!(logic.socket_path(), "/tmp/alphapulse/market_data.sock");
     }
@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn test_message_filtering() {
         let logic = MarketDataLogic;
-        
+
         // Create test header for market data
         let header = MessageHeader {
             magic: alphapulse_types::protocol::MESSAGE_MAGIC,

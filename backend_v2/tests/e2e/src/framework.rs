@@ -22,25 +22,25 @@ pub struct TestFramework {
 pub struct TestConfig {
     /// Test timeout in seconds
     pub timeout_secs: u64,
-    
+
     /// Cleanup after test
     pub cleanup: bool,
-    
+
     /// Enable detailed logging
     pub verbose: bool,
-    
+
     /// Data validation level
     pub validation_level: ValidationLevel,
-    
+
     /// Test data directory
     pub data_dir: PathBuf,
-    
+
     /// Signal relay socket path for tests
     pub signal_relay_path: String,
-    
+
     /// Dashboard WebSocket port for tests
     pub dashboard_port: u16,
-    
+
     /// Test timeout in seconds (alternative field)
     pub test_timeout_secs: u64,
 }
@@ -74,7 +74,7 @@ pub trait TestScenario {
     async fn setup(&self, framework: &TestFramework) -> Result<()>;
     async fn execute(&self, framework: &TestFramework) -> Result<TestResult>;
     async fn cleanup(&self, framework: &TestFramework) -> Result<()>;
-    
+
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn timeout(&self) -> Duration;
@@ -142,10 +142,10 @@ impl TestFramework {
             signals: format!("/tmp/alphapulse/e2e_{}/signals.sock", test_id),
             execution: format!("/tmp/alphapulse/e2e_{}/execution.sock", test_id),
         };
-        
+
         // Create relay socket directory
         std::fs::create_dir_all(format!("/tmp/alphapulse/e2e_{}", test_id))?;
-        
+
         Ok(Self {
             config,
             services: Arc::new(Mutex::new(HashMap::new())),
@@ -153,15 +153,15 @@ impl TestFramework {
             test_id,
         })
     }
-    
+
     /// Run a complete test scenario
     pub async fn run_scenario<S: TestScenario>(&self, scenario: S) -> Result<TestResult> {
         info!("Starting test scenario: {}", scenario.name());
         info!("Description: {}", scenario.description());
         info!("Test ID: {}", self.test_id);
-        
+
         let start_time = Instant::now();
-        
+
         // Setup phase
         info!("Setting up test scenario...");
         if let Err(e) = scenario.setup(self).await {
@@ -175,13 +175,11 @@ impl TestFramework {
                 validation_results: vec![],
             });
         }
-        
+
         // Execute with timeout
-        let execution_result = tokio::time::timeout(
-            scenario.timeout(),
-            scenario.execute(self)
-        ).await;
-        
+        let execution_result =
+            tokio::time::timeout(scenario.timeout(), scenario.execute(self)).await;
+
         let mut test_result = match execution_result {
             Ok(Ok(result)) => result,
             Ok(Err(e)) => {
@@ -207,9 +205,9 @@ impl TestFramework {
                 }
             }
         };
-        
+
         test_result.duration = start_time.elapsed();
-        
+
         // Cleanup phase
         if self.config.cleanup {
             info!("Cleaning up test scenario...");
@@ -217,13 +215,16 @@ impl TestFramework {
                 warn!("Cleanup failed: {}", e);
             }
         }
-        
-        info!("Test scenario completed: {} (success: {})", 
-              scenario.name(), test_result.success);
-        
+
+        info!(
+            "Test scenario completed: {} (success: {})",
+            scenario.name(),
+            test_result.success
+        );
+
         Ok(test_result)
     }
-    
+
     /// Start a service for testing
     pub async fn start_service<F, Fut>(&self, name: String, service_fn: F) -> Result<()>
     where
@@ -231,75 +232,73 @@ impl TestFramework {
         Fut: std::future::Future<Output = Result<()>> + Send + 'static,
     {
         info!("Starting service: {}", name);
-        
-        let handle = tokio::spawn(async move {
-            service_fn().await
-        });
-        
+
+        let handle = tokio::spawn(async move { service_fn().await });
+
         let service_handle = ServiceHandle {
             name: name.clone(),
             handle,
             health_endpoint: None,
         };
-        
+
         self.services.lock().await.insert(name, service_handle);
-        
+
         // Give service time to start
         tokio::time::sleep(Duration::from_millis(500)).await;
-        
+
         Ok(())
     }
-    
+
     /// Stop a service
     pub async fn stop_service(&self, name: &str) -> Result<()> {
         info!("Stopping service: {}", name);
-        
+
         let mut services = self.services.lock().await;
         if let Some(service) = services.remove(name) {
             service.handle.abort();
-            
+
             // Wait a bit for graceful shutdown
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
-        
+
         Ok(())
     }
-    
+
     /// Stop all services
     pub async fn stop_all_services(&self) -> Result<()> {
         info!("Stopping all services");
-        
+
         let mut services = self.services.lock().await;
         for (name, service) in services.drain() {
             debug!("Stopping service: {}", name);
             service.handle.abort();
         }
-        
+
         // Wait for graceful shutdown
         tokio::time::sleep(Duration::from_millis(500)).await;
-        
+
         Ok(())
     }
-    
+
     /// Get relay paths for test
     pub fn relay_paths(&self) -> &RelayPaths {
         &self.relay_paths
     }
-    
+
     /// Get test configuration
     pub fn config(&self) -> &TestConfig {
         &self.config
     }
-    
+
     /// Get test ID
     pub fn test_id(&self) -> Uuid {
         self.test_id
     }
-    
+
     /// Validate system health
     pub async fn validate_system_health(&self) -> Result<Vec<ValidationResult>> {
         let mut results = Vec::new();
-        
+
         // Check relay socket existence
         for (name, path) in [
             ("market_data", &self.relay_paths.market_data),
@@ -324,7 +323,7 @@ impl TestFramework {
                 });
             }
         }
-        
+
         // Check service health
         let services = self.services.lock().await;
         for (name, service) in services.iter() {
@@ -346,7 +345,7 @@ impl TestFramework {
                 });
             }
         }
-        
+
         Ok(results)
     }
 }
@@ -376,22 +375,25 @@ impl TestRunner {
     pub fn new(config: TestConfig) -> Self {
         // Create test directories
         std::fs::create_dir_all("/tmp/alphapulse_test").ok();
-        
+
         Self {
             config,
             services: Vec::new(),
         }
     }
-    
+
     pub async fn start_signal_relay(&mut self) -> Result<()> {
-        info!("Starting signal relay for test: {}", self.config.signal_relay_path);
-        
+        info!(
+            "Starting signal relay for test: {}",
+            self.config.signal_relay_path
+        );
+
         let relay_path = self.config.signal_relay_path.clone();
         let handle = tokio::spawn(async move {
             // Mock signal relay that just accepts connections
             let _ = std::fs::remove_file(&relay_path);
             let listener = tokio::net::UnixListener::bind(&relay_path).unwrap();
-            
+
             loop {
                 if let Ok((mut stream, _)) = listener.accept().await {
                     tokio::spawn(async move {
@@ -405,21 +407,24 @@ impl TestRunner {
                 }
             }
         });
-        
+
         self.services.push(handle);
         tokio::time::sleep(Duration::from_millis(500)).await; // Let it start
         Ok(())
     }
-    
+
     pub async fn start_dashboard(&mut self) -> Result<()> {
-        info!("Starting dashboard WebSocket server on port {}", self.config.dashboard_port);
-        
+        info!(
+            "Starting dashboard WebSocket server on port {}",
+            self.config.dashboard_port
+        );
+
         let port = self.config.dashboard_port;
         let signal_relay_path = self.config.signal_relay_path.clone();
-        
+
         let handle = tokio::spawn(async move {
             use alphapulse_dashboard_websocket::{DashboardConfig, DashboardServer};
-            
+
             let config = DashboardConfig {
                 bind_address: "127.0.0.1".to_string(),
                 port,
@@ -431,27 +436,34 @@ impl TestRunner {
                 enable_cors: true,
                 heartbeat_interval_secs: 30,
             };
-            
+
             let server = DashboardServer::new(config);
             let _ = server.start().await;
         });
-        
+
         self.services.push(handle);
         tokio::time::sleep(Duration::from_secs(2)).await; // Let it start
         Ok(())
     }
-    
+
     pub async fn wait_for_dashboard_message(
         &self,
-        mut ws_stream: tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+        mut ws_stream: tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
         expected_msg_type: &str,
         timeout: Duration,
-    ) -> Result<(serde_json::Value, tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>)> {
+    ) -> Result<(
+        serde_json::Value,
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
+    )> {
         use futures_util::StreamExt;
         use tokio_tungstenite::tungstenite::Message;
-        
+
         let deadline = tokio::time::Instant::now() + timeout;
-        
+
         while tokio::time::Instant::now() < deadline {
             tokio::select! {
                 msg = ws_stream.next() => {
@@ -477,17 +489,20 @@ impl TestRunner {
                 }
             }
         }
-        
-        Err(anyhow::anyhow!("Timeout waiting for message type: {}", expected_msg_type))
+
+        Err(anyhow::anyhow!(
+            "Timeout waiting for message type: {}",
+            expected_msg_type
+        ))
     }
-    
+
     pub async fn shutdown(&mut self) {
         info!("Shutting down test services");
-        
+
         for handle in self.services.drain(..) {
             handle.abort();
         }
-        
+
         // Cleanup test files
         let _ = std::fs::remove_file(&self.config.signal_relay_path);
         tokio::time::sleep(Duration::from_millis(100)).await;

@@ -47,7 +47,7 @@ impl ApiCredentials {
         &self.primary_token
     }
 
-    /// Get secondary token (compatibility accessor) 
+    /// Get secondary token (compatibility accessor)
     pub fn api_secret(&self) -> Option<&str> {
         self.secondary_token.as_deref()
     }

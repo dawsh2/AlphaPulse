@@ -365,15 +365,15 @@ pub enum TLVType {
     PriceUpdate = 8,
     VolumeUpdate = 9,
     PoolLiquidity = 10,
-    PoolSwap = 11,  // Swap event with V3 state updates
-    PoolMint = 12,  // Liquidity add event
-    PoolBurn = 13,  // Liquidity remove event
-    PoolTick = 14,  // Tick crossing event (V3)
-    PoolState = 15, // Pool state snapshot (full state)
-    PoolSync = 16,  // V2 Sync event (complete reserves)
-    QuoteUpdate = 17,  // Quote update events (GAP-001 implementation)
-    GasPrice = 18,     // Gas price updates from WebSocket stream (Market Data domain)
-    StateInvalidationReason = 19,  // State invalidation reasons (GAP-001 implementation)
+    PoolSwap = 11,                // Swap event with V3 state updates
+    PoolMint = 12,                // Liquidity add event
+    PoolBurn = 13,                // Liquidity remove event
+    PoolTick = 14,                // Tick crossing event (V3)
+    PoolState = 15,               // Pool state snapshot (full state)
+    PoolSync = 16,                // V2 Sync event (complete reserves)
+    QuoteUpdate = 17,             // Quote update events (GAP-001 implementation)
+    GasPrice = 18,                // Gas price updates from WebSocket stream (Market Data domain)
+    StateInvalidationReason = 19, // State invalidation reasons (GAP-001 implementation)
 
     // Strategy Signal Domain (20-39) - Routes through SignalRelay
     SignalIdentity = 20,
@@ -590,7 +590,9 @@ impl TLVType {
             TLVType::PoolSwap => "DEX swap event with V3 state updates and reserves",
             TLVType::QuoteUpdate => "Best bid/ask update with sizes for order book maintenance",
             TLVType::GasPrice => "Ethereum gas price updates for transaction cost optimization",
-            TLVType::StateInvalidationReason => "Reason for state invalidation (disconnection, rate limit, etc.)",
+            TLVType::StateInvalidationReason => {
+                "Reason for state invalidation (disconnection, rate limit, etc.)"
+            }
             TLVType::SignalIdentity => "Strategy identification with signal ID and confidence",
             TLVType::Economics => "Profit estimates and capital requirements for execution",
             TLVType::ArbitrageSignal => {

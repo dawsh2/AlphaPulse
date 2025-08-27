@@ -24,37 +24,37 @@ pub struct ServiceConfig {
     /// Type of sink to create
     #[serde(rename = "type")]
     pub sink_type: SinkType,
-    
+
     /// Connection endpoint (for relay and direct sinks)
     pub endpoint: Option<String>,
-    
+
     /// Pattern for composite sinks
     pub pattern: Option<CompositePattern>,
-    
+
     /// Target services for composite sinks
     pub targets: Option<Vec<String>>,
-    
+
     /// Buffer size for the sink
     pub buffer_size: Option<usize>,
-    
+
     /// Maximum retry attempts
     pub max_retries: Option<u32>,
-    
+
     /// Retry delay in milliseconds
     pub retry_delay_ms: Option<u64>,
-    
+
     /// Connection timeout in seconds
     pub connect_timeout_secs: Option<u64>,
-    
+
     /// Custom lazy configuration
     pub lazy: Option<LazyConfigToml>,
-    
+
     /// TLV message domain for Protocol V2 validation (optional)
     pub domain: Option<MessageDomain>,
-    
+
     /// Precision context for financial calculations
     pub precision_context: Option<PrecisionContext>,
-    
+
     /// Additional metadata
     pub metadata: Option<HashMap<String, String>>,
 }
@@ -76,7 +76,7 @@ impl SinkType {
     pub fn name(self) -> &'static str {
         match self {
             SinkType::Relay => "Relay",
-            SinkType::Direct => "Direct", 
+            SinkType::Direct => "Direct",
             SinkType::Composite => "Composite",
         }
     }
@@ -111,22 +111,22 @@ pub enum PrecisionContext {
 pub struct LazyConfigToml {
     /// Maximum connection retry attempts
     pub max_retries: Option<u32>,
-    
+
     /// Initial retry delay in milliseconds
     pub retry_delay_ms: Option<u64>,
-    
+
     /// Exponential backoff multiplier
     pub backoff_multiplier: Option<f64>,
-    
+
     /// Maximum retry delay in seconds
     pub max_retry_delay_secs: Option<u64>,
-    
+
     /// Enable automatic reconnection on connection loss
     pub auto_reconnect: Option<bool>,
-    
+
     /// Connection timeout in seconds
     pub connect_timeout_secs: Option<u64>,
-    
+
     /// Wait timeout for other threads' connections in seconds
     pub wait_timeout_secs: Option<u64>,
 }
@@ -168,7 +168,7 @@ impl ServiceConfig {
             .map(|l| l.to_lazy_config())
             .unwrap_or_else(LazyConfig::default)
     }
-    
+
     /// Validate the service configuration
     pub fn validate(&self) -> Result<(), String> {
         match self.sink_type {
@@ -186,29 +186,29 @@ impl ServiceConfig {
                 }
             }
         }
-        
+
         // Validate endpoint format if present
         if let Some(endpoint) = &self.endpoint {
             self.validate_endpoint(endpoint)?;
         }
-        
+
         // Validate buffer size
         if let Some(buffer_size) = self.buffer_size {
             if buffer_size == 0 {
                 return Err("Buffer size must be greater than 0".to_string());
             }
         }
-        
+
         // Validate retry configuration
         if let Some(max_retries) = self.max_retries {
             if max_retries > 10 {
                 return Err("Max retries should not exceed 10".to_string());
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate endpoint format
     fn validate_endpoint(&self, endpoint: &str) -> Result<(), String> {
         if endpoint.starts_with("unix://") {
@@ -234,7 +234,7 @@ impl ServiceConfig {
                 endpoint
             ));
         }
-        
+
         Ok(())
     }
 }
@@ -242,30 +242,29 @@ impl ServiceConfig {
 impl ServicesConfig {
     /// Create from TOML string
     pub fn from_toml(toml_str: &str) -> Result<Self, String> {
-        toml::from_str(toml_str)
-            .map_err(|e| format!("Failed to parse TOML: {}", e))
+        toml::from_str(toml_str).map_err(|e| format!("Failed to parse TOML: {}", e))
     }
-    
+
     /// Create from file path
     pub fn from_file(path: &std::path::Path) -> Result<Self, String> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read config file: {}", e))?;
         Self::from_toml(&content)
     }
-    
+
     /// Convert to TOML string
     pub fn to_toml(&self) -> Result<String, String> {
-        toml::to_string_pretty(self)
-            .map_err(|e| format!("Failed to serialize to TOML: {}", e))
+        toml::to_string_pretty(self).map_err(|e| format!("Failed to serialize to TOML: {}", e))
     }
-    
+
     /// Validate all service configurations
     pub fn validate(&self) -> Result<(), String> {
         for (service_name, config) in &self.services {
-            config.validate()
+            config
+                .validate()
                 .map_err(|e| format!("Service '{}': {}", service_name, e))?;
         }
-        
+
         // Validate composite sink targets exist
         for (service_name, config) in &self.services {
             if let Some(targets) = &config.targets {
@@ -279,10 +278,10 @@ impl ServicesConfig {
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Get service configuration by name
     pub fn get_service(&self, name: &str) -> Option<&ServiceConfig> {
         self.services.get(name)
@@ -301,15 +300,15 @@ mod tests {
             endpoint = "unix:///tmp/test.sock"
             buffer_size = 1000
         "#;
-        
+
         let config = ServicesConfig::from_toml(toml).unwrap();
         let service = config.get_service("test_service").unwrap();
-        
+
         assert_eq!(service.sink_type, SinkType::Relay);
         assert_eq!(service.endpoint, Some("unix:///tmp/test.sock".to_string()));
         assert_eq!(service.buffer_size, Some(1000));
     }
-    
+
     #[test]
     fn test_parse_composite_config() {
         let toml = r#"
@@ -326,16 +325,19 @@ mod tests {
             pattern = "fanout"
             targets = ["target1", "target2"]
         "#;
-        
+
         let config = ServicesConfig::from_toml(toml).unwrap();
         config.validate().unwrap();
-        
+
         let service = config.get_service("fanout_service").unwrap();
         assert_eq!(service.sink_type, SinkType::Composite);
         assert_eq!(service.pattern, Some(CompositePattern::Fanout));
-        assert_eq!(service.targets, Some(vec!["target1".to_string(), "target2".to_string()]));
+        assert_eq!(
+            service.targets,
+            Some(vec!["target1".to_string(), "target2".to_string()])
+        );
     }
-    
+
     #[test]
     fn test_lazy_config_conversion() {
         let lazy_toml = LazyConfigToml {
@@ -347,9 +349,9 @@ mod tests {
             connect_timeout_secs: Some(10),
             wait_timeout_secs: Some(20),
         };
-        
+
         let lazy_config = lazy_toml.to_lazy_config();
-        
+
         assert_eq!(lazy_config.max_retries, 5);
         assert_eq!(lazy_config.retry_delay, Duration::from_millis(200));
         assert_eq!(lazy_config.backoff_multiplier, 1.5);
@@ -358,7 +360,7 @@ mod tests {
         assert_eq!(lazy_config.connect_timeout, Duration::from_secs(10));
         assert_eq!(lazy_config.wait_timeout, Duration::from_secs(20));
     }
-    
+
     #[test]
     fn test_validation_errors() {
         let toml = r#"
@@ -366,13 +368,13 @@ mod tests {
             type = "relay"
             # Missing endpoint
         "#;
-        
+
         let config = ServicesConfig::from_toml(toml).unwrap();
         let result = config.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("requires endpoint"));
     }
-    
+
     #[test]
     fn test_endpoint_validation() {
         let mut config = ServiceConfig {
@@ -389,16 +391,16 @@ mod tests {
             precision_context: None,
             metadata: None,
         };
-        
+
         let result = config.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Unsupported endpoint type"));
-        
+
         // Valid endpoint
         config.endpoint = Some("tcp://localhost:8080".to_string());
         assert!(config.validate().is_ok());
     }
-    
+
     #[test]
     fn test_composite_target_validation() {
         let toml = r#"
@@ -407,7 +409,7 @@ mod tests {
             pattern = "fanout"
             targets = ["nonexistent_service"]
         "#;
-        
+
         let config = ServicesConfig::from_toml(toml).unwrap();
         let result = config.validate();
         assert!(result.is_err());

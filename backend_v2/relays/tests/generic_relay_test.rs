@@ -1,9 +1,9 @@
 //! Test to validate generic relay infrastructure compiles and works
 
+use codec::{TLVMessageBuilder, TLVType};
 use alphapulse_relays::common::{Relay, RelayEngineError, RelayLogic};
 use alphapulse_types::protocol::{MessageHeader, RelayDomain, SourceType};
 use alphapulse_types::{InstrumentId, TradeTLV, VenueId};
-use alphapulse_codec::{TLVMessageBuilder, TLVType};
 
 /// Test implementation of MarketDataRelay logic
 struct MarketDataLogic;

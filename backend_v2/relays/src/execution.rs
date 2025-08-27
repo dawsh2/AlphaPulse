@@ -87,7 +87,7 @@ impl RelayLogic for ExecutionLogic {
     fn should_forward(&self, header: &MessageHeader) -> bool {
         // Use default domain filtering for now
         header.relay_domain == self.domain() as u8
-        
+
         // Future security extensions could include:
         // - Validate execution message signatures
         // - Check execution permissions
@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn test_execution_logic() {
         let logic = ExecutionLogic;
-        
+
         assert_eq!(logic.domain(), RelayDomain::Execution);
         assert_eq!(logic.socket_path(), "/tmp/alphapulse/execution.sock");
     }
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn test_message_filtering() {
         let logic = ExecutionLogic;
-        
+
         // Create test header for execution domain
         let header = MessageHeader {
             magic: alphapulse_types::protocol::MESSAGE_MAGIC,

@@ -250,16 +250,11 @@ pub use input::collectors::{
 
 // Re-export protocol types for convenience
 pub use alphapulse_types::{
-    InstrumentId,
-    InvalidationReason,
-    QuoteTLV,
-    TLVType,
-    TradeTLV,
-    VenueId,
+    InstrumentId, InvalidationReason, QuoteTLV, TLVType, TradeTLV, VenueId,
 };
 
 // Re-export codec functionality
-pub use alphapulse_codec::TLVMessageBuilder;
+pub use codec::TLVMessageBuilder;
 
 /// Architecture diagram showing adapter service data flow and component relationships
 #[cfg_attr(doc, aquamarine::aquamarine)]

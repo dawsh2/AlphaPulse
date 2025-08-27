@@ -241,11 +241,11 @@ impl TransportRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hybrid::config::RetryConfig;
     use crate::hybrid::config::{BridgeConfig, ChannelConfig, TransportConfig, TransportMode};
     use crate::{Criticality, Reliability};
     use std::collections::HashMap;
     use std::time::Duration;
-    use crate::hybrid::config::RetryConfig;
 
     fn create_test_config() -> TransportConfig {
         let mut channels = HashMap::new();

@@ -19,13 +19,11 @@
 //! - **Throughput**: Designed for >1M msg/s TLV construction
 //! - **Memory**: <50MB steady state with multiple symbol subscriptions
 
-use alphapulse_types::{
-    tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType,
-    TradeTLV, VenueId,
-};
-use alphapulse_codec::{parse_header, parse_tlv_extensions};
+use codec::{parse_header, parse_tlv_extensions};
 use alphapulse_network::time::init_timestamp_system;
-use alphapulse_codec::{parse_header, parse_tlv_extensions};
+use alphapulse_types::{
+    tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
+};
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};

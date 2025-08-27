@@ -63,7 +63,7 @@ use alphapulse_types::{
     TraceEvent,
     TraceEventType,
 };
-use alphapulse_codec::parse_header_without_checksum;
+use codec::parse_header_without_checksum;
 
 // Import from shared types library for financial calculations
 use alphapulse_types::common::errors::FixedPointError;

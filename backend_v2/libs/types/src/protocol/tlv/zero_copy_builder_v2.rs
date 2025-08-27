@@ -4,8 +4,8 @@
 //! allocations, achieving true zero-copy message construction.
 
 use super::super::{MessageHeader, RelayDomain, SourceType};
-use super::TLVType;
 use super::fast_timestamp_ns;
+use super::TLVType;
 use std::io;
 use std::sync::atomic::{AtomicU64, Ordering};
 use zerocopy::AsBytes;

@@ -1,11 +1,11 @@
 //! Transport adapter for integrating relays with infra/transport system
 
 use crate::{ConsumerId, RelayError, RelayResult, Transport as RelayTransport};
-use alphapulse_topology::TopologyConfig;
 use alphapulse_network::{
     ChannelConfig, NetworkTransport, Priority, TopologyIntegration, TransportConfig,
     TransportError, TransportMode, TransportStatistics,
 };
+use alphapulse_topology::TopologyConfig;
 use async_trait::async_trait;
 use bytes::Bytes;
 use std::collections::HashMap;
@@ -112,10 +112,9 @@ impl InfraTransportAdapter {
             cleanup_on_drop: true,
         };
 
-        let mut transport =
-            alphapulse_network::UnixSocketTransport::new(config).map_err(|e| {
-                RelayError::Transport(format!("Failed to create Unix socket transport: {}", e))
-            })?;
+        let mut transport = alphapulse_network::UnixSocketTransport::new(config).map_err(|e| {
+            RelayError::Transport(format!("Failed to create Unix socket transport: {}", e))
+        })?;
 
         transport
             .bind()

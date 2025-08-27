@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "libs/alphapulse_codec",
+    "libs/codec",
     "libs/amm",
     "libs/dex",
     "libs/health_check",
@@ -20,10 +20,12 @@ members = [
     "relays/signal_relay",
     "services_v2/adapters",
     "services_v2/adapters/gas_price_collector",
+    "services_v2/adapters/polygon_adapter",
     "services_v2/dashboard/websocket_server",
     "services_v2/observability/trace_collector",
     "services_v2/strategies",
     # Tests
+    "tests/architecture_validation",
     "tests/e2e",
 ]
 
@@ -36,7 +38,7 @@ authors = ["AlphaPulse Team"]
 
 [workspace.dependencies]
 alphapulse-amm = { path = "libs/amm" }
-alphapulse-codec = { path = "libs/alphapulse_codec" }
+codec = { path = "libs/codec" }
 alphapulse-dex = { path = "libs/dex" }
 alphapulse-health-check = { path = "libs/health_check" }  # Package name fixed to use hyphens
 alphapulse-message-sink = { path = "libs/message_sink" }

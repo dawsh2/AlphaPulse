@@ -123,11 +123,13 @@
 //! - Consider exact topic subscriptions for high-frequency signals
 
 use crate::{ConsumerId, RelayError, RelayResult, TopicConfig, TopicExtractionStrategy};
-use alphapulse_codec::{parse_tlv_extensions, TLVType, InstrumentId, VenueId};
-use alphapulse_types::protocol::{InstrumentId, MessageHeader, SourceType, VenueId};
+use codec::{parse_tlv_extensions, TLVType, InstrumentId};
+use alphapulse_types::protocol::{MessageHeader, SourceType};
+use alphapulse_types::VenueId;
 use dashmap::DashMap;
 use std::collections::HashSet;
 use tracing::{debug, info, warn};
+use zerocopy::FromBytes;
 
 /// Registry for topic-based message routing
 pub struct TopicRegistry {
@@ -292,10 +294,10 @@ impl TopicRegistry {
         // Look for TLVs that might contain instrument IDs
         for tlv in tlvs {
             let (tlv_type, tlv_data) = match tlv {
-                alphapulse_codec::TLVExtensionEnum::Standard(std_tlv) => {
+                codec::TLVExtensionEnum::Standard(std_tlv) => {
                     (std_tlv.header.tlv_type, std_tlv.payload)
                 }
-                alphapulse_codec::TLVExtensionEnum::Extended(ext_tlv) => {
+                codec::TLVExtensionEnum::Extended(ext_tlv) => {
                     (ext_tlv.header.tlv_type, ext_tlv.payload)
                 }
             };
@@ -309,15 +311,18 @@ impl TopicRegistry {
                     if tlv_data.len() >= InstrumentId::SIZE {
                         // Extract the InstrumentId bytes
                         let instrument_bytes = &tlv_data[0..InstrumentId::SIZE];
-                        
+
                         // Deserialize using zerocopy
-                        let instrument_id = InstrumentId::read_from(instrument_bytes)
-                            .ok_or_else(|| RelayError::Validation("Failed to parse InstrumentId".to_string()))?;
-                        
+                        let instrument_id =
+                            InstrumentId::read_from(instrument_bytes).ok_or_else(|| {
+                                RelayError::Validation("Failed to parse InstrumentId".to_string())
+                            })?;
+
                         // Get the venue from the InstrumentId
-                        let venue_id = instrument_id.venue()
-                            .map_err(|e| RelayError::Validation(format!("Invalid venue: {:?}", e)))?;
-                        
+                        let venue_id = instrument_id.venue().map_err(|e| {
+                            RelayError::Validation(format!("Invalid venue: {:?}", e))
+                        })?;
+
                         // Convert VenueId to string for topic routing
                         let venue = self.venue_id_to_string(venue_id);
                         return Ok(venue);
@@ -334,11 +339,11 @@ impl TopicRegistry {
 
     /// Convert VenueId to string for topic routing
     ///
-    /// Uses the proper VenueId enum from alphapulse_codec to get
+    /// Uses the proper VenueId enum from codec to get
     /// accurate venue names instead of heuristic decoding.
     ///
     /// # Arguments
-    /// * `venue_id` - VenueId enum from alphapulse_codec
+    /// * `venue_id` - VenueId enum from codec
     ///
     /// # Returns
     /// * String representation of the venue for topic routing
@@ -349,18 +354,18 @@ impl TopicRegistry {
             VenueId::NYSE => "nyse",
             VenueId::NASDAQ => "nasdaq",
             VenueId::LSE => "lse",
-            
+
             // Crypto CEX
             VenueId::Binance => "binance",
             VenueId::Kraken => "kraken",
             VenueId::Coinbase => "coinbase",
-            
+
             // Blockchain Networks
             VenueId::Ethereum => "ethereum",
             VenueId::Polygon => "polygon",
             VenueId::BinanceSmartChain => "bsc",
             VenueId::Arbitrum => "arbitrum",
-            
+
             // DeFi Protocols
             VenueId::UniswapV2 => "uniswap_v2",
             VenueId::UniswapV3 => "uniswap_v3",
@@ -368,6 +373,9 @@ impl TopicRegistry {
             VenueId::Curve => "curve",
             VenueId::QuickSwap => "quickswap",
             VenueId::PancakeSwap => "pancakeswap",
+            
+            // Catch-all for any other venues
+            _ => "unknown",
         }
         .to_string()
     }
@@ -381,10 +389,10 @@ impl TopicRegistry {
         // Look for the specific TLV type
         for tlv in tlvs {
             let (tlv_type, tlv_data) = match tlv {
-                alphapulse_codec::TLVExtensionEnum::Standard(std_tlv) => {
+                codec::TLVExtensionEnum::Standard(std_tlv) => {
                     (std_tlv.header.tlv_type, std_tlv.payload)
                 }
-                alphapulse_codec::TLVExtensionEnum::Extended(ext_tlv) => {
+                codec::TLVExtensionEnum::Extended(ext_tlv) => {
                     (ext_tlv.header.tlv_type, ext_tlv.payload)
                 }
             };

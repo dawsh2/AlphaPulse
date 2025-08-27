@@ -11,7 +11,10 @@
 //! - **Resource Limits**: Configurable min/max pool sizes with idle timeouts
 //! - **Connection Reuse**: RAII guards ensure connections are returned to pool
 
-use crate::{BatchResult, ConnectionHealth, ExtendedSinkMetadata, LazyMessageSink, LazyConfig, Message, MessageSink, SinkError, SinkMetadata};
+use crate::{
+    BatchResult, ConnectionHealth, ExtendedSinkMetadata, LazyConfig, LazyMessageSink, Message,
+    MessageSink, SinkError, SinkMetadata,
+};
 use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -27,22 +30,22 @@ use tokio::time::interval;
 pub struct PoolConfig {
     /// Maximum connections in pool
     pub max_size: usize,
-    
+
     /// Minimum idle connections to maintain
     pub min_idle: usize,
-    
+
     /// Connection idle timeout before cleanup
     pub idle_timeout: Duration,
-    
+
     /// How often to run pool maintenance
     pub maintenance_interval: Duration,
-    
+
     /// Lazy connection configuration for each connection
     pub lazy_config: LazyConfig,
-    
+
     /// Enable connection health monitoring
     pub health_monitoring: bool,
-    
+
     /// Timeout for acquiring connection from pool
     pub acquire_timeout: Duration,
 }
@@ -141,7 +144,10 @@ impl<S: MessageSink> PooledConnection<S> {
     }
 
     async fn is_healthy(&self) -> bool {
-        matches!(self.sink.connection_health(), ConnectionHealth::Healthy | ConnectionHealth::Degraded)
+        matches!(
+            self.sink.connection_health(),
+            ConnectionHealth::Healthy | ConnectionHealth::Degraded
+        )
     }
 
     fn checkout(&mut self) {
@@ -208,25 +214,29 @@ impl<S: MessageSink> std::ops::DerefMut for PooledSinkGuard<S> {
 pub struct LazyConnectionPool<S: MessageSink> {
     /// Available connections
     pool: Arc<RwLock<VecDeque<PooledConnection<S>>>>,
-    
+
     /// Factory for creating new connections
-    factory: Arc<dyn Fn() -> std::pin::Pin<Box<dyn Future<Output = Result<S, SinkError>> + Send>> + Send + Sync>,
-    
+    factory: Arc<
+        dyn Fn() -> std::pin::Pin<Box<dyn Future<Output = Result<S, SinkError>> + Send>>
+            + Send
+            + Sync,
+    >,
+
     /// Pool configuration
     config: PoolConfig,
-    
+
     /// Current pool size (including checked out connections)
     current_size: AtomicUsize,
-    
+
     /// Number of connections currently checked out
     active_count: AtomicUsize,
-    
+
     /// Statistics for monitoring
     stats: Arc<RwLock<PoolStats>>,
-    
+
     /// Pool name for debugging
     name: String,
-    
+
     /// Shutdown flag
     shutdown: Arc<RwLock<bool>>,
 }
@@ -299,40 +309,53 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
     /// Acquire a connection from the pool
     pub async fn acquire(self: &Arc<Self>) -> Result<PooledSinkGuard<S>, SinkError> {
         let start_time = std::time::Instant::now();
-        
+
         // Try to get existing healthy connection first
         if let Some(mut connection) = self.try_get_existing_connection().await {
             connection.checkout();
             let sink = connection.sink;
             self.active_count.fetch_add(1, Ordering::Relaxed);
-            
+
             let acquire_time = start_time.elapsed();
             self.update_acquire_stats(acquire_time, true).await; // Cache hit
-            
+
             return Ok(PooledSinkGuard::new(sink, self.clone()));
         }
-        
+
         // Try to create new connection if under limit
         if self.current_size.load(Ordering::Relaxed) < self.config.max_size {
             match self.create_connection().await {
                 Ok(sink) => {
                     self.active_count.fetch_add(1, Ordering::Relaxed);
-                    
+
                     let acquire_time = start_time.elapsed();
                     self.update_acquire_stats(acquire_time, false).await; // Cache miss
-                    
+
                     return Ok(PooledSinkGuard::new(sink, self.clone()));
-                },
+                }
                 Err(e) => {
-                    tracing::warn!("Failed to create new connection in pool '{}': {}", self.name, e);
+                    tracing::warn!(
+                        "Failed to create new connection in pool '{}': {}",
+                        self.name,
+                        e
+                    );
                     // Fall through to wait for available connection
                 }
             }
         }
-        
+
         // Wait for connection to become available
-        tokio::time::timeout(self.config.acquire_timeout, self.wait_for_available_connection()).await
-            .map_err(|_| SinkError::connection_failed(format!("Timeout acquiring connection from pool '{}'", self.name)))?
+        tokio::time::timeout(
+            self.config.acquire_timeout,
+            self.wait_for_available_connection(),
+        )
+        .await
+        .map_err(|_| {
+            SinkError::connection_failed(format!(
+                "Timeout acquiring connection from pool '{}'",
+                self.name
+            ))
+        })?
     }
 
     /// Get current pool statistics
@@ -352,7 +375,7 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
         // Close all connections
         let mut pool = self.pool.write().await;
         let mut errors = Vec::new();
-        
+
         while let Some(connection) = pool.pop_front() {
             if let Err(e) = connection.sink.disconnect().await {
                 errors.push(e);
@@ -366,14 +389,17 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
         if errors.is_empty() {
             Ok(())
         } else {
-            Err(SinkError::connection_failed(format!("Errors during shutdown: {:?}", errors)))
+            Err(SinkError::connection_failed(format!(
+                "Errors during shutdown: {:?}",
+                errors
+            )))
         }
     }
 
     /// Try to get an existing healthy connection from the pool
     async fn try_get_existing_connection(&self) -> Option<PooledConnection<S>> {
         let mut pool = self.pool.write().await;
-        
+
         // Look for healthy connections
         while let Some(mut connection) = pool.pop_front() {
             if self.config.health_monitoring && !connection.is_healthy().await {
@@ -390,10 +416,10 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
                 pool.push_back(connection);
                 continue;
             }
-            
+
             return Some(connection);
         }
-        
+
         None
     }
 
@@ -401,37 +427,43 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
     async fn create_connection(&self) -> Result<LazyMessageSink<S>, SinkError> {
         let inner_factory = self.factory.clone();
         let lazy_config = self.config.lazy_config.clone();
-        let name = format!("{}-connection-{}", self.name, self.current_size.load(Ordering::Relaxed));
-        
+        let name = format!(
+            "{}-connection-{}",
+            self.name,
+            self.current_size.load(Ordering::Relaxed)
+        );
+
         let factory = move || {
             let inner = inner_factory.clone();
             async move { inner().await }
         };
-        
+
         let lazy_sink = LazyMessageSink::with_name(factory, lazy_config, name);
-        
+
         self.current_size.fetch_add(1, Ordering::Relaxed);
-        
+
         let mut stats = self.stats.write().await;
         stats.total_created += 1;
-        
+
         Ok(lazy_sink)
     }
 
     /// Wait for a connection to become available (internal helper)
-    async fn wait_for_available_connection(self: &Arc<Self>) -> Result<PooledSinkGuard<S>, SinkError> {
+    async fn wait_for_available_connection(
+        self: &Arc<Self>,
+    ) -> Result<PooledSinkGuard<S>, SinkError> {
         let mut interval = tokio::time::interval(Duration::from_millis(100));
-        
+
         loop {
             interval.tick().await;
-            
+
             if let Some(mut connection) = self.try_get_existing_connection().await {
                 connection.checkout();
                 let sink = connection.sink;
                 self.active_count.fetch_add(1, Ordering::Relaxed);
                 return Ok(PooledSinkGuard::new(sink, self.clone()));
             }
-            
+
             // Try to create new connection if possible
             if self.current_size.load(Ordering::Relaxed) < self.config.max_size {
                 match self.create_connection().await {
@@ -457,17 +489,17 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
 
         let mut connection = PooledConnection::new(sink);
         connection.checkin();
-        
+
         let mut pool = self.pool.write().await;
         pool.push_back(connection);
-        
+
         self.active_count.fetch_sub(1, Ordering::Relaxed);
     }
 
     /// Update acquire statistics with bounded memory usage
     async fn update_acquire_stats(&self, acquire_time: Duration, was_hit: bool) {
         let mut stats = self.stats.write().await;
-        
+
         // Update average acquire time (exponential moving average for bounded memory)
         let acquire_ns = acquire_time.as_nanos() as u64;
         stats.avg_acquire_time_ns = if stats.avg_acquire_time_ns == 0 {
@@ -479,7 +511,7 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
             let new_sample = acquire_ns as f64;
             (old_avg * (1.0 - alpha) + new_sample * alpha) as u64
         };
-        
+
         // Update hit rate with exponential decay to prevent unbounded accumulation
         let alpha = 0.1f64; // Weight for new samples
         if was_hit {
@@ -487,7 +519,7 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
         } else {
             stats.hit_rate = stats.hit_rate * (1.0 - alpha);
         }
-        
+
         // Bound hit rate to [0.0, 1.0] to prevent numerical drift
         stats.hit_rate = stats.hit_rate.clamp(0.0, 1.0);
     }
@@ -495,10 +527,10 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
     /// Background maintenance loop
     async fn maintenance_loop(&self) {
         let mut interval = interval(self.config.maintenance_interval);
-        
+
         while !*self.shutdown.read().await {
             interval.tick().await;
-            
+
             if let Err(e) = self.perform_maintenance().await {
                 tracing::warn!("Pool '{}' maintenance error: {}", self.name, e);
             }
@@ -510,7 +542,7 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
         let mut pool = self.pool.write().await;
         let mut to_remove = Vec::new();
         let mut healthy_count = 0;
-        
+
         // Check connections for removal
         for (index, connection) in pool.iter_mut().enumerate() {
             if connection.should_remove(self.config.idle_timeout, 3) {
@@ -524,7 +556,7 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
                 }
             }
         }
-        
+
         // Remove unhealthy/expired connections
         for &index in to_remove.iter().rev() {
             if let Some(connection) = pool.remove(index) {
@@ -532,12 +564,12 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
                 tokio::spawn(async move {
                     let _ = connection.sink.disconnect().await;
                 });
-                
+
                 let mut stats = self.stats.write().await;
                 stats.total_destroyed += 1;
             }
         }
-        
+
         // Ensure minimum idle connections
         let needed = self.config.min_idle.saturating_sub(healthy_count);
         for _ in 0..needed {
@@ -554,12 +586,15 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
                 }
             }
         }
-        
+
         // Perform memory cleanup for bounded statistics
         // Reset counters periodically to prevent overflow
         let mut stats = self.stats.write().await;
         if stats.total_created > 1_000_000 {
-            tracing::debug!("Pool '{}' resetting statistics to prevent overflow", self.name);
+            tracing::debug!(
+                "Pool '{}' resetting statistics to prevent overflow",
+                self.name
+            );
             // Keep ratios, reset absolute counters
             let hit_rate = stats.hit_rate;
             let avg_acquire_time = stats.avg_acquire_time_ns;
@@ -567,7 +602,7 @@ impl<S: MessageSink + 'static> LazyConnectionPool<S> {
             stats.hit_rate = hit_rate;
             stats.avg_acquire_time_ns = avg_acquire_time;
         }
-        
+
         Ok(())
     }
 }
@@ -584,7 +619,10 @@ impl<S: MessageSink + 'static> MessageSink for Arc<LazyConnectionPool<S>> {
         guard.send_batch(messages).await
     }
 
-    async fn send_batch_prioritized(&self, messages: Vec<Message>) -> Result<BatchResult, SinkError> {
+    async fn send_batch_prioritized(
+        &self,
+        messages: Vec<Message>,
+    ) -> Result<BatchResult, SinkError> {
         let guard = self.acquire().await?;
         guard.send_batch_prioritized(messages).await
     }
@@ -636,7 +674,7 @@ impl<S: MessageSink + 'static> MessageSink for Arc<LazyConnectionPool<S>> {
     fn connection_health(&self) -> ConnectionHealth {
         let size = self.current_size.load(Ordering::Relaxed);
         let active = self.active_count.load(Ordering::Relaxed);
-        
+
         if size == 0 {
             ConnectionHealth::Unhealthy
         } else if size < self.config.min_idle {

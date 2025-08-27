@@ -48,7 +48,7 @@ alphapulse-topology = { path = "../network/topology" }
 alphapulse-network = { path = "../network" }
 # Core protocol
 alphapulse-types = { path = "../libs/types" }
-alphapulse_codec = { path = "../libs/alphapulse_codec" }
+codec = { path = "../libs/codec" }
 
 # Error handling - always required
 anyhow = "1.0"

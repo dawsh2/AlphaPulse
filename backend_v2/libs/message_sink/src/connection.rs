@@ -61,7 +61,7 @@ impl ConnectionPool {
     /// Attempt to acquire a connection slot
     pub fn try_acquire_connection(&self) -> Result<ConnectionGuard, SinkError> {
         let current = self.active_connections.load(Ordering::Relaxed);
-        
+
         if current >= self.max_connections {
             return Err(SinkError::connection_failed(format!(
                 "Connection pool exhausted: {}/{} connections active for node {}",
@@ -71,21 +71,21 @@ impl ConnectionPool {
 
         // Optimistically increment
         let new_count = self.active_connections.fetch_add(1, Ordering::Relaxed) + 1;
-        
+
         if new_count > self.max_connections {
             // Rollback and fail
             self.active_connections.fetch_sub(1, Ordering::Relaxed);
             return Err(SinkError::connection_failed(format!(
                 "Connection pool exhausted: {}/{} connections active for node {}",
-                new_count - 1, self.max_connections, self.target_node
+                new_count - 1,
+                self.max_connections,
+                self.target_node
             )));
         }
 
         *self.last_attempt.lock().unwrap() = Some(SystemTime::now());
-        
-        Ok(ConnectionGuard {
-            pool: self.clone(),
-        })
+
+        Ok(ConnectionGuard { pool: self.clone() })
     }
 
     /// Check if additional connections are needed
@@ -177,22 +177,22 @@ impl ConnectionPoolStats {
 pub trait ConnectionManager: Send + Sync {
     /// Get or create a connection pool for the target
     fn get_pool(&self, target: &str) -> Result<Arc<ConnectionPool>, SinkError>;
-    
+
     /// Create a new connection pool
     fn create_pool(
-        &self, 
-        target: &str, 
+        &self,
+        target: &str,
         max_connections: usize,
         preferred_connections: usize,
-        supports_multiplexing: bool
+        supports_multiplexing: bool,
     ) -> Result<Arc<ConnectionPool>, SinkError>;
-    
+
     /// Remove a connection pool
     fn remove_pool(&self, target: &str) -> Result<(), SinkError>;
-    
+
     /// Get statistics for all pools
     fn pool_statistics(&self) -> Vec<ConnectionPoolStats>;
-    
+
     /// Optimize connection pools based on usage patterns
     fn optimize_pools(&self) -> Result<(), SinkError>;
 }
@@ -204,7 +204,7 @@ mod tests {
     #[test]
     fn test_connection_pool_basic() {
         let pool = ConnectionPool::new("test-node", 5, 3, false);
-        
+
         assert_eq!(pool.active_connections(), 0);
         assert_eq!(pool.max_connections(), 5);
         assert_eq!(pool.preferred_connections(), 3);
@@ -216,16 +216,16 @@ mod tests {
     #[test]
     fn test_connection_acquisition() {
         let pool = ConnectionPool::new("test-node", 2, 1, false);
-        
+
         // Should acquire successfully
         let _guard1 = pool.try_acquire_connection().unwrap();
         assert_eq!(pool.active_connections(), 1);
         assert!(pool.is_optimal());
-        
+
         // Should acquire second connection
         let _guard2 = pool.try_acquire_connection().unwrap();
         assert_eq!(pool.active_connections(), 2);
-        
+
         // Should fail to acquire third connection
         let result = pool.try_acquire_connection();
         assert!(result.is_err());
@@ -235,12 +235,12 @@ mod tests {
     #[test]
     fn test_connection_release() {
         let pool = ConnectionPool::new("test-node", 5, 3, false);
-        
+
         {
             let _guard = pool.try_acquire_connection().unwrap();
             assert_eq!(pool.active_connections(), 1);
         } // Guard drops here
-        
+
         assert_eq!(pool.active_connections(), 0);
     }
 
@@ -249,7 +249,7 @@ mod tests {
         let pool = ConnectionPool::new("test-node", 10, 5, true);
         let _guard1 = pool.try_acquire_connection().unwrap();
         let _guard2 = pool.try_acquire_connection().unwrap();
-        
+
         let stats = pool.pool_stats();
         assert_eq!(stats.target_node, "test-node");
         assert_eq!(stats.active_connections, 2);

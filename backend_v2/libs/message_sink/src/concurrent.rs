@@ -3,7 +3,7 @@
 //! Enables parallel message processing while maintaining ordering guarantees
 //! where needed, optimizing for AlphaPulse's >1M msg/s throughput requirements.
 
-use crate::{BatchResult, Message, MessageSink, SinkError, MessagePriority};
+use crate::{BatchResult, Message, MessagePriority, MessageSink, SinkError};
 use async_trait::async_trait;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -95,7 +95,7 @@ impl<T: MessageSink + 'static> ConcurrentBatchSink<T> {
         let inner = Arc::new(inner);
         let semaphore = Arc::new(Semaphore::new(config.max_concurrency));
         let (sender, receiver) = mpsc::channel(config.buffer_size);
-        
+
         let processor_handle = tokio::spawn(Self::batch_processor(
             Arc::clone(&inner),
             receiver,
@@ -122,7 +122,7 @@ impl<T: MessageSink + 'static> ConcurrentBatchSink<T> {
         let mut pending_jobs = Vec::new();
         // Limit pending jobs to prevent unbounded memory growth
         let max_pending = config.batch_size * 10; // Allow up to 10x batch size to accumulate
-        
+
         while let Some(job) = receiver.recv().await {
             // Check if we're at capacity before adding
             if pending_jobs.len() >= max_pending {
@@ -130,9 +130,9 @@ impl<T: MessageSink + 'static> ConcurrentBatchSink<T> {
                 let jobs_to_process = pending_jobs.drain(..).collect::<Vec<_>>();
                 Self::process_jobs(sink.clone(), jobs_to_process, semaphore.clone(), &config).await;
             }
-            
+
             pending_jobs.push(job);
-            
+
             // Process when we have enough jobs or channel is empty
             if pending_jobs.len() >= config.batch_size || receiver.is_empty() {
                 let jobs_to_process = pending_jobs.drain(..).collect::<Vec<_>>();
@@ -140,7 +140,7 @@ impl<T: MessageSink + 'static> ConcurrentBatchSink<T> {
             }
         }
     }
-    
+
     /// Process a batch of jobs either sequentially or concurrently
     async fn process_jobs(
         sink: Arc<T>,
@@ -155,31 +155,28 @@ impl<T: MessageSink + 'static> ConcurrentBatchSink<T> {
                     Arc::clone(&sink),
                     job.messages,
                     config.send_timeout_ms,
-                ).await;
+                )
+                .await;
                 let _ = job.result_sender.send(result);
             }
         } else {
             // Process concurrently for maximum throughput
             let mut handles = Vec::new();
-            
+
             for job in jobs_to_process {
                 let sink = Arc::clone(&sink);
                 let permit = Arc::clone(&semaphore).acquire_owned().await.unwrap();
                 let timeout_ms = config.send_timeout_ms;
-                
+
                 let handle = tokio::spawn(async move {
                     let _permit = permit; // Hold permit for duration
-                    let result = Self::process_single_batch(
-                        sink,
-                        job.messages,
-                        timeout_ms,
-                    ).await;
+                    let result = Self::process_single_batch(sink, job.messages, timeout_ms).await;
                     let _ = job.result_sender.send(result);
                 });
-                
+
                 handles.push(handle);
             }
-            
+
             // Wait for all concurrent operations
             for handle in handles {
                 let _ = handle.await;
@@ -194,7 +191,7 @@ impl<T: MessageSink + 'static> ConcurrentBatchSink<T> {
         timeout_ms: u64,
     ) -> Result<BatchResult, SinkError> {
         let timeout = tokio::time::Duration::from_millis(timeout_ms);
-        
+
         match tokio::time::timeout(timeout, sink.send_batch(messages)).await {
             Ok(result) => result,
             Err(_) => Err(SinkError::timeout(timeout_ms / 1000)),
@@ -202,9 +199,12 @@ impl<T: MessageSink + 'static> ConcurrentBatchSink<T> {
     }
 
     /// Split messages by priority for concurrent processing
-    pub async fn send_batch_by_priority(&self, messages: Vec<Message>) -> Result<BatchResult, SinkError> {
+    pub async fn send_batch_by_priority(
+        &self,
+        messages: Vec<Message>,
+    ) -> Result<BatchResult, SinkError> {
         let mut priority_groups = std::collections::HashMap::new();
-        
+
         // Group messages by priority
         for message in messages {
             priority_groups
@@ -212,40 +212,41 @@ impl<T: MessageSink + 'static> ConcurrentBatchSink<T> {
                 .or_insert_with(Vec::new)
                 .push(message);
         }
-        
+
         // Process each priority level concurrently
         let mut handles = Vec::new();
         let mut total_result = BatchResult::new(0);
-        
+
         for (priority, msgs) in priority_groups {
             let batch_size = msgs.len();
             total_result.total += batch_size;
-            
+
             let (tx, rx) = tokio::sync::oneshot::channel();
             let job = BatchJob {
                 messages: msgs,
                 result_sender: tx,
             };
-            
+
             // Higher priority gets processed first
             if priority == MessagePriority::Critical {
                 // Process immediately without queuing
                 let sink = Arc::clone(&self.inner);
                 let timeout_ms = self.config.send_timeout_ms;
-                
+
                 let handle = tokio::spawn(async move {
                     Self::process_single_batch(sink, job.messages, timeout_ms).await
                 });
-                
+
                 handles.push((rx, handle));
             } else {
-                self.sender.send(job).await.map_err(|_| {
-                    SinkError::send_failed("Concurrent processor channel closed")
-                })?;
+                self.sender
+                    .send(job)
+                    .await
+                    .map_err(|_| SinkError::send_failed("Concurrent processor channel closed"))?;
                 handles.push((rx, tokio::spawn(async { Ok(BatchResult::new(0)) })));
             }
         }
-        
+
         // Collect results
         for (rx, _) in handles {
             match rx.await {
@@ -261,7 +262,7 @@ impl<T: MessageSink + 'static> ConcurrentBatchSink<T> {
                 }
             }
         }
-        
+
         Ok(total_result)
     }
 }
@@ -279,11 +280,12 @@ impl<T: MessageSink + 'static> MessageSink for ConcurrentBatchSink<T> {
                 messages: vec![message],
                 result_sender: tx,
             };
-            
-            self.sender.send(job).await.map_err(|_| {
-                SinkError::send_failed("Concurrent processor channel closed")
-            })?;
-            
+
+            self.sender
+                .send(job)
+                .await
+                .map_err(|_| SinkError::send_failed("Concurrent processor channel closed"))?;
+
             match rx.await {
                 Ok(Ok(result)) if result.is_complete_success() => Ok(()),
                 Ok(Ok(result)) => {
@@ -310,18 +312,22 @@ impl<T: MessageSink + 'static> MessageSink for ConcurrentBatchSink<T> {
             messages,
             result_sender: tx,
         };
-        
-        self.sender.send(job).await.map_err(|_| {
-            SinkError::send_failed("Concurrent processor channel closed")
-        })?;
-        
+
+        self.sender
+            .send(job)
+            .await
+            .map_err(|_| SinkError::send_failed("Concurrent processor channel closed"))?;
+
         match rx.await {
             Ok(result) => result,
             Err(_) => Err(SinkError::send_failed("Result channel closed")),
         }
     }
 
-    async fn send_batch_prioritized(&self, messages: Vec<Message>) -> Result<BatchResult, SinkError> {
+    async fn send_batch_prioritized(
+        &self,
+        messages: Vec<Message>,
+    ) -> Result<BatchResult, SinkError> {
         self.send_batch_by_priority(messages).await
     }
 
@@ -339,7 +345,10 @@ impl<T: MessageSink + 'static> MessageSink for ConcurrentBatchSink<T> {
 
     fn metadata(&self) -> crate::SinkMetadata {
         let mut metadata = self.inner.metadata();
-        metadata.name = format!("{} (Concurrent x{})", metadata.name, self.config.max_concurrency);
+        metadata.name = format!(
+            "{} (Concurrent x{})",
+            metadata.name, self.config.max_concurrency
+        );
         metadata
     }
 }
@@ -370,10 +379,10 @@ impl<T: MessageSink + 'static> PipelinedSink<T> {
     pub async fn process_pipeline(&self, messages: Vec<Message>) -> Result<BatchResult, SinkError> {
         let current_messages = messages;
         let mut total_result = BatchResult::new(current_messages.len());
-        
+
         for (stage_idx, stage) in self.stages.iter().enumerate() {
             let stage_result = stage.send_batch(current_messages.clone()).await?;
-            
+
             if stage_idx == self.stages.len() - 1 {
                 // Final stage result is the overall result
                 total_result = stage_result;
@@ -381,10 +390,10 @@ impl<T: MessageSink + 'static> PipelinedSink<T> {
                 // Stop pipeline if any stage fails
                 return Ok(stage_result);
             }
-            
+
             // Could transform messages between stages here if needed
         }
-        
+
         Ok(total_result)
     }
 }
@@ -394,89 +403,95 @@ mod tests {
     use super::*;
     use crate::test_utils::CollectorSink;
     use crate::MessageMetadata;
-    
+
     #[tokio::test]
     async fn test_concurrent_batch_basic() {
         let sink = CollectorSink::new();
         sink.connect().await.unwrap();
-        
+
         let config = ConcurrentConfig {
             max_concurrency: 2,
             batch_size: 2,
             ..Default::default()
         };
-        
+
         let concurrent_sink = ConcurrentBatchSink::new(sink, config);
-        
+
         let msg = Message::new_unchecked(b"test".to_vec());
         concurrent_sink.send(msg).await.unwrap();
-        
+
         // Give processor time to handle
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        
+
         assert_eq!(concurrent_sink.inner.message_count(), 1);
     }
-    
+
     #[tokio::test]
     async fn test_concurrent_batch_multiple() {
         let sink = CollectorSink::new();
         sink.connect().await.unwrap();
-        
+
         let config = ConcurrentConfig::high_throughput();
         let concurrent_sink = ConcurrentBatchSink::new(sink, config);
-        
+
         let messages: Vec<_> = (0..100)
             .map(|i| Message::new_unchecked(format!("msg{}", i).into_bytes()))
             .collect();
-        
+
         let result = concurrent_sink.send_batch(messages).await.unwrap();
         assert!(result.is_complete_success());
         assert_eq!(result.succeeded, 100);
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
         assert_eq!(concurrent_sink.inner.message_count(), 100);
     }
-    
+
     #[tokio::test]
     async fn test_priority_processing() {
         let sink = CollectorSink::new();
         sink.connect().await.unwrap();
-        
+
         let concurrent_sink = ConcurrentBatchSink::new(sink, ConcurrentConfig::default());
-        
+
         let messages = vec![
             Message::with_metadata(
                 b"low".to_vec(),
-                MessageMetadata::new().with_priority(MessagePriority::Low)
-            ).unwrap(),
+                MessageMetadata::new().with_priority(MessagePriority::Low),
+            )
+            .unwrap(),
             Message::with_metadata(
                 b"critical".to_vec(),
-                MessageMetadata::new().with_priority(MessagePriority::Critical)
-            ).unwrap(),
+                MessageMetadata::new().with_priority(MessagePriority::Critical),
+            )
+            .unwrap(),
             Message::with_metadata(
                 b"normal".to_vec(),
-                MessageMetadata::new().with_priority(MessagePriority::Normal)
-            ).unwrap(),
+                MessageMetadata::new().with_priority(MessagePriority::Normal),
+            )
+            .unwrap(),
         ];
-        
-        let result = concurrent_sink.send_batch_by_priority(messages).await.unwrap();
+
+        let result = concurrent_sink
+            .send_batch_by_priority(messages)
+            .await
+            .unwrap();
         assert_eq!(result.total, 3);
     }
-    
+
     #[tokio::test]
     async fn test_pipeline_processing() {
         let sink1 = CollectorSink::new();
         sink1.connect().await.unwrap();
         let sink2 = CollectorSink::new();
         sink2.connect().await.unwrap();
-        
+
         let pipeline = PipelinedSink::new(vec![sink1, sink2], ConcurrentConfig::default());
-        
+
         let messages = vec![
             Message::new_unchecked(b"msg1".to_vec()),
             Message::new_unchecked(b"msg2".to_vec()),
         ];
-        
+
         let result = pipeline.process_pipeline(messages).await.unwrap();
         assert!(result.is_complete_success());
     }

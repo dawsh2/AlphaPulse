@@ -67,7 +67,14 @@ impl TradeTLV {
         side: u8,
         execution_timestamp_ns: u64,
     ) -> Self {
-        Self::new(venue, instrument_id, price, volume, side, execution_timestamp_ns)
+        Self::new(
+            venue,
+            instrument_id,
+            price,
+            volume,
+            side,
+            execution_timestamp_ns,
+        )
     }
 
     /// Convert to InstrumentId

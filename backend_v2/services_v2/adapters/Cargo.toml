@@ -44,7 +44,7 @@ alphapulse-state-market = { workspace = true }
 alphapulse-network = { path = "../../network" }
 # Core protocol
 alphapulse-types = { workspace = true }
-alphapulse_codec = { path = "../../libs/alphapulse_codec" }
+codec = { path = "../../libs/codec" }
 anyhow = { workspace = true }
 
 # Documentation enhancements

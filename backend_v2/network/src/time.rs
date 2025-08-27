@@ -21,7 +21,7 @@
 //! ```text
 //! New Approach (Ultra-Low Overhead):
 //! [Background Thread] → syscall → store in memory (1ms intervals)
-//! 
+//!
 //! [Message 1] → memory read → get cached time (~1ns)
 //! [Message 2] → memory read → get cached time (~1ns)
 //! [Message 3] → memory read → get cached time (~1ns)
@@ -41,7 +41,7 @@
 //! ```rust
 //! // Initialize once at startup
 //! let clock = CachedClock::new(Duration::from_millis(1));
-//! 
+//!
 //! // Ultra-fast timestamping in hot paths
 //! let timestamp = clock.now_ns(); // ~1ns, no syscalls
 //! ```
@@ -115,14 +115,14 @@ impl CachedClock {
     /// cached timestamp with the current system time.
     fn start_updater_thread(&self, update_interval: Duration) {
         let time_arc = self.current_time_ns.clone();
-        
+
         // Only spawn the updater task if we have a tokio runtime
         if tokio::runtime::Handle::try_current().is_ok() {
             tokio::spawn(async move {
                 let mut interval = time::interval(update_interval);
                 // Skip the first immediate tick
                 interval.tick().await;
-                
+
                 loop {
                     interval.tick().await;
                     let now = Self::fetch_real_time_ns();
@@ -142,7 +142,7 @@ impl CachedClock {
         let duration = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default();
-        
+
         // SAFETY: Validate timestamp fits in u64 range to prevent silent truncation
         safe_duration_to_ns(duration)
     }
@@ -157,7 +157,7 @@ impl CachedClock {
 /// ```rust
 /// // Initialize at application startup
 /// init_timestamp_system();
-/// 
+///
 /// // Now all calls to fast_timestamp_ns() will be ultra-fast
 /// let timestamp = fast_timestamp_ns();
 /// ```
@@ -185,7 +185,7 @@ pub fn init_timestamp_system() {
 /// // Ultra-fast timestamping for message construction
 /// let timestamp_ns = fast_timestamp_ns();
 /// let trade = TradeTLV::new(venue, instrument, price, volume, side, timestamp_ns);
-/// 
+///
 /// // At 1M messages/sec:
 /// // - Old way: 200ms CPU time spent in syscalls
 /// // - New way: 2ms CPU time spent in memory reads  
@@ -197,7 +197,7 @@ pub fn fast_timestamp_ns() -> u64 {
 }
 
 /// Alias for fast_timestamp_ns for backwards compatibility
-/// 
+///
 /// This provides the same ultra-fast cached timestamp functionality
 /// with a different name for compatibility with existing code.
 #[inline(always)]
@@ -209,7 +209,11 @@ pub fn current_timestamp_ns() -> u64 {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TimestampError {
     /// Timestamp value would overflow u64 when converted to nanoseconds
-    Overflow { ns_value: u128, max_value: u64, overflow_year: u128 },
+    Overflow {
+        ns_value: u128,
+        max_value: u64,
+        overflow_year: u128,
+    },
     /// System time error (before UNIX epoch)
     SystemTimeError,
 }
@@ -217,7 +221,11 @@ pub enum TimestampError {
 impl std::fmt::Display for TimestampError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TimestampError::Overflow { ns_value, max_value, overflow_year } => {
+            TimestampError::Overflow {
+                ns_value,
+                max_value,
+                overflow_year,
+            } => {
                 write!(
                     f,
                     "Timestamp overflow: {} ns exceeds u64::MAX ({}), corresponds to year {}",
@@ -249,12 +257,12 @@ impl std::error::Error for TimestampError {}
 ///     Err(e) => log::error!("Timestamp conversion failed: {}", e),
 /// }
 /// ```
-/// 
-/// **Preferred for Production**: Use this instead of safe_duration_to_ns() in 
+///
+/// **Preferred for Production**: Use this instead of safe_duration_to_ns() in
 /// production code to avoid panics.
 pub fn safe_duration_to_ns_checked(duration: std::time::Duration) -> Result<u64, TimestampError> {
     let ns_u128 = duration.as_nanos();
-    
+
     // Check if the timestamp fits in u64 range
     if ns_u128 > u64::MAX as u128 {
         // Calculate when overflow occurred for debugging
@@ -263,14 +271,14 @@ pub fn safe_duration_to_ns_checked(duration: std::time::Duration) -> Result<u64,
         let seconds_per_year = (365.25 * 24.0 * 3600.0) as u128;
         let overflow_years = overflow_seconds / seconds_per_year;
         let overflow_year = 1970 + overflow_years;
-        
+
         return Err(TimestampError::Overflow {
             ns_value: ns_u128,
             max_value: u64::MAX,
             overflow_year,
         });
     }
-    
+
     Ok(ns_u128 as u64)
 }
 
@@ -289,13 +297,17 @@ pub fn safe_duration_to_ns_checked(duration: std::time::Duration) -> Result<u64,
 /// let duration = SystemTime::now().duration_since(UNIX_EPOCH)?;
 /// let safe_ns = safe_duration_to_ns(duration); // Validated conversion
 /// ```
-/// 
-/// **Usage Note**: This function should replace ALL instances of 
+///
+/// **Usage Note**: This function should replace ALL instances of
 /// `duration.as_nanos() as u64` throughout the AlphaPulse codebase.
 pub fn safe_duration_to_ns(duration: std::time::Duration) -> u64 {
     match safe_duration_to_ns_checked(duration) {
         Ok(ns) => ns,
-        Err(TimestampError::Overflow { ns_value, max_value, overflow_year }) => {
+        Err(TimestampError::Overflow {
+            ns_value,
+            max_value,
+            overflow_year,
+        }) => {
             panic!(
                 "CRITICAL: Timestamp overflow detected! \
                  Nanosecond timestamp {} exceeds u64::MAX ({}). \
@@ -329,7 +341,7 @@ pub fn precise_timestamp_ns() -> u64 {
     let duration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
-    
+
     // Use safe conversion to prevent silent truncation
     safe_duration_to_ns(duration)
 }
@@ -409,20 +421,33 @@ pub fn parse_external_timestamp_safe(timestamp_str: &str, source_name: &str) -> 
                 Some(nanos_i64) => {
                     // Validate range to prevent overflow
                     if nanos_i64 < 0 {
-                        tracing::warn!("{} provided negative timestamp: {}, using current time", source_name, nanos_i64);
+                        tracing::warn!(
+                            "{} provided negative timestamp: {}, using current time",
+                            source_name,
+                            nanos_i64
+                        );
                         fast_timestamp_ns()
                     } else {
                         nanos_i64 as u64
                     }
                 }
                 None => {
-                    tracing::warn!("{} provided timestamp out of range: {}, using current time", source_name, timestamp_str);
+                    tracing::warn!(
+                        "{} provided timestamp out of range: {}, using current time",
+                        source_name,
+                        timestamp_str
+                    );
                     fast_timestamp_ns()
                 }
             }
         }
         Err(e) => {
-            tracing::warn!("Failed to parse {} timestamp '{}': {}, using current time", source_name, timestamp_str, e);
+            tracing::warn!(
+                "Failed to parse {} timestamp '{}': {}, using current time",
+                source_name,
+                timestamp_str,
+                e
+            );
             fast_timestamp_ns()
         }
     }
@@ -460,27 +485,39 @@ pub fn parse_external_unix_timestamp_safe(timestamp_seconds: f64, source_name: &
         tracing::warn!("{} provided NaN timestamp, using current time", source_name);
         return fast_timestamp_ns();
     }
-    
+
     if timestamp_seconds.is_infinite() {
-        tracing::warn!("{} provided infinite timestamp: {}, using current time", source_name, timestamp_seconds);
+        tracing::warn!(
+            "{} provided infinite timestamp: {}, using current time",
+            source_name,
+            timestamp_seconds
+        );
         return fast_timestamp_ns();
     }
-    
+
     if timestamp_seconds < 0.0 {
-        tracing::warn!("{} provided negative timestamp: {}, using current time", source_name, timestamp_seconds);
+        tracing::warn!(
+            "{} provided negative timestamp: {}, using current time",
+            source_name,
+            timestamp_seconds
+        );
         return fast_timestamp_ns();
     }
-    
+
     // Convert to nanoseconds with overflow protection
     let nanos_f64 = timestamp_seconds * 1_000_000_000.0;
-    
+
     // Check for overflow before casting to u64
     if nanos_f64 > u64::MAX as f64 {
-        tracing::warn!("{} provided timestamp that overflows u64: {} seconds = {} ns, using current time", 
-                       source_name, timestamp_seconds, nanos_f64);
+        tracing::warn!(
+            "{} provided timestamp that overflows u64: {} seconds = {} ns, using current time",
+            source_name,
+            timestamp_seconds,
+            nanos_f64
+        );
         return fast_timestamp_ns();
     }
-    
+
     nanos_f64 as u64
 }
 
@@ -548,7 +585,7 @@ mod tests {
         assert!(timestamp > 1_600_000_000_000_000_000); // After 2020
     }
 
-    #[test] 
+    #[test]
     fn test_timestamp_system_initialization() {
         // Auto-initialization should work without explicit init call
         let timestamp1 = fast_timestamp_ns(); // Should auto-initialize
@@ -570,11 +607,11 @@ mod tests {
     async fn test_cached_clock_updates() {
         let clock = CachedClock::new(Duration::from_millis(5));
         let timestamp1 = clock.now_ns();
-        
+
         // Wait for background update
         tokio::time::sleep(Duration::from_millis(10)).await;
         let timestamp2 = clock.now_ns();
-        
+
         // Should eventually update (may be same due to timing)
         assert!(timestamp1 > 0);
         assert!(timestamp2 >= timestamp1);
@@ -589,7 +626,7 @@ mod tests {
         let precise = precise_timestamp_ns();
         assert!(timestamp1 <= precise + 1_000_000_000);
         assert!(timestamp2 <= precise + 1_000_000_000);
-        
+
         // Should be consistent (cached values)
         assert!(timestamp1 > 0);
         assert!(timestamp2 > 0);
@@ -601,47 +638,55 @@ mod tests {
         for _ in 0..1000 {
             std::hint::black_box(fast_timestamp_ns());
         }
-        
+
         // Measure performance
         const ITERATIONS: usize = 100_000;
         let start = Instant::now();
-        
+
         for _ in 0..ITERATIONS {
             std::hint::black_box(fast_timestamp_ns());
         }
-        
+
         let duration = start.elapsed();
         let ns_per_op = duration.as_nanos() as f64 / ITERATIONS as f64;
-        
+
         println!("Cached clock performance: {:.2} ns/op", ns_per_op);
-        
+
         // Should be much faster than direct syscalls (< 10ns per operation)
-        assert!(ns_per_op < 10.0, "Clock performance too slow: {:.2} ns/op", ns_per_op);
+        assert!(
+            ns_per_op < 10.0,
+            "Clock performance too slow: {:.2} ns/op",
+            ns_per_op
+        );
     }
 
     #[test]
     fn test_timestamp_accuracy() {
         let (fast, precise, drift) = timestamp_accuracy_info();
-        
+
         assert!(fast > 0);
         assert!(precise > 0);
-        
+
         // Drift should be reasonable (within a few milliseconds for cached clock)
         assert!(drift < 10_000_000_000, "Excessive drift: {}ns", drift); // 10 seconds max
-        
-        println!("Timestamp accuracy - Fast: {}, Precise: {}, Drift: {}ns", 
-                 fast, precise, drift);
+
+        println!(
+            "Timestamp accuracy - Fast: {}, Precise: {}, Drift: {}ns",
+            fast, precise, drift
+        );
     }
 
     #[test]
     fn test_timestamp_system_stats() {
         let (cached_time, interval_ms) = timestamp_system_stats();
-        
+
         assert!(cached_time > 0);
         assert_eq!(interval_ms, 1); // Default 1ms interval
-        
-        println!("System stats - Cached time: {}, Interval: {}ms", 
-                 cached_time, interval_ms);
+
+        println!(
+            "System stats - Cached time: {}, Interval: {}ms",
+            cached_time, interval_ms
+        );
     }
 
     #[test]
@@ -650,27 +695,25 @@ mod tests {
         let normal_duration = Duration::from_secs(1_000_000_000); // ~31 years
         let converted = safe_duration_to_ns(normal_duration);
         assert_eq!(converted, 1_000_000_000_000_000_000); // 10^18 nanoseconds
-        
+
         // Test current time (should work)
-        let current_duration = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap();
+        let current_duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let current_ns = safe_duration_to_ns(current_duration);
         assert!(current_ns > 1_600_000_000_000_000_000); // After 2020
         assert!(current_ns < u64::MAX); // Well within range
-        
+
         println!("Safe conversion test - Current timestamp: {}", current_ns);
     }
-    
+
     #[test]
     fn test_safe_system_timestamp() {
         let timestamp1 = safe_system_timestamp_ns();
         let timestamp2 = safe_system_timestamp_ns();
-        
+
         assert!(timestamp1 > 0);
         assert!(timestamp2 >= timestamp1); // Should be monotonic or equal
         assert!(timestamp1 > 1_600_000_000_000_000_000); // After 2020
-        
+
         println!("Safe system timestamps: {} -> {}", timestamp1, timestamp2);
     }
 
@@ -679,14 +722,16 @@ mod tests {
         // Test with maximum valid u64 duration
         let max_seconds = u64::MAX / 1_000_000_000;
         let max_duration = Duration::from_secs(max_seconds);
-        
+
         // This should work without overflow
         let converted = safe_duration_to_ns(max_duration);
         assert!(converted > 0);
         assert!(converted <= u64::MAX);
-        
-        println!("Max valid duration test - Max seconds: {}, Converted: {}", 
-                 max_seconds, converted);
+
+        println!(
+            "Max valid duration test - Max seconds: {}, Converted: {}",
+            max_seconds, converted
+        );
     }
 
     #[test]
@@ -694,14 +739,14 @@ mod tests {
     fn test_overflow_protection() {
         // Create a duration that would overflow u64 nanoseconds
         // We need to be careful about arithmetic overflow in the test itself
-        
+
         // Calculate maximum seconds that would still fit in Duration but overflow in nanoseconds
         let max_safe_seconds = u64::MAX / 1_000_000_000;
         let overflow_seconds = max_safe_seconds + 1; // This would overflow when converted to ns
-        
+
         // Create a Duration that's valid but would overflow when converted to nanoseconds
         let overflow_duration = Duration::from_secs(overflow_seconds);
-        
+
         // This should panic with overflow protection
         safe_duration_to_ns(overflow_duration);
     }
@@ -749,12 +794,14 @@ mod tests {
         // Verify that our safe functions return same values as fast timestamp
         let fast_ts = fast_timestamp_ns();
         let safe_ts = safe_system_timestamp_ns();
-        
+
         // Should be very close (within 1ms due to timing differences)
         let diff = fast_ts.abs_diff(safe_ts);
         assert!(diff < 10_000_000, "Timestamps differ by {}ns (>10ms)", diff);
-        
-        println!("Precision consistency - Fast: {}, Safe: {}, Diff: {}ns", 
-                 fast_ts, safe_ts, diff);
+
+        println!(
+            "Precision consistency - Fast: {}, Safe: {}, Diff: {}ns",
+            fast_ts, safe_ts, diff
+        );
     }
 }

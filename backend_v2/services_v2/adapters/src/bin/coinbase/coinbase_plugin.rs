@@ -8,7 +8,7 @@
 use alphapulse_adapters::{
     Adapter, AdapterHealth, CircuitState, ConnectionStatus, InstrumentType, Result,
 };
-use alphapulse_codec::{InstrumentId, TLVMessageBuilder, TLVType, VenueId};
+use codec::{InstrumentId, TLVMessageBuilder, TLVType, VenueId};
 use alphapulse_types::protocol::{RelayDomain, SourceType, TradeTLV, QuoteTLV};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

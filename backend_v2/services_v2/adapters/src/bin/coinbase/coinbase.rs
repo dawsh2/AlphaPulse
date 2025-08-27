@@ -25,12 +25,11 @@
 //! - **Throughput**: Designed for >15,000 msg/s sustained load
 //! - **Memory**: <50MB steady state with multiple product subscriptions
 
-use alphapulse_types::{
-    tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType,
-    TradeTLV, VenueId,
-};
-use alphapulse_codec::{parse_header, parse_tlv_extensions}; // Added
+use codec::{parse_header, parse_tlv_extensions}; // Added
 use alphapulse_network::time::init_timestamp_system; // Added
+use alphapulse_types::{
+    tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
+};
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -510,7 +509,8 @@ impl UnifiedCoinbaseCollector {
         let instrument_id = InstrumentId::coin(VenueId::Coinbase, &normalized_symbol);
 
         // Parse timestamp with DoS protection - prevents malicious Coinbase timestamps from crashing system
-        let timestamp = alphapulse_network::time::parse_external_timestamp_safe(&match_event.time, "Coinbase");
+        let timestamp =
+            alphapulse_network::time::parse_external_timestamp_safe(&match_event.time, "Coinbase");
 
         // Build TradeTLV using the constructor
         let trade_tlv = TradeTLV::new(

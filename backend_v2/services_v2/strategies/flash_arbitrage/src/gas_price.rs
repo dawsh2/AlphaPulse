@@ -82,7 +82,10 @@ impl GasPriceCache {
         let now_ns = match alphapulse_network::time::safe_system_timestamp_ns_checked() {
             Ok(timestamp) => timestamp,
             Err(e) => {
-                tracing::error!("Failed to get current timestamp for cache expiry check: {}", e);
+                tracing::error!(
+                    "Failed to get current timestamp for cache expiry check: {}",
+                    e
+                );
                 return true; // Treat as expired on timestamp failure
             }
         };
@@ -155,10 +158,14 @@ impl GasPriceFetcher {
                 let cache_entry = GasPriceCache {
                     gas_price_wei: gas_price,
                     matic_price_usd: self.matic_price_usd,
-                    timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
-                        tracing::error!("Failed to generate timestamp for gas price cache: {}", e);
-                        0
-                    }),
+                    timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked()
+                        .unwrap_or_else(|e| {
+                            tracing::error!(
+                                "Failed to generate timestamp for gas price cache: {}",
+                                e
+                            );
+                            0
+                        }),
                 };
 
                 {
@@ -218,10 +225,14 @@ impl GasPriceFetcher {
         let cache_entry = GasPriceCache {
             gas_price_wei: total_wei,
             matic_price_usd: current_matic_price,
-            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
-                tracing::error!("Failed to generate timestamp for WebSocket gas price update: {}", e);
-                0
-            }),
+            timestamp_ns: alphapulse_network::time::safe_system_timestamp_ns_checked()
+                .unwrap_or_else(|e| {
+                    tracing::error!(
+                        "Failed to generate timestamp for WebSocket gas price update: {}",
+                        e
+                    );
+                    0
+                }),
         };
 
         // Atomic cache update

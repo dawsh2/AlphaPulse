@@ -341,8 +341,8 @@ impl HybridTransportHealth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use crate::{Criticality, Reliability};
+    use std::collections::HashMap;
 
     #[test]
     fn test_transport_config_validation() {

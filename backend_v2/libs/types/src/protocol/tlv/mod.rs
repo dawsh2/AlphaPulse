@@ -304,22 +304,22 @@ pub mod pool_state;
 pub mod relay_parser;
 pub mod system;
 pub mod type_safe;
-pub mod types;
 #[cfg(feature = "typed-tlv-bridge")]
 pub mod typed_bridge;
+pub mod types;
 
+pub mod core_tests;
+pub mod unit_tests;
 #[cfg(feature = "typed-tlv-bridge")]
 // pub use typed_bridge::*;  // Commented out to avoid unused imports
 // pub mod zero_copy_builder; // DELETED - flawed implementation with Vec<TLVRef> allocation
 pub mod zero_copy_builder_v2;
 pub mod zero_copy_tests;
-pub mod unit_tests;
-pub mod core_tests;
 
 pub use address::{AddressConversion, AddressExtraction, PaddedAddress};
 pub use arbitrage_signal::{ArbitrageSignalTLV, ARBITRAGE_SIGNAL_TLV_SIZE};
-// Note: TLVMessageBuilder and parsing functions are now available in alphapulse_codec
-// Services should import these directly from alphapulse_codec to avoid circular dependencies
+// Note: TLVMessageBuilder and parsing functions are now available in codec
+// Services should import these directly from codec to avoid circular dependencies
 pub use dynamic_payload::{
     DynamicPayload, FixedStr, FixedVec, PayloadError, MAX_INSTRUMENTS, MAX_ORDER_LEVELS,
     MAX_POOL_TOKENS,
@@ -340,8 +340,11 @@ pub fn init_timestamp_system() {
 }
 pub use hot_path_buffers::{
     // build_and_send_message, // Temporarily commented out due to circular dependency
-    build_with_size_hint, with_hot_path_buffer, with_signal_buffer,
-    with_validation_buffer, BufferError,
+    build_with_size_hint,
+    with_hot_path_buffer,
+    with_signal_buffer,
+    with_validation_buffer,
+    BufferError,
 };
 pub use market_data::*;
 //  // File missing - commented out for now

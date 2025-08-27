@@ -3,12 +3,12 @@
 use crate::error::{DashboardError, Result};
 use alphapulse_types::InstrumentId;
 use alphapulse_types::{
-    tlv::{types::DeprecatedTLVType, ArbitrageSignalTLV, PoolSyncTLV, PoolSwapTLV, ParseError},
+    tlv::{types::DeprecatedTLVType, ArbitrageSignalTLV, ParseError, PoolSwapTLV, PoolSyncTLV},
     QuoteTLV, VenueId,
 };
 use base64::prelude::*;
 use serde_json::{json, Value};
-use std::time::SystemTime;
+use alphapulse_network::time::safe_system_timestamp_ns_checked;
 
 /// Convert TLV message to JSON for dashboard consumption
 pub fn convert_tlv_to_json(tlv_type: u8, payload: &[u8], timestamp_ns: u64) -> Result<Value> {
@@ -191,9 +191,16 @@ fn get_strategy_name(strategy_id: u16) -> &'static str {
 fn timestamp_to_iso(timestamp_ns: u64) -> String {
     let timestamp_secs = timestamp_ns / 1_000_000_000;
     let datetime =
-        match SystemTime::UNIX_EPOCH.checked_add(std::time::Duration::from_secs(timestamp_secs)) {
+        match std::time::SystemTime::UNIX_EPOCH.checked_add(std::time::Duration::from_secs(timestamp_secs)) {
             Some(dt) => dt,
-            None => SystemTime::now(),
+            None => {
+                // Use safe timestamp function as fallback
+                let safe_ns = safe_system_timestamp_ns_checked().unwrap_or(timestamp_ns);
+                let safe_secs = safe_ns / 1_000_000_000;
+                std::time::SystemTime::UNIX_EPOCH
+                    .checked_add(std::time::Duration::from_secs(safe_secs))
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+            }
         };
 
     // Convert to ISO string (simplified)
@@ -584,8 +591,8 @@ mod tests {
 
     #[test]
     fn test_timestamp_conversion() {
-        let now_ns = alphapulse_network::time::safe_system_timestamp_ns_checked()
-            .unwrap_or(1000000000); // Use a fixed timestamp for test
+        let now_ns =
+            alphapulse_network::time::safe_system_timestamp_ns_checked().unwrap_or(1000000000); // Use a fixed timestamp for test
 
         let iso = timestamp_to_iso(now_ns);
         assert!(!iso.is_empty());
