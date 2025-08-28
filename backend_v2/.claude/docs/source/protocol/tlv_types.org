@@ -3,7 +3,7 @@
 
 * Overview
 
-The AlphaPulse Protocol V2 uses Type-Length-Value (TLV) encoding for flexible, high-performance message passing across domain-specific relays. This document defines all TLV message types and their routing domains.
+The Torq Protocol V2 uses Type-Length-Value (TLV) encoding for flexible, high-performance message passing across domain-specific relays. This document defines all TLV message types and their routing domains.
 
 *Key Features*:
 - Zero-copy serialization for maximum performance
