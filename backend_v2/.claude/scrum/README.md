@@ -1,4 +1,4 @@
-# 📋 AlphaPulse Sprint Management
+# 📋 Torq Sprint Management
 
 Simple, sustainable task management using templates and automation.
 

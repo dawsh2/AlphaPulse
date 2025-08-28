@@ -2,15 +2,15 @@
 //!
 //! Standalone binary for the Polygon DEX adapter plugin.
 
-use alphapulse_polygon_adapter::{PolygonAdapter, PolygonConfig};
-use alphapulse_adapter_service::{Adapter, SafeAdapter};
+use torq_polygon_adapter::{PolygonAdapter, PolygonConfig};
+use torq_adapter_service::{Adapter, SafeAdapter};
 use clap::Parser;
 use std::path::PathBuf;
 use tracing::{error, info};
 
 #[derive(Parser)]
 #[command(name = "polygon_adapter")]
-#[command(about = "Polygon DEX Adapter for AlphaPulse Protocol V2")]
+#[command(about = "Polygon DEX Adapter for Torq Protocol V2")]
 struct Args {
     /// Configuration file path
     #[arg(short, long, default_value = "config.toml")]

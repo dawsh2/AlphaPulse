@@ -3,8 +3,8 @@
 //! Tests Protocol V2 compliance for QuoteTLV and InvalidationReason types,
 //! including serialization, parsing, precision preservation, and integration.
 
-use alphapulse_types::protocol::tlv::{InvalidationReason, QuoteTLV, TradeTLV};
-use alphapulse_types::{InstrumentId, RelayDomain, TLVType, VenueId};
+use torq_types::protocol::tlv::{InvalidationReason, QuoteTLV, TradeTLV};
+use torq_types::{InstrumentId, RelayDomain, TLVType, VenueId};
 use zerocopy::{AsBytes, FromBytes};
 
 #[test]
@@ -128,8 +128,8 @@ fn test_invalidation_reason_serialization() {
 #[test]
 fn test_quote_tlv_in_message_builder() {
     // Test integration with Protocol V2 message building
-    use alphapulse_types::protocol::tlv::build_message_direct;
-    use alphapulse_types::SourceType;
+    use torq_types::protocol::tlv::build_message_direct;
+    use torq_types::SourceType;
 
     let quote = QuoteTLV::new(
         VenueId::Binance,
@@ -159,9 +159,9 @@ fn test_quote_tlv_in_message_builder() {
 #[test]
 fn test_invalidation_reason_in_message() {
     // Test InvalidationReason serialization
-    use alphapulse_types::protocol::tlv::build_message_direct;
-    use alphapulse_types::protocol::tlv::StateInvalidationTLV;
-    use alphapulse_types::SourceType;
+    use torq_types::protocol::tlv::build_message_direct;
+    use torq_types::protocol::tlv::StateInvalidationTLV;
+    use torq_types::SourceType;
 
     // Create a StateInvalidationTLV with InvalidationReason
     let instruments = vec![InstrumentId::default()];
@@ -193,8 +193,8 @@ fn test_invalidation_reason_in_message() {
 #[test]
 fn test_mixed_tlv_message() {
     // Test that different TLV types can coexist
-    use alphapulse_types::protocol::tlv::build_message_direct;
-    use alphapulse_types::SourceType;
+    use torq_types::protocol::tlv::build_message_direct;
+    use torq_types::SourceType;
 
     // Build messages with different TLV types
     let trade = TradeTLV::new(

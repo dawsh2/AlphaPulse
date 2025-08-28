@@ -13,11 +13,11 @@
 //! - **Error Handling**: Zero-cost error mapping through Result types
 //! - **Thread Safety**: Arc<RelayOutput> enables multi-threaded usage with minimal overhead
 //!
-//! ## Measured Performance (AlphaPulse Target: >1M msg/s construction)
+//! ## Measured Performance (Torq Target: >1M msg/s construction)
 //!
 //! Supports Protocol V2 performance targets through optimized message building pipeline.
 
-use alphapulse_types::{
+use torq_types::{
     tlv::build_message_direct,
     tlv::market_data::{
         PoolBurnTLV, PoolMintTLV, PoolSwapTLV, PoolSyncTLV, PoolTickTLV, QuoteTLV,
@@ -250,7 +250,7 @@ impl MessageSender for MessageSenderImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alphapulse_types::{InstrumentId, VenueId};
+    use torq_types::{InstrumentId, VenueId};
     use std::sync::Arc;
 
     // Create a mock RelayOutput for testing (this is for unit testing only)

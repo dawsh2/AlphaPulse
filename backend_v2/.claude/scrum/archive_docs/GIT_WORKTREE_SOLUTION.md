@@ -17,16 +17,16 @@ Git worktrees allow multiple working directories for a single repository, each c
 
 ```bash
 # Create a worktree for a specific task
-git worktree add ../alphapulse-precision-001 -b precision-001-implementation
+git worktree add ../torq-precision-001 -b precision-001-implementation
 
 # Create worktree from existing branch
-git worktree add ../alphapulse-execution-001 execution-001-implementation
+git worktree add ../torq-execution-001 execution-001-implementation
 
 # List all worktrees
 git worktree list
 
 # Remove completed worktree
-git worktree remove ../alphapulse-precision-001
+git worktree remove ../torq-precision-001
 ```
 
 ### Recommended Workflow
@@ -34,13 +34,13 @@ git worktree remove ../alphapulse-precision-001
 #### For Atomic Development
 ```bash
 # Main development stays in primary repo
-cd /Users/daws/alphapulse/backend_v2  # Main branch for coordination
+cd /Users/daws/torq/backend_v2  # Main branch for coordination
 
 # Create isolated worktree for each task
-git worktree add ../alphapulse-task-work -b precision-001-fix
+git worktree add ../torq-task-work -b precision-001-fix
 
 # Work in isolation
-cd ../alphapulse-task-work
+cd ../torq-task-work
 # ... do TDD development ...
 git commit -m "feat: implement fixed-point signal conversion"
 
@@ -49,32 +49,32 @@ git push -u origin precision-001-fix
 gh pr create --title "PRECISION-001: Fix signal precision loss"
 
 # After merge, clean up
-cd ../alphapulse/backend_v2
-git worktree remove ../alphapulse-task-work
+cd ../torq/backend_v2
+git worktree remove ../torq-task-work
 git branch -d precision-001-fix  # if merged
 ```
 
 #### For Parallel Agent Development
 ```bash
 # Agent 1: Works on precision fix
-git worktree add ../alphapulse-precision ../task-precision-001
-cd ../alphapulse-precision
+git worktree add ../torq-precision ../task-precision-001
+cd ../torq-precision
 
 # Agent 2: Works on execution logic
-git worktree add ../alphapulse-execution ../task-execution-001
-cd ../alphapulse-execution
+git worktree add ../torq-execution ../task-execution-001
+cd ../torq-execution
 
 # Agent 3: Reviews and coordinates from main
-cd /Users/daws/alphapulse/backend_v2  # stays on main
+cd /Users/daws/torq/backend_v2  # stays on main
 ```
 
 ### Directory Structure
 ```
 /Users/daws/
-├── alphapulse/backend_v2/          # Main repo (coordination, main branch)
-├── alphapulse-precision-001/       # Worktree for PRECISION-001 task
-├── alphapulse-execution-001/       # Worktree for EXECUTION-001 task
-└── alphapulse-testing/             # Worktree for testing tasks
+├── torq/backend_v2/          # Main repo (coordination, main branch)
+├── torq-precision-001/       # Worktree for PRECISION-001 task
+├── torq-execution-001/       # Worktree for EXECUTION-001 task
+└── torq-testing/             # Worktree for testing tasks
 ```
 
 ### Benefits
@@ -92,7 +92,7 @@ Update the task manager to use worktrees:
 # Modified start_task function
 start_task() {
     task_id="$1"
-    worktree_dir="../alphapulse-${task_id,,}"
+    worktree_dir="../torq-${task_id,,}"
     branch_name="${task_id,,}-implementation"
 
     echo "Creating isolated worktree for $task_id"
@@ -109,13 +109,13 @@ start_task() {
 git worktree list
 
 # Remove specific worktree (after task completion)
-git worktree remove ../alphapulse-precision-001
+git worktree remove ../torq-precision-001
 
 # Prune stale worktree references
 git worktree prune
 
 # Force remove if needed
-git worktree remove --force ../alphapulse-precision-001
+git worktree remove --force ../torq-precision-001
 ```
 
 ### Best Practices
@@ -131,8 +131,8 @@ git worktree remove --force ../alphapulse-precision-001
 # Solution: Create worktrees for active development
 
 # For immediate PRECISION-001 work:
-git worktree add ../alphapulse-precision-work -b precision-001-actual-implementation
-cd ../alphapulse-precision-work
+git worktree add ../torq-precision-work -b precision-001-actual-implementation
+cd ../torq-precision-work
 
 # Now this terminal is isolated and can work independently
 # Other terminals can stay on main or create their own worktrees

@@ -7,7 +7,7 @@
 //!
 //! ### Runtime Validation (Default - Development Only)
 //! ```rust
-//! use alphapulse_adapters::validation::{complete_validation_pipeline, ValidationConfig};
+//! use torq_adapters::validation::{complete_validation_pipeline, ValidationConfig};
 //!
 //! // During development - test your adapter with real data
 //! let result = complete_validation_pipeline(raw_data, parsed_data)?;
@@ -20,12 +20,12 @@
 //! ```toml
 //! # In your Cargo.toml
 //! [features]
-//! strict-validation = ["alphapulse_adapters/strict-validation"]
+//! strict-validation = ["torq_adapters/strict-validation"]
 //! ```
 //!
 //! ```rust
 //! # #[cfg(feature = "strict-validation")]
-//! use alphapulse_adapters::validation::ValidatedAdapter;
+//! use torq_adapters::validation::ValidatedAdapter;
 //!
 //! # #[cfg(feature = "strict-validation")]
 //! impl ValidatedAdapter for MyAdapter {
@@ -53,9 +53,9 @@
 //!
 //! ### Complete Example
 //! ```rust
-//! # use alphapulse_adapters::validation::*;
-//! # use alphapulse_types::tlv::market_data::PoolSwapTLV;
-//! # use alphapulse_types::VenueId;
+//! # use torq_adapters::validation::*;
+//! # use torq_types::tlv::market_data::PoolSwapTLV;
+//! # use torq_types::VenueId;
 //!
 //! #[test]
 //! fn test_my_adapter_validation() -> ValidationResult<()> {
@@ -136,8 +136,8 @@
 //! }
 //! ```
 
-use alphapulse_types::tlv::dynamic_payload::DynamicPayload;
-use alphapulse_types::tlv::market_data::*;
+use torq_types::tlv::dynamic_payload::DynamicPayload;
+use torq_types::tlv::market_data::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use zerocopy::{AsBytes, FromBytes};
@@ -152,7 +152,7 @@ pub type ValidationResult<T> = Result<T, ValidationError>;
 ///
 /// # Example
 /// ```rust
-/// # use alphapulse_adapters::validation::{ValidatedAdapter, ValidationResult};
+/// # use torq_adapters::validation::{ValidatedAdapter, ValidationResult};
 /// # struct MyAdapter;
 /// # #[cfg(feature = "strict-validation")]
 /// impl ValidatedAdapter for MyAdapter {
@@ -196,7 +196,7 @@ pub trait ValidatedAdapter {
 ///
 /// # Example
 /// ```rust
-/// use alphapulse_adapters::validation::ValidationConfig;
+/// use torq_adapters::validation::ValidationConfig;
 ///
 /// let config = ValidationConfig {
 ///     max_validation_time_ms: 5,  // Allow up to 5ms per validation
@@ -709,7 +709,7 @@ impl_tlv_traits!(PoolTickTLV, 14); // TLVType::PoolTick = 14
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alphapulse_types::VenueId;
+    use torq_types::VenueId;
 
     #[test]
     fn test_pool_swap_semantic_validation_success() {

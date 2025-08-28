@@ -1,0 +1,328 @@
+#+TITLE: Torq Org-Mode Task Template (Correct Version)
+#+TODO: TODO NEXT IN-PROGRESS | DONE CANCELLED
+#+STARTUP: overview
+#+STARTUP: hidestars
+#+STARTUP: logdone
+
+* TODO [#A] Authentication System Implementation :auth:security:
+  :PROPERTIES:
+  :ID:          AUTH-GOAL-001
+  :EFFORT:      40h
+  :ASSIGNED:    team-auth
+  :DEADLINE:    <2025-09-15 Mon>
+  :END:
+
+  Complete authentication system with proper security measures.
+  
+  **CRITICAL**: Agents working on this goal MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
+  
+  **Status Update Requirements**:
+  - Mark IN-PROGRESS when starting: `./org_tasks.sh update TASK-ID IN-PROGRESS`
+  - Mark DONE when complete: `./org_tasks.sh update TASK-ID DONE`
+
+  ** Acceptance Criteria (Goal Level)
+  - [ ] All authentication endpoints functional
+  - [ ] Security audit completed
+  - [ ] Integration tests pass
+  - [ ] Documentation updated
+  - [ ] Successfully builds: `cargo build --release`
+  - [ ] Passes code review
+
+** TODO Test Design for Database Schema         :testing:tdd:database:
+   :PROPERTIES:
+   :ID:          AUTH-001-TESTS
+   :EFFORT:      2h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/auth-database-schema
+   :END:
+
+   Design comprehensive tests for database schema BEFORE implementation.
+   *Inherits Priority A from parent goal*
+   *MUST BE COMPLETED BEFORE AUTH-001*
+
+   *** Acceptance Criteria (TDD)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] Passes code review
+   - [ ] Unit tests for user table constraints
+   - [ ] Tests for password hashing functions
+   - [ ] Session management test cases
+   - [ ] Migration rollback tests
+   - [ ] Performance benchmark tests defined
+   - [ ] All tests initially fail (red phase)
+
+** TODO Database Schema Design                  :database:schema:
+   :PROPERTIES:
+   :ID:          AUTH-001
+   :EFFORT:      6h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      feat/auth-database-schema
+   :DEPENDS:     AUTH-001-TESTS
+   :END:
+
+   Implement database schema to pass all predefined tests.
+   *Inherits Priority A from parent goal*
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] All tests pass: `cargo test --package auth_db`
+   - [ ] Passes code review
+   - [ ] User table with proper constraints
+   - [ ] Password hashing implementation (bcrypt)
+   - [ ] Session management schema
+   - [ ] Migration scripts created
+   - [ ] Performance benchmarks documented
+
+** TODO Test Design for API Endpoints           :testing:tdd:api:
+   :PROPERTIES:
+   :ID:          AUTH-002-TESTS
+   :EFFORT:      2h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/auth-api-endpoints
+   :DEPENDS:     AUTH-001
+   :END:
+
+   Design comprehensive API tests BEFORE implementation.
+   *Inherits Priority A from parent goal*
+   *MUST BE COMPLETED BEFORE AUTH-002*
+
+   *** Acceptance Criteria (TDD)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] All tests pass: Test framework runs without implementation
+   - [ ] Passes code review
+   - [ ] Login endpoint test cases (success/failure paths)
+   - [ ] Logout endpoint test cases
+   - [ ] Verification endpoint test cases
+   - [ ] Input validation test cases
+   - [ ] Rate limiting test scenarios
+   - [ ] All tests initially fail (red phase)
+
+** TODO Authentication API Endpoints            :api:endpoints:
+   :PROPERTIES:
+   :ID:          AUTH-002
+   :EFFORT:      8h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      feat/auth-api-endpoints
+   :DEPENDS:     AUTH-002-TESTS AUTH-001
+   :END:
+
+   Implement REST API endpoints to pass all predefined tests.
+   *Inherits Priority A from parent goal*
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] All tests pass: `cargo test --package auth_api`
+   - [ ] Passes code review
+   - [ ] POST /auth/login endpoint
+   - [ ] POST /auth/logout endpoint  
+   - [ ] GET /auth/verify endpoint
+   - [ ] Input validation with proper error handling
+   - [ ] Rate limiting implemented
+   - [ ] Tests pass: `cargo test --package auth_api`
+   - [ ] OpenAPI spec updated
+
+** TODO [#B] Frontend Integration              :frontend:integration:
+   :PROPERTIES:
+   :ID:          AUTH-003
+   :EFFORT:      12h
+   :ASSIGNED:    frontend-engineer
+   :BRANCH:      feat/auth-frontend-integration
+   :DEPENDS:     AUTH-002
+   :END:
+
+   Integrate authentication with frontend components.
+   *Explicit Priority B - lower than core backend work*
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `npm run build`
+   - [ ] Passes code review
+   - [ ] Login form component
+   - [ ] Session state management
+   - [ ] Protected route handling
+   - [ ] Error handling and user feedback
+   - [ ] E2E tests pass: `npm run test:e2e`
+
+*** TODO Password Reset Flow                    :security:password-reset:
+    :PROPERTIES:
+    :ID:          AUTH-004
+    :EFFORT:      6h
+    :ASSIGNED:    backend-engineer
+    :BRANCH:      feat/password-reset-flow
+    :DEPENDS:     AUTH-002
+    :END:
+
+    Implement secure password reset functionality.
+    *Inherits Priority B from parent task (AUTH-003)*
+
+    **** Acceptance Criteria
+    - [ ] Successfully builds: `cargo build --release`
+    - [ ] Passes code review
+    - [ ] Reset token generation and expiry (24h max)
+    - [ ] Email notification system integration
+    - [ ] Secure token validation
+    - [ ] Tests pass: `cargo test --package auth_reset`
+    - [ ] Security review completed
+
+* TODO [#B] Performance Optimization Goals     :performance:optimization:
+  :PROPERTIES:
+  :ID:          PERF-GOAL-001
+  :EFFORT:      25h
+  :ASSIGNED:    performance-team
+  :END:
+
+  Optimize system performance to maintain >1M msg/s throughput.
+
+** TODO Database Query Optimization             :database:performance:
+   :PROPERTIES:
+   :ID:          PERF-001
+   :EFFORT:      8h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      perf/database-optimization
+   :END:
+
+   Optimize database queries for high-frequency operations.
+   *Inherits Priority B from parent goal*
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] Passes code review
+   - [ ] Query analysis and indexing strategy
+   - [ ] Connection pool optimization
+   - [ ] Benchmark results documented
+   - [ ] No regression in >1M msg/s throughput tests
+   - [ ] Memory usage profiling completed
+
+** TODO [#A] Critical Path Caching             :cache:performance:critical:
+   :PROPERTIES:
+   :ID:          PERF-002
+   :EFFORT:      10h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      perf/critical-caching
+   :DEPENDS:     PERF-001
+   :END:
+
+   Implement caching for critical path operations.
+   *Explicit Priority A - critical for performance targets*
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] Passes code review
+   - [ ] Redis integration for hot path data
+   - [ ] Cache invalidation strategy
+   - [ ] Metrics and monitoring dashboard
+   - [ ] Performance benchmarks show >15% improvement
+   - [ ] Zero-copy cache operations where possible
+
+* TODO [#C] Documentation and Tooling          :docs:tooling:
+  :PROPERTIES:
+  :ID:          DOCS-GOAL-001
+  :EFFORT:      15h
+  :ASSIGNED:    dev-team
+  :END:
+
+  Improve documentation and development tooling.
+
+** TODO API Documentation Updates              :docs:api:
+   :PROPERTIES:
+   :ID:          DOCS-001
+   :EFFORT:      5h
+   :ASSIGNED:    technical-writer
+   :BRANCH:      docs/api-updates
+   :END:
+
+   Update API documentation for new authentication system.
+   *Inherits Priority C from parent goal*
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `mdbook build` (or relevant doc tool)
+   - [ ] Passes code review
+   - [ ] OpenAPI specifications updated
+   - [ ] Example requests/responses provided
+   - [ ] Integration guide written
+   - [ ] Changelog updated
+
+** TODO Org-Mode Task Management Tool          :tooling:org-mode:
+   :PROPERTIES:
+   :ID:          DOCS-002
+   :EFFORT:      10h
+   :ASSIGNED:    tooling-engineer
+   :BRANCH:      feat/org-mode-tooling
+   :END:
+
+   Enhance org-mode task management with multi-file support.
+   *Inherits Priority C from parent goal*
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: All Elisp code loads without errors
+   - [ ] Passes code review
+   - [ ] Multi-file org support implemented
+   - [ ] Cross-file dependency resolution working
+   - [ ] Tests pass: `emacs --batch --load test-suite.el`
+   - [ ] Documentation updated with examples
+
+* Standard Task Template                       :template:
+  :PROPERTIES:
+  :ID:          TEMPLATE-001
+  :END:
+
+  Use this template for all new tasks.
+  
+  **MANDATORY**: All agents MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md before starting work.
+
+** TODO [#X] Test Design for <Feature>         :testing:tdd:
+   :PROPERTIES:
+   :ID:          UNIQUE-ID-TESTS
+   :EFFORT:      Xh (typically 20-30% of implementation time)
+   :ASSIGNED:    engineer-name
+   :BRANCH:      test/feature-name
+   :DEPENDS:     DEPENDENCY-IDS
+   :WORKTREE:    no/yes (yes for major refactors >4h, complex features, parallel work)
+   :END:
+
+   Design comprehensive tests BEFORE implementation.
+   *TDD: Write failing tests first*
+   
+   **FIRST ACTION**: `./org_tasks.sh update UNIQUE-ID-TESTS IN-PROGRESS`
+
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `<test build command>`
+   - [ ] All tests defined and fail appropriately
+   - [ ] Passes code review
+   - [ ] Unit test cases defined
+   - [ ] Integration test cases defined
+   - [ ] Edge cases covered
+   - [ ] Performance test cases (if applicable)
+   - [ ] Security test cases (if applicable)
+
+** TODO [#X] Task Implementation                :relevant:tags:
+   :PROPERTIES:
+   :ID:          UNIQUE-ID
+   :EFFORT:      Xh
+   :ASSIGNED:    engineer-name
+   :BRANCH:      type/branch-name
+   :DEPENDS:     UNIQUE-ID-TESTS DEPENDENCY-IDS
+   :WORKTREE:    no/yes (yes for major refactors >4h, complex features, parallel work)
+   :END:
+
+   Implement feature to pass all predefined tests.
+   *Note priority inheritance from parent if applicable*
+
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Successfully builds: `<build command>`
+   - [ ] All tests pass: `<test command>`
+   - [ ] Passes code review
+   - [ ] <Specific functional requirement>
+   - [ ] <Specific functional requirement>
+   - [ ] Performance benchmarks meet targets
+   - [ ] Documentation updated
+   - [ ] No regressions in existing functionality
+
+   *** Implementation Notes
+   - Technical approach details
+   - Files to modify
+   - Potential gotchas
+   - Links to relevant documentation
+
+   *** Testing Strategy
+   - Unit tests required
+   - Integration test approach
+   - Performance validation method

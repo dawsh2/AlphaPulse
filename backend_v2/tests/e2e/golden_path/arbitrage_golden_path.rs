@@ -67,7 +67,7 @@ impl GoldenPathTestFramework {
     async fn start_relays(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         // Start Market Data Relay
         let market_data_relay = tokio::process::Command::new("cargo")
-            .args(&["run", "--release", "--package", "alphapulse-market-data-relay", "--bin", "market_data_relay"])
+            .args(&["run", "--release", "--package", "torq-market-data-relay", "--bin", "market_data_relay"])
             .env("RUST_LOG", &self.test_config.log_level)
             .env("SOCKET_PATH", "/tmp/test_market_data.sock")
             .spawn()?;
@@ -75,7 +75,7 @@ impl GoldenPathTestFramework {
         
         // Start Signal Relay
         let signal_relay = tokio::process::Command::new("cargo")
-            .args(&["run", "--release", "--package", "alphapulse-signal-relay", "--bin", "signal_relay"])
+            .args(&["run", "--release", "--package", "torq-signal-relay", "--bin", "signal_relay"])
             .env("RUST_LOG", &self.test_config.log_level)
             .env("SOCKET_PATH", "/tmp/test_signals.sock")
             .spawn()?;
@@ -83,7 +83,7 @@ impl GoldenPathTestFramework {
         
         // Start Execution Relay
         let execution_relay = tokio::process::Command::new("cargo")
-            .args(&["run", "--release", "--package", "alphapulse-execution-relay", "--bin", "execution_relay"])
+            .args(&["run", "--release", "--package", "torq-execution-relay", "--bin", "execution_relay"])
             .env("RUST_LOG", &self.test_config.log_level)
             .env("SOCKET_PATH", "/tmp/test_execution.sock")
             .spawn()?;

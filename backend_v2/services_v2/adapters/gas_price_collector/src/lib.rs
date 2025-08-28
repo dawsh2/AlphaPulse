@@ -3,10 +3,10 @@
 //! Subscribes to newHeads events to get real-time base fee updates
 //! without RPC rate limiting issues.
 
-use codec::TLVMessageBuilder;
-use alphapulse_types::tlv::gas_price::GasPriceTLV;
-use alphapulse_types::{RelayDomain, SourceType};
-use codec::TLVType;
+use torq_codec::TLVMessageBuilder;
+use torq_types::tlv::gas_price::GasPriceTLV;
+use torq_types::{RelayDomain, SourceType};
+use torq_codec::TLVType;
 use anyhow::{Context, Result};
 use ethers::prelude::*;
 use std::sync::Arc;

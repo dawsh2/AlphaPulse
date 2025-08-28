@@ -4,10 +4,10 @@
 //! - Message construction: >1M msg/s
 //! - Message parsing: >1.6M msg/s
 
-use alphapulse_types::protocol::tlv::{
+use torq_types::protocol::tlv::{
     build_message_direct, InvalidationReason, QuoteTLV, StateInvalidationTLV, TradeTLV,
 };
-use alphapulse_types::{InstrumentId, RelayDomain, SourceType, TLVType, VenueId};
+use torq_types::{InstrumentId, RelayDomain, SourceType, TLVType, VenueId};
 use std::time::Instant;
 
 #[test]

@@ -14,7 +14,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${BLUE}🧹 AlphaPulse Sprint Maintenance${NC}"
+echo -e "${BLUE}🧹 Torq Sprint Maintenance${NC}"
 echo "=================================="
 echo "Date: $(date +%Y-%m-%d)"
 echo ""

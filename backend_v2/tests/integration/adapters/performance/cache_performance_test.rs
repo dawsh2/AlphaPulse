@@ -3,7 +3,7 @@
 //! Validates that cache operations meet the <1μs lookup requirement
 //! and memory usage stays under 50MB for 10,000 pools.
 
-use alphapulse_state_market::pool_cache::{PoolCache, PoolInfo};
+use torq_state_market::pool_cache::{PoolCache, PoolInfo};
 use protocol_v2::{VenueId, DEXProtocol};
 use std::sync::Arc;
 use std::time::{Duration, Instant};

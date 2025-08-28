@@ -5,7 +5,7 @@
 
 use crate::fixtures::polygon;
 use crate::*;
-use alphapulse_adapter_service::validate_equality;
+use torq_adapter_service::validate_equality;
 
 #[test]
 fn test_deep_equality_identical_tlvs() {
@@ -131,7 +131,7 @@ fn test_multiple_roundtrip_deep_equality() {
 #[test]
 fn test_deep_equality_with_real_polygon_data() {
     // Test deep equality with actual Polygon transaction data
-    use alphapulse_adapter_service::input::collectors::polygon_dex::{
+    use torq_adapter_service::input::collectors::polygon_dex::{
         abi_events::{DEXProtocol, SwapEventDecoder},
         validated_decoder::PolygonRawSwapEvent,
     };

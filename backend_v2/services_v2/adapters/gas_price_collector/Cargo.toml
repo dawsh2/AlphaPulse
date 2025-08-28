@@ -1,13 +1,13 @@
 [package]
-name = "alphapulse-gas-price-collector"
+name = "torq-gas-price-collector"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 # Protocol
-alphapulse-types = { path = "../../../libs/types" }
-codec = { path = "../../../libs/codec" }
-torq-network = { path = "../../../network" }
+types = { workspace = true }
+codec = { workspace = true }
+network = { workspace = true }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

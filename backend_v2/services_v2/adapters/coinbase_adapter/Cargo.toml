@@ -1,12 +1,12 @@
 [package]
-name = "alphapulse-coinbase-adapter"
+name = "torq-coinbase-adapter"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-alphapulse-adapter-service = { path = "../" }
-alphapulse-types.workspace = true
-codec.workspace = true
+adapter-service = { workspace = true }
+types = { workspace = true }
+codec = { workspace = true }
 tokio.workspace = true
 async-trait.workspace = true
 tokio-tungstenite.workspace = true

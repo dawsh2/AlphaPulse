@@ -1,0 +1,46 @@
+[package]
+name = "relay-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core relay infrastructure shared across all relay domains"
+
+[lib]
+name = "relay_core"
+path = "src/lib.rs"
+
+[dependencies]
+# Protocol and types
+types = { workspace = true }
+codec = { workspace = true }
+network = { workspace = true }
+
+# Core async and serialization
+async-trait = "0.1"
+bytes = "1.5"
+dashmap = "5.5"
+futures = "0.3"
+futures-util = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+tokio = { version = "1.0", features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }
+tracing = "0.1"
+zerocopy = { version = "0.7", features = ["derive"] }
+
+# Message sink dependencies removed - now in services_v2/messaging/patterns/message_sink
+
+# Optional configuration and validation features
+config = { version = "0.13", optional = true }
+crc32fast = { version = "1.4", optional = true }
+chrono = { version = "0.4", features = ["serde"], optional = true }
+serde_yaml = { version = "0.9", optional = true }
+toml = { version = "0.8", optional = true }
+
+[features]
+default = ["config-files"]
+config-files = ["dep:serde_yaml", "dep:toml", "dep:config"]
+checksum-validation = ["dep:crc32fast"]
+timestamps = ["dep:chrono"]
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.0"

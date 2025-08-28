@@ -10,8 +10,8 @@
 //!
 //! Uses ONLY real data captured from Coinbase WebSocket streams.
 
-use alphapulse_adapter_service::input::collectors::coinbase::CoinbaseMatchEvent;
-use alphapulse_adapter_service::AdapterError;
+use torq_adapter_service::input::collectors::coinbase::CoinbaseMatchEvent;
+use torq_adapter_service::AdapterError;
 use protocol_v2::{TradeTLV, VenueId};
 use serde_json::Value;
 use std::fs;

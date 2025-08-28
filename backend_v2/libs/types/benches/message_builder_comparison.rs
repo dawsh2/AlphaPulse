@@ -2,7 +2,7 @@
 //!
 //! Tests TLV message construction performance and compares raw vs typed ID usage
 
-use alphapulse_types::{
+use torq_types::{
     protocol::tlv::{builder::TLVMessageBuilder, market_data::TradeTLV},
     InstrumentId,
     OrderId,

@@ -4,7 +4,7 @@
 //! and provide accurate, real-time transaction cost estimates.
 
 use crate::{define_tlv, define_tlv_with_padding};
-use zerocopy::{AsBytes, FromBytes, FromZeroes};
+use zerocopy::AsBytes;
 
 // Gas price update TLV using macro for consistent alignment and validation
 define_tlv_with_padding! {

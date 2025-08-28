@@ -3,11 +3,11 @@
 //! Automated detection of allocation regressions in critical performance paths.
 //! These tests ensure that hot path operations maintain zero-allocation guarantees.
 
-use alphapulse_types::protocol::tlv::market_data::TradeTLV;
-use alphapulse_types::protocol::tlv::{
+use torq_types::protocol::tlv::market_data::TradeTLV;
+use torq_types::protocol::tlv::{
     build_message_direct, with_hot_path_buffer, with_signal_buffer, TrueZeroCopyBuilder,
 };
-use alphapulse_types::protocol::{InstrumentId, RelayDomain, SourceType, TLVType, VenueId};
+use torq_codec::protocol::{InstrumentId, RelayDomain, SourceType, TLVType, VenueId};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 

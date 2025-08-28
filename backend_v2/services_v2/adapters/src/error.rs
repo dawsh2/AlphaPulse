@@ -1,6 +1,6 @@
 //! Error types for the adapters module
 
-use alphapulse_types::VenueId;
+use torq_types::VenueId;
 use thiserror::Error;
 
 /// Result type alias for adapter operations

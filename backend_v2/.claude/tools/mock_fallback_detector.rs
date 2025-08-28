@@ -1,6 +1,6 @@
-//! Mock and Fallback Pattern Detection for AlphaPulse
+//! Mock and Fallback Pattern Detection for Torq
 //!
-//! Zero-tolerance detection system for patterns that violate AlphaPulse's
+//! Zero-tolerance detection system for patterns that violate Torq's
 //! "NO MOCKS EVER" policy and fail-fast philosophy. This tool scans code
 //! for mock usage, error swallowing, and fallback patterns that could
 //! hide system failures or provide deceptive behavior.
@@ -96,7 +96,7 @@ pub struct MockFallbackDetector {
 }
 
 impl MockFallbackDetector {
-    /// Create a new detector with AlphaPulse-specific patterns
+    /// Create a new detector with Torq-specific patterns
     pub fn new() -> Result<Self, DetectionError> {
         let mut detector = Self {
             patterns: HashMap::new(),
@@ -241,7 +241,7 @@ impl MockFallbackDetector {
         Ok(())
     }
     
-    /// Load AlphaPulse policy patterns
+    /// Load Torq policy patterns
     fn load_policy_patterns(&mut self) -> Result<(), DetectionError> {
         let patterns = vec![
             // Unwrap patterns (should be used carefully)

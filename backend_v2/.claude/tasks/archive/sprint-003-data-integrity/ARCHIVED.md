@@ -5,7 +5,7 @@
 **Duration**: Sprint lifecycle completed  
 
 ## Sprint Summary
-Sprint 003 focused on eliminating data integrity issues in the AlphaPulse trading system, specifically addressing fake/hardcoded data, protocol violations, and missing safety guards.
+Sprint 003 focused on eliminating data integrity issues in the Torq trading system, specifically addressing fake/hardcoded data, protocol violations, and missing safety guards.
 
 ## Completed Tasks
 

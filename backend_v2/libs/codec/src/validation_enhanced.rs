@@ -10,11 +10,11 @@
 
 use crate::error::{ProtocolError, ProtocolResult};
 use crate::parser::{parse_tlv_extensions, TLVExtensionEnum, SimpleTLVExtension, ExtendedTLVExtension};
-use alphapulse_types::protocol::tlv::types::TLVType;
+use torq_codec::protocol::tlv::types::TLVType;
 use crate::tlv_types::TlvTypeRegistry;
 use crate::validation_config::{ValidationConfig, DomainMessageLimits};
-use alphapulse_types::protocol::message::header::MessageHeader;
-use alphapulse_types::{RelayDomain, SourceType};
+use torq_types::protocol::message::header::MessageHeader;
+use torq_types::{RelayDomain, SourceType};
 use std::collections::{HashMap, VecDeque, HashSet};
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};

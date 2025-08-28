@@ -1,9 +1,9 @@
-//! # AlphaPulse Adapters - Protocol V2 Data Transformation Layer
+//! # Torq Adapters - Protocol V2 Data Transformation Layer
 //!
 //! ## Purpose
 //!
 //! High-performance stateless adapters that transform raw exchange data into Protocol V2 TLV
-//! messages for the AlphaPulse trading system. Provides unified data collection from centralized
+//! messages for the Torq trading system. Provides unified data collection from centralized
 //! exchanges (CEX) and decentralized exchanges (DEX) with comprehensive validation, circuit breaker
 //! protection, and sub-millisecond conversion latency optimized for high-frequency trading workloads.
 //!
@@ -34,7 +34,7 @@
 //!
 //! ### Zero-Copy Architecture with Minimal Allocation
 //!
-//! **AlphaPulse adapters achieve near-zero-copy performance with a single required allocation:**
+//! **Torq adapters achieve near-zero-copy performance with a single required allocation:**
 //!
 //! ```rust
 //! // Pattern: Zero-copy construction + one allocation for async ownership
@@ -130,8 +130,8 @@
 //!
 //! ### Complete CEX Adapter Implementation
 //! ```rust
-//! use alphapulse_adapters::{CoinbaseCollector, RelayDomain, SourceType};
-//! use alphapulse_alphapulse_types::protocol::{TLVMessageBuilder, TLVType};
+//! use torq_adapters::{CoinbaseCollector, RelayDomain, SourceType};
+//! use torq_torq_types::protocol::{TLVMessageBuilder, TLVType};
 //! use tokio::sync::mpsc;
 //!
 //! // Production-ready CEX adapter usage
@@ -170,7 +170,7 @@
 //!
 //! ### Four-Step Validation Pipeline
 //! ```rust
-//! use alphapulse_adapters::validation::complete_validation_pipeline;
+//! use torq_adapters::validation::complete_validation_pipeline;
 //!
 //! #[test]
 //! fn test_adapter_zero_data_loss() -> Result<()> {
@@ -249,12 +249,12 @@ pub use input::collectors::{
 };
 
 // Re-export protocol types for convenience
-pub use alphapulse_types::{
+pub use torq_types::{
     InstrumentId, InvalidationReason, QuoteTLV, TLVType, TradeTLV, VenueId,
 };
 
 // Re-export codec functionality
-pub use codec::TLVMessageBuilder;
+pub use torq_codec::TLVMessageBuilder;
 
 /// Architecture diagram showing adapter service data flow and component relationships
 #[cfg_attr(doc, aquamarine::aquamarine)]

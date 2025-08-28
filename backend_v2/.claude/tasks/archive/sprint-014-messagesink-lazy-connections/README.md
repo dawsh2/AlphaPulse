@@ -50,8 +50,8 @@ Adapter → SinkFactory → Mycelium API
 
 4. **Test the implementation**:
    ```bash
-   cargo test -p alphapulse-message-sink
-   cargo bench -p alphapulse-message-sink
+   cargo test -p torq-message-sink
+   cargo bench -p torq-message-sink
    ```
 
 ## Task Overview

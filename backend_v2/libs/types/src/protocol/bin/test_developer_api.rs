@@ -1,8 +1,8 @@
 #!/usr/bin/env cargo
 //! Test the new TLVType developer API
 
-use alphapulse_types::tlv::TLVType;
-use alphapulse_types::RelayDomain;
+use torq_types::tlv::TLVType;
+use torq_types::RelayDomain;
 
 fn main() {
     println!("Testing TLVType Developer API\n");

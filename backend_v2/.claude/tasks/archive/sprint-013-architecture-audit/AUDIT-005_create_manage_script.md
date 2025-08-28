@@ -30,7 +30,7 @@ cd ../audit-005-worktree
 **Estimated**: 3 hours
 
 ## Problem Statement
-AlphaPulse currently lacks a unified management interface for system lifecycle. Starting and stopping the system requires knowledge of multiple scripts and manual process management.
+Torq currently lacks a unified management interface for system lifecycle. Starting and stopping the system requires knowledge of multiple scripts and manual process management.
 
 ## Acceptance Criteria
 - [ ] Create main `manage.sh` dispatcher script
@@ -55,7 +55,7 @@ scripts/
 ## Command Interface
 ```bash
 # Basic lifecycle management
-./scripts/manage.sh up      # Start all AlphaPulse services
+./scripts/manage.sh up      # Start all Torq services
 ./scripts/manage.sh down    # Stop all services gracefully
 ./scripts/manage.sh restart # Stop and start all services
 ./scripts/manage.sh status  # Show status of all services
@@ -101,7 +101,7 @@ scripts/
 - Move existing utility scripts to `lib/` as needed
 
 ## Success Criteria
-- Single command starts entire AlphaPulse system
+- Single command starts entire Torq system
 - Clean shutdown stops all processes gracefully
 - Status command shows health of all services
 - Log streaming provides unified view of system activity

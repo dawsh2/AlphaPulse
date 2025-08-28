@@ -60,10 +60,10 @@ impl SimpleTraceCollector {
         info!("🚀 Starting SimpleTraceCollector");
 
         // Create socket directory
-        std::fs::create_dir_all("/tmp/alphapulse").ok();
+        std::fs::create_dir_all("/tmp/torq").ok();
 
         // Remove existing socket
-        let socket_path = "/tmp/alphapulse/trace_collector.sock";
+        let socket_path = "/tmp/torq/trace_collector.sock";
         if std::path::Path::new(socket_path).exists() {
             std::fs::remove_file(socket_path)?;
         }

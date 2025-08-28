@@ -5,7 +5,7 @@
 
 use crate::fixtures::polygon;
 use crate::*;
-use alphapulse_adapter_service::input::collectors::polygon_dex::{
+use torq_adapter_service::input::collectors::polygon_dex::{
     abi_events::{DEXProtocol as LocalDEXProtocol, SwapEventDecoder},
     validated_decoder::{PolygonRawSwapEvent, ValidatedPolygonDecoder},
 };

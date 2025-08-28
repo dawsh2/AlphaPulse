@@ -1,4 +1,4 @@
-//! End-to-End Test Framework for AlphaPulse
+//! End-to-End Test Framework for Torq
 //!
 //! Comprehensive testing suite that validates the entire system from
 //! exchange data ingestion through strategy execution to dashboard display.

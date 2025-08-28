@@ -8,7 +8,7 @@
 
 mod common;
 
-use alphapulse_types::protocol::{
+use torq_types::protocol::{
     parse_header, parse_tlv_extensions,
     tlv::{parse_tlv_extensions_for_relay, ParseError, TLVMessageBuilder},
     InstrumentId, MessageHeader, RelayDomain, SourceType, TLVType, VenueId,
@@ -361,7 +361,7 @@ fn test_cross_domain_tlv_contamination() {
 #[test]
 fn test_real_arbitrage_opportunity_message() {
     // Test a real arbitrage signal with all required TLVs
-    use alphapulse_types::protocol::InstrumentId;
+    use torq_types::protocol::InstrumentId;
 
     // Real arb opportunity: WETH/USDC price difference
     let opportunity_id: u64 = 0x1234567890ABCDEF;

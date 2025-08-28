@@ -31,9 +31,9 @@ The frontend WebSocket clients disconnect from the dashboard server after receiv
 ## Temporary Workaround
 Restart the dashboard WebSocket server:
 ```bash
-pkill -f alphapulse-dashboard-websocket
+pkill -f torq-dashboard-websocket
 sleep 1
-nohup target/release/alphapulse-dashboard-websocket > /tmp/alphapulse/logs/dashboard_websocket.log 2>&1 &
+nohup target/release/torq-dashboard-websocket > /tmp/torq/logs/dashboard_websocket.log 2>&1 &
 ```
 
 ## Permanent Fix Required

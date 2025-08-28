@@ -1,4 +1,4 @@
-# AlphaPulse Transport Usage Whitelist
+# Torq Transport Usage Whitelist
 # Files and paths approved for direct UnixSocketTransport::new usage
 
 # Transport factory implementations

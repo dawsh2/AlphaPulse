@@ -7,7 +7,7 @@ use crate::{
     TraceCollectorStats, TraceError, TraceEventProcessor, TraceId, TraceTimeline,
 };
 
-use alphapulse_types::TraceEvent;
+use torq_types::TraceEvent;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
@@ -20,7 +20,7 @@ use tracing::{debug, error, info, warn};
 
 /// Main TraceCollector service
 ///
-/// Aggregates trace events from all AlphaPulse services and builds
+/// Aggregates trace events from all Torq services and builds
 /// complete message flow timelines for observability.
 pub struct TraceCollector {
     config: TraceCollectorConfig,

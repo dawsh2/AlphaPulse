@@ -1,0 +1,42 @@
+[package]
+name = "relays"
+version = "0.1.0"
+edition = "2021"
+authors = ["Torq Team"]
+license = "MIT"
+description = "High-performance message relay infrastructure for Torq"
+
+[dependencies]
+relay-core = { workspace = true }
+relay-execution = { workspace = true }
+relay-market-data = { workspace = true }
+relay-signal = { workspace = true }
+
+# Common dependencies used across relay crates
+anyhow = "1.0"
+async-trait = "0.1"
+thiserror = "1.0"
+tokio = { version = "1.0", features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }
+tracing = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.3"
+bytes = "1.5"
+dashmap = "5.5"
+futures = "0.3"
+zerocopy = { version = "0.7", features = ["derive"] }
+
+# Configuration
+clap = { version = "4.0", features = ["derive"] }
+config = "0.13"
+serde_yaml = "0.9"
+toml = "0.8"
+
+# Performance and security
+crc32fast = "1.4"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Development dependencies
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3.0"
+tokio-test = "0.4"
+fastrand = "2.0"

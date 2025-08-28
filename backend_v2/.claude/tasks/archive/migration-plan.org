@@ -1,0 +1,184 @@
+#+TITLE: Task Migration Plan - Previous Scrum → Org Mode
+#+TODO: TODO NEXT IN-PROGRESS | DONE CANCELLED
+#+STARTUP: overview
+#+STARTUP: hidestars  
+#+STARTUP: logdone
+
+* TODO [#A] Migrate Critical Production Issues    :migration:emergency:critical:
+  :PROPERTIES:
+  :ID:          MIGRATE-EMERGENCY
+  :EFFORT:      2h
+  :ASSIGNED:    scrum-leader
+  :DEADLINE:    <2025-08-28 Wed 14:00>
+  :END:
+
+  Migrate the emergency production issues from CURRENT_PRIORITIES.md to org-mode.
+  
+  **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
+
+** TODO Migrate INTEGRITY-001: Fix Hardcoded Signal Data :data-integrity:emergency:
+   :PROPERTIES:
+   :ID:          MIGRATE-001
+   :EFFORT:      30min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/integrity-001
+   :END:
+
+   Migrate fake data fix task to org-mode with TDD structure.
+
+   *** Acceptance Criteria
+   - [ ] Task created with Priority A
+   - [ ] Test task created first (TDD red phase)
+   - [ ] Implementation task depends on test
+   - [ ] Clear acceptance criteria defined
+   - [ ] Branch strategy specified
+
+** TODO Migrate INTEGRITY-002: Remove Protocol Violations :protocol:emergency:
+   :PROPERTIES:
+   :ID:          MIGRATE-002
+   :EFFORT:      30min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/integrity-002
+   :DEPENDS:     MIGRATE-001
+   :END:
+
+   Migrate protocol violation removal task to org-mode.
+
+** TODO Migrate SAFETY-001: Re-enable Profitability Guards :financial-safety:emergency:
+   :PROPERTIES:
+   :ID:          MIGRATE-003
+   :EFFORT:      30min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/safety-001
+   :DEPENDS:     MIGRATE-002
+   :END:
+
+   Migrate financial safety guard re-enabling task.
+
+* TODO [#A] Migrate Critical Gap Resolution       :migration:gaps:blocking:
+  :PROPERTIES:
+  :ID:          MIGRATE-GAPS
+  :EFFORT:      3h
+  :ASSIGNED:    scrum-leader
+  :DEADLINE:    <2025-08-28 Wed 16:00>
+  :END:
+
+  Migrate Sprint 012 Critical Gaps tasks to org-mode system.
+
+** TODO Migrate GAP-001: Missing TLV Types        :tlv:types:compilation:
+   :PROPERTIES:
+   :ID:          MIGRATE-GAP-001
+   :EFFORT:      30min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/gap-001
+   :DEPENDS:     MIGRATE-003
+   :END:
+
+   Migrate missing TLV types task (QuoteTLV, InvalidationReason).
+
+** TODO Migrate GAP-002: Import Errors            :imports:parsing:
+   :PROPERTIES:
+   :ID:          MIGRATE-GAP-002
+   :EFFORT:      30min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/gap-002
+   :DEPENDS:     MIGRATE-GAP-001
+   :END:
+
+   Migrate parse_header, parse_tlv_extensions access issues.
+
+** TODO Migrate GAP-003: Disabled State Management :state:arbitrage:
+   :PROPERTIES:
+   :ID:          MIGRATE-GAP-003
+   :EFFORT:      30min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/gap-003
+   :DEPENDS:     MIGRATE-GAP-002
+   :END:
+
+   Migrate disabled state management re-enabling.
+
+** TODO Migrate GAP-004: Timestamp Performance    :performance:timestamps:
+   :PROPERTIES:
+   :ID:          MIGRATE-GAP-004
+   :EFFORT:      30min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/gap-004
+   :DEPENDS:     MIGRATE-GAP-003
+   :END:
+
+   Migrate SystemTime::now() hot path performance fixes.
+
+** TODO Migrate GAP-005: End-to-End Validation    :testing:e2e:validation:
+   :PROPERTIES:
+   :ID:          MIGRATE-GAP-005
+   :EFFORT:      45min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/gap-005
+   :DEPENDS:     MIGRATE-GAP-004
+   :END:
+
+   Migrate comprehensive production readiness testing.
+
+* TODO [#B] Migrate Test Infrastructure Tasks     :migration:testing:infrastructure:
+  :PROPERTIES:
+  :ID:          MIGRATE-TESTING
+  :EFFORT:      2h
+  :ASSIGNED:    scrum-leader
+  :DEADLINE:    <2025-08-29 Thu 12:00>
+  :END:
+
+  Migrate essential testing tasks from Sprint 009 Testing Pyramid.
+
+** TODO Migrate TEST-001: Unit Test Framework     :testing:unit:framework:
+   :PROPERTIES:
+   :ID:          MIGRATE-TEST-001
+   :EFFORT:      30min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/test-001
+   :END:
+
+   Migrate unit testing framework establishment.
+
+** TODO Migrate TEST-003: E2E Golden Path         :testing:e2e:golden-path:
+   :PROPERTIES:
+   :ID:          MIGRATE-TEST-003
+   :EFFORT:      45min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/test-003
+   :DEPENDS:     MIGRATE-TEST-001
+   :END:
+
+   Migrate end-to-end golden path testing.
+
+* TODO [#C] Archive Previous Scrum System        :migration:cleanup:archival:
+  :PROPERTIES:
+  :ID:          ARCHIVE-SCRUM
+  :EFFORT:      1h
+  :ASSIGNED:    scrum-leader
+  :DEADLINE:    <2025-08-29 Thu 18:00>
+  :END:
+
+  Clean up and archive the old scrum system files after migration.
+
+** TODO Create Migration Completion Report        :documentation:report:
+   :PROPERTIES:
+   :ID:          MIGRATION-REPORT
+   :EFFORT:      30min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/completion-report
+   :DEPENDS:     MIGRATE-TESTING
+   :END:
+
+   Document what was migrated and what was archived.
+
+** TODO Archive Old Task Files                    :cleanup:archival:
+   :PROPERTIES:
+   :ID:          ARCHIVE-FILES
+   :EFFORT:      30min
+   :ASSIGNED:    scrum-leader
+   :BRANCH:      migrate/archive-cleanup
+   :DEPENDS:     MIGRATION-REPORT
+   :END:
+
+   Move old scrum files to archive and clean up structure.

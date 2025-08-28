@@ -21,7 +21,7 @@ use tokio::sync::mpsc;
 use tokio::time::timeout;
 use zerocopy::AsBytes;
 
-const SIGNAL_RELAY_PATH: &str = "/tmp/alphapulse/signals.sock";
+const SIGNAL_RELAY_PATH: &str = "/tmp/torq/signals.sock";
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Helper to create a test ArbitrageSignalTLV

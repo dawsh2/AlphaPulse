@@ -1,8 +1,8 @@
-# DevOps Procedures for AlphaPulse
+# DevOps Procedures for Torq
 
 ## Overview
 
-This document outlines the complete DevOps infrastructure and procedures implemented for AlphaPulse's high-frequency trading system. All procedures are designed to maintain zero-downtime operations during live trading hours with Protocol V2 TLV message integrity.
+This document outlines the complete DevOps infrastructure and procedures implemented for Torq's high-frequency trading system. All procedures are designed to maintain zero-downtime operations during live trading hours with Protocol V2 TLV message integrity.
 
 ## Infrastructure Components
 
@@ -39,7 +39,7 @@ This document outlines the complete DevOps infrastructure and procedures impleme
    ./scripts/switch_production.sh
    
    # Validate new environment
-   curl https://prod.alphapulse.com/health
+   curl https://prod.torq.com/health
    ```
 
 4. **Monitoring & Rollback**
@@ -71,7 +71,7 @@ This document outlines the complete DevOps infrastructure and procedures impleme
 
 **Service Integration**:
 ```rust
-use alphapulse_health_check::{HealthCheckServer, ServiceHealth};
+use torq_health_check::{HealthCheckServer, ServiceHealth};
 
 // In service main()
 let mut health = ServiceHealth::new("service_name");
@@ -97,16 +97,16 @@ tokio::spawn(async move { health_server.start().await });
 
 **Architecture**:
 ```rust
-use alphapulse_service_discovery::{ServiceDiscovery, ServiceConnector};
+use torq_service_discovery::{ServiceDiscovery, ServiceConnector};
 
 let discovery = ServiceDiscovery::new().await?;
 let stream = discovery.connect_to_service("market_data_relay").await?;
 ```
 
 **Environment Detection**:
-- `ALPHAPULSE_ENV` environment variable
+- `TORQ_ENV` environment variable
 - Container detection (`/.dockerenv`)
-- System paths (`/var/run/alphapulse`)
+- System paths (`/var/run/torq`)
 - CI environment (`CI=true`)
 
 **Load Balancing Strategies**:
@@ -119,22 +119,22 @@ let stream = discovery.connect_to_service("market_data_relay").await?;
 **Configuration Files**:
 ```
 config/environments/
-├── development.toml    # /tmp/alphapulse
-├── staging.toml        # /tmp/alphapulse-staging
-├── production.toml     # /var/run/alphapulse
-├── testing.toml        # /tmp/alphapulse-test
+├── development.toml    # /tmp/torq
+├── staging.toml        # /tmp/torq-staging
+├── production.toml     # /var/run/torq
+├── testing.toml        # /tmp/torq-test
 └── docker.toml         # /app/sockets
 ```
 
 **Environment-Specific Settings**:
 ```toml
 # production.toml
-socket_dir = "/var/run/alphapulse"
-log_dir = "/var/log/alphapulse"
-pid_file = "/var/run/alphapulse/alphapulse.pid"
+socket_dir = "/var/run/torq"
+log_dir = "/var/log/torq"
+pid_file = "/var/run/torq/torq.pid"
 
 [services.market_data_relay]
-socket_path = "/var/run/alphapulse/market_data.sock"
+socket_path = "/var/run/torq/market_data.sock"
 health_port = 8001
 priority = 10
 enabled = true
@@ -153,10 +153,10 @@ enabled = true
 curl http://localhost:8001/metrics | jq '.messages_per_second'
 
 # 3. Test service discovery
-ALPHAPULSE_ENV=production cargo test --package alphapulse_service_discovery
+TORQ_ENV=production cargo test --package torq_service_discovery
 
 # 4. Check socket connections
-netstat -ln | grep alphapulse
+netstat -ln | grep torq
 ```
 
 #### End-of-Day Procedures
@@ -184,7 +184,7 @@ cargo test --workspace --release
 
 # 2. Deploy via GitHub Actions
 git push origin main
-# Monitors deployment at: https://github.com/alphapulse/backend_v2/actions
+# Monitors deployment at: https://github.com/torq/backend_v2/actions
 
 # 3. Post-deployment verification
 ./scripts/validate_deployment.sh
@@ -237,10 +237,10 @@ curl -s http://localhost:8001/status | jq '.'
 watch -n 5 'curl -s http://localhost:8001/metrics | jq ".messages_per_second,.active_connections"'
 
 # 3. Socket status
-watch -n 10 'ls -la /var/run/alphapulse/'
+watch -n 10 'ls -la /var/run/torq/'
 
 # 4. Log monitoring
-tail -f /var/log/alphapulse/market_data_relay.log | grep ERROR
+tail -f /var/log/torq/market_data_relay.log | grep ERROR
 ```
 
 #### Performance Analysis
@@ -252,10 +252,10 @@ cargo run --bin test_protocol --release
 time curl http://localhost:8001/health
 
 # 3. Memory usage analysis
-ps aux | grep alphapulse
+ps aux | grep torq
 
 # 4. Socket connection analysis
-ss -x | grep alphapulse
+ss -x | grep torq
 ```
 
 ### Testing Procedures
@@ -288,10 +288,10 @@ curl http://127.0.0.1:8001/status    # Should return detailed status
 #### Service Discovery Testing
 ```bash
 # Test environment detection
-ALPHAPULSE_ENV=development cargo test test_environment_detection
+TORQ_ENV=development cargo test test_environment_detection
 
 # Test service resolution
-ALPHAPULSE_ENV=production cargo test test_service_resolution
+TORQ_ENV=production cargo test test_service_resolution
 
 # Test connection pooling
 cargo test test_connection_pooling
@@ -319,7 +319,7 @@ python scripts/check_performance_regression.py
 Error: Unknown service type: market_data_relay
 
 # Solution: Check service registration
-ALPHAPULSE_ENV=development cargo test test_service_types
+TORQ_ENV=development cargo test test_service_types
 
 # Verify configuration
 cat config/environments/development.toml
@@ -332,11 +332,11 @@ curl http://localhost:8001/health
 # Returns: {"status": "unhealthy", "error": "Socket not found"}
 
 # Solution: Check socket existence
-ls -la /tmp/alphapulse/
-ls -la /var/run/alphapulse/
+ls -la /tmp/torq/
+ls -la /var/run/torq/
 
 # Restart service if needed
-systemctl restart alphapulse-market-data-relay
+systemctl restart torq-market-data-relay
 ```
 
 #### Performance Degradation
@@ -346,7 +346,7 @@ cargo run --bin test_protocol --release
 # Shows: 750K msg/s (below threshold)
 
 # Solution: Check system resources
-top -p $(pgrep alphapulse)
+top -p $(pgrep torq)
 iostat 1 5
 netstat -s
 
@@ -361,8 +361,8 @@ perf report
 Error: No such file or directory (os error 2)
 
 # Solution: Check socket permissions and existence
-ls -la /tmp/alphapulse/
-sudo lsof /tmp/alphapulse/market_data.sock
+ls -la /tmp/torq/
+sudo lsof /tmp/torq/market_data.sock
 
 # Restart socket-creating service
 cargo run --release --bin market_data_relay &
@@ -415,7 +415,7 @@ nslookup api.kraken.com
 ./scripts/test_websocket_connectivity.sh
 
 # 4. Check firewall rules
-iptables -L | grep alphapulse
+iptables -L | grep torq
 ```
 
 ## Performance Benchmarks
@@ -465,11 +465,11 @@ Health checks and service discovery don't interfere with hot path:
 ### Socket Security
 ```bash
 # Set proper permissions
-chmod 660 /var/run/alphapulse/*.sock
-chown alphapulse:alphapulse /var/run/alphapulse/*.sock
+chmod 660 /var/run/torq/*.sock
+chown torq:torq /var/run/torq/*.sock
 
 # Monitor socket access
-auditctl -w /var/run/alphapulse/ -p rwxa -k alphapulse_sockets
+auditctl -w /var/run/torq/ -p rwxa -k torq_sockets
 ```
 
 ### Health Check Security
@@ -522,7 +522,7 @@ iptables -A INPUT -p tcp --dport 8001 -s monitoring_server_ip -j ACCEPT
 cargo run --example health_check_demo
 
 # Service discovery
-cargo test --package alphapulse_service_discovery
+cargo test --package torq_service_discovery
 
 # E2E pipeline
 ./scripts/e2e_pipeline_test.sh

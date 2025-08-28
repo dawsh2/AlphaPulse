@@ -136,7 +136,7 @@ If Phases 1-3 pass, assign to specialist reviewer:
 
 **Conditions before merge:**
 1. Add integration test showing cache actually works
-2. Verify dependency on `alphapulse-state-market` is properly declared
+2. Verify dependency on `torq-state-market` is properly declared
 3. Test with actual RPC endpoint to confirm discovery works
 
 ## 📋 Approval Workflow

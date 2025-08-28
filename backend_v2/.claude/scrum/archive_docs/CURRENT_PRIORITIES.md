@@ -1,4 +1,4 @@
-# AlphaPulse Current Priorities - What Needs to be Done Tomorrow
+# Torq Current Priorities - What Needs to be Done Tomorrow
 
 *Updated: 2025-08-26 - Based on dynamic task scan*
 

@@ -24,7 +24,7 @@ max_reconnect_attempts = 10
 
 [relay]
 # Unix socket path for RelayOutput connection
-socket_path = "/tmp/alphapulse/market_data.sock"
+socket_path = "/tmp/torq/market_data.sock"
 
 # Relay domain for TLV message routing
 domain = "MarketData"

@@ -1,4 +1,4 @@
-use alphapulse_types::{
+use torq_types::{
     parse_header, parse_tlv_extensions,
     tlv::market_data::TradeTLV,
     tlv::{build_message_direct, init_timestamp_system},
@@ -101,7 +101,7 @@ fn profile_hot_path() {
         4500000000000,
         1000000,
         1,
-        alphapulse_types::tlv::fast_timestamp_ns(),
+        torq_types::tlv::fast_timestamp_ns(),
     );
 
     let iterations = 100_000;
@@ -144,7 +144,7 @@ fn identify_bottlenecks() {
     // 1. Timestamp generation
     let start = Instant::now();
     for _ in 0..iterations {
-        let ts = alphapulse_types::tlv::fast_timestamp_ns();
+        let ts = torq_types::tlv::fast_timestamp_ns();
         std::hint::black_box(ts);
     }
     let ts_time = start.elapsed();

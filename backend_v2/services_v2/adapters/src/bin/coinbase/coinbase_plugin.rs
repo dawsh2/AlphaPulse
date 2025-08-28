@@ -5,11 +5,11 @@
 //! collector as the reference implementation. This plugin-based design enables
 //! dynamic loading, consistent interfaces, and hot-swappable exchange integrations.
 
-use alphapulse_adapters::{
+use torq_adapters::{
     Adapter, AdapterHealth, CircuitState, ConnectionStatus, InstrumentType, Result,
 };
-use codec::{InstrumentId, TLVMessageBuilder, TLVType, VenueId};
-use alphapulse_types::protocol::{RelayDomain, SourceType, TradeTLV, QuoteTLV};
+use torq_codec::{InstrumentId, TLVMessageBuilder, TLVType, VenueId};
+use torq_codec::protocol::{RelayDomain, SourceType, TradeTLV, QuoteTLV};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -93,7 +93,7 @@ impl CoinbasePlugin {
     async fn process_coinbase_message(&self, msg: &str) -> Result<Option<Vec<u8>>> {
         // Parse JSON message
         let json: serde_json::Value = serde_json::from_str(msg)
-            .map_err(|e| alphapulse_adapters::AdapterError::ParseError(e.to_string()))?;
+            .map_err(|e| torq_adapters::AdapterError::ParseError(e.to_string()))?;
 
         // Extract message type
         let msg_type = json["type"].as_str().unwrap_or("");
@@ -116,7 +116,7 @@ impl CoinbasePlugin {
     /// Process ticker message into QuoteTLV
     async fn process_ticker(&self, json: &serde_json::Value) -> Result<Option<Vec<u8>>> {
         let product_id = json["product_id"].as_str()
-            .ok_or_else(|| alphapulse_adapters::AdapterError::ParseError("Missing product_id".to_string()))?;
+            .ok_or_else(|| torq_adapters::AdapterError::ParseError("Missing product_id".to_string()))?;
         
         // Create instrument ID
         let instrument_id = InstrumentId::coin(VenueId::Coinbase, product_id)?;
@@ -167,7 +167,7 @@ impl CoinbasePlugin {
     /// Process trade/match message into TradeTLV
     async fn process_trade(&self, json: &serde_json::Value) -> Result<Option<Vec<u8>>> {
         let product_id = json["product_id"].as_str()
-            .ok_or_else(|| alphapulse_adapters::AdapterError::ParseError("Missing product_id".to_string()))?;
+            .ok_or_else(|| torq_adapters::AdapterError::ParseError("Missing product_id".to_string()))?;
         
         // Create instrument ID
         let instrument_id = InstrumentId::coin(VenueId::Coinbase, product_id)?;
@@ -235,7 +235,7 @@ impl Adapter for CoinbasePlugin {
         // Create WebSocket connection
         let url = &self.config.websocket_url;
         let (ws_stream, _) = tokio_tungstenite::connect_async(url).await
-            .map_err(|e| alphapulse_adapters::AdapterError::ConnectionError(e.to_string()))?;
+            .map_err(|e| torq_adapters::AdapterError::ConnectionError(e.to_string()))?;
 
         info!("Connected to Coinbase WebSocket");
 
@@ -257,7 +257,7 @@ impl Adapter for CoinbasePlugin {
         // Send subscription
         let (mut write, mut read) = ws_stream.split();
         write.send(WsMessage::Text(subscribe_msg.to_string())).await
-            .map_err(|e| alphapulse_adapters::AdapterError::ConnectionError(e.to_string()))?;
+            .map_err(|e| torq_adapters::AdapterError::ConnectionError(e.to_string()))?;
 
         // Process messages
         while let Some(msg_result) = read.next().await {
@@ -342,14 +342,14 @@ impl Adapter for CoinbasePlugin {
     async fn process_message(&self, raw_data: &[u8], output_buffer: &mut [u8]) -> Result<Option<usize>> {
         // Convert raw data to string
         let msg = std::str::from_utf8(raw_data)
-            .map_err(|e| alphapulse_adapters::AdapterError::ParseError(e.to_string()))?;
+            .map_err(|e| torq_adapters::AdapterError::ParseError(e.to_string()))?;
 
         // Process the message
         match self.process_coinbase_message(msg).await? {
             Some(tlv_message) => {
                 // Copy to output buffer
                 if tlv_message.len() > output_buffer.len() {
-                    return Err(alphapulse_adapters::AdapterError::BufferTooSmall);
+                    return Err(torq_adapters::AdapterError::BufferTooSmall);
                 }
                 output_buffer[..tlv_message.len()].copy_from_slice(&tlv_message);
                 Ok(Some(tlv_message.len()))
@@ -377,10 +377,10 @@ impl CoinbasePluginFactory {
         output_tx: mpsc::Sender<Vec<u8>>,
     ) -> Result<Box<dyn Adapter<Config = CoinbasePluginConfig>>> {
         let config_str = tokio::fs::read_to_string(path).await
-            .map_err(|e| alphapulse_adapters::AdapterError::ConfigError(e.to_string()))?;
+            .map_err(|e| torq_adapters::AdapterError::ConfigError(e.to_string()))?;
         
         let config: CoinbasePluginConfig = toml::from_str(&config_str)
-            .map_err(|e| alphapulse_adapters::AdapterError::ConfigError(e.to_string()))?;
+            .map_err(|e| torq_adapters::AdapterError::ConfigError(e.to_string()))?;
         
         Ok(Self::create(config, output_tx))
     }

@@ -1,6 +1,6 @@
 //! # Common Adapter Infrastructure
 //!
-//! Shared trait definitions and utilities for all AlphaPulse adapter implementations.
+//! Shared trait definitions and utilities for all Torq adapter implementations.
 //! Provides a unified interface for data collection, transformation, and output routing.
 
 use crate::{AdapterError, CircuitState, Result};
@@ -16,7 +16,7 @@ use tracing::{debug, error, info, warn};
 // CORE TRAITS
 // ============================================================================
 
-/// Core trait that all AlphaPulse adapters must implement
+/// Core trait that all Torq adapters must implement
 ///
 /// This trait defines the standard lifecycle and behavior for data collection
 /// adapters, ensuring consistent interfaces across all exchange integrations.

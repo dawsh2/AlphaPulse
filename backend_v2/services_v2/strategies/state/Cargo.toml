@@ -1,0 +1,34 @@
+[package]
+name = "state-market"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Internal
+state-core = { workspace = true }
+types = { workspace = true }
+
+# External
+anyhow = { workspace = true }
+bincode = { workspace = true }
+crc32fast = { workspace = true }
+
+# Pool cache dependencies
+crossbeam-channel = { workspace = true }
+dashmap = { workspace = true }
+hex = { workspace = true }
+memmap2 = { workspace = true }
+parking_lot = { workspace = true }
+reqwest = { workspace = true }
+rust_decimal = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+web3 = { workspace = true }
+zerocopy = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

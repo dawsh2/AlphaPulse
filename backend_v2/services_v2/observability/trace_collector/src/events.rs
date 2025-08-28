@@ -3,7 +3,7 @@
 //! Handles incoming trace events and updates trace timelines.
 
 use crate::{trace_id_to_hex, Result, TraceCollectorStats, TraceError, TraceId, TraceTimeline};
-use alphapulse_types::TraceEvent;
+use torq_types::TraceEvent;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
@@ -261,7 +261,7 @@ impl TraceEventProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alphapulse_types::{SourceType, TraceEvent, TraceEventType};
+    use torq_types::{SourceType, TraceEvent, TraceEventType};
     use std::collections::HashMap;
 
     fn create_test_event(

@@ -3,7 +3,7 @@
 //! Investigates the critical TLV parsing bottleneck found in performance tests.
 //! This binary will isolate and fix the specific issue causing 0 msg/s throughput.
 
-use alphapulse_types::{
+use torq_types::{
     parse_tlv_extensions, tlv::TLVMessageBuilder, MessageHeader, RelayDomain, SourceType, TLVType,
 };
 use tracing::{error, info, warn, Level};

@@ -10,7 +10,7 @@
 //! Kraken uses array-based format for data messages and JSON for control messages
 
 use crate::output::RelayOutput;
-use alphapulse_types::{
+use torq_types::{
     current_timestamp_ns, tlv::build_message_direct, InstrumentId, QuoteTLV, RelayDomain,
     SourceType, TLVType, TradeTLV, VenueId,
 };

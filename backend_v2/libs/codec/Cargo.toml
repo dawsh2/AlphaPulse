@@ -2,11 +2,11 @@
 name = "codec"
 version = "0.1.0"
 edition = "2021"
-description = "AlphaPulse protocol codec - encoding/decoding rules and message construction"
+description = "Torq protocol codec - encoding/decoding rules and message construction"
 
 [dependencies]
 # Core type definitions  
-alphapulse-types = { path = "../types" }
+types = { path = "../types" }
 bytemuck = { version = "1.17", features = ["derive"] }
 crc32fast = "1.4"
 hex = "0.4"

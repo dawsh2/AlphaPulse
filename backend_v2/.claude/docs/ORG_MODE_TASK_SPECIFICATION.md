@@ -2,7 +2,7 @@
 
 ## Overview
 
-This specification defines the AlphaPulse task management system based on Org-mode files, enabling DAG-based parallel task execution and human-AI collaborative management.
+This specification defines the Torq task management system based on Org-mode files, enabling DAG-based parallel task execution and human-AI collaborative management.
 
 ## Task State Keywords
 

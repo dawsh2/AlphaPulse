@@ -1,0 +1,24 @@
+[package]
+name = "relay-signal"
+version = "0.1.0"
+edition = "2021"
+description = "Signal relay domain implementation"
+
+[lib]
+name = "relay_signal"
+path = "src/lib.rs"
+
+[[bin]]
+name = "signal_relay"
+path = "src/relay.rs"
+
+[dependencies]
+relay-core = { path = "../../core" }
+codec = { workspace = true }
+
+# Signal relay specific deps
+bincode = "1.3"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1"
+futures = "0.3"

@@ -2,7 +2,7 @@
 //!
 //! ## Purpose
 //!
-//! Defines the core message envelope and header structures for AlphaPulse Protocol V2.
+//! Defines the core message envelope and header structures for Torq Protocol V2.
 //! This module provides the foundational message format that wraps all TLV payloads,
 //! ensuring consistent routing, validation, and sequencing across the entire system.
 //!
@@ -89,8 +89,8 @@
 //!
 //! ### Construction
 //! ```rust
-//! use alphapulse_protocol_v2::message::{MessageHeader, MessageBuilder};
-//! use alphapulse_protocol_v2::{RelayDomain, SourceType};
+//! use torq_protocol_v2::message::{MessageHeader, MessageBuilder};
+//! use torq_protocol_v2::{RelayDomain, SourceType};
 //!
 //! let header = MessageBuilder::new()
 //!     .domain(RelayDomain::MarketData)
@@ -103,7 +103,7 @@
 //!
 //! ### Validation
 //! ```rust
-//! use alphapulse_protocol_v2::message::parse_header;
+//! use torq_protocol_v2::message::parse_header;
 //!
 //! let header = parse_header(&received_bytes)?;
 //!

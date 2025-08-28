@@ -3,7 +3,7 @@
 *Objective: Complete partially finished refactorings and fix critical architectural gaps*
 
 ## Mission Statement
-Complete the architectural refactorings that are partially done, fix the critical codec dependency issue, and establish the final foundation for AlphaPulse V2. This sprint addresses the gap between what was planned and what was actually implemented, ensuring all components properly use the new architecture.
+Complete the architectural refactorings that are partially done, fix the critical codec dependency issue, and establish the final foundation for Torq V2. This sprint addresses the gap between what was planned and what was actually implemented, ensuring all components properly use the new architecture.
 
 ## Current State Assessment
 
@@ -20,7 +20,7 @@ Complete the architectural refactorings that are partially done, fix the critica
 2. **Scripts Consolidation**: No unified `manage.sh` control script yet
 
 ## Critical Finding
-**The most critical issue**: Services (especially relays) are NOT using the new `codec` library. They have `alphapulse-types` dependency but are likely using old/duplicated protocol logic instead of the new codec.
+**The most critical issue**: Services (especially relays) are NOT using the new `codec` library. They have `torq-types` dependency but are likely using old/duplicated protocol logic instead of the new codec.
 
 ## Architectural Audit Results
 
@@ -51,7 +51,7 @@ Based on detailed codebase analysis, here's the current status of our architectu
 ### Target Architecture
 Our final directory structure goal:
 ```
-alphapulse_backend_v2/
+torq_backend_v2/
 ├── libs/                    # CORE SHARED LIBRARIES
 │   ├── types/              # Market, signal, execution types
 │   ├── codec/   # TLV message parsing/building

@@ -1,7 +1,7 @@
-//! # AlphaPulse Centralized Configuration
+//! # Torq Centralized Configuration
 //!
 //! This crate provides centralized configuration management and constants
-//! for all AlphaPulse services, eliminating duplication across the codebase.
+//! for all Torq services, eliminating duplication across the codebase.
 //!
 //! ## Features
 //!
@@ -13,7 +13,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use alphapulse_config::{blockchain, protocol, financial};
+//! use torq_config::{blockchain, protocol, financial};
 //!
 //! // Use blockchain constants
 //! let swap_signature = blockchain::events::UNISWAP_V3_SWAP;

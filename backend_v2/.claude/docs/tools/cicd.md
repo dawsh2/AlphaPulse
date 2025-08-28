@@ -135,12 +135,12 @@ jobs:
           cp target/release/exchange_collector artifacts/
           cp target/release/relay_server artifacts/
           cp target/release/ws_bridge artifacts/
-          tar -czf alphapulse-${{ github.ref_name }}.tar.gz artifacts/
+          tar -czf torq-${{ github.ref_name }}.tar.gz artifacts/
           
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: alphapulse-${{ github.ref_name }}.tar.gz
+          files: torq-${{ github.ref_name }}.tar.gz
           draft: false
           prerelease: false
         env:
@@ -285,7 +285,7 @@ jobs:
           
           # Deploy using your preferred method
           # Example: rsync to staging server
-          rsync -avz target/release/ ${{ secrets.STAGING_HOST }}:/opt/alphapulse/
+          rsync -avz target/release/ ${{ secrets.STAGING_HOST }}:/opt/torq/
 ```
 
 ### Production Deployment Checklist
@@ -385,7 +385,7 @@ When adding a new service (see `.agents/personas/architect.md` for philosophy):
 Bridge markdown and rustdoc using `#[doc(include)]` to create a single source of truth:
 
 ```rust
-//! # AlphaPulse Protocol V2
+//! # Torq Protocol V2
 //!
 //! Core protocol implementation.
 //!
@@ -408,7 +408,7 @@ All code examples in documentation must be runnable:
 /// # Examples
 /// 
 /// ```
-/// use alphapulse_protocol_v2::TradeTLV;
+/// use torq_protocol_v2::TradeTLV;
 /// 
 /// let trade = TradeTLV::new(instrument_id, price, quantity);
 /// assert_eq!(trade.price, price); // This will be tested!
@@ -430,7 +430,7 @@ cargo rustdoc -- -Z unstable-options --show-coverage
 
 Add to README.md:
 ```markdown
-[![CI](https://github.com/alphapulse/backend_v2/actions/workflows/ci.yml/badge.svg)](https://github.com/alphapulse/backend_v2/actions/workflows/ci.yml)
+[![CI](https://github.com/torq/backend_v2/actions/workflows/ci.yml/badge.svg)](https://github.com/torq/backend_v2/actions/workflows/ci.yml)
 ```
 
 ### Failure Notifications

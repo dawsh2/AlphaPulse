@@ -3,12 +3,12 @@
 //! Validates that the zero-copy implementation works correctly through the complete
 //! message pipeline: construction → serialization → transport → parsing → consumption
 
-use alphapulse_types::protocol::tlv::address::AddressExtraction;
-use alphapulse_types::protocol::tlv::market_data::{PoolSwapTLV, QuoteTLV, TradeTLV};
-use alphapulse_types::protocol::tlv::{
+use torq_types::protocol::tlv::address::AddressExtraction;
+use torq_types::protocol::tlv::market_data::{PoolSwapTLV, QuoteTLV, TradeTLV};
+use torq_types::protocol::tlv::{
     parse_header, parse_tlv_extensions, TLVMessageBuilder, TLVType,
 };
-use alphapulse_types::protocol::{InstrumentId, RelayDomain, SourceType, VenueId};
+use torq_codec::protocol::{InstrumentId, RelayDomain, SourceType, VenueId};
 use std::time::Instant;
 use zerocopy::{AsBytes, FromBytes};
 

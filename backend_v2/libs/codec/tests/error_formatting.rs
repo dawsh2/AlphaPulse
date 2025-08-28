@@ -3,7 +3,7 @@
 //! Validates that enhanced error messages provide actionable debugging information
 //! with proper Debug vs Display formatting for different use cases.
 
-use codec::error::ProtocolError;
+use torq_codec::error::ProtocolError;
 
 #[test]
 fn test_message_too_small_formatting() {

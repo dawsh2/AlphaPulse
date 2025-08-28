@@ -53,7 +53,7 @@ pub struct RelayTestConfig {
 impl Default for RelayTestConfig {
     fn default() -> Self {
         Self {
-            socket_path: "/tmp/alphapulse_test/relay_io.sock".to_string(),
+            socket_path: "/tmp/torq_test/relay_io.sock".to_string(),
             test_duration_seconds: 30,
             producer_message_rate_hz: 1000,
             consumer_count: 3,

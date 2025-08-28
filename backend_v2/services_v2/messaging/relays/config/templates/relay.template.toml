@@ -1,0 +1,36 @@
+# Relay configuration template
+# Copy and customize for your environment
+
+[relay]
+domain = 1                                    # 1=MarketData, 2=Signal, 3=Execution
+name = "${RELAY_NAME}"                        # Relay instance name
+max_connections = 1000                        # Max concurrent consumers
+
+[transport]
+mode = "unix_socket"                          # unix_socket, tcp, topology
+path = "/tmp/torq/${RELAY_NAME}.sock"        # Unix socket path
+buffer_size = 65536                          # Transport buffer size
+use_topology = false                         # Enable topology-based routing
+
+[validation]
+checksum = true                              # Enable CRC32 validation
+audit = false                               # Enable audit logging
+strict = false                              # Strict validation mode
+max_message_size = 16777216                 # Max message size (16MB)
+
+[topics]
+default = "signals.default"                  # Default topic for unrouted messages
+auto_discover = true                        # Auto-create unknown topics
+extraction_strategy = "source_type"         # source_type, instrument_venue, custom_field, fixed
+cleanup_interval_ms = 5000                  # Dead consumer cleanup interval
+
+[performance]
+target_throughput = 100000                  # Target messages/second
+buffer_size = 32768                         # Internal buffer size
+batch_size = 100                            # Message batch size
+max_latency_ms = 10                         # Max processing latency
+
+[logging]
+level = "info"                              # error, warn, info, debug, trace
+format = "json"                             # json, text
+file = "/var/log/torq/${RELAY_NAME}.log"    # Log file path (optional)

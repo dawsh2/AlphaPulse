@@ -5,8 +5,8 @@
 //!
 //! IMPORTANT: Uses REAL exchange connections per CLAUDE.md requirements - NO MOCKS
 
-use alphapulse_adapter_service::output::RelayOutput;
-use alphapulse_types::protocol::{
+use torq_adapter_service::output::RelayOutput;
+use torq_types::protocol::{
     tlv::{market_data::TradeTLV, TLVMessageBuilder},
     MessageHeader, RelayDomain, SourceType, TLVType, InstrumentId, VenueId,
 };
@@ -330,7 +330,7 @@ async fn test_full_pipeline_flow_real_kraken() -> Result<()> {
         .context("Should receive real trade from Kraken")?;
 
     // Parse and validate Protocol V2 header
-    let header = alphapulse_codec::parse_header(&received)?;
+    let header = torq_codec::parse_header(&received)?;
     
     // Verify proper Protocol V2 compliance
     assert_eq!(header.magic, 0xDEADBEEF, "Magic number must be 0xDEADBEEF");
@@ -356,7 +356,7 @@ async fn test_full_pipeline_flow_real_kraken() -> Result<()> {
 #[tokio::test]
 async fn test_pipeline_protocol_compliance() -> Result<()> {
     // Test Protocol V2 compliance with proper magic number
-    use alphapulse_types::MESSAGE_MAGIC;
+    use torq_types::MESSAGE_MAGIC;
     
     let mut builder = TLVMessageBuilder::new(
         RelayDomain::MarketData,
@@ -376,7 +376,7 @@ async fn test_pipeline_protocol_compliance() -> Result<()> {
     let message = builder.build();
     
     // Verify header has correct magic number (0xDEADBEEF)
-    let header = alphapulse_codec::parse_header(&message)?;
+    let header = torq_codec::parse_header(&message)?;
     assert_eq!(header.magic, MESSAGE_MAGIC, "Magic number must match Protocol V2");
     assert_eq!(header.magic, 0xDEADBEEF, "Magic must be 0xDEADBEEF");
     

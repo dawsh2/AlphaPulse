@@ -3,7 +3,7 @@
 *Objective: Fix production data integrity violations - STOP LYING TO USERS*
 
 ## 🚨 CRISIS SUMMARY
-Dashboard displays **completely fabricated** arbitrage data. This violates AlphaPulse's core "zero tolerance for deception" principle. Users see fake profits, fake venues, fake everything. This is a production emergency.
+Dashboard displays **completely fabricated** arbitrage data. This violates Torq's core "zero tolerance for deception" principle. Users see fake profits, fake venues, fake everything. This is a production emergency.
 
 ## Sprint Goals
 1. **IMMEDIATE**: Remove all hardcoded mock data from signal output
@@ -229,6 +229,6 @@ cargo test --workspace
 - Monitor dashboard for suspicious values
 
 ## Notes
-This sprint addresses a PRODUCTION CRISIS. The dashboard is lying to users with fabricated data. This violates everything AlphaPulse stands for. Every task here is about restoring truth and integrity to the system.
+This sprint addresses a PRODUCTION CRISIS. The dashboard is lying to users with fabricated data. This violates everything Torq stands for. Every task here is about restoring truth and integrity to the system.
 
 **Remember**: "zero tolerance for deception" - NO FAKE DATA, NO SHORTCUTS, NO LIES.

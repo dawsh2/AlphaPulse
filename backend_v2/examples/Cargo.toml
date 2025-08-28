@@ -1,3 +1,0 @@
-[dependencies]
-alphapulse-health-check = { path = "libs/health_check" }
-tokio = { version = "1.0", features = ["full"] }

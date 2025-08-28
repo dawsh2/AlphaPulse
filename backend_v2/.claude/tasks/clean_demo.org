@@ -61,7 +61,7 @@
   :PROPERTIES:
   :ID:          PERF-GOAL
   :END:
-
+  
 ** TODO Database query optimization                     :performance:database:
    :PROPERTIES:
    :ID:          PERF-001

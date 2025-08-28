@@ -3,7 +3,7 @@
 //! Tests our TokenAddressValidator against real Polygon blockchain
 //! using public RPC endpoints to verify our parsing and validation logic.
 
-use alphapulse_adapter_service::{
+use torq_adapter_service::{
     input::collectors::{
         pool_cache_manager::{PoolCacheManager, PoolInfo},
         polygon_dex::abi_events::{SwapEventDecoder, DEXProtocol},
@@ -34,7 +34,7 @@ async fn test_token_address_validator_with_live_rpc() {
         println!("Trying RPC endpoint: {}", endpoint);
 
         // Create cache directory for test
-        let cache_dir = PathBuf::from("/tmp/alphapulse_test_cache");
+        let cache_dir = PathBuf::from("/tmp/torq_test_cache");
         std::fs::create_dir_all(&cache_dir).ok();
 
         match TokenAddressValidator::new(endpoint, &cache_dir, 137).await {
@@ -110,7 +110,7 @@ async fn test_validate_known_polygon_tokens() {
     println!("\n=== Validating Known Polygon Tokens ===\n");
 
     // Create validator
-    let cache_dir = PathBuf::from("/tmp/alphapulse_test_cache");
+    let cache_dir = PathBuf::from("/tmp/torq_test_cache");
     std::fs::create_dir_all(&cache_dir).ok();
 
     let validator = TokenAddressValidator::new(
@@ -149,7 +149,7 @@ async fn test_validate_known_polygon_tokens() {
 async fn test_pool_factory_validation() {
     println!("\n=== Testing Pool Factory Validation ===\n");
 
-    let cache_dir = PathBuf::from("/tmp/alphapulse_test_cache");
+    let cache_dir = PathBuf::from("/tmp/torq_test_cache");
     std::fs::create_dir_all(&cache_dir).ok();
 
     let validator = TokenAddressValidator::new(

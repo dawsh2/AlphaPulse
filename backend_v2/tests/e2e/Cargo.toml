@@ -1,5 +1,5 @@
 [package]
-name = "alphapulse-e2e-tests"
+name = "torq-e2e-tests"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,17 +10,17 @@ path = "src/main.rs"
 [dependencies]
 
 # Adapters and strategies
-services_v2_adapters = { path = "../../services_v2/adapters", package = "alphapulse-adapter-service" }
-alphapulse-dashboard-websocket = { path = "../../services_v2/dashboard/websocket_server" }
-alphapulse-strategies = { path = "../../services_v2/strategies" }
+adapter-service = { workspace = true }
+# torq-dashboard-websocket = { path = "../../services_v2/observability/dashboard" }
+strategies = { workspace = true }
 
 # Relays
-alphapulse-relays = { path = "../../relays" }
+relays = { workspace = true }
 
 # Protocol and transport layers
-alphapulse-types = { path = "../../libs/types" }
-torq-network = { path = "../../network" }
-codec = { path = "../../libs/codec" }
+types = { workspace = true }
+network = { workspace = true }
+codec = { workspace = true }
 anyhow = "1.0"
 
 # Testing utilities

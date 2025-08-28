@@ -2,8 +2,8 @@
 //!
 //! Validates that our TLV structures meet the size requirements for zero-copy serialization
 
-use alphapulse_types::protocol::tlv::address::{AddressConversion, AddressExtraction};
-use alphapulse_types::protocol::tlv::*;
+use torq_types::protocol::tlv::address::{AddressConversion, AddressExtraction};
+use torq_types::protocol::tlv::*;
 use zerocopy::{AsBytes, FromBytes};
 
 #[test]
@@ -25,7 +25,7 @@ fn verify_tlv_sizes() {
 
 #[test]
 fn verify_padding_is_zero() {
-    use alphapulse_types::protocol::VenueId;
+    use torq_types::protocol::VenueId;
 
     let swap = PoolSwapTLV::new(
         [0x42u8; 20], // pool
@@ -65,7 +65,7 @@ fn verify_padding_is_zero() {
 
 #[test]
 fn verify_zero_copy_works() {
-    use alphapulse_types::protocol::VenueId;
+    use torq_types::protocol::VenueId;
 
     let sync = PoolSyncTLV::new(
         [0x42u8; 20], // pool
@@ -91,8 +91,8 @@ fn verify_zero_copy_works() {
 
 #[test]
 fn verify_address_extraction() {
-    use alphapulse_types::protocol::tlv::address::AddressExtraction;
-    use alphapulse_types::protocol::VenueId;
+    use torq_types::protocol::tlv::address::AddressExtraction;
+    use torq_types::protocol::VenueId;
 
     let original_pool = [0x42u8; 20];
     let sync = PoolSyncTLV::new(
@@ -120,7 +120,7 @@ fn verify_address_extraction() {
 
 #[test]
 fn test_invalid_padding_detection() {
-    use alphapulse_types::protocol::tlv::address::AddressExtraction;
+    use torq_types::protocol::tlv::address::AddressExtraction;
 
     let mut invalid_padded = [0u8; 32];
     invalid_padded[..20].copy_from_slice(&[0x42u8; 20]);
@@ -138,7 +138,7 @@ fn test_invalid_padding_detection() {
 
 #[test]
 fn test_all_tlv_struct_zero_copy() {
-    use alphapulse_types::protocol::{InstrumentId, VenueId};
+    use torq_types::protocol::{InstrumentId, VenueId};
 
     // Test TradeTLV
     let instrument_id = InstrumentId {
@@ -187,7 +187,7 @@ fn test_all_tlv_struct_zero_copy() {
 
 #[test]
 fn test_performance_characteristics() {
-    use alphapulse_types::protocol::VenueId;
+    use torq_types::protocol::VenueId;
     use std::time::Instant;
 
     // Test zero-copy performance characteristics
@@ -342,7 +342,7 @@ fn test_struct_alignment_invariants() {
 
 #[test]
 fn test_address_conversion_edge_cases() {
-    use alphapulse_types::protocol::tlv::address::{AddressConversion, AddressExtraction};
+    use torq_types::protocol::tlv::address::{AddressConversion, AddressExtraction};
 
     // Test zero address
     let zero_addr = [0u8; 20];

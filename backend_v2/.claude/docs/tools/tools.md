@@ -1,8 +1,8 @@
-# TOOLS.md - AlphaPulse Development Tools & Workflows
+# TOOLS.md - Torq Development Tools & Workflows
 
 ## Overview
 
-This document contains practical development tools, commands, and workflows for working with the AlphaPulse codebase. For code style conventions, see [style.md](style.md). For AI assistant context and behavioral directives, see [../CLAUDE.md](../CLAUDE.md).
+This document contains practical development tools, commands, and workflows for working with the Torq codebase. For code style conventions, see [style.md](style.md). For AI assistant context and behavioral directives, see [../CLAUDE.md](../CLAUDE.md).
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ Before building new analysis or tooling features, check if these existing tools 
 
 ### Breaking Change Detection
 ```bash
-# Install cargo-semver-checks - CRITICAL for AlphaPulse's breaking change philosophy
+# Install cargo-semver-checks - CRITICAL for Torq's breaking change philosophy
 cargo install cargo-semver-checks
 
 # Check if your changes would break downstream code
@@ -74,7 +74,7 @@ cargo public-api diff main
 # Generate API changelog
 cargo public-api changelog
 
-# For AlphaPulse: Use before breaking changes to see full impact
+# For Torq: Use before breaking changes to see full impact
 cargo public-api --simplified  # Easier to read output
 ```
 
@@ -273,17 +273,17 @@ python -m uvicorn app_fastapi:app --reload --port 8000
 ### Service Management
 ```bash
 # Check service status
-ps aux | grep alphapulse
+ps aux | grep torq
 
 # Check relay connections
-netstat -an | grep /tmp/alphapulse
+netstat -an | grep /tmp/torq
 
 # Monitor message flow
-nc -U /tmp/alphapulse/market_data.sock | head -n 10
+nc -U /tmp/torq/market_data.sock | head -n 10
 
 # Clean restart
-pkill -f alphapulse
-rm -f /tmp/alphapulse/*.sock
+pkill -f torq
+rm -f /tmp/torq/*.sock
 ./scripts/start_all.sh
 ```
 
@@ -362,13 +362,13 @@ RUST_LOG=exchange_collector=debug,tungstenite=trace cargo run
 websocat -v wss://stream.exchange.com
 
 # Trace specific components
-RUST_LOG=alphapulse_adapters=trace cargo run --bin live_polygon_relay
+RUST_LOG=torq_adapters=trace cargo run --bin live_polygon_relay
 ```
 
 ### TLV Message Debugging
 ```rust
 // Inspect TLV messages with Protocol V2
-use alphapulse_protocol_v2::{parse_header, parse_tlv_extensions, TLVType};
+use torq_protocol_v2::{parse_header, parse_tlv_extensions, TLVType};
 
 // Parse message header (32 bytes)
 let header = parse_header(&message_bytes)?;
@@ -395,7 +395,7 @@ for tlv in tlvs {
 tail -f logs/market_data_relay.log logs/signal_relay.log logs/execution_relay.log | grep "sequence"
 
 # Debug TLV parsing issues
-RUST_LOG=alphapulse_protocol_v2::tlv=debug cargo run
+RUST_LOG=torq_protocol_v2::tlv=debug cargo run
 
 # Monitor relay consumer connections
 tail -f logs/relay_consumer_registry.log
@@ -435,10 +435,10 @@ taskset -c 0-3 cargo run --release --bin market_data_relay
 ### Service Crash Recovery
 ```bash
 # Check service status
-systemctl status alphapulse-*
+systemctl status torq-*
 
 # Restart individual service
-systemctl restart alphapulse-collector
+systemctl restart torq-collector
 
 # Full system restart
 ./scripts/restart_all_services.sh
@@ -535,7 +535,7 @@ cargo mutants --timeout 300
 
 3. Implement service traits:
    ```rust
-   use alphapulse_protocol::{TLVMessage, InputAdapter};
+   use torq_protocol::{TLVMessage, InputAdapter};
    
    impl InputAdapter for MyStrategy {
        async fn start(&mut self) -> Result<()> { ... }
@@ -545,7 +545,7 @@ cargo mutants --timeout 300
 
 4. Connect to relay:
    ```rust
-   let socket = UnixStream::connect("/tmp/alphapulse/market_data.sock").await?;
+   let socket = UnixStream::connect("/tmp/torq/market_data.sock").await?;
    ```
 
 ### Protocol Changes

@@ -53,6 +53,18 @@ test_actual*
 test_websocket*
 test_zerocopy/
 
+# Runtime data (prevent .pids/ accumulation)
+.pids/
+*.pid
+
+# Custom shell configs (should go in scripts/config/)
+.bashrc_*
+
+# .project/ organization - DON'T ignore our organized config!
+# (Keep .project/ tracked in version control)
+!.project/
+!.project/**
+
 # Logs
 *.log
 logs/

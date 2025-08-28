@@ -4,10 +4,10 @@
 //! together and that the system is production-ready.
 
 use std::time::Duration;
-use alphapulse_types::{
+use torq_types::{
     QuoteTLV, InvalidationReason, InstrumentId, VenueId
 };
-use alphapulse_transport::time::safe_system_timestamp_ns;
+use torq_transport::time::safe_system_timestamp_ns;
 
 #[tokio::test]
 async fn test_gap_001_missing_tlv_types_accessible() {
@@ -73,7 +73,7 @@ async fn test_gap_002_compilation_and_imports() {
 
 #[tokio::test]
 async fn test_gap_004_timestamp_performance() {
-    // Test that timestamp migration to alphapulse-transport provides expected performance
+    // Test that timestamp migration to torq-transport provides expected performance
     
     let iterations = 1000;
     let start = std::time::Instant::now();

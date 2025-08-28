@@ -74,7 +74,7 @@ pub fn validate_typed_id_imports(metadata: &Metadata) -> ValidationResult {
                                 matched_line.trim()
                             ),
                             suggestion: Some(
-                                "Import InstrumentId from codec instead: use codec::InstrumentId;"
+                                "Import InstrumentId from codec instead: use torq_codec::InstrumentId;"
                                     .to_string(),
                             ),
                         });
@@ -97,7 +97,7 @@ pub fn validate_typed_id_imports(metadata: &Metadata) -> ValidationResult {
                                     "File uses InstrumentId but doesn't import from codec library"
                                 ),
                                 suggestion: Some(
-                                    "Add: use codec::InstrumentId; at the top of the file"
+                                    "Add: use torq_codec::InstrumentId; at the top of the file"
                                         .to_string(),
                                 ),
                             });

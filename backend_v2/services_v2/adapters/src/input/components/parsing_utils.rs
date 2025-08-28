@@ -26,7 +26,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::{AdapterError, Result};
-use alphapulse_types::{InstrumentId, VenueId};
+use torq_types::{InstrumentId, VenueId};
 
 /// Utility for managing symbol to InstrumentId mappings
 pub struct SymbolMapper {

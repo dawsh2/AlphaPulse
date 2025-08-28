@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
 use crate::Result;
-use alphapulse_types::RelayDomain;
+use torq_types::RelayDomain;
 
 /// Output adapter that sends Protocol V2 binary messages to a relay socket
 pub struct RelayOutput {
@@ -122,7 +122,7 @@ impl RelayOutput {
             }
         } else {
             Err(crate::AdapterError::ConnectionTimeout {
-                venue: alphapulse_types::protocol::VenueId::Generic, // Use Generic venue for relay
+                venue: torq_types::protocol::VenueId::Generic, // Use Generic venue for relay
                 timeout_ms: 0,
             })
         }

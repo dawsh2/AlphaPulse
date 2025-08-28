@@ -126,8 +126,8 @@ impl Default for TestConfig {
             cleanup: true,
             verbose: false,
             validation_level: ValidationLevel::Comprehensive,
-            data_dir: PathBuf::from("/tmp/alphapulse_e2e_tests"),
-            signal_relay_path: "/tmp/alphapulse_test/signals.sock".to_string(),
+            data_dir: PathBuf::from("/tmp/torq_e2e_tests"),
+            signal_relay_path: "/tmp/torq_test/signals.sock".to_string(),
             dashboard_port: 8080,
             test_timeout_secs: 30,
         }
@@ -138,13 +138,13 @@ impl TestFramework {
     pub fn new(config: TestConfig) -> Result<Self> {
         let test_id = Uuid::new_v4();
         let relay_paths = RelayPaths {
-            market_data: format!("/tmp/alphapulse/e2e_{}/market_data.sock", test_id),
-            signals: format!("/tmp/alphapulse/e2e_{}/signals.sock", test_id),
-            execution: format!("/tmp/alphapulse/e2e_{}/execution.sock", test_id),
+            market_data: format!("/tmp/torq/e2e_{}/market_data.sock", test_id),
+            signals: format!("/tmp/torq/e2e_{}/signals.sock", test_id),
+            execution: format!("/tmp/torq/e2e_{}/execution.sock", test_id),
         };
 
         // Create relay socket directory
-        std::fs::create_dir_all(format!("/tmp/alphapulse/e2e_{}", test_id))?;
+        std::fs::create_dir_all(format!("/tmp/torq/e2e_{}", test_id))?;
 
         Ok(Self {
             config,
@@ -374,7 +374,7 @@ pub struct TestRunner {
 impl TestRunner {
     pub fn new(config: TestConfig) -> Self {
         // Create test directories
-        std::fs::create_dir_all("/tmp/alphapulse_test").ok();
+        std::fs::create_dir_all("/tmp/torq_test").ok();
 
         Self {
             config,
@@ -423,7 +423,7 @@ impl TestRunner {
         let signal_relay_path = self.config.signal_relay_path.clone();
 
         let handle = tokio::spawn(async move {
-            use alphapulse_dashboard_websocket::{DashboardConfig, DashboardServer};
+            use torq_dashboard_websocket::{DashboardConfig, DashboardServer};
 
             let config = DashboardConfig {
                 bind_address: "127.0.0.1".to_string(),
@@ -513,7 +513,7 @@ impl Drop for TestFramework {
     fn drop(&mut self) {
         // Cleanup relay directory
         if self.config.cleanup {
-            let _ = std::fs::remove_dir_all(format!("/tmp/alphapulse/e2e_{}", self.test_id));
+            let _ = std::fs::remove_dir_all(format!("/tmp/torq/e2e_{}", self.test_id));
         }
     }
 }

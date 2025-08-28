@@ -7,17 +7,17 @@
 ### Step 1: Open New Terminal for Each Agent
 ```bash
 # Terminal 1 - Your Monitoring Terminal (STAYS ON MAIN)
-cd /Users/daws/alphapulse/backend_v2
+cd /Users/daws/torq/backend_v2
 git checkout main  # Keep one terminal on main for oversight
 git status         # Monitor agent changes in real-time
 
 # Terminal 2 - Agent A
-cd /Users/daws/alphapulse/backend_v2
+cd /Users/daws/torq/backend_v2
 # Agent will: git checkout -b fix/pool-cache-integration
 cat .claude/tasks/pool-address-fix/POOL-001_cache_structure.md
 
 # Terminal 3 - Agent B (after Agent A finishes)
-cd /Users/daws/alphapulse/backend_v2
+cd /Users/daws/torq/backend_v2
 # Agent will: git checkout -b fix/signal-precision-loss
 cat .claude/tasks/pool-address-fix/PRECISION-001_signal_output.md
 
@@ -203,13 +203,13 @@ When all tasks are done:
 # assign_tasks.sh - Open terminals with tasks
 
 # Terminal 1
-osascript -e 'tell app "Terminal" to do script "cd /Users/daws/alphapulse/backend_v2 && echo \"Task: POOL-001 Cache Structure\" && cat .claude/tasks/pool-address-fix/POOL-001_cache_structure.md"'
+osascript -e 'tell app "Terminal" to do script "cd /Users/daws/torq/backend_v2 && echo \"Task: POOL-001 Cache Structure\" && cat .claude/tasks/pool-address-fix/POOL-001_cache_structure.md"'
 
 # Terminal 2
-osascript -e 'tell app "Terminal" to do script "cd /Users/daws/alphapulse/backend_v2 && echo \"Task: POOL-002 Event Extraction\" && cat .claude/tasks/pool-address-fix/POOL-002_event_extraction.md"'
+osascript -e 'tell app "Terminal" to do script "cd /Users/daws/torq/backend_v2 && echo \"Task: POOL-002 Event Extraction\" && cat .claude/tasks/pool-address-fix/POOL-002_event_extraction.md"'
 
 # Terminal 3
-osascript -e 'tell app "Terminal" to do script "cd /Users/daws/alphapulse/backend_v2 && echo \"Task: POOL-003 Discovery Queue\" && cat .claude/tasks/pool-address-fix/POOL-003_discovery_queue.md"'
+osascript -e 'tell app "Terminal" to do script "cd /Users/daws/torq/backend_v2 && echo \"Task: POOL-003 Discovery Queue\" && cat .claude/tasks/pool-address-fix/POOL-003_discovery_queue.md"'
 ```
 
 Make it executable: `chmod +x assign_tasks.sh`

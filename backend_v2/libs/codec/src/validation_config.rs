@@ -144,31 +144,31 @@ impl ValidationConfig {
         let mut config = Self::default();
         
         // Override from environment if set
-        if let Ok(val) = std::env::var("ALPHAPULSE_MAX_MESSAGE_SIZE_MARKET") {
+        if let Ok(val) = std::env::var("TORQ_MAX_MESSAGE_SIZE_MARKET") {
             if let Ok(size) = val.parse() {
                 config.max_message_sizes.market_data = size;
             }
         }
         
-        if let Ok(val) = std::env::var("ALPHAPULSE_MAX_MESSAGE_SIZE_SIGNAL") {
+        if let Ok(val) = std::env::var("TORQ_MAX_MESSAGE_SIZE_SIGNAL") {
             if let Ok(size) = val.parse() {
                 config.max_message_sizes.signal = size;
             }
         }
         
-        if let Ok(val) = std::env::var("ALPHAPULSE_MAX_MESSAGE_SIZE_EXECUTION") {
+        if let Ok(val) = std::env::var("TORQ_MAX_MESSAGE_SIZE_EXECUTION") {
             if let Ok(size) = val.parse() {
                 config.max_message_sizes.execution = size;
             }
         }
         
-        if let Ok(val) = std::env::var("ALPHAPULSE_TIMESTAMP_MAX_DRIFT") {
+        if let Ok(val) = std::env::var("TORQ_TIMESTAMP_MAX_DRIFT") {
             if let Ok(secs) = val.parse() {
                 config.timestamp.max_future_drift = Duration::from_secs(secs);
             }
         }
         
-        if let Ok(val) = std::env::var("ALPHAPULSE_SEQUENCE_MAX_GAP") {
+        if let Ok(val) = std::env::var("TORQ_SEQUENCE_MAX_GAP") {
             if let Ok(gap) = val.parse() {
                 config.sequence.max_sequence_gap = gap;
             }

@@ -272,7 +272,7 @@ pub fn check_typed_id_usage(_file: &SynFile, path: &Path) -> Vec<Violation> {
                 rule: "typed-ids".to_string(),
                 message: "Using raw numeric type for ID instead of typed ID".to_string(),
                 suggestion: Some(
-                    "Use InstrumentId, PoolId, or other typed IDs from alphapulse_types"
+                    "Use InstrumentId, PoolId, or other typed IDs from torq_types"
                         .to_string(),
                 ),
             });

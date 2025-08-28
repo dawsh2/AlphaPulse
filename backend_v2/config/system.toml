@@ -1,31 +1,31 @@
-# AlphaPulse System Configuration
+# Torq System Configuration
 
 [system]
 # Socket directory for Unix domain sockets
-socket_dir = "/tmp/alphapulse"
+socket_dir = "/tmp/torq"
 
 # Log directory
-log_dir = "/tmp/alphapulse_logs"
+log_dir = "/tmp/torq_logs"
 
 # PID file location
-pid_file = "/tmp/alphapulse_system.pids"
+pid_file = "/tmp/torq_system.pids"
 
 [relays]
 # Market data relay configuration
 [relays.market_data]
-socket_path = "/tmp/alphapulse/market_data.sock"
+socket_path = "/tmp/torq/market_data.sock"
 buffer_size = 8192
 max_connections = 100
 
 # Signal relay configuration  
 [relays.signals]
-socket_path = "/tmp/alphapulse/signals.sock"
+socket_path = "/tmp/torq/signals.sock"
 buffer_size = 4096
 max_connections = 50
 
 # Execution relay configuration
 [relays.execution]
-socket_path = "/tmp/alphapulse/execution.sock"
+socket_path = "/tmp/torq/execution.sock"
 buffer_size = 4096
 max_connections = 50
 
@@ -83,7 +83,7 @@ client_buffer_size = 1000
 [logging]
 # Global logging configuration
 default_level = "info"
-rust_log = "alphapulse=info,warn"
+rust_log = "torq=info,warn"
 
 # Service-specific log levels
 [logging.services]

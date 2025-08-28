@@ -1,4 +1,4 @@
-# AlphaPulse Docker Environment Configuration
+# Torq Docker Environment Configuration
 
 # Docker-specific paths
 socket_dir = "/app/sockets"

@@ -1,7 +1,7 @@
 //! Coinbase adapter service binary
 
-use alphapulse_adapter_service::{Adapter, SafeAdapter};
-use alphapulse_coinbase_adapter::CoinbasePluginAdapter;
+use torq_adapter_service::{Adapter, SafeAdapter};
+use torq_coinbase_adapter::CoinbasePluginAdapter;
 use anyhow::Result;
 use tokio::signal;
 use tracing::{error, info};
@@ -12,8 +12,8 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("alphapulse_coinbase_adapter=debug".parse()?)
-                .add_directive("alphapulse_adapters=debug".parse()?),
+                .add_directive("torq_coinbase_adapter=debug".parse()?)
+                .add_directive("torq_adapters=debug".parse()?),
         )
         .init();
 

@@ -59,7 +59,7 @@ class TestTransportViolationDetection(unittest.TestCase):
         """Test detection of direct UnixSocketTransport::new usage"""
         # Create test file with violation
         violation_content = '''
-use alphapulse_transport::UnixSocketTransport;
+use torq_transport::UnixSocketTransport;
 
 pub fn create_connection() {
     let transport = UnixSocketTransport::new("/tmp/socket");  // VIOLATION
@@ -80,7 +80,7 @@ pub fn create_connection() {
         # Create test file with approved usage
         approved_content = '''
 // This file is whitelisted for direct transport usage
-use alphapulse_transport::{TransportFactory, UnixSocketTransport};
+use torq_transport::{TransportFactory, UnixSocketTransport};
 
 pub fn create_factory() -> TransportFactory {
     // Factory implementations are allowed to use direct transport
@@ -213,7 +213,7 @@ pub fn example() {
     
     def test_zero_false_positives_on_current_codebase(self):
         """Test that script produces zero false positives on actual codebase"""
-        # This tests against the real AlphaPulse codebase
+        # This tests against the real Torq codebase
         real_codebase_path = Path(__file__).parent.parent
         
         stdout, stderr, returncode = self.run_detection_script(str(real_codebase_path))

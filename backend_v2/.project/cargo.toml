@@ -1,0 +1,38 @@
+[alias]
+# Documentation generation aliases
+docs = "doc --document-private-items --open --no-deps"
+docs-all = "doc --workspace --document-private-items --open"
+docs-with-deps = "doc --workspace --document-private-items --open"
+
+# Test documentation examples
+doc-test = "test --doc --workspace"
+
+# Quick API discovery
+api-help = "run --bin test_developer_api"
+generate-docs = "run --bin generate_docs"
+
+# Development helpers
+check-all = "check --workspace --all-targets"
+test-all = "test --workspace --all-targets"
+fmt-all = "fmt --all"
+clippy-all = "clippy --workspace --all-targets -- -D warnings"
+
+# Protocol V2 specific
+protocol-test = "test --package torq_protocol_v2"
+protocol-bench = "bench --package torq_protocol_v2"
+
+# Build variants
+build-release = "build --workspace --release"
+build-debug = "build --workspace"
+
+# Documentation with search
+docs-search = "doc --document-private-items --open --no-deps"
+# Quality gate aliases
+quality-check = "run --bin quality_check"
+arch-check = "run --bin architectural_check"
+boundaries = "run --bin check_boundaries"
+doc-check = "run --bin documentation_check"
+
+# Combined quality gates
+quality-full = "run --bin run_all_quality_checks"
+pre-commit-check = "run --bin pre_commit_validation"

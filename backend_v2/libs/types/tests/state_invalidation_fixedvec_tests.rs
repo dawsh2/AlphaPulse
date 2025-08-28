@@ -10,9 +10,9 @@
 //! - Bounds testing for MAX_INSTRUMENTS=16
 //! - Memory layout validation
 
-use alphapulse_types::protocol::tlv::dynamic_payload::{FixedVec, MAX_INSTRUMENTS};
-use alphapulse_types::protocol::tlv::market_data::{InvalidationReason, StateInvalidationTLV};
-use alphapulse_types::protocol::{InstrumentId, VenueId};
+use torq_types::protocol::tlv::dynamic_payload::{FixedVec, MAX_INSTRUMENTS};
+use torq_types::protocol::tlv::market_data::{InvalidationReason, StateInvalidationTLV};
+use torq_types::protocol::{InstrumentId, VenueId};
 use std::time::Instant;
 use zerocopy::AsBytes;
 
@@ -480,7 +480,7 @@ fn test_edge_cases() {
 /// Test InvalidationReason enum conversion
 #[test]
 fn test_invalidation_reason_conversion() {
-    use alphapulse_types::protocol::tlv::market_data::InvalidationReason;
+    use torq_types::protocol::tlv::market_data::InvalidationReason;
 
     // Test all reason variants
     let test_cases = [

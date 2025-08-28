@@ -26,7 +26,7 @@
 //!
 //! ## Examples
 //! ```rust
-//! use alphapulse_adapters::GeminiCollector;
+//! use torq_adapters::GeminiCollector;
 //! use tokio::sync::mpsc;
 //! 
 //! let (tx, rx) = mpsc::channel(1000);
@@ -41,7 +41,7 @@
 //! });
 //! ```
 
-use alphapulse_types::{
+use torq_types::{
     VenueId, InstrumentId, TradeTLV, QuoteTLV, TLVMessage, TLVType, TLVHeader,
     current_timestamp_ns
 };
@@ -655,7 +655,7 @@ impl GeminiCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alphapulse_types::VenueId;
+    use torq_types::VenueId;
     
     #[test]
     fn test_gemini_trade_event_validation() {

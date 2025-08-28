@@ -40,9 +40,9 @@ use crate::error::ProtocolResult;
 use crate::tlv_types::TLVType;
 use zerocopy::{AsBytes, Ref};
 
-// Import types from alphapulse_types
-use alphapulse_types::protocol::message::header::MessageHeader;
-use alphapulse_types::{RelayDomain, SourceType};
+// Import types from torq_types
+use torq_types::protocol::message::header::MessageHeader;
+use torq_types::{RelayDomain, SourceType};
 
 /// Builder for constructing TLV messages
 pub struct TLVMessageBuilder {

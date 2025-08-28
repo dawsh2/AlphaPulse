@@ -1,5 +1,5 @@
 #!/bin/bash
-# AlphaPulse Dynamic Task Manager
+# Torq Dynamic Task Manager
 # Reads from actual task files to provide current status
 
 set -e
@@ -252,7 +252,7 @@ truncate_text() {
 
 # Show visual kanban board
 show_kanban() {
-    echo -e "${BLUE}📋 AlphaPulse Sprint Kanban Board${NC}"
+    echo -e "${BLUE}📋 Torq Sprint Kanban Board${NC}"
     echo "===================================="
     echo ""
     echo -e "Sprint status: ${RED}🔴 Not Started${NC} | ${YELLOW}🟡 In Progress${NC} | ${GREEN}🟢 Complete${NC}"
@@ -371,7 +371,7 @@ show_kanban() {
 }
 
 show_current_status() {
-    echo -e "${BLUE}📊 AlphaPulse Current Sprint Status (Dynamic)${NC}"
+    echo -e "${BLUE}📊 Torq Current Sprint Status (Dynamic)${NC}"
     echo "=============================================="
     echo ""
     

@@ -1,0 +1,29 @@
+#!/bin/bash
+# Git pre-commit hook to automatically generate Markdown from Org files
+
+# Find the tools directory
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+CONVERSION_SCRIPT="$REPO_ROOT/backend_v2/.claude/tools/org-to-md.sh"
+
+# Check if conversion script exists
+if [ ! -f "$CONVERSION_SCRIPT" ]; then
+    echo "Warning: Org-to-MD conversion script not found at $CONVERSION_SCRIPT"
+    exit 0  # Don't block commit
+fi
+
+# Check if any .org files in source/ have been modified
+if git diff --cached --name-only | grep -q "backend_v2/\.claude/docs/source/.*\.org$"; then
+    echo "📝 Converting modified Org files to Markdown..."
+    
+    # Run the conversion
+    "$CONVERSION_SCRIPT"
+    
+    # Add any newly generated markdown files to the commit  
+    # We're already in backend_v2, so use relative path
+    git add .claude/docs/generated/
+    
+    echo "✅ Markdown files generated and added to commit"
+fi
+
+# Continue with commit
+exit 0

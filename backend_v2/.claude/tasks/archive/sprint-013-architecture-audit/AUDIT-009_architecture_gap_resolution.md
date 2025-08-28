@@ -109,12 +109,12 @@ EOF
 # 1. Create strategies-level Cargo.toml
 cat > services_v2/strategies/Cargo.toml << 'EOF'
 [package]
-name = "alphapulse-strategies"
+name = "torq-strategies"
 version = "0.1.0"
 
 [dependencies]
-alphapulse-types = { path = "../../libs/types" }
-alphapulse-codec = { path = "../../libs/codec" }
+torq-types = { path = "../../libs/types" }
+torq-codec = { path = "../../libs/codec" }
 # ... other dependencies
 EOF
 
@@ -135,7 +135,7 @@ pub mod collector;
 pub mod parser;
 pub mod types;
 
-use alphapulse_types::protocol::{MessageHeader, TLVType};
+use torq_types::protocol::{MessageHeader, TLVType};
 
 pub struct PolygonAdapter {
     // Implementation

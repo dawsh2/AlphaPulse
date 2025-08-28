@@ -1,6 +1,6 @@
 //! Integration test for E2E framework
 
-use alphapulse_e2e_tests::{
+use torq_e2e_tests::{
     framework::{TestConfig, TestFramework, ValidationLevel},
     scenarios::KrakenToDashboardTest,
 };

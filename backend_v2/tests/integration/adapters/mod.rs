@@ -1,4 +1,4 @@
-//! Integration tests for AlphaPulse adapters
+//! Integration tests for Torq adapters
 //!
 //! This module contains comprehensive integration tests for all adapter implementations,
 //! including real exchange connection tests, TLV message validation, and performance benchmarks.

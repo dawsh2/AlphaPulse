@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# AlphaPulse Transport Usage Violation Detection
+# Torq Transport Usage Violation Detection
 # Detects direct UnixSocketTransport::new usage outside approved factory locations
 
 set -euo pipefail
@@ -161,7 +161,7 @@ main() {
         exit 1
     fi
     
-    echo -e "${BOLD}AlphaPulse Transport Usage Violation Detection${NC}"
+    echo -e "${BOLD}Torq Transport Usage Violation Detection${NC}"
     echo -e "${BOLD}============================================${NC}"
     echo ""
     

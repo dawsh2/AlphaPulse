@@ -1,6 +1,6 @@
 //! Test to verify PoolStateTLV size remains 192 bytes after padding changes
 
-use alphapulse_types::protocol::tlv::pool_state::PoolStateTLV;
+use torq_types::protocol::tlv::pool_state::PoolStateTLV;
 
 #[test]
 fn test_poolstate_tlv_size_unchanged() {

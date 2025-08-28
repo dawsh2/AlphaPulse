@@ -6,34 +6,34 @@
 
 ## Summary
 
-Separate `codec` and `alphapulse-types` packages to eliminate circular dependencies while maintaining clean architecture boundaries between type definitions and encoding/decoding logic.
+Separate `codec` and `torq-types` packages to eliminate circular dependencies while maintaining clean architecture boundaries between type definitions and encoding/decoding logic.
 
 ## Context
 
 During Sprint 012 Critical Gaps resolution, a circular dependency was identified between:
-- `libs/types` (alphapulse-types): Core TLV type definitions and protocol structures
+- `libs/types` (torq-types): Core TLV type definitions and protocol structures
 - `libs/codec`: TLV encoding, decoding, and message construction utilities
 
 ### The Circular Dependency Problem
 
 **Before GAP-002 Fix:**
 ```
-alphapulse-types
+torq-types
     ↓ depends on (for TLVMessageBuilder)
 codec  
     ↓ depends on (for TLV struct definitions)
-alphapulse-types
+torq-types
 ```
 
 This circular dependency caused:
-- Compilation errors: "cyclic package dependency: package `alphapulse-types` depends on itself"
+- Compilation errors: "cyclic package dependency: package `torq-types` depends on itself"
 - Import resolution failures across multiple services
 - Inability to build critical production services
 
 ### Root Cause Analysis
 
 The circular dependency emerged because:
-1. **Type definitions** (QuoteTLV, StateInvalidationTLV, etc.) were in `alphapulse-types`
+1. **Type definitions** (QuoteTLV, StateInvalidationTLV, etc.) were in `torq-types`
 2. **Message construction utilities** (TLVMessageBuilder) were in `codec`
 3. **Types package** tried to import TLVMessageBuilder for convenience methods
 4. **Codec package** needed the type definitions to implement encoding/decoding
@@ -48,14 +48,14 @@ Services (dashboard, adapters, strategies)
     ↓ import from both
 ├── codec (encoding/decoding logic)
 │   ↓ depends on
-└── alphapulse-types (core type definitions)
+└── torq-types (core type definitions)
     ↓ depends on
-    alphapulse-transport (timestamp utilities)
+    torq-transport (timestamp utilities)
 ```
 
 ### Package Responsibilities
 
-#### alphapulse-types (`libs/types`)
+#### torq-types (`libs/types`)
 - **Core TLV type definitions**: QuoteTLV, StateInvalidationTLV, PoolSwapTLV, etc.
 - **Protocol structures**: MessageHeader, TLV enums, validation logic
 - **Common types**: InstrumentId, VenueId, InvalidationReason
@@ -67,7 +67,7 @@ Services (dashboard, adapters, strategies)
 - **Parsing utilities**: parse_header, parse_tlv_extensions
 - **Encoding/Decoding**: Serialization and deserialization logic
 - **Message validation**: Protocol compliance checking
-- **Depends on alphapulse-types for type definitions**
+- **Depends on torq-types for type definitions**
 
 ### Import Patterns for Services
 
@@ -75,15 +75,15 @@ Services should import based on their needs:
 
 ```rust
 // For services that only need type definitions:
-use alphapulse_types::{QuoteTLV, InstrumentId, VenueId};
+use torq_types::{QuoteTLV, InstrumentId, VenueId};
 
 // For services that need message construction:
 use codec::{TLVMessageBuilder, parse_header, parse_tlv_extensions};
-use alphapulse_types::{QuoteTLV, TLVType, RelayDomain};
+use torq_types::{QuoteTLV, TLVType, RelayDomain};
 
 // Example: Dashboard websocket server
 use codec::{parse_header, parse_tlv_extensions, ParseError};
-use alphapulse_types::{QuoteTLV, InvalidationReason, StateInvalidationTLV};
+use torq_types::{QuoteTLV, InvalidationReason, StateInvalidationTLV};
 ```
 
 ## Rationale
@@ -100,7 +100,7 @@ use alphapulse_types::{QuoteTLV, InvalidationReason, StateInvalidationTLV};
    - Services (application-level) depend on both as needed
    - No circular references
 
-3. **Follows AlphaPulse Principles**
+3. **Follows Torq Principles**
    - **Breaking Changes Welcome**: We freely broke the circular dependency
    - **One Canonical Source**: Single definition for each TLV type
    - **Clean Architecture**: Proper separation of data and logic

@@ -36,7 +36,7 @@
 //! - **Validation Overhead**: <0.1ms per message validation
 
 use crate::output::RelayOutput;
-use alphapulse_types::{
+use torq_types::{
     tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
 use async_trait::async_trait;

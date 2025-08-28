@@ -1,0 +1,249 @@
+#+TITLE: Torq Cargo Build Error Resolution
+#+TODO: TODO NEXT IN-PROGRESS | DONE CANCELLED
+#+STARTUP: overview
+#+STARTUP: hidestars
+#+STARTUP: logdone
+
+* TODO [#A] Fix Cargo Build Errors                :build:critical:blocking:
+  :PROPERTIES:
+  :ID:          BUILD-FIX-GOAL
+  :EFFORT:      8h
+  :ASSIGNED:    dev-team
+  :DEADLINE:    <2025-08-28 Wed>
+  :END:
+
+  Critical: Fix all cargo build errors blocking development.
+  
+  **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
+  
+  **Status Updates Required**:
+  - Mark IN-PROGRESS when starting: `./org_tasks.sh update TASK-ID IN-PROGRESS`
+  - Mark DONE when complete: `./org_tasks.sh update TASK-ID DONE`
+
+** TODO Test Design for Workspace Dependencies  :testing:tdd:dependencies:
+   :PROPERTIES:
+   :ID:          BUILD-001-TESTS
+   :EFFORT:      1h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/workspace-deps
+   :END:
+
+   Design tests to verify all workspace dependencies resolve correctly.
+   
+   **FIRST ACTION**: `./org_tasks.sh update BUILD-001-TESTS IN-PROGRESS`
+
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] All tests pass: Framework runs
+   - [ ] Passes code review
+   - [ ] Test for missing workspace dependencies
+   - [ ] Test for version conflicts
+   - [ ] Test for feature flag compatibility
+   - [ ] All tests initially fail (red phase)
+
+** TODO Fix Missing rust_decimal_macros Dependency :dependencies:workspace:
+   :PROPERTIES:
+   :ID:          BUILD-001
+   :EFFORT:      1h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      fix/rust-decimal-macros
+   :DEPENDS:     BUILD-001-TESTS
+   :END:
+
+   Add missing rust_decimal_macros to workspace dependencies.
+   
+   **FIRST ACTION**: `./org_tasks.sh update BUILD-001 IN-PROGRESS`
+
+   *** Root Cause
+   - services_v2/strategies/Cargo.toml references rust_decimal_macros with workspace = true
+   - libs/amm/Cargo.toml also references it
+   - Not defined in root Cargo.toml [workspace.dependencies]
+
+   *** Implementation
+   Add to /Users/daws/alphapulse/backend_v2/Cargo.toml:
+   ```toml
+   [workspace.dependencies]
+   rust_decimal_macros = "1.37"
+   ```
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] All tests pass: `cargo test --workspace`
+   - [ ] Passes code review
+   - [ ] No workspace dependency errors
+   - [ ] strategies package builds successfully
+   - [ ] amm package builds successfully
+
+** TODO Test Design for Package References      :testing:tdd:imports:
+   :PROPERTIES:
+   :ID:          BUILD-002-TESTS
+   :EFFORT:      1h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/package-refs
+   :END:
+
+   Design tests for package naming consistency.
+   
+   **FIRST ACTION**: `./org_tasks.sh update BUILD-002-TESTS IN-PROGRESS`
+
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] All tests pass: Framework runs
+   - [ ] Passes code review
+   - [ ] Test for alphapulse vs torq references
+   - [ ] Test for import path consistency
+   - [ ] Test for module resolution
+   - [ ] All tests initially fail (red phase)
+
+** TODO Fix Inconsistent Package References     :refactor:naming:
+   :PROPERTIES:
+   :ID:          BUILD-002
+   :EFFORT:      2h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      fix/package-references
+   :DEPENDS:     BUILD-002-TESTS BUILD-001
+   :END:
+
+   Update all alphapulse references to torq consistently.
+   
+   **FIRST ACTION**: `./org_tasks.sh update BUILD-002 IN-PROGRESS`
+
+   *** Scope
+   - Check all Cargo.toml files for alphapulse references
+   - Update package names from alphapulse-* to torq-*
+   - Update import statements in Rust code
+   - Verify internal dependencies resolve
+
+   *** Files to Check
+   ```bash
+   find . -name "Cargo.toml" -exec grep -l "alphapulse" {} \;
+   find . -name "*.rs" -exec grep -l "use alphapulse" {} \;
+   ```
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] All tests pass: `cargo test --workspace`
+   - [ ] Passes code review
+   - [ ] No alphapulse references remain (except historical docs)
+   - [ ] All imports resolve correctly
+   - [ ] No broken module paths
+
+** TODO Test Design for Cross-Package Deps      :testing:tdd:integration:
+   :PROPERTIES:
+   :ID:          BUILD-003-TESTS
+   :EFFORT:      1h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/cross-deps
+   :DEPENDS:     BUILD-002
+   :END:
+
+   Design integration tests for cross-package dependencies.
+   
+   **FIRST ACTION**: `./org_tasks.sh update BUILD-003-TESTS IN-PROGRESS`
+
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] All tests pass: Framework runs
+   - [ ] Passes code review
+   - [ ] Test service -> libs dependencies
+   - [ ] Test libs -> libs dependencies
+   - [ ] Test circular dependency prevention
+   - [ ] All tests initially fail (red phase)
+
+** TODO Validate All Package Dependencies       :validation:integration:
+   :PROPERTIES:
+   :ID:          BUILD-003
+   :EFFORT:      2h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      fix/validate-deps
+   :DEPENDS:     BUILD-003-TESTS
+   :END:
+
+   Ensure all cross-package dependencies resolve correctly.
+   
+   **FIRST ACTION**: `./org_tasks.sh update BUILD-003 IN-PROGRESS`
+
+   *** Validation Checks
+   ```bash
+   # Check each package builds independently
+   for pkg in libs/*/; do
+     echo "Building $pkg"
+     cargo build -p $(basename $pkg)
+   done
+   
+   # Check services build
+   for pkg in services_v2/*/; do
+     echo "Building $pkg"
+     cargo build -p $(basename $pkg)
+   done
+   ```
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] All tests pass: `cargo test --workspace`
+   - [ ] Passes code review
+   - [ ] Each package builds independently
+   - [ ] No circular dependencies
+   - [ ] Dependency tree is clean: `cargo tree`
+
+** TODO Performance Validation                  :performance:benchmarks:
+   :PROPERTIES:
+   :ID:          BUILD-004
+   :EFFORT:      1h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/performance-validation
+   :DEPENDS:     BUILD-003
+   :END:
+
+   Verify build fixes don't impact performance targets.
+   
+   **FIRST ACTION**: `./org_tasks.sh update BUILD-004 IN-PROGRESS`
+
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] All tests pass: `cargo bench`
+   - [ ] Passes code review
+   - [ ] No performance regression (>1M msg/s)
+   - [ ] Binary size within limits
+   - [ ] Compilation time acceptable
+
+* Quick Fixes Reference                         :reference:
+  :PROPERTIES:
+  :ID:          BUILD-REFERENCE
+  :END:
+
+  Commands for validation:
+
+  ```bash
+  # Full workspace build
+  cargo build --release --workspace
+  
+  # Test all packages
+  cargo test --workspace
+  
+  # Check for unused dependencies
+  cargo machete
+  
+  # Verify dependency tree
+  cargo tree --duplicates
+  
+  # Check package graph
+  cargo depgraph --all-deps
+  ```
+
+* Known Issues Summary                          :issues:
+  :PROPERTIES:
+  :ID:          BUILD-ISSUES
+  :END:
+
+  1. **CRITICAL**: rust_decimal_macros missing from workspace deps
+     - Blocks: services_v2/strategies, libs/amm
+     
+  2. **HIGH**: Package naming inconsistency (alphapulse vs torq)
+     - Affects: All internal dependencies
+     
+  3. **MEDIUM**: Potential circular dependencies
+     - Check: libs interdependencies
+     
+  4. **LOW**: Unused dependencies
+     - Run cargo machete after fixes

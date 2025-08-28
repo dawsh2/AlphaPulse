@@ -1,4 +1,4 @@
-# AlphaPulse Development Roadmap
+# Torq Development Roadmap
 *Last Updated: 2025-08-25*
 
 ## 🎯 STRATEGIC OBJECTIVE: Arbitrage Strategy to Production
@@ -102,7 +102,7 @@
 ### Phase 5: Three-Repository Architecture (FUTURE VISION)
 **Long-term strategic separation into distinct, focused repositories**
 
-#### Repository 1: `alphapulse` (Frontend Client)
+#### Repository 1: `torq` (Frontend Client)
 - [ ] **EXTRACT-001**: Extract current frontend into standalone repo
 - [ ] **API-001**: Define clean REST/WebSocket API for trading system communication
 - [ ] **UI-001**: Enhanced real-time dashboard and portfolio management
@@ -126,7 +126,7 @@
 1. **Post-Arbitrage**: Clean up current backend_v2 thoroughly
 2. **Phase 1**: Extract networking layer → `mycelium` repo
 3. **Phase 2**: Extract trading logic → `[trading-system-name]` repo
-4. **Phase 3**: Extract frontend → standalone `alphapulse` repo
+4. **Phase 3**: Extract frontend → standalone `torq` repo
 5. **Result**: Three focused, reusable, best-in-class repositories
 
 ### Phase 4: DevOps & Operations (FUTURE)

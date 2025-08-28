@@ -32,15 +32,15 @@ impl DynamicPayloadConfig {
     /// Create configuration from environment variables
     pub fn from_env() -> Self {
         Self {
-            max_instruments: env::var("ALPHAPULSE_MAX_INSTRUMENTS")
+            max_instruments: env::var("TORQ_MAX_INSTRUMENTS")
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(16),
-            max_pool_tokens: env::var("ALPHAPULSE_MAX_POOL_TOKENS")
+            max_pool_tokens: env::var("TORQ_MAX_POOL_TOKENS")
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(8),
-            max_order_levels: env::var("ALPHAPULSE_MAX_ORDER_LEVELS")
+            max_order_levels: env::var("TORQ_MAX_ORDER_LEVELS")
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(50),

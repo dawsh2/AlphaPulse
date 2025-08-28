@@ -14,7 +14,7 @@
 //!
 //! ## Architecture Integration
 //!
-//! These components integrate seamlessly with AlphaPulse Protocol V2:
+//! These components integrate seamlessly with Torq Protocol V2:
 //! - **Zero-Copy**: TLV serialization without intermediate copying
 //! - **Single Allocation**: One Vec<u8> per message for async ownership transfer
 //! - **Direct Relay**: No MPSC channel overhead, direct RelayOutput integration

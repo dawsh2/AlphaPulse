@@ -59,7 +59,7 @@ impl Default for FullChainTestConfig {
     fn default() -> Self {
         Self {
             polygon_websocket_url: "wss://polygon-mainnet.g.alchemy.com/v2/demo".to_string(),
-            relay_socket_path: "/tmp/alphapulse/market_data.sock".to_string(),
+            relay_socket_path: "/tmp/torq/market_data.sock".to_string(),
             test_duration_seconds: 60,
             expected_events_per_minute: 300,
             max_end_to_end_latency_ms: 100,
@@ -196,9 +196,9 @@ impl FullChainIntegrationTests {
 
         // Test startup order: Relay → Collector → Dashboard
         let startup_sequence = vec![
-            ("market_data_relay", "cargo run --release -p alphapulse-relays --bin market_data_relay"),
+            ("market_data_relay", "cargo run --release -p torq-relays --bin market_data_relay"),
             ("polygon_collector", "cargo run --release --bin polygon"),
-            ("dashboard_websocket", "cargo run --release -p alphapulse-dashboard-websocket -- --port 8080"),
+            ("dashboard_websocket", "cargo run --release -p torq-dashboard-websocket -- --port 8080"),
         ];
 
         let mut all_services_started = true;

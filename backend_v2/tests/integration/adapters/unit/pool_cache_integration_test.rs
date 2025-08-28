@@ -3,8 +3,8 @@
 //! Tests the integration between PoolCache and UnifiedPolygonCollector
 //! focusing on proper initialization, configuration, and basic functionality.
 
-use alphapulse_state_market::pool_cache::{PoolCache, PoolCacheError, PoolInfo};
-use alphapulse_state_market::pool_state::PoolStateManager;
+use torq_state_market::pool_cache::{PoolCache, PoolCacheError, PoolInfo};
+use torq_state_market::pool_state::PoolStateManager;
 use protocol_v2::{VenueId, DEXProtocol};
 use std::sync::Arc;
 use tempfile::TempDir;

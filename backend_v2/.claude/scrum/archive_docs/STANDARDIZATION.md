@@ -1,7 +1,7 @@
 # Sprint & Task Standardization Guide
 
 ## Overview
-This document defines the **mandatory** format standards for all sprints and tasks in the AlphaPulse project. Adherence to these standards enables automated tracking, archiving, and management.
+This document defines the **mandatory** format standards for all sprints and tasks in the Torq project. Adherence to these standards enables automated tracking, archiving, and management.
 
 ## 🎯 Why Standardization Matters
 

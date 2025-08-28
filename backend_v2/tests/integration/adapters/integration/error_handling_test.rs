@@ -3,7 +3,7 @@
 //! Tests graceful degradation and recovery scenarios when RPC is unavailable,
 //! cache files are corrupted, or other error conditions occur.
 
-use alphapulse_state_market::pool_cache::{PoolCache, PoolCacheError};
+use torq_state_market::pool_cache::{PoolCache, PoolCacheError};
 use std::sync::Arc;
 use std::fs::{File, OpenOptions};
 use std::io::Write;

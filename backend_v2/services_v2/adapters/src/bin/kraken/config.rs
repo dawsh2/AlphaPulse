@@ -1,6 +1,6 @@
 //! Configuration for Kraken unified collector
 
-use alphapulse_types::RelayDomain;
+use torq_types::RelayDomain;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -61,7 +61,7 @@ impl Default for KrakenConfig {
             },
             relay: RelayConfig {
                 domain: "market_data".to_string(),
-                socket_path: "/tmp/alphapulse/market_data.sock".to_string(),
+                socket_path: "/tmp/torq/market_data.sock".to_string(),
             },
             pairs: vec![
                 "XBT/USD".to_string(),

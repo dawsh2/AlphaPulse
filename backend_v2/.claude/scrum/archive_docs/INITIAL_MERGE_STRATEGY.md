@@ -103,28 +103,28 @@ git checkout -b fix/checksum-sampling
 ### What Worktrees Provide
 ```bash
 # Multiple working directories, independent branches
-git worktree add ../alphapulse-precision fix/precision-loss
-git worktree add ../alphapulse-perf fix/checksum-sampling
-git worktree add ../alphapulse-cleanup fix/code-cleanup
+git worktree add ../torq-precision fix/precision-loss
+git worktree add ../torq-perf fix/checksum-sampling
+git worktree add ../torq-cleanup fix/code-cleanup
 
 # Each directory has its own branch state
-cd ../alphapulse-precision  # Shows fix/precision-loss
-cd ../alphapulse-perf      # Shows fix/checksum-sampling
-cd ../alphapulse-cleanup   # Shows fix/code-cleanup
+cd ../torq-precision  # Shows fix/precision-loss
+cd ../torq-perf      # Shows fix/checksum-sampling
+cd ../torq-cleanup   # Shows fix/code-cleanup
 ```
 
 ### Agent Assignment with Worktrees (Future)
 ```bash
 # Terminal 1: Agent A in precision worktree
-cd ../alphapulse-precision
+cd ../torq-precision
 # Works in complete isolation
 
 # Terminal 2: Agent B in performance worktree
-cd ../alphapulse-perf
+cd ../torq-perf
 # No interference with Agent A
 
 # Terminal 3: You in main worktree
-cd /Users/daws/alphapulse/backend_v2
+cd /Users/daws/torq/backend_v2
 # Monitor and coordinate from main
 ```
 

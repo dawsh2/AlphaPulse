@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Install AlphaPulse Git hooks for architecture validation
+# Install Torq Git hooks for architecture validation
 # 
 # This script sets up the git hooks directory and installs the pre-commit
 # hook for architecture validation.
@@ -10,7 +10,7 @@ set -e
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 HOOKS_DIR="$REPO_ROOT/.githooks"
 
-echo "🔧 Installing AlphaPulse Git hooks..."
+echo "🔧 Installing Torq Git hooks..."
 
 if [ ! -d "$HOOKS_DIR" ]; then
     echo "❌ Git hooks directory not found: $HOOKS_DIR"

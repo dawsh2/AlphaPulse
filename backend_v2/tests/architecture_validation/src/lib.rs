@@ -1,7 +1,7 @@
 //! Architecture validation tests
 //! 
 //! This module contains comprehensive tests to validate the architecture
-//! and design patterns of the AlphaPulse system according to AUDIT-007 specifications.
+//! and design patterns of the Torq system according to AUDIT-007 specifications.
 //!
 //! Validates:
 //! 1. Services use codec library consistently (no protocol duplication)

@@ -8,7 +8,7 @@
 
 mod common;
 
-use alphapulse_types::protocol::{
+use torq_types::protocol::{
     current_timestamp_ns, parse_header,
     tlv::{ParseError, TLVMessageBuilder},
     validation::{

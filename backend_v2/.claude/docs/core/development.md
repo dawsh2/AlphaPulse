@@ -5,7 +5,7 @@
 ### Before Making Changes
 1. **Ask Clarifying Questions**: Present questions to ensure complete understanding of requirements and technical trade-offs
 2. **Use rq for Discovery**: Search for existing functionality and understand system architecture
-3. **Reference Documentation Standards**: Read `.claude/practices.md` for AlphaPulse-specific requirements, `.claude/principles.md` for engineering patterns, and `.claude/style.md` for code conventions
+3. **Reference Documentation Standards**: Read `.claude/practices.md` for Torq-specific requirements, `.claude/principles.md` for engineering patterns, and `.claude/style.md` for code conventions
 4. Read relevant CLAUDE.md files in subdirectories
 5. Run existing tests to understand current behavior
 6. Check for related issues or ongoing migrations
@@ -140,7 +140,7 @@ Every module should include structured `//!` documentation:
 3. **At Decision Points**: When multiple implementation approaches are possible
 4. **For Complex Changes**: Especially involving Protocol V2 TLV messages, precision handling, or performance-critical paths
 
-### Question Categories for AlphaPulse
+### Question Categories for Torq
 
 #### Technical Architecture Questions
 - **TLV Message Changes**: "Should this new field use native token precision or 8-decimal fixed-point?"
@@ -165,7 +165,7 @@ When asking clarifying questions:
 3. **Provide Context**: Reference relevant system invariants, performance targets, or architectural principles
 4. **Be Specific**: "This change affects the hot path and could add 2-3μs latency" vs. "This might be slower"
 
-### AlphaPulse-Specific Clarification Examples
+### Torq-Specific Clarification Examples
 
 #### DEX Integration Questions
 - "Which DEX pools should we prioritize for testing? High-volume pairs or edge cases?"

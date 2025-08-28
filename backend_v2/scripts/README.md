@@ -1,6 +1,6 @@
-# AlphaPulse System Management Scripts
+# Torq System Management Scripts
 
-This directory contains the unified control interface for managing the AlphaPulse trading system. The main entry point is `manage.sh`, which provides a consistent interface for system lifecycle operations.
+This directory contains the unified control interface for managing the Torq trading system. The main entry point is `manage.sh`, which provides a consistent interface for system lifecycle operations.
 
 ## Quick Start
 
@@ -45,7 +45,7 @@ scripts/
 ## Commands
 
 ### `manage.sh up` (alias: `start`)
-Starts all AlphaPulse services in the correct dependency order:
+Starts all Torq services in the correct dependency order:
 1. Market Data Relay
 2. Signal Relay  
 3. Execution Relay
@@ -266,8 +266,8 @@ sleep 5  # Allow startup time
 
 **Services fail to stop:**
 - Emergency shutdown: `manage.sh down --force` (future feature)
-- Manual cleanup: `pkill -f alphapulse`
-- Check for zombie processes: `ps aux | grep -i alphapulse`
+- Manual cleanup: `pkill -f torq`
+- Check for zombie processes: `ps aux | grep -i torq`
 
 ### Getting Help
 
@@ -278,4 +278,4 @@ sleep 5  # Allow startup time
 
 ## License
 
-Part of the AlphaPulse trading system. See project root for license information.
+Part of the Torq trading system. See project root for license information.

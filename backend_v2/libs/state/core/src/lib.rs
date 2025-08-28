@@ -3,7 +3,7 @@
 //! ## Purpose
 //!
 //! Foundational state management traits providing universal interfaces for stateful
-//! components across the AlphaPulse trading system. Defines event-driven state updates,
+//! components across the Torq trading system. Defines event-driven state updates,
 //! sequence tracking, snapshot/recovery capabilities, and gap detection for reliable
 //! real-time state synchronization with zero-overhead abstraction principles.
 //!
@@ -28,7 +28,7 @@
 //! ```
 //!
 //! Core state traits serve as the universal foundation enabling consistent state
-//! management patterns across all AlphaPulse domain-specific components.
+//! management patterns across all Torq domain-specific components.
 //!
 //! ## Performance Profile
 //!

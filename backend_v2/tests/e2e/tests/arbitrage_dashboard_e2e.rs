@@ -4,7 +4,7 @@
 //! are properly transmitted through the signal relay to the dashboard
 //! using the new DemoDeFiArbitrageTLV format.
 
-use alphapulse_e2e_tests::{
+use torq_e2e_tests::{
     fixtures::ArbitrageSignalFixture,
     framework::{TestConfig, TestRunner},
     validation::assert_dashboard_received_arbitrage,
@@ -24,7 +24,7 @@ const FLASH_ARBITRAGE_STRATEGY_ID: u16 = 21;
 async fn test_arbitrage_signal_to_dashboard() {
     // Initialize test environment
     let config = TestConfig {
-        signal_relay_path: "/tmp/alphapulse_test/signals_arb.sock".to_string(),
+        signal_relay_path: "/tmp/torq_test/signals_arb.sock".to_string(),
         dashboard_port: 8081,
         test_timeout_secs: 30,
         ..Default::default()
@@ -237,7 +237,7 @@ async fn send_arbitrage_signal(
 #[tokio::test]
 async fn test_multiple_arbitrage_signals() {
     let config = TestConfig {
-        signal_relay_path: "/tmp/alphapulse_test/signals_multi_arb.sock".to_string(),
+        signal_relay_path: "/tmp/torq_test/signals_multi_arb.sock".to_string(),
         dashboard_port: 8082,
         test_timeout_secs: 45,
         ..Default::default()

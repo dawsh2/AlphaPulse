@@ -8,9 +8,9 @@ use crate::framework::{
 };
 use crate::validation::{DataFlowValidator, PrecisionValidator};
 
-use alphapulse_flash_arbitrage::config::{DetectorConfig, ExecutorConfig}; // Added
-use alphapulse_flash_arbitrage::strategy_engine::StrategyEngine;
-use alphapulse_relays::{ExecutionRelay, MarketDataRelay, RelayConfig, SignalRelay};
+use torq_flash_arbitrage::config::{DetectorConfig, ExecutorConfig}; // Added
+use torq_flash_arbitrage::strategy_engine::StrategyEngine;
+use torq_relays::{ExecutionRelay, MarketDataRelay, RelayConfig, SignalRelay};
 use anyhow::{Context, Result};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -56,7 +56,7 @@ impl TestScenario for PolygonArbitrageTest {
                 async move {
                     let mut config = RelayConfig::market_data_defaults();
                     config.transport.path = Some(path);
-                    let relay = alphapulse_relays::Relay::new(config).await?;
+                    let relay = torq_relays::Relay::new(config).await?;
                     relay.run().await
                 }
             })
@@ -69,7 +69,7 @@ impl TestScenario for PolygonArbitrageTest {
                 async move {
                     let mut config = RelayConfig::signal_defaults();
                     config.transport.path = Some(path);
-                    let relay = alphapulse_relays::Relay::new(config).await?;
+                    let relay = torq_relays::Relay::new(config).await?;
                     relay.run().await
                 }
             })
@@ -82,7 +82,7 @@ impl TestScenario for PolygonArbitrageTest {
                 async move {
                     let mut config = RelayConfig::execution_defaults();
                     config.transport.path = Some(path);
-                    let relay = alphapulse_relays::Relay::new(config).await?;
+                    let relay = torq_relays::Relay::new(config).await?;
                     relay.run().await
                 }
             })
@@ -108,14 +108,14 @@ impl TestScenario for PolygonArbitrageTest {
         let signal_path = framework.relay_paths().signals.clone();
         framework
             .start_service("flash_arbitrage_engine".to_string(), move || async move {
-                let mut engine = StrategyEngine::new(alphapulse_flash_arbitrage::StrategyConfig {
-                    detector: alphapulse_flash_arbitrage::config::DetectorConfig {
+                let mut engine = StrategyEngine::new(torq_flash_arbitrage::StrategyConfig {
+                    detector: torq_flash_arbitrage::config::DetectorConfig {
                         min_profit_usd: rust_decimal::Decimal::from_f64_retain(min_profit).unwrap(),
                         gas_cost_usd: rust_decimal::Decimal::from_f64_retain(50.0).unwrap(),
                         slippage_tolerance_bps: 50,
                         ..Default::default()
                     },
-                    executor: alphapulse_flash_arbitrage::config::ExecutorConfig::default(),
+                    executor: torq_flash_arbitrage::config::ExecutorConfig::default(),
                     market_data_relay_path: market_data_path,
                     signal_relay_path: signal_path,
                     consumer_id: 1002, // Example consumer ID

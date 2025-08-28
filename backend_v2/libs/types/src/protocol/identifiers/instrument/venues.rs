@@ -84,7 +84,7 @@
 //!
 //! ### Venue Classification and Routing
 //! ```rust
-//! use alphapulse_protocol_v2::identifiers::{VenueId, AssetType};
+//! use torq_protocol_v2::identifiers::{VenueId, AssetType};
 //!
 //! // Venue property checking for routing decisions
 //! let venue = VenueId::UniswapV3;

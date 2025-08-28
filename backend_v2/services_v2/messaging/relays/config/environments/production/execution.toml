@@ -1,0 +1,36 @@
+# Production execution relay configuration
+# Security-focused with full validation and audit trail
+
+[relay]
+domain = 3
+name = "execution_relay"
+max_connections = 100                   # Limited for security
+
+[transport]
+mode = "unix_socket"
+path = "/var/run/torq/execution.sock"
+buffer_size = 32768                     # Smaller buffer, security first
+use_topology = false
+
+[validation]
+checksum = true                         # Full validation required
+audit = true                           # Complete audit trail
+strict = true                          # Strict mode for security
+max_message_size = 1048576             # 1MB limit for execution messages
+
+[topics]
+default = "execution.audit"
+auto_discover = false                  # No auto-discovery for security
+extraction_strategy = "source_type"
+cleanup_interval_ms = 2000             # Frequent cleanup
+
+[performance]
+target_throughput = 50000              # Lower throughput, higher integrity
+buffer_size = 16384                    # 16KB buffer
+batch_size = 10                        # Small batches for low latency
+max_latency_ms = 20                    # Allow for validation overhead
+
+[logging]
+level = "info"                         # Detailed logging
+format = "json"
+file = "/var/log/torq/execution.log"

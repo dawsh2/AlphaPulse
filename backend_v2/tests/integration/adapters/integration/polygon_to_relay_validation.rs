@@ -3,11 +3,11 @@
 //! Tests the complete pipeline from Polygon DEX collector to relay message format
 //! Validates TLV message structure, relay compatibility, and semantic preservation
 
-use alphapulse_adapter_service::input::collectors::polygon_dex::{
+use torq_adapter_service::input::collectors::polygon_dex::{
     validated_decoder::ValidatedPolygonDecoder,
     abi_events::DEXProtocol,
 };
-use alphapulse_adapter_service::{complete_validation_pipeline, ValidationError};
+use torq_adapter_service::{complete_validation_pipeline, ValidationError};
 use protocol_v2::{
     TLVMessage, MessageHeader, RelayDomain, VenueId,
     tlv::market_data::PoolSwapTLV,

@@ -1,4 +1,4 @@
-# AlphaPulse Testing Standards & Architecture
+# Torq Testing Standards & Architecture
 
 ## 🎯 Testing Philosophy
 **Test everything that could break. Test nothing that couldn't.**
@@ -431,6 +431,6 @@ cargo test --release
 
 ## Conclusion
 
-Testing is not optional at AlphaPulse. Every PR must include appropriate tests. The testing pyramid ensures fast feedback while catching critical issues. Property-based and fuzz testing catch edge cases humans miss.
+Testing is not optional at Torq. Every PR must include appropriate tests. The testing pyramid ensures fast feedback while catching critical issues. Property-based and fuzz testing catch edge cases humans miss.
 
 **Remember**: A test that could have caught the hardcoded $150 issue is worth 1000 lines of untested code.

@@ -25,9 +25,9 @@
 //! - **No retry logic**: Let external supervision handle restarts
 //! - **Complete transparency**: Log everything, hide nothing
 
-use codec::{parse_header, parse_tlv_extensions}; // Added
+use torq_codec::{parse_header, parse_tlv_extensions}; // Added
 use torq_network::time::init_timestamp_system; // Added
-use alphapulse_types::{
+use torq_types::{
     tlv::build_message_direct,
     tlv::market_data::{PoolBurnTLV, PoolMintTLV, PoolSwapTLV, PoolSyncTLV, PoolTickTLV},
     tlv::pool_state::{PoolStateTLV, V2PoolConfig, V3PoolConfig},
@@ -45,9 +45,9 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 use web3::types::{Log, H160, H256};
 
-use alphapulse_adapter_service::output::RelayOutput;
-use alphapulse_state_market::pool_cache::PoolCache;
-use alphapulse_state_market::pool_state::PoolStateManager;
+use torq_adapter_service::output::RelayOutput;
+use torq_state_market::pool_cache::PoolCache;
+use torq_state_market::pool_state::PoolStateManager;
 
 mod config;
 use config::PolygonConfig;
@@ -271,7 +271,7 @@ impl UnifiedPolygonCollector {
         ));
 
         // Initialize pool cache with persistence
-        let cache_dir = std::path::PathBuf::from("/tmp/alphapulse");
+        let cache_dir = std::path::PathBuf::from("/tmp/torq");
         std::fs::create_dir_all(&cache_dir)?;
 
         let pool_cache = Arc::new(
@@ -499,7 +499,7 @@ impl UnifiedPolygonCollector {
 
     /// Create JSON-RPC subscription message for DEX events using ethabi-generated signatures
     fn create_subscription_message(&self) -> String {
-        let signatures = alphapulse_dex::get_all_event_signatures();
+        let signatures = torq_dex::get_all_event_signatures();
 
         info!(
             "🎯 Subscribing to {} ethabi-generated event signatures",
@@ -649,7 +649,7 @@ impl UnifiedPolygonCollector {
         // Route event by signature to appropriate TLV processor using ethabi signatures
         if let Some(topic0) = log.topics.first() {
             let signature = format!("{:x}", topic0);
-            let (v2_swap_sig, v3_swap_sig) = alphapulse_dex::get_swap_signatures();
+            let (v2_swap_sig, v3_swap_sig) = torq_dex::get_swap_signatures();
 
             let tlv_message_opt = if signature == v2_swap_sig[2..] || signature == v3_swap_sig[2..]
             {

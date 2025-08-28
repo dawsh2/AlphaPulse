@@ -45,14 +45,14 @@ git branch --show-current  # Should show: fix/pool-cache-structure
 
 ### Files to Modify
 1. `services_v2/adapters/src/polygon/polygon.rs` - Add cache integration
-2. `services_v2/adapters/Cargo.toml` - Add dependency on `alphapulse-state-market`
+2. `services_v2/adapters/Cargo.toml` - Add dependency on `torq-state-market`
 
 ### Required Implementation
 
 ```rust
 // In polygon.rs - Update imports
-use alphapulse_state_market::pool_cache::{PoolCache, PoolInfo};
-use alphapulse_state_market::pool_state::PoolStateManager;
+use torq_state_market::pool_cache::{PoolCache, PoolInfo};
+use torq_state_market::pool_state::PoolStateManager;
 
 // Update UnifiedPolygonCollector struct
 pub struct UnifiedPolygonCollector {
@@ -132,7 +132,7 @@ async fn process_swap_event(&self, log: &Log) -> Result<()> {
 ### Cargo.toml Addition
 ```toml
 [dependencies]
-alphapulse-state-market = { path = "../../../libs/state/market" }
+torq-state-market = { path = "../../../libs/state/market" }
 ```
 
 ## ✅ Acceptance Criteria
@@ -153,7 +153,7 @@ alphapulse-state-market = { path = "../../../libs/state/market" }
    - [ ] Comprehensive unit tests
    - [ ] Documentation for all public methods
    - [ ] No unsafe code unless justified
-   - [ ] Follow AlphaPulse conventions (no unwrap() in production)
+   - [ ] Follow Torq conventions (no unwrap() in production)
 
 ## 🧪 Testing Instructions
 
@@ -183,12 +183,12 @@ git reset --hard <commit-before-pool-001>
 git push --force-with-lease origin main
 
 # Clear any corrupted cache files
-rm -f /var/lib/alphapulse/pool_cache.tlv
-rm -f /var/lib/alphapulse/pool_cache.tlv.journal
+rm -f /var/lib/torq/pool_cache.tlv
+rm -f /var/lib/torq/pool_cache.tlv.journal
 
 # Restart affected services
-systemctl restart alphapulse-polygon-collector
-systemctl restart alphapulse-market-data-relay
+systemctl restart torq-polygon-collector
+systemctl restart torq-market-data-relay
 ```
 
 ## 📤 Commit & Push Instructions
@@ -239,7 +239,7 @@ Implemented high-performance cache for pool metadata with persistence support.
 - [x] No hot path regression
 
 ### Checklist
-- [x] Code follows AlphaPulse conventions
+- [x] Code follows Torq conventions
 - [x] No unwrap() in production code
 - [x] Documentation complete
 - [x] Ready for review

@@ -1,5 +1,5 @@
 #!/bin/bash
-# AlphaPulse Org-mode Task Management CLI
+# Torq Org-mode Task Management CLI
 # A wrapper around Emacs batch mode for org task management
 
 set -e
@@ -21,7 +21,7 @@ mkdir -p "$TASKS_DIR"
 # Initialize active.org if it doesn't exist
 if [ ! -f "$ACTIVE_FILE" ]; then
     cat > "$ACTIVE_FILE" <<'EOF'
-#+TITLE: AlphaPulse Active Tasks
+#+TITLE: Torq Active Tasks
 #+TODO: TODO NEXT IN-PROGRESS WAITING | DONE CANCELLED
 #+STARTUP: overview
 #+STARTUP: hidestars
@@ -42,8 +42,8 @@ run_emacs() {
     done
     emacs --batch \
           --load "$ORG_MANAGER_EL" \
-          --eval "(setq alphapulse/command-args (list $args))" \
-          --eval "(alphapulse/cli-main)"
+          --eval "(setq torq/command-args (list $args))" \
+          --eval "(torq/cli-main)"
 }
 
 # Main command handler
@@ -79,7 +79,7 @@ case "$1" in
         
     help|--help|-h)
         cat <<EOF
-AlphaPulse Org-mode Task Management CLI
+Torq Org-mode Task Management CLI
 
 Usage: $0 <command> [arguments]
 

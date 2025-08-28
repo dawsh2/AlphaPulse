@@ -2,9 +2,9 @@
 //!
 //! Validates that the define_tlv! macro correctly generates TLV structures
 
-use alphapulse_types::protocol::define_tlv;
-use alphapulse_types::protocol::tlv::market_data::{PoolSwapTLV, QuoteTLV, TradeTLV};
-use alphapulse_types::protocol::{InstrumentId, VenueId};
+use torq_types::protocol::define_tlv;
+use torq_types::protocol::tlv::market_data::{PoolSwapTLV, QuoteTLV, TradeTLV};
+use torq_types::protocol::{InstrumentId, VenueId};
 use zerocopy::{AsBytes, FromBytes};
 
 #[test]

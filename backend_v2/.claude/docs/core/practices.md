@@ -1,4 +1,4 @@
-# AlphaPulse-Specific Best Practices
+# Torq-Specific Best Practices
 
 ## Zero-Copy Message Architecture
 
@@ -497,7 +497,7 @@ impl From<String> for Identifier {
 
 ## Summary
 
-These AlphaPulse-specific practices ensure:
+These Torq-specific practices ensure:
 1. **Performance**: >1M msg/s with <35μs hot path latency
 2. **Precision**: Zero loss in financial calculations
 3. **Safety**: No silent failures, comprehensive validation

@@ -3,7 +3,7 @@
 //! Tests the complete flow from WebSocket event processing through
 //! pool cache discovery to TLV message generation with real addresses.
 
-use alphapulse_state_market::pool_cache::PoolCache;
+use torq_state_market::pool_cache::PoolCache;
 use std::sync::Arc;
 use tempfile::TempDir;
 use web3::types::{Bytes, Log, H160, H256};
@@ -50,7 +50,7 @@ async fn test_pool_discovery_for_unknown_pool() {
 
 #[tokio::test]
 async fn test_cache_persistence_and_recovery() {
-    use alphapulse_state_market::pool_cache::PoolCache;
+    use torq_state_market::pool_cache::PoolCache;
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let cache_path = temp_dir.path().to_path_buf();
@@ -104,7 +104,7 @@ async fn test_swap_event_processing_flow() {
 
 #[tokio::test]
 async fn test_cache_stats_tracking() {
-    use alphapulse_state_market::pool_cache::PoolCache;
+    use torq_state_market::pool_cache::PoolCache;
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let cache = PoolCache::with_persistence(temp_dir.path().to_path_buf(), 137);

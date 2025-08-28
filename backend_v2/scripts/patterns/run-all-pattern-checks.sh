@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# AlphaPulse Pattern Enforcement Runner
+# Torq Pattern Enforcement Runner
 # Runs all architectural pattern checks for CI/CD integration
 
 set -euo pipefail
@@ -26,7 +26,7 @@ PATTERN_SCRIPTS=(
     "detect-precision-violations.py"
 )
 
-echo -e "${BOLD}AlphaPulse Architectural Pattern Enforcement${NC}"
+echo -e "${BOLD}Torq Architectural Pattern Enforcement${NC}"
 echo -e "${BOLD}===========================================${NC}"
 echo ""
 echo "Target: $TARGET_DIR"

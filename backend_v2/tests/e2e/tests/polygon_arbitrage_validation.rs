@@ -2,7 +2,7 @@
 //!
 //! Specific validation tests for Polygon arbitrage detection and V3 math
 
-use alphapulse_e2e_tests::{
+use torq_e2e_tests::{
     framework::{TestConfig, TestFramework, ValidationLevel},
     scenarios::PolygonArbitrageTest,
 };
@@ -73,7 +73,7 @@ async fn test_v3_math_precision() {
     // Test that V3 math calculations maintain precision
     // This test focuses on the mathematical correctness
 
-    use alphapulse_flash_arbitrage::math::v3_math::{
+    use torq_flash_arbitrage::math::v3_math::{
         calculate_optimal_swap_amount, calculate_v3_output_amount,
     };
     use rust_decimal::Decimal;

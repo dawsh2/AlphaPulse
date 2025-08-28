@@ -1,0 +1,22 @@
+#+TITLE: Correct Priority Test
+#+TODO: TODO NEXT IN-PROGRESS | DONE CANCELLED
+
+* TODO [#A] Top Level Goal                      :goal:
+  :PROPERTIES:
+  :ID:          TEST-001
+  :END:
+
+** TODO [#A] Sub Task (inherits A)
+   :PROPERTIES:
+   :ID:          TEST-002
+   :END:
+
+** TODO [#B] Sub Task with explicit B priority
+   :PROPERTIES:
+   :ID:          TEST-003
+   :END:
+
+** TODO Sub Task (should inherit from parent)
+   :PROPERTIES:
+   :ID:          TEST-004
+   :END:

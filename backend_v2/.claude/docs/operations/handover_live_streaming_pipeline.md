@@ -1,7 +1,7 @@
 # Handover Document: Live Streaming Pipeline Message Flow Issue
 
 ## Executive Summary
-The AlphaPulse live streaming pipeline experiences intermittent message flow where the dashboard receives bursts of pool_swap messages (50-100 messages) then complete silence. The root cause is a **blocking read operation** in the relay consumer that waits indefinitely for new data after processing available messages.
+The Torq live streaming pipeline experiences intermittent message flow where the dashboard receives bursts of pool_swap messages (50-100 messages) then complete silence. The root cause is a **blocking read operation** in the relay consumer that waits indefinitely for new data after processing available messages.
 
 ## Current State of the Pipeline
 
@@ -141,7 +141,7 @@ if last_message_time.elapsed() > Duration::from_secs(1) {
 
 # Monitor for bursts
 echo "Monitoring for message bursts..."
-tail -f /tmp/alphapulse/logs/dashboard_websocket.log | \
+tail -f /tmp/torq/logs/dashboard_websocket.log | \
   awk '/Broadcasted pool_swap/ {
     count++
     current_time = systime()
@@ -163,17 +163,17 @@ tail -f /tmp/alphapulse/logs/dashboard_websocket.log | \
 
 ### Start Complete Pipeline
 ```bash
-cd /Users/daws/alphapulse/backend_v2
+cd /Users/daws/torq/backend_v2
 ./scripts/start_live_streaming_pipeline.sh --restart
 ```
 
 ### Monitor Health
 ```bash
 # Check message flow
-tail -f /tmp/alphapulse/logs/dashboard_websocket.log | grep "Broadcasted"
+tail -f /tmp/torq/logs/dashboard_websocket.log | grep "Broadcasted"
 
 # Check Polygon events
-tail -f /tmp/alphapulse/logs/polygon_collector.log | grep "Processed"
+tail -f /tmp/torq/logs/polygon_collector.log | grep "Processed"
 
 # Check frontend console
 # Open browser dev tools at http://localhost:3001
@@ -182,7 +182,7 @@ tail -f /tmp/alphapulse/logs/polygon_collector.log | grep "Processed"
 ### Debug Blocking Issue
 ```bash
 # Attach strace to see blocking read
-sudo strace -p $(pgrep -f alphapulse-dashboard-websocket) 2>&1 | grep -E "read|recv"
+sudo strace -p $(pgrep -f torq-dashboard-websocket) 2>&1 | grep -E "read|recv"
 ```
 
 ## Architecture Recommendations

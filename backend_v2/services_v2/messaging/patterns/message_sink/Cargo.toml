@@ -1,0 +1,23 @@
+[package]
+name = "message-sink"
+version = "0.1.0"
+edition = "2021"
+description = "Message routing patterns for relay infrastructure"
+
+[dependencies]
+network = { workspace = true }
+types = { workspace = true }
+async-trait = { workspace = true }
+futures-util = { workspace = true }
+num_enum = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
+tempfile = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"

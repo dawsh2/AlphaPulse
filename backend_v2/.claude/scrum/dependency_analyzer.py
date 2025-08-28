@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dependency Analyzer for AlphaPulse Self-Organizing Task System
+Dependency Analyzer for Torq Self-Organizing Task System
 Advanced dependency analysis, visualization, and suggestion engine
 """
 

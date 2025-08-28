@@ -1,4 +1,4 @@
-//! # AlphaPulse AMM Library - Precise DEX Mathematics Engine
+//! # Torq AMM Library - Precise DEX Mathematics Engine
 //!
 //! ## Purpose
 //!

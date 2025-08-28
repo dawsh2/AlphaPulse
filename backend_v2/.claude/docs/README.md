@@ -1,6 +1,6 @@
 # AI Assistant Documentation
 
-This directory contains modular documentation for AI assistants working with the AlphaPulse codebase.
+This directory contains modular documentation for AI assistants working with the Torq codebase.
 
 ## Structure
 
@@ -9,7 +9,7 @@ This directory contains modular documentation for AI assistants working with the
 - `README.md` - This file (directory overview)
 
 ### Core Development (`core/`)
-- `practices.md` - **AlphaPulse-specific requirements (zero-copy, precision, TLV)**
+- `practices.md` - **Torq-specific requirements (zero-copy, precision, TLV)**
 - `principles.md` - Core engineering principles and practical patterns  
 - `development.md` - Development workflows and practices
 - `testing.md` - Testing philosophy, debugging procedures, and TDD guidance

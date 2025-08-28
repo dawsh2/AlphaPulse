@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-torq-network = { path = "../../../network" }
+network = { workspace = true }
 # Protocol
-alphapulse-types = { workspace = true }
-codec = { path = "../../../libs/codec" }
+types = { workspace = true }
+codec = { workspace = true }
 anyhow = "1.0"
 
 # Time handling

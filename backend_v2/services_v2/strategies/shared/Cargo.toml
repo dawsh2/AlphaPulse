@@ -1,0 +1,16 @@
+[package]
+name = "torq-strategy-shared"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+torq-codec = { path = "../../../libs/codec" }
+torq-types = { path = "../../../libs/types" }
+
+# Core dependencies
+tokio = { version = "1.42", features = ["full"] }
+async-trait = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+tracing = "0.1"
+anyhow = "1.0"
+thiserror = "2.0"

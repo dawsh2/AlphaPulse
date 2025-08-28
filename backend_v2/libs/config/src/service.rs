@@ -1,7 +1,7 @@
 //! Service configuration and defaults
 //!
 //! This module contains default configuration values and constants
-//! used across AlphaPulse services for consistency.
+//! used across Torq services for consistency.
 
 /// Dashboard service defaults
 pub mod dashboard {

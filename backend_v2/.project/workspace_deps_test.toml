@@ -1,0 +1,14 @@
+[workspace]
+members = ["services_v2/strategies/mev"]
+resolver = "2"
+
+[workspace.dependencies]
+types = { path = "libs/types" }
+anyhow = "1.0"
+async-trait = "0.1"
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+rust_decimal = { version = "1.37", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0"
+tokio = { version = "1.42", features = ["full"] }
+tracing = "0.1"

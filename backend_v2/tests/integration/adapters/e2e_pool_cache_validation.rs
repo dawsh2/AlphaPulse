@@ -3,7 +3,7 @@
 //! Tests the complete pipeline: Real Contract RPC → PoolCache → TLV → Validation
 //! Ensures no hardcoded decimals and proper semantic validation
 
-use alphapulse_state_market::{PoolCache, PoolCacheConfig};
+use torq_state_market::{PoolCache, PoolCacheConfig};
 use protocol_v2::{PoolSwapTLV, VenueId};
 use std::collections::HashMap;
 use tokio::sync::mpsc;

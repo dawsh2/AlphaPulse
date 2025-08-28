@@ -1,6 +1,6 @@
 //! Protocol-level errors for TLV message processing
 //!
-//! Provides comprehensive error handling for the AlphaPulse protocol codec,
+//! Provides comprehensive error handling for the Torq protocol codec,
 //! including detailed context for debugging and monitoring. Each error variant
 //! includes specific information about what went wrong and what was expected.
 

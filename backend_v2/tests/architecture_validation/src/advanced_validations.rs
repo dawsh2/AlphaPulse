@@ -1,4 +1,4 @@
-//! Advanced architectural validation rules for AlphaPulse system
+//! Advanced architectural validation rules for Torq system
 
 use crate::common::{get_service_packages, find_rust_files, ValidationResult, Violation};
 use cargo_metadata::Metadata;

@@ -227,7 +227,7 @@ pub fn bad_pricing(amount: f64) -> f64 {
     
     def test_zero_false_positives_on_current_codebase(self):
         """Test that script produces zero false positives on actual codebase"""
-        # Test against the real AlphaPulse codebase
+        # Test against the real Torq codebase
         real_codebase_path = Path(__file__).parent.parent
         
         stdout, stderr, returncode = self.run_detection_script(str(real_codebase_path))

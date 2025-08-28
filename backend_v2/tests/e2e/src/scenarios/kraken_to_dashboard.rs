@@ -9,9 +9,9 @@ use crate::framework::{
 };
 use crate::validation::DataFlowValidator;
 
-use alphapulse_dashboard_websocket::{DashboardConfig, DashboardServer};
-use alphapulse_kraken_signals::KrakenSignalsStrategy;
-use alphapulse_relays::{MarketDataRelay, RelayConfig, SignalRelay};
+use torq_dashboard_websocket::{DashboardConfig, DashboardServer};
+use torq_kraken_signals::KrakenSignalsStrategy;
+use torq_relays::{MarketDataRelay, RelayConfig, SignalRelay};
 use anyhow::{Context, Result};
 use futures_util::StreamExt; // Added
 use serde_json::Value;
@@ -61,7 +61,7 @@ impl TestScenario for KrakenToDashboardTest {
                 async move {
                     let mut config = RelayConfig::market_data_defaults();
                     config.transport.path = Some(path); // Set socket path
-                    let relay = alphapulse_relays::Relay::new(config).await?; // Use generic Relay
+                    let relay = torq_relays::Relay::new(config).await?; // Use generic Relay
                     relay.run().await
                 }
             })
@@ -75,7 +75,7 @@ impl TestScenario for KrakenToDashboardTest {
                 async move {
                     let mut config = RelayConfig::signal_defaults();
                     config.transport.path = Some(path); // Set socket path
-                    let relay = alphapulse_relays::Relay::new(config).await?; // Use generic Relay
+                    let relay = torq_relays::Relay::new(config).await?; // Use generic Relay
                     relay.run().await
                 }
             })
@@ -348,7 +348,7 @@ impl TestScenario for KrakenToDashboardTest {
 
         // Remove any test data files
         if let Err(e) =
-            tokio::fs::remove_dir_all(format!("/tmp/alphapulse_e2e_test_{}", framework.test_id()))
+            tokio::fs::remove_dir_all(format!("/tmp/torq_e2e_test_{}", framework.test_id()))
                 .await
         {
             warn!("Failed to cleanup test directory: {}", e);

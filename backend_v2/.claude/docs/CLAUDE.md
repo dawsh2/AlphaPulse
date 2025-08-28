@@ -1,7 +1,7 @@
-# CLAUDE.md - AlphaPulse AI Assistant Context
+# CLAUDE.md - Torq AI Assistant Context
 
 ## System Overview
-AlphaPulse is a high-performance cryptocurrency trading system built on Protocol V2 TLV (Type-Length-Value) message architecture processing >1M messages/second across domain-specific relays with complete precision preservation and bijective instrument identification.
+Torq is a high-performance cryptocurrency trading system built on Protocol V2 TLV (Type-Length-Value) message architecture processing >1M messages/second across domain-specific relays with complete precision preservation and bijective instrument identification.
 
 **Core Mission**: Build robust, validated, safe trading infrastructure with complete transparency and zero tolerance for deceptive practices.
 
@@ -238,7 +238,7 @@ cargo clippy --workspace -- -D warnings
 6. **Check .claude/docs/**: Reference detailed guides for specific tasks
 
 For detailed information on:
-- **AlphaPulse practices** → `.claude/docs/core/practices.md` (CRITICAL: zero-copy, precision, TLV)
+- **Torq practices** → `.claude/docs/core/practices.md` (CRITICAL: zero-copy, precision, TLV)
 - Engineering principles → `.claude/docs/core/principles.md`
 - Development workflows → `.claude/docs/core/development.md`
 - Testing & debugging → `.claude/docs/core/testing.md`

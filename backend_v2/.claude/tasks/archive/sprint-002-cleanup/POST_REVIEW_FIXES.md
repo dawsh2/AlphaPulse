@@ -6,7 +6,7 @@
 ## Fixes Applied Based on Code Review
 
 ### ✅ 1. Fixed Binary Name Collisions
-**Issue**: Duplicate binary names between `alphapulse-relays` and subdirectory packages causing build warnings
+**Issue**: Duplicate binary names between `torq-relays` and subdirectory packages causing build warnings
 **Solution**: 
 - Removed 6 duplicate binary source files from `/relays/src/bin/`:
   - `execution_relay.rs`

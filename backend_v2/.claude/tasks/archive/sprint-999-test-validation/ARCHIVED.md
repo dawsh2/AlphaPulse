@@ -12,4 +12,4 @@ This sprint has been automatically archived after meeting all completion criteri
 ## Completed Tasks
 
 ## Archive Location
-This sprint is archived at: `/Users/daws/alphapulse/backend_v2/.claude/scrum/../tasks/archive/sprint-999-test-validation`
+This sprint is archived at: `/Users/daws/torq/backend_v2/.claude/scrum/../tasks/archive/sprint-999-test-validation`

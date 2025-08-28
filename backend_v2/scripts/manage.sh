@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# AlphaPulse System Management Interface
+# Torq System Management Interface
 # Unified control script for system lifecycle management
 # Usage: ./scripts/manage.sh [command] [options]
 
@@ -27,13 +27,13 @@ LIB_DIR="${SCRIPT_DIR}/lib"
 
 # Function to display usage
 show_usage() {
-    echo -e "${BOLD}AlphaPulse System Management${NC}"
+    echo -e "${BOLD}Torq System Management${NC}"
     echo -e "${BOLD}============================${NC}"
     echo ""
     echo "Usage: $0 <command> [options]"
     echo ""
     echo -e "${BOLD}Commands:${NC}"
-    echo -e "  ${GREEN}up${NC}         Start all AlphaPulse services"
+    echo -e "  ${GREEN}up${NC}         Start all Torq services"
     echo -e "  ${GREEN}down${NC}       Stop all services gracefully"
     echo -e "  ${GREEN}restart${NC}    Stop and start all services"
     echo -e "  ${GREEN}status${NC}     Show status of all services"
@@ -116,10 +116,10 @@ export LIB_DIR
 # Main command dispatcher
 case "${COMMAND}" in
     up|start)
-        print_info "Starting AlphaPulse system..."
+        print_info "Starting Torq system..."
         if [[ -f "${LIB_DIR}/startup.sh" ]]; then
             source "${LIB_DIR}/startup.sh"
-            start_alphapulse
+            start_torq
         else
             print_error "Startup script not found: ${LIB_DIR}/startup.sh"
             exit 1
@@ -127,10 +127,10 @@ case "${COMMAND}" in
         ;;
     
     down|stop)
-        print_info "Stopping AlphaPulse system..."
+        print_info "Stopping Torq system..."
         if [[ -f "${LIB_DIR}/shutdown.sh" ]]; then
             source "${LIB_DIR}/shutdown.sh"
-            stop_alphapulse
+            stop_torq
         else
             print_error "Shutdown script not found: ${LIB_DIR}/shutdown.sh"
             exit 1
@@ -138,7 +138,7 @@ case "${COMMAND}" in
         ;;
     
     restart)
-        print_info "Restarting AlphaPulse system..."
+        print_info "Restarting Torq system..."
         $0 down
         sleep 2
         $0 up

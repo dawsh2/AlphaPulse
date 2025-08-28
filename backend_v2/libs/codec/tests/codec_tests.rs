@@ -1,4 +1,4 @@
-//! # AlphaPulse Codec Integration Tests
+//! # Torq Codec Integration Tests
 //!
 //! Comprehensive integration tests for the codec crate, verifying:
 //! - Public API compatibility with external crates
@@ -6,7 +6,7 @@
 //! - End-to-end identifier construction and validation
 //! - Performance characteristics and error handling
 
-use codec::{
+use torq_codec::{
     instrument_id::CodecError, AssetType, InstrumentId, TLVType, VenueId, MESSAGE_MAGIC,
     PROTOCOL_VERSION,
 };

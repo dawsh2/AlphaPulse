@@ -2,7 +2,7 @@
 //!
 //! Contains actual Polygon blockchain data for validation testing.
 
-use alphapulse_dex::{UNISWAP_V2_SWAP, UNISWAP_V3_MINT, UNISWAP_V3_SWAP};
+use torq_dex::{UNISWAP_V2_SWAP, UNISWAP_V3_MINT, UNISWAP_V3_SWAP};
 use hex;
 use web3::types::{Log, H160, H256, U256, U64};
 

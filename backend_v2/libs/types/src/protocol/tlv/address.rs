@@ -12,7 +12,7 @@
 //! # Usage Examples
 //!
 //! ```rust
-//! use alphapulse_types::tlv::address::{EthAddress, AddressPadding, PaddedAddress};
+//! use torq_types::tlv::address::{EthAddress, AddressPadding, PaddedAddress};
 //!
 //! // TLV structure with explicit padding
 //! #[repr(C)]

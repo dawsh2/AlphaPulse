@@ -3,8 +3,8 @@
 //! Tests the complete flow from WebSocket log events through pool cache
 //! resolution to TLV message generation with real addresses.
 
-use alphapulse_state_market::pool_cache::{PoolCache, PoolInfo};
-use alphapulse_state_market::pool_state::PoolStateManager;
+use torq_state_market::pool_cache::{PoolCache, PoolInfo};
+use torq_state_market::pool_state::PoolStateManager;
 use protocol_v2::{tlv::market_data::PoolSwapTLV, VenueId, DEXProtocol, parse_header, parse_tlv_extensions, TLVType};
 use std::sync::Arc;
 use tempfile::TempDir;

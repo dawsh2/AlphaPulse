@@ -58,7 +58,7 @@ impl Default for StreamingTestConfig {
             min_message_rate: 10,   // At least 10 messages per second
             max_latency_us: 10_000, // 10ms max latency
             verbose_validation: true,
-            relay_socket_path: "/tmp/alphapulse/market_data.sock".to_string(),
+            relay_socket_path: "/tmp/torq/market_data.sock".to_string(),
             polygon_config_path: "services_v2/adapters/src/bin/polygon/polygon.toml".to_string(),
         }
     }
@@ -200,7 +200,7 @@ impl PolygonStreamingValidator {
         info!("📡 Starting Market Data Relay");
 
         // Ensure socket directory exists
-        std::fs::create_dir_all("/tmp/alphapulse").context("Failed to create socket directory")?;
+        std::fs::create_dir_all("/tmp/torq").context("Failed to create socket directory")?;
 
         // Remove existing socket
         if std::path::Path::new(&self.config.relay_socket_path).exists() {

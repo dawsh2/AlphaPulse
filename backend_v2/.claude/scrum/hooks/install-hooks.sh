@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install git hooks for AlphaPulse Task System
+# Install git hooks for Torq Task System
 
 set -e
 
@@ -15,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GIT_ROOT=$(git rev-parse --show-toplevel)
 GIT_HOOKS_DIR="$GIT_ROOT/.git/hooks"
 
-echo -e "${BLUE}🔧 Installing AlphaPulse Task Validation Hooks${NC}"
+echo -e "${BLUE}🔧 Installing Torq Task Validation Hooks${NC}"
 echo "================================================"
 
 # Check if .git/hooks directory exists

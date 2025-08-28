@@ -10,9 +10,9 @@
 //! - Bounds testing for MAX_POOL_TOKENS=8
 //! - Memory layout validation
 
-use alphapulse_types::protocol::tlv::dynamic_payload::{FixedVec, MAX_POOL_TOKENS};
-use alphapulse_types::protocol::tlv::market_data::PoolLiquidityTLV;
-use alphapulse_types::protocol::VenueId;
+use torq_types::protocol::tlv::dynamic_payload::{FixedVec, MAX_POOL_TOKENS};
+use torq_types::protocol::tlv::market_data::PoolLiquidityTLV;
+use torq_types::protocol::VenueId;
 use std::time::Instant;
 use zerocopy::AsBytes;
 

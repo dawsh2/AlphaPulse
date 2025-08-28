@@ -1,4 +1,4 @@
-# Git Worktree Standard - AlphaPulse Development
+# Git Worktree Standard - Torq Development
 
 ## 🚫 **NEVER Use `git worktree add -b`**
 Git branches change state for **ALL sessions**, breaking parallel development and AI agent workflows.
@@ -70,7 +70,7 @@ Both task templates now enforce worktree usage:
 ## Directory Structure
 
 ```
-/Users/daws/alphapulse/
+/Users/daws/torq/
 ├── backend_v2/           # Main repository (NEVER work here directly)
 ├── task-001-worktree/    # Isolated worktree for TASK-001
 ├── task-002-worktree/    # Isolated worktree for TASK-002

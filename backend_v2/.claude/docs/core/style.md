@@ -1,4 +1,4 @@
-# AlphaPulse Code Style Guide
+# Torq Code Style Guide
 
 ## Core Philosophy: Greenfield Advantage
 
@@ -293,7 +293,7 @@ if spread > MIN_PROFITABLE_SPREAD_PERCENTAGE {
 - [ ] README.md updated for new components
 - [ ] Single canonical implementation per concept
 
-### AlphaPulse Conventions
+### Torq Conventions
 - [ ] Real data in tests (no mocks)
 - [ ] Configuration-driven behavior (no hardcoded thresholds)
 - [ ] Performance benchmarks for critical paths
@@ -301,7 +301,7 @@ if spread > MIN_PROFITABLE_SPREAD_PERCENTAGE {
 
 ## Summary
 
-This style guide focuses on **how** to write and organize code within AlphaPulse:
+This style guide focuses on **how** to write and organize code within Torq:
 - Naming and formatting conventions
 - File organization and structure  
 - Documentation patterns
@@ -309,4 +309,4 @@ This style guide focuses on **how** to write and organize code within AlphaPulse
 - Project-specific anti-patterns
 
 For **what patterns to use and when**, see `.claude/principles.md`.
-For **AlphaPulse-specific technical requirements**, see `.claude/practices.md`.
+For **Torq-specific technical requirements**, see `.claude/practices.md`.

@@ -1,9 +1,9 @@
 [package]
-name = "alphapulse-adapter-service"
+name = "adapter-service"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description = "Exchange data collection and distribution adapters for AlphaPulse trading system"
+description = "Exchange data collection and distribution adapters for Torq trading system"
 
 [[bin]]
 name = "polygon"
@@ -39,12 +39,12 @@ strict-validation = []
 metrics = ["prometheus"]
 
 [dependencies]
-alphapulse-dex = { workspace = true }
-alphapulse-state-market = { workspace = true }
-torq-network = { path = "../../network" }
+dex = { workspace = true }
+state-market = { workspace = true }
+network = { workspace = true }
 # Core protocol
-alphapulse-types = { workspace = true }
-codec = { path = "../../libs/codec" }
+types = { workspace = true }
+codec = { workspace = true }
 anyhow = { workspace = true }
 
 # Documentation enhancements

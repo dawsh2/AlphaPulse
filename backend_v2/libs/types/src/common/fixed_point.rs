@@ -57,7 +57,7 @@ impl UsdFixedPoint8 {
     ///
     /// # Examples
     /// ```
-    /// use alphapulse_types::UsdFixedPoint8;
+    /// use torq_types::UsdFixedPoint8;
     ///
     /// let price = UsdFixedPoint8::from_decimal_str("123.456789").unwrap();
     /// assert_eq!(price.to_f64(), 123.456789);
@@ -98,7 +98,7 @@ impl UsdFixedPoint8 {
     ///
     /// # Examples
     /// ```
-    /// use alphapulse_types::UsdFixedPoint8;
+    /// use torq_types::UsdFixedPoint8;
     ///
     /// let price = UsdFixedPoint8::try_from_f64(42.123456).unwrap();
     /// ```

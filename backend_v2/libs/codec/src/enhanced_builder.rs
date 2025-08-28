@@ -23,9 +23,9 @@
 
 use crate::error::ProtocolResult;
 use crate::message_builder::TLVMessageBuilder;
-use alphapulse_types::protocol::tlv::types::TLVType;
+use torq_codec::protocol::tlv::types::TLVType;
 use crate::validation::{TLVValidator, ValidationError, ValidationPolicy, DomainValidator, create_domain_validator};
-use alphapulse_types::{RelayDomain, SourceType};
+use torq_types::{RelayDomain, SourceType};
 use zerocopy::AsBytes;
 use tracing::debug;
 

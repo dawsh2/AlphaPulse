@@ -3,8 +3,8 @@
 //! Supports both TOML-based configuration and environment variable fallbacks
 //! for maximum flexibility in development and production deployments.
 
-use alphapulse_adapter_service::BaseAdapterConfig;
-use alphapulse_types::RelayDomain;
+use torq_adapter_service::BaseAdapterConfig;
+use torq_types::RelayDomain;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -69,7 +69,7 @@ pub struct RelayConfig {
 impl Default for RelayConfig {
     fn default() -> Self {
         Self {
-            socket_path: "/tmp/alphapulse/market_data.sock".to_string(),
+            socket_path: "/tmp/torq/market_data.sock".to_string(),
             domain: "MarketData".to_string(),
             source_id: 3,
         }

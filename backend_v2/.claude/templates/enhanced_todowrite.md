@@ -1,7 +1,7 @@
-# Enhanced TodoWrite with Quality Gates for AlphaPulse
+# Enhanced TodoWrite with Quality Gates for Torq
 
 ## Overview
-This enhanced TodoWrite system implements comprehensive quality gates for AlphaPulse development, ensuring every task meets the system's demanding standards before completion.
+This enhanced TodoWrite system implements comprehensive quality gates for Torq development, ensuring every task meets the system's demanding standards before completion.
 
 ## Quality Gates Structure
 
@@ -62,7 +62,7 @@ This enhanced TodoWrite system implements comprehensive quality gates for AlphaP
       }
     },
     
-    "alphapulse_compliance": {
+    "torq_compliance": {
       "status": "pending|in_progress|passed|failed|overridden",
       "checks": {
         "protocol_v2": {
@@ -119,7 +119,7 @@ This enhanced TodoWrite system implements comprehensive quality gates for AlphaP
   "quality_gates": {
     "code_review": {"status": "pending"},
     "compilation": {"status": "pending"}, 
-    "alphapulse_compliance": {"status": "pending"}
+    "torq_compliance": {"status": "pending"}
   },
   "progress": {
     "code_complete": false,
@@ -224,7 +224,7 @@ This enhanced TodoWrite system implements comprehensive quality gates for AlphaP
   "quality_gates": {
     "code_review": {"status": "passed"},
     "compilation": {"status": "passed"},
-    "alphapulse_compliance": {"status": "passed"}
+    "torq_compliance": {"status": "passed"}
   },
   "progress": {
     "code_complete": true,
@@ -243,7 +243,7 @@ This enhanced TodoWrite system implements comprehensive quality gates for AlphaP
 - **in_progress → in_progress**: During quality gate processing
 
 ### Quality Gate Requirements
-1. **Code Review**: Must analyze all changed files for AlphaPulse compliance
+1. **Code Review**: Must analyze all changed files for Torq compliance
 2. **Compilation**: Must verify clean build with test pass
 3. **Protocol V2 Compliance**: Must validate TLV format, precision, architecture
 

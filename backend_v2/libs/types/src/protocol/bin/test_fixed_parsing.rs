@@ -2,7 +2,7 @@
 //!
 //! Validates the relay parser fix that resolves the 0 msg/s bottleneck
 
-use alphapulse_types::{
+use torq_types::{
     tlv::{parse_tlv_extensions_for_relay, TLVMessageBuilder},
     MessageHeader, RelayDomain, SourceType, TLVType,
 };

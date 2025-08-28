@@ -2,7 +2,7 @@
 //!
 //! This test properly parses real Uniswap V3 swap events from Polygon mainnet
 
-use alphapulse_types::protocol::{tlv::market_data::PoolSwapTLV, VenueId};
+use torq_types::protocol::{tlv::market_data::PoolSwapTLV, VenueId};
 use web3::types::{FilterBuilder, Log, H160, H256};
 
 /// Parse real Uniswap V3 swap event with proper two's complement handling

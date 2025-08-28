@@ -1,6 +1,6 @@
 // Simple test to verify OrderBookTLV macro syntax is correct
 #[macro_use]
-extern crate alphapulse_types;
+extern crate torq_types;
 
 // Simplified version just to test macro syntax
 use zerocopy::{AsBytes, FromBytes, FromZeroes};

@@ -65,7 +65,7 @@
 //!
 //! ### Multi-Asset Identifier Construction
 //! ```rust
-//! use alphapulse_protocol_v2::identifiers::{InstrumentId, VenueId, AssetType};
+//! use torq_protocol_v2::identifiers::{InstrumentId, VenueId, AssetType};
 //!
 //! // Blockchain tokens with full contract addresses
 //! let usdc_ethereum = InstrumentId::ethereum_token("0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48")?;

@@ -4,7 +4,7 @@
 //! Usage: cargo run --bin event_validator -- --ws-url wss://polygon-bor.publicnode.com
 //!
 //! This tool monitors raw WebSocket events and validates their signatures against
-//! the canonical alphapulse_dex event definitions to identify mismatches.
+//! the canonical torq_dex event definitions to identify mismatches.
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -185,7 +185,7 @@ async fn main() -> Result<()> {
             println!("  ... and {} more", unknown_signatures.len() - 10);
         }
 
-        println!("\n💡 These signatures are not in alphapulse_dex!");
+        println!("\n💡 These signatures are not in torq_dex!");
         println!("   Either they're from different protocols or the ABI needs updating.");
     } else {
         println!("\n✅ All received events match canonical signatures!");
@@ -214,7 +214,7 @@ fn get_canonical_signatures() -> HashSet<[u8; 32]> {
     let mut signatures = HashSet::new();
 
     // Get all event signatures from the canonical source
-    let all_sigs = alphapulse_dex::get_all_event_signatures();
+    let all_sigs = torq_dex::get_all_event_signatures();
     for sig in all_sigs {
         if let Some(bytes) = hex_to_bytes32(&sig) {
             signatures.insert(bytes);
@@ -222,7 +222,7 @@ fn get_canonical_signatures() -> HashSet<[u8; 32]> {
     }
 
     // Also specifically get swap signatures for validation
-    let (v2_swap, v3_swap) = alphapulse_dex::get_swap_signatures();
+    let (v2_swap, v3_swap) = torq_dex::get_swap_signatures();
     if let Some(bytes) = hex_to_bytes32(&v2_swap) {
         signatures.insert(bytes);
     }

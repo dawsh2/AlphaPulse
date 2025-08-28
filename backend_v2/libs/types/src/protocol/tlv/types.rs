@@ -1,3 +1,5 @@
+#![doc = include_str!("../../../../../.claude/docs/generated/protocol/tlv_type_system.md")]
+//!
 //! # TLV Type System - Protocol V2 Message Type Registry
 //!
 //! ## Purpose
@@ -60,8 +62,8 @@
 //!
 //! ### Basic Type Discovery
 //! ```rust
-//! use alphapulse_protocol_v2::tlv::TLVType;
-//! use alphapulse_protocol_v2::RelayDomain;
+//! use torq_protocol_v2::tlv::TLVType;
+//! use torq_protocol_v2::RelayDomain;
 //!
 //! // Get comprehensive type information
 //! let info = TLVType::Trade.type_info();
@@ -86,7 +88,7 @@
 //!
 //! ### Runtime Message Handling
 //! ```rust
-//! use alphapulse_protocol_v2::tlv::{TLVType, TLVSizeConstraint};
+//! use torq_protocol_v2::tlv::{TLVType, TLVSizeConstraint};
 //!
 //! // Size validation during parsing
 //! let tlv_type = TLVType::try_from(message_type)?;
@@ -263,7 +265,7 @@ pub enum TLVSizeConstraint {
 
 /// Protocol V2 TLV message type enumeration with domain-based organization
 ///
-/// Central registry of all message types in the AlphaPulse trading system, organized
+/// Central registry of all message types in the Torq trading system, organized
 /// by relay domain for automatic routing and performance optimization. Each type
 /// number uniquely identifies message format and determines processing path through
 /// the system architecture.
@@ -500,7 +502,7 @@ impl TLVType {
     /// # Examples
     ///
     /// ```rust
-    /// use alphapulse_protocol_v2::tlv::TLVType;
+    /// use torq_protocol_v2::tlv::TLVType;
     ///
     /// let info = TLVType::Trade.type_info();
     /// println!("Type {}: {}", info.type_number, info.name);
@@ -655,8 +657,8 @@ impl TLVType {
     /// # Examples
     ///
     /// ```rust
-    /// use alphapulse_protocol_v2::tlv::TLVType;
-    /// use alphapulse_protocol_v2::RelayDomain;
+    /// use torq_protocol_v2::tlv::TLVType;
+    /// use torq_protocol_v2::RelayDomain;
     ///
     /// let market_types = TLVType::types_in_domain(RelayDomain::MarketData);
     /// println!("Market data domain has {} types", market_types.len());
@@ -741,7 +743,7 @@ impl TLVType {
     /// # Examples
     ///
     /// ```rust
-    /// use alphapulse_protocol_v2::tlv::TLVType;
+    /// use torq_protocol_v2::tlv::TLVType;
     ///
     /// let markdown = TLVType::generate_markdown_table();
     /// std::fs::write("docs/message-types.md", markdown).expect("Write failed");
@@ -751,9 +753,9 @@ impl TLVType {
         let mut output = String::new();
 
         // Header
-        output.push_str("# AlphaPulse Protocol V2 - Message Types Reference\n\n");
+        output.push_str("# Torq Protocol V2 - Message Types Reference\n\n");
         output.push_str("**⚠️ This file is auto-generated from `protocol_v2/src/tlv/types.rs` - DO NOT EDIT MANUALLY**\n\n");
-        output.push_str("This document provides a comprehensive index of all TLV message types defined in the AlphaPulse Protocol V2.\n\n");
+        output.push_str("This document provides a comprehensive index of all TLV message types defined in the Torq Protocol V2.\n\n");
 
         // Overview stats
         let all_types = Self::all_implemented();
@@ -818,8 +820,8 @@ impl TLVType {
         output.push_str("## Usage Examples\n\n");
         output.push_str("### Querying Types by Domain\n");
         output.push_str("```rust\n");
-        output.push_str("use alphapulse_protocol_v2::tlv::TLVType;\n");
-        output.push_str("use alphapulse_protocol_v2::RelayDomain;\n\n");
+        output.push_str("use torq_protocol_v2::tlv::TLVType;\n");
+        output.push_str("use torq_protocol_v2::RelayDomain;\n\n");
         output.push_str("// Get all market data types\n");
         output.push_str("let market_types = TLVType::types_in_domain(RelayDomain::MarketData);\n");
         output.push_str("for tlv_type in market_types {\n");

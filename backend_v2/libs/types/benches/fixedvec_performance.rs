@@ -2,9 +2,9 @@
 //!
 //! Validates the zero-copy performance claims and ensures >1M msg/s throughput
 
-use alphapulse_types::protocol::tlv::dynamic_payload::MAX_ORDER_LEVELS;
-use alphapulse_types::protocol::tlv::market_data::{OrderBookTLV, OrderLevel};
-use alphapulse_types::{InstrumentId, VenueId};
+use torq_types::protocol::tlv::dynamic_payload::MAX_ORDER_LEVELS;
+use torq_types::protocol::tlv::market_data::{OrderBookTLV, OrderLevel};
+use torq_types::{InstrumentId, VenueId};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::mem::size_of;
 

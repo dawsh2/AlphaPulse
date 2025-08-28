@@ -1,0 +1,13 @@
+[package]
+name = "relay-execution"
+version = "0.1.0"
+edition = "2021"
+description = "Execution relay domain implementation"
+
+[lib]
+name = "relay_execution"
+path = "src/lib.rs"
+
+[dependencies]
+relay-core = { path = "../../core" }
+codec = { workspace = true }

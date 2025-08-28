@@ -25,9 +25,9 @@ use crate::error::{ProtocolError, ProtocolResult};
 use crate::parser::{parse_header, parse_tlv_extensions, TLVExtensionEnum};
 use crate::validation::{TLVValidator, ValidationPolicy, ValidatedMessage};
 use crate::enhanced_builder::{ValidatingTLVMessageBuilder, BuilderFactory};
-use alphapulse_types::protocol::tlv::types::TLVType;
-use alphapulse_types::{RelayDomain, SourceType};
-use alphapulse_types::protocol::message::header::MessageHeader;
+use torq_codec::protocol::tlv::types::TLVType;
+use torq_types::{RelayDomain, SourceType};
+use torq_types::protocol::message::header::MessageHeader;
 
 /// Compatibility module for relay-specific parsing
 #[deprecated(note = "Use TLVValidator directly instead")]

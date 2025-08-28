@@ -1,0 +1,19 @@
+#+TITLE: Priority Test
+#+TODO: TODO NEXT IN-PROGRESS | DONE CANCELLED
+
+* TODO Top Level Goal
+  :PROPERTIES:
+  :ID:          TEST-001
+  :PRIORITY:    A
+  :END:
+
+** TODO Sub Task 
+   :PROPERTIES:
+   :ID:          TEST-002
+   :END:
+
+** TODO Sub Task with Priority
+   :PROPERTIES:
+   :ID:          TEST-003
+   :PRIORITY:    B
+   :END:

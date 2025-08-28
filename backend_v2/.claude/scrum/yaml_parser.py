@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-YAML Task Parser for AlphaPulse Self-Organizing Task System
+YAML Task Parser for Torq Self-Organizing Task System
 Provides robust YAML parsing and manipulation for task metadata
 """
 

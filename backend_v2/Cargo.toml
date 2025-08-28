@@ -1,118 +1,160 @@
 [workspace]
-resolver = "2"
 members = [
-    "libs/codec",
-    "libs/amm",
-    "libs/dex",
-    "libs/health_check",
-    "libs/message_sink",
-    "libs/mev",
-    "libs/service_discovery",
-    "libs/state/core",
-    "libs/state/market",
-    "libs/time",
-    # Shared libraries
-    "libs/types",
+    # Core infrastructure
     "network",
-    "relays",
-    "relays/execution_relay",
-    "relays/market_data_relay",
-    "relays/signal_relay",
+    "services_v2/messaging/relays",
+    "services_v2/messaging/relays/core",
+    "services_v2/messaging/relays/domains/market_data",
+    "services_v2/messaging/relays/domains/execution", 
+    "services_v2/messaging/relays/domains/signal",
+    
+    # Libraries
+    "libs/types",
+    "libs/codec",
+    "libs/config",
+    "libs/amm",
+    "libs/state/core",
+    
+    # Services
     "services_v2/adapters",
+    "services_v2/adapters/polygon_adapter",
     "services_v2/adapters/coinbase_adapter",
     "services_v2/adapters/gas_price_collector",
-    "services_v2/adapters/polygon_adapter",
-    "services_v2/dashboard/websocket_server",
-    "services_v2/observability/trace_collector",
+    "services_v2/adapters/dex_utils",
+    "services_v2/messaging/patterns/message_sink",
     "services_v2/strategies",
+    "services_v2/observability/dashboard",
+    "services_v2/observability/trace_collector",
+    "services_v2/observability/health_check",
+    "services_v2/strategies/mev",
+    "services_v2/strategies/state",
+    
+    # Tools (removed - directory doesn't exist)
+    
     # Tests
-    "tests/architecture_validation",
     "tests/e2e",
+    "tests/architecture_validation",
+    
+    # Scripts
+    "scripts",
 ]
 
-exclude = ["temp_test", "tools/rq"]
+resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["AlphaPulse Team"]
+authors = ["Torq Team"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/torq/torq"
 
 [workspace.dependencies]
-alphapulse-amm = { path = "libs/amm" }
-codec = { path = "libs/codec" }
-alphapulse-dex = { path = "libs/dex" }
-alphapulse-health-check = { path = "libs/health_check" }  # Package name fixed to use hyphens
-alphapulse-message-sink = { path = "libs/message_sink" }
-alphapulse-mev = { path = "libs/mev" }
-alphapulse-service-discovery = { path = "libs/service_discovery" }  # Package name fixed to use hyphens
-alphapulse-state-core = { path = "libs/state/core" }
-alphapulse-state-market = { path = "libs/state/market" }
-# Internal libs
-alphapulse-adapter-service = { path = "services_v2/adapters" }
-alphapulse-types = { path = "libs/types" }
-anyhow = "1.0"
-
-# Documentation enhancements
-aquamarine = "0.5"
+# Async runtime
+tokio = { version = "1.42", features = ["full"] }
 async-trait = "0.1"
-bincode = "1.3"
-bytemuck = { version = "1.17", features = ["derive"] }
-chrono = { version = "0.4", features = ["serde"] }
-
-# Code navigation and discovery
-clap = { version = "4.5", features = ["derive"] }
-colored = "2.1"
-crc32fast = "1.4"
-criterion = "0.5"
-crossbeam-channel = "0.5"
-dashmap = "6.0"
-dirs = "5.0"
-ethabi = "18.0"
-ethers-core = "2.0"
-futures-util = "0.3"
-fuzzy-matcher = "0.3"
-governor = "0.6"
-
-# Common utilities
-hex = "0.4"
-memmap2 = "0.9"
-mockito = "1.5"
-nonzero_ext = "0.3"
-
-# Zero-copy serialization
-num_enum = "0.7"
-once_cell = "1.19"
-parking_lot = "0.12"
-prometheus = "0.13"
-regex = "1.10"
-lockfree = "0.6"
-
-# Networking
-reqwest = { version = "0.11", features = ["json"] }
-
-# Math and precision
-rust_decimal = "1.36"
-rust_decimal_macros = "1.36"
+futures = "0.3"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-thiserror = "1.0"
+bincode = "1.3"
 
-# Async runtime
-tokio = { version = "1.40", features = ["full"] }
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
 
-# Development dependencies
+# Logging and monitoring
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Testing
+criterion = "0.5"
+
+# Time handling
+chrono = "0.4"
+proptest = "1.5"
+
+# Common utilities
+bytes = "1.9"
+hex = "0.4"
+once_cell = "1.0"
+dashmap = "6.1"
+rust_decimal = { version = "1.37", features = ["serde"] }
+rust_decimal_macros = "1.37"
+aquamarine = "0.5"
+parking_lot = "0.12"
+bytemuck = { version = "1.17", features = ["derive"] }
+zerocopy = { version = "0.7", features = ["derive"] }
+num_enum = "0.7"
+byteorder = "1.5"
+crc32fast = "1.4"
+paste = "1.0"
+web3 = "0.19"
+ethers = "2.0"
+ethers-core = "2.0"
+ethers-providers = "2.0"
+tungstenite = "0.20"
+tokio-tungstenite = "0.20"
+url = "2.4"
+clap = { version = "4.0", features = ["derive"] }
+serde_yaml = "0.9"
+crossbeam-channel = "0.5"
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+memmap2 = "0.9"
+nix = { version = "0.29", features = ["fs"] }
+prometheus = "0.13"
+metrics = "0.23"
+ethabi = "18.0"
+sha3 = "0.10"
+base64 = "0.21"
+uuid = { version = "1.4", features = ["v4", "serde"] }
+tempfile = "3.8"
+env_logger = "0.11"
+test-log = "0.2"
 tokio-test = "0.4"
-tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
-
-# Configuration
+futures-util = "0.3"
+governor = "0.6"
+nonzero_ext = "0.3"
+rustdoc-json = "0.8"
+syn = { version = "2.0", features = ["full", "extra-traits"] }
+glob = "0.3"
+lazy_static = "1.4"
 toml = "0.8"
 
-# Error handling and logging
-tracing = "0.1"
-tracing-subscriber = "0.3"
-url = "2.5"
-walkdir = "2.4"
-web3 = { version = "0.19", features = ["http"] }
-zerocopy = { version = "0.7", features = ["derive"] }
+# Internal workspace dependencies
+types = { path = "libs/types" }
+codec = { path = "libs/codec" }
+network = { path = "network" }
+config = { path = "libs/config" }
+state-core = { path = "libs/state/core" }
+state-market = { path = "services_v2/strategies/state" }
+amm = { path = "libs/amm" }
+dex = { path = "services_v2/adapters/dex_utils" }
+mev = { path = "services_v2/strategies/mev" }
+health-check = { path = "services_v2/observability/health_check" }
+relays = { path = "services_v2/messaging/relays" }
+relay-core = { path = "services_v2/messaging/relays/core" }
+relay-execution = { path = "services_v2/messaging/relays/domains/execution" }
+relay-market-data = { path = "services_v2/messaging/relays/domains/market_data" }
+relay-signal = { path = "services_v2/messaging/relays/domains/signal" }
+message-sink = { path = "services_v2/messaging/patterns/message_sink" }
+adapter-service = { path = "services_v2/adapters" }
+strategies = { path = "services_v2/strategies" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+debug = false
+panic = 'abort'
+
+[profile.bench]
+inherits = "release"
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.test]
+opt-level = 2
+debug = true

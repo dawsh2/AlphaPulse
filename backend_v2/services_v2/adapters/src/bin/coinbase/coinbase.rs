@@ -25,9 +25,9 @@
 //! - **Throughput**: Designed for >15,000 msg/s sustained load
 //! - **Memory**: <50MB steady state with multiple product subscriptions
 
-use codec::{parse_header, parse_tlv_extensions}; // Added
+use torq_codec::{parse_header, parse_tlv_extensions}; // Added
 use torq_network::time::init_timestamp_system; // Added
-use alphapulse_types::{
+use torq_types::{
     tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
 use anyhow::{Context, Result};
@@ -41,7 +41,7 @@ use tokio::sync::RwLock;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 
-use alphapulse_adapter_service::output::RelayOutput;
+use torq_adapter_service::output::RelayOutput;
 
 // =============================================================================
 // CONFIGURATION
@@ -99,7 +99,7 @@ impl Default for CoinbaseConfig {
             },
             relay: RelayConfig {
                 domain: "market_data".to_string(),
-                socket_path: "/tmp/alphapulse/market_data.sock".to_string(),
+                socket_path: "/tmp/torq/market_data.sock".to_string(),
             },
             // Default to BTC-USD only - use COINBASE_PRODUCTS env var for production
             products: vec!["BTC-USD".to_string()],

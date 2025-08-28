@@ -1,9 +1,9 @@
-# AlphaPulse Production Environment Configuration
+# Torq Production Environment Configuration
 
 # Production paths with proper security
-socket_dir = "/var/run/alphapulse"
-log_dir = "/var/log/alphapulse"
-pid_file = "/var/run/alphapulse/system.pids"
+socket_dir = "/var/run/torq"
+log_dir = "/var/log/torq"
+pid_file = "/var/run/torq/system.pids"
 
 # Service-specific configurations
 [services]

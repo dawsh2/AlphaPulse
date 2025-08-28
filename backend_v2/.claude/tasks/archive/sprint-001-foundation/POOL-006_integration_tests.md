@@ -45,9 +45,9 @@ git branch --show-current  # Should show: test/pool-integration-validation
 ```rust
 // tests/e2e/pool_integration_test.rs
 
-use alphapulse_protocol_v2::tlv::PoolSwapTLV;
-use alphapulse_services_v2::polygon::UnifiedPolygonCollector;
-use alphapulse_state_market::pool_cache::PoolCache;
+use torq_protocol_v2::tlv::PoolSwapTLV;
+use torq_services_v2::polygon::UnifiedPolygonCollector;
+use torq_state_market::pool_cache::PoolCache;
 use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::time::{sleep, Duration};
@@ -294,7 +294,7 @@ echo "Running Pool Integration Tests..."
 
 # Test 1: Unit tests for each component
 echo "Testing individual components..."
-cargo test --package alphapulse-state-market pool_cache
+cargo test --package torq-state-market pool_cache
 cargo test --package services_v2 discovery_queue
 cargo test --package services_v2 event_extraction
 

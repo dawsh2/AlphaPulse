@@ -11,7 +11,7 @@
 //! ## Performance Impact
 //! Each violation adds ~100ns overhead. At 1M msg/s, this is 10% degradation!
 
-use alphapulse_types::protocol::{
+use torq_types::protocol::{
     tlv::{
         build_message_direct,
         market_data::{PoolSwapTLV, QuoteTLV, TradeTLV},
@@ -134,8 +134,8 @@ fn test_zerocopy_performance() {
 /// Test that all TLV types used in production implement AsBytes
 #[test]
 fn test_all_production_tlvs_zerocopy_compatible() {
-    use alphapulse_types::protocol::tlv::market_data::*;
-    use alphapulse_types::protocol::tlv::pool_state::*;
+    use torq_types::protocol::tlv::market_data::*;
+    use torq_types::protocol::tlv::pool_state::*;
 
     fn assert_zerocopy<T: AsBytes>() {}
 

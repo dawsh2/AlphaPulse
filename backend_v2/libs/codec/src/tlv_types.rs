@@ -33,15 +33,15 @@
 use num_enum::TryFromPrimitive;
 
 // Import TLVType and related types from the canonical location in libs/types
-use alphapulse_types::protocol::tlv::types::{TLVSizeConstraint as TypeSizeConstraint, TLVTypeInfo, TLVImplementationStatus};
-use alphapulse_types::protocol::RelayDomain;
+use torq_codec::protocol::tlv::types::{TLVSizeConstraint as TypeSizeConstraint, TLVTypeInfo, TLVImplementationStatus};
+use torq_codec::protocol::RelayDomain;
 
 // Re-export for backward compatibility  
-pub use alphapulse_types::protocol::tlv::types::TLVType;
+pub use torq_codec::protocol::tlv::types::TLVType;
 
 // TLVSizeConstraint is now imported from libs/types
 // Re-export for backward compatibility
-pub use alphapulse_types::protocol::tlv::types::TLVSizeConstraint;
+pub use torq_types::protocol::tlv::types::TLVSizeConstraint;
 
 // TLVType enum is now imported from libs/types above
 // The complete Protocol V2 type registry is maintained in libs/types/src/protocol/tlv/types.rs

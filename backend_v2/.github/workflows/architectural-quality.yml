@@ -140,7 +140,7 @@ jobs:
           key: ${{ runner.os }}-protocol-${{ hashFiles('**/Cargo.lock') }}
       
       - name: Protocol V2 Tests
-        run: cargo test --package alphapulse_protocol_v2 --all-targets
+        run: cargo test --package torq_protocol_v2 --all-targets
       
       - name: TLV Registry Validation
         run: |

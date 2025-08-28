@@ -80,7 +80,7 @@ impl CircuitBreaker {
         // Check if we should attempt the operation
         if !self.should_attempt().await {
             return Err(E::from(crate::AdapterError::CircuitBreakerOpen {
-                venue: alphapulse_types::protocol::VenueId::Generic,
+                venue: torq_types::protocol::VenueId::Generic,
             }));
         }
 

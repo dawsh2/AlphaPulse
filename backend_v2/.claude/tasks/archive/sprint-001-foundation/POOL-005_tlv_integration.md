@@ -41,11 +41,11 @@ git branch --show-current  # Should show: fix/tlv-pool-integration
 ```rust
 // Create services_v2/adapters/src/polygon/tlv_builder.rs
 
-use alphapulse_protocol_v2::{
+use torq_protocol_v2::{
     tlv::{PoolSwapTLV, TradeTLV, QuoteTLV},
     MessageHeader, TLVType,
 };
-use alphapulse_state_market::pool_cache::{PoolCache, PoolInfo};
+use torq_state_market::pool_cache::{PoolCache, PoolInfo};
 use std::sync::Arc;
 use web3::types::H160;
 
@@ -323,11 +323,11 @@ git reset --hard <commit-before-pool-005>
 git push --force-with-lease origin main
 
 # Clear corrupted cache if needed
-rm -f /var/lib/alphapulse/polygon_pools.tlv
-rm -f /var/lib/alphapulse/polygon_pools.tlv.journal
+rm -f /var/lib/torq/polygon_pools.tlv
+rm -f /var/lib/torq/polygon_pools.tlv.journal
 
 # Restart services
-systemctl restart alphapulse-polygon-collector
+systemctl restart torq-polygon-collector
 ```
 
 ## 📤 Commit & Push Instructions

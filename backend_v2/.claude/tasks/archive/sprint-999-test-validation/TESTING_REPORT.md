@@ -89,7 +89,7 @@ The scrum framework tooling has been successfully validated with minor issues id
 The framework integrates well with:
 - Git workflow (branch management)
 - GitHub Actions (via sprint-archive.yml)
-- AlphaPulse development process
+- Torq development process
 - CI/CD pipelines (with JSON output addition)
 
 ## Security Considerations
@@ -124,7 +124,7 @@ The scrum framework is production-ready with minor fixes needed. The tooling suc
 ## Test Artifacts
 
 All test artifacts are preserved in:
-- `/Users/daws/alphapulse/backend_v2/.claude/tasks/sprint-999-test-validation/`
+- `/Users/daws/torq/backend_v2/.claude/tasks/sprint-999-test-validation/`
 
 Test commands used:
 ```bash

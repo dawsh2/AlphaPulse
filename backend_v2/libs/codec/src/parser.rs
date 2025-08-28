@@ -18,8 +18,8 @@
 
 use crate::error::{ProtocolError, ProtocolResult};
 use crate::tlv_types::TLVType;
-use alphapulse_types::protocol::message::header::MessageHeader;
-use alphapulse_types::MESSAGE_MAGIC;
+use torq_types::protocol::message::header::MessageHeader;
+use torq_types::MESSAGE_MAGIC;
 use std::mem::size_of;
 use zerocopy::Ref;
 
@@ -392,8 +392,8 @@ pub fn validate_tlv_size(tlv_type: u8, payload_size: usize) -> ParseResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alphapulse_types::protocol::message::header::MessageHeader;
-    use alphapulse_types::{RelayDomain, SourceType};
+    use torq_types::protocol::message::header::MessageHeader;
+    use torq_types::{RelayDomain, SourceType};
 
     #[test]
     fn test_parse_standard_tlv() {

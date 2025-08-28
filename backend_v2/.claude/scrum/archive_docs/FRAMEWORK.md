@@ -1,4 +1,4 @@
-# AlphaPulse Scrum Framework
+# Torq Scrum Framework
 *Version 1.0 - Reusable Development Methodology*
 
 ## 🎯 Framework Overview

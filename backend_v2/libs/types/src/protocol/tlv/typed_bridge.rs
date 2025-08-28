@@ -13,7 +13,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use alphapulse_types::{with_typed_ids, SignalId, PoolId, StrategyId};
+//! use torq_types::{with_typed_ids, SignalId, PoolId, StrategyId};
 //!
 //! // TLV struct remains unchanged with raw u64 fields for zerocopy
 //! #[repr(C)]

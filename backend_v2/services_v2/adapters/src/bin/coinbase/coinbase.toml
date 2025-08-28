@@ -10,7 +10,7 @@ max_backoff_ms = 60000
 
 [relay]
 domain = "market_data"
-socket_path = "/tmp/alphapulse/market_data.sock"
+socket_path = "/tmp/torq/market_data.sock"
 
 # Products to subscribe to (Coinbase format)
 products = [

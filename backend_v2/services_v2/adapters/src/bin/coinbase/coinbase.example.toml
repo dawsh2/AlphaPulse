@@ -11,7 +11,7 @@ max_backoff_ms = 60000
 
 [relay]
 domain = "market_data"
-socket_path = "/tmp/alphapulse/market_data.sock"
+socket_path = "/tmp/torq/market_data.sock"
 
 # List of products to subscribe to
 # Production environments should specify comprehensive lists
@@ -40,5 +40,5 @@ max_processing_latency_ms = 100
 # Environment Variable Override Examples:
 # COINBASE_WS_URL="wss://ws-feed.exchange.coinbase.com"
 # COINBASE_PRODUCTS="BTC-USD,ETH-USD,SOL-USD"
-# RELAY_SOCKET_PATH="/tmp/alphapulse/market_data.sock"
+# RELAY_SOCKET_PATH="/tmp/torq/market_data.sock"
 # COINBASE_CONFIG_PATH="/path/to/custom/coinbase.toml"

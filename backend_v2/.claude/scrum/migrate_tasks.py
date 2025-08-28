@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Task Migration Script for AlphaPulse Self-Organizing Task System
+Task Migration Script for Torq Self-Organizing Task System
 Migrates existing task files to include new dependency metadata
 """
 

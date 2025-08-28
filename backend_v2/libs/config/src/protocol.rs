@@ -1,6 +1,6 @@
 //! Protocol V2 constants and configuration
 //!
-//! This module contains constants related to the AlphaPulse Protocol V2
+//! This module contains constants related to the Torq Protocol V2
 //! TLV messaging system, including magic numbers, domain ranges, and
 //! performance targets.
 

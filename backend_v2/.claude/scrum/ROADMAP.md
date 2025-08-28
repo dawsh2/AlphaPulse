@@ -1,4 +1,4 @@
-# AlphaPulse Trading System - Strategic Roadmap
+# Torq Trading System - Strategic Roadmap
 
 **Generated**: 2025-08-27  
 **Duration**: 18-24 weeks (4-6 months)  
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This roadmap outlines the systematic development of AlphaPulse from current refactoring stage through to a production-ready trading system with advanced portfolio management, risk controls, and strategy infrastructure. The plan prioritizes foundation stability, progressive validation, and production-ready code standards throughout.
+This roadmap outlines the systematic development of Torq from current refactoring stage through to a production-ready trading system with advanced portfolio management, risk controls, and strategy infrastructure. The plan prioritizes foundation stability, progressive validation, and production-ready code standards throughout.
 
 ### Core Objectives
 1. Clean, maintainable codebase with Protocol V2 architecture
@@ -16,7 +16,7 @@ This roadmap outlines the systematic development of AlphaPulse from current refa
 3. Live trading capability with proper risk controls
 4. Modular trading infrastructure (portfolio, risk, execution)
 5. Advanced strategy framework with data persistence
-6. Full AlphaPulse frontend integration for complete trading interface
+6. Full Torq frontend integration for complete trading interface
 
 ---
 
@@ -237,7 +237,7 @@ This roadmap outlines the systematic development of AlphaPulse from current refa
 
 ## Phase V: Advanced Strategy Infrastructure (Weeks 20-24)
 
-**Goal**: Strategy framework, signal persistence, Jupyter integration, AlphaPulse frontend
+**Goal**: Strategy framework, signal persistence, Jupyter integration, Torq frontend
 
 ### Week 20-21: Signal Database
 - [ ] **TimeSeries Database** [L: 8h] [HIGH]
@@ -278,7 +278,7 @@ This roadmap outlines the systematic development of AlphaPulse from current refa
   - Risk analysis notebooks
   - Data visualization libraries
 
-### Week 24: AlphaPulse Frontend Integration
+### Week 24: Torq Frontend Integration
 - [ ] **Frontend API Gateway** [L: 8h] [CRITICAL]
   - RESTful API endpoints
   - WebSocket real-time feeds
@@ -373,7 +373,7 @@ This roadmap outlines the systematic development of AlphaPulse from current refa
 - ✅ Multiple strategies running
 - ✅ Jupyter workflow established
 - ✅ Research to production pipeline
-- ✅ AlphaPulse frontend fully integrated
+- ✅ Torq frontend fully integrated
 - ✅ Complete trading interface operational
 
 ---

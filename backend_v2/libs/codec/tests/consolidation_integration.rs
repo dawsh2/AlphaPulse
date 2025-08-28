@@ -7,11 +7,11 @@
 //! migration compatibility to ensure the consolidation maintains all existing
 //! functionality while providing enhanced validation capabilities.
 
-use codec::{
+use torq_codec::{
     TLVValidator, ValidatingTLVMessageBuilder, BuilderFactory, ValidationPolicy, ValidationLevel,
     TLVType, parse_header, parse_tlv_extensions, migration::compat,
 };
-use alphapulse_types::{RelayDomain, SourceType};
+use torq_types::{RelayDomain, SourceType};
 
 /// Test basic validation functionality
 #[test]
@@ -184,7 +184,7 @@ fn test_tlv_extension_parsing() {
 /// Test domain validator creation
 #[test]
 fn test_domain_validators() {
-    use codec::{create_domain_validator, DomainValidator};
+    use torq_codec::{create_domain_validator, DomainValidator};
     
     let market_validator = create_domain_validator(RelayDomain::MarketData);
     assert_eq!(market_validator.domain_name(), "MarketData");

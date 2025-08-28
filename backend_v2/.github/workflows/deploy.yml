@@ -16,7 +16,7 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
   # Production environment variables
-  ALPHAPULSE_ENV: production
+  TORQ_ENV: production
   RUST_LOG: info
 
 jobs:
@@ -59,14 +59,14 @@ jobs:
       - name: Protocol V2 Integrity Check
         run: |
           echo "🧪 Validating Protocol V2 integrity..."
-          cargo test --package alphapulse_protocol_v2 --all-targets
+          cargo test --package torq_protocol_v2 --all-targets
           echo "✅ Protocol V2 integrity confirmed"
       
       - name: Performance Baseline Validation
         id: performance
         run: |
           echo "⚡ Running performance baseline validation..."
-          cd /Users/daws/alphapulse/backend_v2
+          cd /Users/daws/torq/backend_v2
           
           # Run Protocol V2 performance test
           PERF_OUTPUT=$(cargo run --bin test_protocol --release 2>&1)
@@ -146,9 +146,9 @@ jobs:
           cargo build --release --bin market_data_relay
           cargo build --release --bin signal_relay  
           cargo build --release --bin execution_relay
-          cargo build --release --bin alphapulse-polygon-publisher
-          cargo build --release --bin alphapulse-flash-arbitrage
-          cargo build --release --bin alphapulse-dashboard-websocket
+          cargo build --release --bin torq-polygon-publisher
+          cargo build --release --bin torq-flash-arbitrage
+          cargo build --release --bin torq-dashboard-websocket
           
           echo "✅ All production binaries built successfully"
       
@@ -169,9 +169,9 @@ jobs:
           cp target/release/market_data_relay deployment-artifacts/
           cp target/release/signal_relay deployment-artifacts/
           cp target/release/execution_relay deployment-artifacts/
-          cp target/release/alphapulse-polygon-publisher deployment-artifacts/
-          cp target/release/alphapulse-flash-arbitrage deployment-artifacts/
-          cp target/release/alphapulse-dashboard-websocket deployment-artifacts/
+          cp target/release/torq-polygon-publisher deployment-artifacts/
+          cp target/release/torq-flash-arbitrage deployment-artifacts/
+          cp target/release/torq-dashboard-websocket deployment-artifacts/
           
           # Copy configurations
           cp -r config deployment-artifacts/
@@ -187,7 +187,7 @@ jobs:
       - name: Upload Deployment Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: alphapulse-production-${{ github.sha }}
+          name: torq-production-${{ github.sha }}
           path: deployment-artifacts/
           retention-days: 30
 
@@ -206,7 +206,7 @@ jobs:
       - name: Download Deployment Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: alphapulse-production-${{ github.sha }}
+          name: torq-production-${{ github.sha }}
           path: deployment/
       
       - name: Deploy to Staging Environment
@@ -214,12 +214,12 @@ jobs:
           echo "🔄 Deploying to staging environment (Green)..."
           
           # Create staging directories
-          mkdir -p /tmp/alphapulse-staging
-          mkdir -p /tmp/alphapulse-staging/logs
+          mkdir -p /tmp/torq-staging
+          mkdir -p /tmp/torq-staging/logs
           
           # Copy binaries to staging
-          cp deployment/* /tmp/alphapulse-staging/
-          chmod +x /tmp/alphapulse-staging/*
+          cp deployment/* /tmp/torq-staging/
+          chmod +x /tmp/torq-staging/*
           
           echo "✅ Staging environment prepared"
       
@@ -229,7 +229,7 @@ jobs:
           echo "🚀 Starting staging services..."
           
           # Start services in dependency order with staging configuration
-          cd /tmp/alphapulse-staging
+          cd /tmp/torq-staging
           
           # Start relays first
           RUST_LOG=info ./market_data_relay > logs/market_data_relay.log 2>&1 &
@@ -244,7 +244,7 @@ jobs:
           # Wait for sockets to be ready
           echo "⏳ Waiting for relay sockets..."
           timeout 60s bash -c '
-            while [[ ! -S /tmp/alphapulse/market_data.sock ]] || [[ ! -S /tmp/alphapulse/signals.sock ]] || [[ ! -S /tmp/alphapulse/execution.sock ]]; do
+            while [[ ! -S /tmp/torq/market_data.sock ]] || [[ ! -S /tmp/torq/signals.sock ]] || [[ ! -S /tmp/torq/execution.sock ]]; do
               sleep 1
             done
           '
@@ -256,12 +256,12 @@ jobs:
           echo "🔍 Running staging health checks..."
           
           # Check socket availability
-          test -S /tmp/alphapulse/market_data.sock || (echo "❌ Market data relay socket not ready" && exit 1)
-          test -S /tmp/alphapulse/signals.sock || (echo "❌ Signal relay socket not ready" && exit 1)
-          test -S /tmp/alphapulse/execution.sock || (echo "❌ Execution relay socket not ready" && exit 1)
+          test -S /tmp/torq/market_data.sock || (echo "❌ Market data relay socket not ready" && exit 1)
+          test -S /tmp/torq/signals.sock || (echo "❌ Signal relay socket not ready" && exit 1)
+          test -S /tmp/torq/execution.sock || (echo "❌ Execution relay socket not ready" && exit 1)
           
           # Check process health
-          cd /tmp/alphapulse-staging
+          cd /tmp/torq-staging
           kill -0 $(cat market_data_relay.pid) || (echo "❌ Market data relay not running" && exit 1)
           kill -0 $(cat signal_relay.pid) || (echo "❌ Signal relay not running" && exit 1)
           kill -0 $(cat execution_relay.pid) || (echo "❌ Execution relay not running" && exit 1)
@@ -296,7 +296,7 @@ jobs:
       - name: Download Deployment Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: alphapulse-production-${{ github.sha }}
+          name: torq-production-${{ github.sha }}
           path: production/
       
       - name: Pre-Production Backup
@@ -304,8 +304,8 @@ jobs:
           echo "💾 Creating pre-deployment backup..."
           
           # Backup current production binaries
-          if [[ -d /opt/alphapulse ]]; then
-            cp -r /opt/alphapulse /opt/alphapulse-backup-$(date +%Y%m%d-%H%M%S)
+          if [[ -d /opt/torq ]]; then
+            cp -r /opt/torq /opt/torq-backup-$(date +%Y%m%d-%H%M%S)
             echo "✅ Production backup created"
           fi
       
@@ -314,18 +314,18 @@ jobs:
           echo "🚀 Deploying to production environment..."
           
           # Create production directories
-          sudo mkdir -p /opt/alphapulse
-          sudo mkdir -p /var/run/alphapulse
-          sudo mkdir -p /var/log/alphapulse
+          sudo mkdir -p /opt/torq
+          sudo mkdir -p /var/run/torq
+          sudo mkdir -p /var/log/torq
           
           # Copy new binaries
-          sudo cp production/* /opt/alphapulse/
-          sudo chmod +x /opt/alphapulse/*
+          sudo cp production/* /opt/torq/
+          sudo chmod +x /opt/torq/*
           
           # Update configuration for production paths
-          sudo cp production/config/system.toml /opt/alphapulse/system.toml
-          sudo sed -i 's|/tmp/alphapulse|/var/run/alphapulse|g' /opt/alphapulse/system.toml
-          sudo sed -i 's|/tmp/alphapulse_logs|/var/log/alphapulse|g' /opt/alphapulse/system.toml
+          sudo cp production/config/system.toml /opt/torq/system.toml
+          sudo sed -i 's|/tmp/torq|/var/run/torq|g' /opt/torq/system.toml
+          sudo sed -i 's|/tmp/torq_logs|/var/log/torq|g' /opt/torq/system.toml
           
           echo "✅ Production deployment completed"
       
@@ -335,28 +335,28 @@ jobs:
           echo "🔄 Performing graceful production restart..."
           
           # Stop old services gracefully
-          if [[ -f /var/run/alphapulse/market_data.pid ]]; then
-            sudo kill -TERM $(cat /var/run/alphapulse/market_data.pid) 2>/dev/null || true
-            sudo kill -TERM $(cat /var/run/alphapulse/signal.pid) 2>/dev/null || true
-            sudo kill -TERM $(cat /var/run/alphapulse/execution.pid) 2>/dev/null || true
+          if [[ -f /var/run/torq/market_data.pid ]]; then
+            sudo kill -TERM $(cat /var/run/torq/market_data.pid) 2>/dev/null || true
+            sudo kill -TERM $(cat /var/run/torq/signal.pid) 2>/dev/null || true
+            sudo kill -TERM $(cat /var/run/torq/execution.pid) 2>/dev/null || true
             
             # Wait for graceful shutdown
             sleep 5
           fi
           
           # Clean up old sockets
-          sudo rm -f /var/run/alphapulse/*.sock
+          sudo rm -f /var/run/torq/*.sock
           
           # Start new services
-          cd /opt/alphapulse
-          sudo RUST_LOG=info ./market_data_relay > /var/log/alphapulse/market_data_relay.log 2>&1 &
-          echo $! | sudo tee /var/run/alphapulse/market_data.pid
+          cd /opt/torq
+          sudo RUST_LOG=info ./market_data_relay > /var/log/torq/market_data_relay.log 2>&1 &
+          echo $! | sudo tee /var/run/torq/market_data.pid
           
-          sudo RUST_LOG=info ./signal_relay > /var/log/alphapulse/signal_relay.log 2>&1 &
-          echo $! | sudo tee /var/run/alphapulse/signal.pid
+          sudo RUST_LOG=info ./signal_relay > /var/log/torq/signal_relay.log 2>&1 &
+          echo $! | sudo tee /var/run/torq/signal.pid
           
-          sudo RUST_LOG=info ./execution_relay > /var/log/alphapulse/execution_relay.log 2>&1 &
-          echo $! | sudo tee /var/run/alphapulse/execution.pid
+          sudo RUST_LOG=info ./execution_relay > /var/log/torq/execution_relay.log 2>&1 &
+          echo $! | sudo tee /var/run/torq/execution.pid
           
           echo "✅ Production services restarted"
       
@@ -367,16 +367,16 @@ jobs:
           
           # Wait for sockets to be ready
           timeout 120s bash -c '
-            while [[ ! -S /var/run/alphapulse/market_data.sock ]] || [[ ! -S /var/run/alphapulse/signals.sock ]] || [[ ! -S /var/run/alphapulse/execution.sock ]]; do
+            while [[ ! -S /var/run/torq/market_data.sock ]] || [[ ! -S /var/run/torq/signals.sock ]] || [[ ! -S /var/run/torq/execution.sock ]]; do
               echo "Waiting for production sockets..."
               sleep 2
             done
           '
           
           # Verify processes are running
-          kill -0 $(cat /var/run/alphapulse/market_data.pid) || (echo "❌ Market data relay failed to start" && exit 1)
-          kill -0 $(cat /var/run/alphapulse/signal.pid) || (echo "❌ Signal relay failed to start" && exit 1)
-          kill -0 $(cat /var/run/alphapulse/execution.pid) || (echo "❌ Execution relay failed to start" && exit 1)
+          kill -0 $(cat /var/run/torq/market_data.pid) || (echo "❌ Market data relay failed to start" && exit 1)
+          kill -0 $(cat /var/run/torq/signal.pid) || (echo "❌ Signal relay failed to start" && exit 1)
+          kill -0 $(cat /var/run/torq/execution.pid) || (echo "❌ Execution relay failed to start" && exit 1)
           
           echo "✅ Production deployment health validated"
       
@@ -384,7 +384,7 @@ jobs:
         run: |
           echo "⚡ Running post-deployment performance validation..."
           
-          cd /opt/alphapulse
+          cd /opt/torq
           timeout 30s ./test_protocol > /tmp/prod-perf.log 2>&1 || true
           
           # Check for performance regressions
@@ -424,23 +424,23 @@ jobs:
             echo "Health check $i/10..."
             
             # Check socket availability
-            if [[ ! -S /var/run/alphapulse/market_data.sock ]]; then
+            if [[ ! -S /var/run/torq/market_data.sock ]]; then
               echo "❌ Market data socket unavailable"
               exit 1
             fi
             
-            if [[ ! -S /var/run/alphapulse/signals.sock ]]; then
+            if [[ ! -S /var/run/torq/signals.sock ]]; then
               echo "❌ Signal socket unavailable"
               exit 1
             fi
             
-            if [[ ! -S /var/run/alphapulse/execution.sock ]]; then
+            if [[ ! -S /var/run/torq/execution.sock ]]; then
               echo "❌ Execution socket unavailable"
               exit 1
             fi
             
             # Check process health
-            if ! kill -0 $(cat /var/run/alphapulse/market_data.pid 2>/dev/null) 2>/dev/null; then
+            if ! kill -0 $(cat /var/run/torq/market_data.pid 2>/dev/null) 2>/dev/null; then
               echo "❌ Market data relay process failed"
               exit 1
             fi
@@ -479,23 +479,23 @@ jobs:
           sudo killall market_data_relay signal_relay execution_relay 2>/dev/null || true
           
           # Find most recent backup
-          BACKUP_DIR=$(ls -dt /opt/alphapulse-backup-* 2>/dev/null | head -1)
+          BACKUP_DIR=$(ls -dt /opt/torq-backup-* 2>/dev/null | head -1)
           
           if [[ -n "$BACKUP_DIR" ]]; then
             echo "📦 Restoring from backup: $BACKUP_DIR"
-            sudo rm -rf /opt/alphapulse
-            sudo cp -r "$BACKUP_DIR" /opt/alphapulse
+            sudo rm -rf /opt/torq
+            sudo cp -r "$BACKUP_DIR" /opt/torq
             
             # Restart services with backup binaries
-            cd /opt/alphapulse
-            sudo RUST_LOG=info ./market_data_relay > /var/log/alphapulse/market_data_relay.log 2>&1 &
-            echo $! | sudo tee /var/run/alphapulse/market_data.pid
+            cd /opt/torq
+            sudo RUST_LOG=info ./market_data_relay > /var/log/torq/market_data_relay.log 2>&1 &
+            echo $! | sudo tee /var/run/torq/market_data.pid
             
-            sudo RUST_LOG=info ./signal_relay > /var/log/alphapulse/signal_relay.log 2>&1 &
-            echo $! | sudo tee /var/run/alphapulse/signal.pid
+            sudo RUST_LOG=info ./signal_relay > /var/log/torq/signal_relay.log 2>&1 &
+            echo $! | sudo tee /var/run/torq/signal.pid
             
-            sudo RUST_LOG=info ./execution_relay > /var/log/alphapulse/execution_relay.log 2>&1 &
-            echo $! | sudo tee /var/run/alphapulse/execution.pid
+            sudo RUST_LOG=info ./execution_relay > /var/log/torq/execution_relay.log 2>&1 &
+            echo $! | sudo tee /var/run/torq/execution.pid
             
             echo "✅ Rollback completed successfully"
           else
@@ -512,9 +512,9 @@ jobs:
           sleep 10
           
           # Verify sockets are available
-          test -S /var/run/alphapulse/market_data.sock || (echo "❌ Rollback failed: market data socket" && exit 1)
-          test -S /var/run/alphapulse/signals.sock || (echo "❌ Rollback failed: signal socket" && exit 1)
-          test -S /var/run/alphapulse/execution.sock || (echo "❌ Rollback failed: execution socket" && exit 1)
+          test -S /var/run/torq/market_data.sock || (echo "❌ Rollback failed: market data socket" && exit 1)
+          test -S /var/run/torq/signals.sock || (echo "❌ Rollback failed: signal socket" && exit 1)
+          test -S /var/run/torq/execution.sock || (echo "❌ Rollback failed: execution socket" && exit 1)
           
           echo "✅ Rollback verification successful"
           echo "🔔 System restored to previous working state"
@@ -531,7 +531,7 @@ jobs:
     steps:
       - name: Generate Deployment Report
         run: |
-          echo "📋 ALPHAPULSE DEPLOYMENT REPORT"
+          echo "📋 TORQ DEPLOYMENT REPORT"
           echo "=============================="
           echo ""
           echo "🔍 Pre-deployment Validation: ${{ needs.pre-deployment-validation.result }}"

@@ -1,7 +1,7 @@
-# AlphaPulse-Specific Code Review Patterns
+# Torq-Specific Code Review Patterns
 
 ## Overview
-Systematic code review patterns specifically tailored for AlphaPulse's demanding requirements, including Protocol V2 compliance, security, performance, and architecture validation.
+Systematic code review patterns specifically tailored for Torq's demanding requirements, including Protocol V2 compliance, security, performance, and architecture validation.
 
 ## Detection Patterns
 
@@ -132,7 +132,7 @@ let protocol_violations = vec![
 ```rust
 let architecture_patterns = vec![
     // Codec usage validation
-    r"use\s+alphapulse_types.*TLVMessageBuilder", // Should use codec
+    r"use\s+torq_types.*TLVMessageBuilder", // Should use codec
     r"parse_header|parse_tlv", // Should come from codec
     
     // Service boundary violations
@@ -246,7 +246,7 @@ impl CodeReviewAnalyzer {
 }
 ```
 
-### Specific AlphaPulse Validators
+### Specific Torq Validators
 
 #### Mock Detector
 ```rust
@@ -353,4 +353,4 @@ impl ReviewSummary {
 }
 ```
 
-This comprehensive code review system ensures every change meets AlphaPulse's exacting standards while providing clear, actionable feedback for quality improvement.
+This comprehensive code review system ensures every change meets Torq's exacting standards while providing clear, actionable feedback for quality improvement.

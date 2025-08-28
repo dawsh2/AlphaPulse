@@ -9,16 +9,16 @@ use clap::Parser;
 
 #[derive(Parser)]
 #[command(name = "arch-validate")]
-#[command(about = "AlphaPulse architecture validation tool")]
+#[command(about = "Torq architecture validation tool")]
 struct Args {
     /// Run only critical violations (blocks deployment)
     #[arg(long)]
     critical_only: bool,
-    
+
     /// Run quick checks only (for pre-commit)
     #[arg(long)]
     quick_check: bool,
-    
+
     /// Output violations to log file
     #[arg(long, value_name = "FILE")]
     output_log: Option<String>,
@@ -26,7 +26,7 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    
+
     // Set up colored output
     colored::control::set_override(true);
 
@@ -50,7 +50,7 @@ fn main() -> Result<()> {
                 std::fs::write(&log_file, format!("{}", e))?;
                 eprintln!("Violations logged to: {}", log_file);
             }
-            
+
             eprintln!("\n❌ Architecture validation failed: {}", e);
             std::process::exit(1);
         }
@@ -60,16 +60,16 @@ fn main() -> Result<()> {
 fn run_critical_validations() -> Result<()> {
     // Only run violations that should block deployment
     println!("Running critical architecture validations...");
-    
+
     use architecture_validation::*;
     use colored::Colorize;
-    
+
     let metadata = cargo_metadata::MetadataCommand::new()
         .exec()
         .context("Failed to load workspace metadata")?;
-    
+
     let mut failed = false;
-    
+
     // Critical validations that MUST pass for deployment
     let critical_tests = vec![
         ("Bijective ID Usage", typed_id_usage::validate_bijective_id_usage(&metadata)),
@@ -77,7 +77,7 @@ fn run_critical_validations() -> Result<()> {
         ("Precision Handling", advanced_validations::validate_precision_handling(&metadata)),
         ("Zerocopy Performance", advanced_validations::validate_zerocopy_usage(&metadata)),
     ];
-    
+
     for (name, result) in critical_tests {
         if result.passed {
             println!("{} {}", "✓".green(), name.green());
@@ -97,33 +97,33 @@ fn run_critical_validations() -> Result<()> {
             failed = true;
         }
     }
-    
+
     if failed {
         return Err(anyhow::anyhow!("Critical architecture validations failed"));
     }
-    
+
     Ok(())
 }
 
 fn run_quick_validations() -> Result<()> {
     // Lightweight checks for pre-commit (fast subset)
     println!("Running quick architecture validations...");
-    
+
     use architecture_validation::*;
     use colored::Colorize;
-    
+
     let metadata = cargo_metadata::MetadataCommand::new()
         .exec()
         .context("Failed to load workspace metadata")?;
-    
+
     let mut failed = false;
-    
+
     // Quick validations for pre-commit (most important, fastest)
     let quick_tests = vec![
         ("Codec Usage", dependency_validation::validate_codec_usage(&metadata)),
         ("Service Boundaries", advanced_validations::validate_service_boundaries(&metadata)),
     ];
-    
+
     for (name, result) in quick_tests {
         match result {
             Ok(_) => println!("{} {}", "✓".green(), name.green()),
@@ -134,10 +134,10 @@ fn run_quick_validations() -> Result<()> {
             }
         }
     }
-    
+
     if failed {
         return Err(anyhow::anyhow!("Quick architecture validations failed"));
     }
-    
+
     Ok(())
 }

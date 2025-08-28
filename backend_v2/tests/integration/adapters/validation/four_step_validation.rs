@@ -8,11 +8,11 @@
 
 use crate::fixtures::polygon;
 use crate::*;
-use alphapulse_adapter_service::input::collectors::polygon_dex::{
+use torq_adapter_service::input::collectors::polygon_dex::{
     abi_events::{DEXProtocol, SwapEventDecoder},
     validated_decoder::{PolygonRawSwapEvent, ValidatedPolygonDecoder},
 };
-use alphapulse_adapter_service::{
+use torq_adapter_service::{
     validate_equality, validate_tlv_deserialization, validate_tlv_serialization, RawDataValidator,
 };
 

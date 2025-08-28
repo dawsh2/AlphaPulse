@@ -1,0 +1,7 @@
+# Torq Clippy Configuration - Performance-First Lints
+# Catches code quality violations that impact 50M msg/s performance
+
+# Custom thresholds for high-performance codebase
+cognitive-complexity-threshold = 25
+type-complexity-threshold = 100
+too-many-lines-threshold = 200

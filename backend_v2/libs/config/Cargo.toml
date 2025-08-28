@@ -1,8 +1,8 @@
 [package]
-name = "alphapulse-config"
+name = "config"
 version = "0.2.0"
 edition = "2021"
-description = "Centralized configuration and constants for AlphaPulse services"
+description = "Centralized configuration and constants for Torq services"
 license = "UNLICENSED"
 
 [dependencies]
@@ -13,8 +13,7 @@ toml = "0.8"
 # For lazy static initialization
 once_cell = "1.19"
 
-# For collections and utilities
-std-collections = "0.1"
+# Collections are in std - no external crate needed
 
 [dev-dependencies]
 tempfile = "3.8"

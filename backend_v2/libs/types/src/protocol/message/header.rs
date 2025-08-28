@@ -164,9 +164,9 @@ pub fn current_timestamp_ns() -> u64 {
 /// Uses SystemTime::now() for perfect accuracy at the cost of ~200ns latency.
 /// Use this sparingly for critical operations requiring perfect timestamp accuracy.
 pub fn precise_timestamp_ns() -> u64 {
-    // Use safe conversion from time module
+    // Use safe conversion from network time module
     // Prevents silent truncation on overflow - will panic if timestamp overflows u64
-    alphapulse_time::safe_system_timestamp_ns()
+    network::safe_system_timestamp_ns()
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@
 //!
 //! Verifies zero-cost abstraction property of typed IDs
 
-use alphapulse_types::{OrderId, PoolId, SignalId, StrategyId};
+use torq_types::{OrderId, PoolId, SignalId, StrategyId};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 fn bench_raw_u64_operations(c: &mut Criterion) {

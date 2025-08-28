@@ -1,9 +1,9 @@
-# AlphaPulse Staging Environment Configuration
+# Torq Staging Environment Configuration
 
 # Staging paths isolated from production
-socket_dir = "/tmp/alphapulse-staging"
-log_dir = "/tmp/alphapulse_logs_staging"
-pid_file = "/tmp/alphapulse_staging.pids"
+socket_dir = "/tmp/torq-staging"
+log_dir = "/tmp/torq_logs_staging"
+pid_file = "/tmp/torq_staging.pids"
 
 # Service-specific configurations
 [services]

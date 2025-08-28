@@ -1,7 +1,7 @@
 # Sprint Archiving System
 
 ## Overview
-The AlphaPulse task management system now includes automated sprint archiving that ensures sprints are only archived when truly complete: tasks done, tests passing, and PR merged.
+The Torq task management system now includes automated sprint archiving that ensures sprints are only archived when truly complete: tasks done, tests passing, and PR merged.
 
 ## Completion Criteria
 A sprint is considered complete and ready for archiving when ALL of the following are met:

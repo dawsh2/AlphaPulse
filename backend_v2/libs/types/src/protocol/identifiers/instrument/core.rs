@@ -62,7 +62,7 @@
 //!
 //! ### Multi-Asset Construction
 //! ```rust
-//! use alphapulse_protocol_v2::identifiers::{InstrumentId, VenueId};
+//! use torq_protocol_v2::identifiers::{InstrumentId, VenueId};
 //!
 //! // Cryptocurrency tokens by chain
 //! let eth_usdc = InstrumentId::ethereum_token("0xA0b86a33E6441Cc8...")?;

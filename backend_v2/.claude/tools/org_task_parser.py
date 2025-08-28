@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Org-mode Task Parser for AlphaPulse Task Management System
+Org-mode Task Parser for Torq Task Management System
 
 Parses org-mode files and outputs structured JSON data for task management.
 Supports dependency tracking, parallel execution groups, and goal hierarchies.

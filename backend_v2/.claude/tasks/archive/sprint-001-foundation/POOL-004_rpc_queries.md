@@ -313,10 +313,10 @@ async fn discover_pool_metadata(
 
 ```bash
 # Unit tests with mock RPC
-cargo test --package alphapulse-state-market pool_discovery
+cargo test --package torq-state-market pool_discovery
 
 # Integration test with real Polygon RPC
-POLYGON_RPC_URL=https://polygon-rpc.com cargo test --package alphapulse-state-market --test rpc_discovery -- --nocapture
+POLYGON_RPC_URL=https://polygon-rpc.com cargo test --package torq-state-market --test rpc_discovery -- --nocapture
 
 # Test specific pools
 cargo run --example discover_pool -- 0x45dda9cb7c25131df268515131f647d726f50608
@@ -337,7 +337,7 @@ git reset --hard <commit-before-pool-004>
 git push --force-with-lease origin main
 
 # Restart affected services
-systemctl restart alphapulse-collector
+systemctl restart torq-collector
 ```
 
 ## 📤 Commit & Push Instructions

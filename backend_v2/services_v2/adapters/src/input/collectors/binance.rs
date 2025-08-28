@@ -9,7 +9,7 @@
 //!
 //! All schemas stored inline for validation and documentation
 
-use alphapulse_types::{
+use torq_types::{
     tlv::market_data::{QuoteTLV, TradeTLV},
     InstrumentId, RelayDomain, SourceType, VenueId,
 };

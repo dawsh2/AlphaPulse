@@ -4,7 +4,7 @@
 //!
 //! Provides both bijective instrument identification (InstrumentId) AND type-safe
 //! wrappers for simple database identifiers to create a complete identification
-//! system for the AlphaPulse trading platform.
+//! system for the Torq trading platform.
 //!
 //! ## Dual System Architecture
 //!
@@ -24,7 +24,7 @@
 //! ## Usage Examples
 //!
 //! ```rust
-//! use alphapulse_types::{InstrumentId, VenueId, OrderId, PositionId, StrategyId};
+//! use torq_types::{InstrumentId, VenueId, OrderId, PositionId, StrategyId};
 //!
 //! // Bijective instrument identification (no registry needed)
 //! let btc_usdc = InstrumentId::ethereum_token("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48").unwrap();
@@ -102,7 +102,7 @@
 //! ### TLV Message Construction with Typed IDs
 //!
 //! ```rust
-//! use alphapulse_types::{
+//! use torq_types::{
 //!     TLVType, RelayDomain, SourceType,
 //!     SignalId, StrategyId, OrderId
 //! };
@@ -120,7 +120,7 @@
 //! };
 //!
 //! // For message building, services import codec separately:
-//! // use codec::TLVMessageBuilder;
+//! // use torq_codec::TLVMessageBuilder;
 //! // let message = TLVMessageBuilder::new(RelayDomain::Signal, SourceType::Strategy)
 //! //     .add_tlv(TLVType::ArbitrageSignal, &signal_data)
 //! //     .build();
@@ -177,7 +177,7 @@
 //! ### Validated ID Construction
 //!
 //! ```rust
-//! use alphapulse_types::{OrderId, ValidationError};
+//! use torq_types::{OrderId, ValidationError};
 //!
 //! // Basic validation - prevents null IDs
 //! let valid_order = OrderId::new_validated(12345)?;  // ✅ Success
@@ -233,7 +233,7 @@ use std::hash::{Hash, Hasher};
 /// # Examples
 ///
 /// ```rust
-/// use alphapulse_types::define_typed_wrapper;
+/// use torq_types::define_typed_wrapper;
 ///
 /// // Create strongly typed Ethereum address (20 bytes)
 /// define_typed_wrapper!(

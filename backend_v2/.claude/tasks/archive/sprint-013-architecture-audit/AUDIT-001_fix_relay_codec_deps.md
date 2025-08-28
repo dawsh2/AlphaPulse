@@ -42,7 +42,7 @@ pwd  # Should show: .../relay-codec-fix
 **The relays are NOT using the new `codec` library!**
 
 Despite successfully splitting protocol_v2 into libs/types and libs/codec, the relay services still:
-- Only depend on `alphapulse-types` (not the codec)
+- Only depend on `torq-types` (not the codec)
 - Likely have duplicated or old protocol parsing logic
 - Are not benefiting from the centralized codec implementation
 
@@ -52,12 +52,12 @@ This means the architectural refactoring is incomplete and the system is inconsi
 ```toml
 # Current relays/Cargo.toml (WRONG)
 [dependencies]
-alphapulse-types = { path = "../libs/types" }
+torq-types = { path = "../libs/types" }
 # MISSING: codec dependency!
 ```
 
 ## Acceptance Criteria ✅ COMPLETE
-- [x] Relays depend on BOTH `alphapulse-types` AND `codec`
+- [x] Relays depend on BOTH `torq-types` AND `codec`
 - [x] All TLV parsing uses `codec` functions
 - [x] All message building uses `codec` builders (parser.rs created)
 - [x] Zero duplicated protocol logic in relay code (removed duplicate parse_header)
@@ -70,7 +70,7 @@ alphapulse-types = { path = "../libs/types" }
 ```toml
 # relays/Cargo.toml
 [dependencies]
-alphapulse-types = { path = "../libs/types" }
+torq-types = { path = "../libs/types" }
 codec = { path = "../libs/codec" }  # ADD THIS
 ```
 
@@ -96,7 +96,7 @@ use crate::protocol::{parse_message, build_message};
 
 // NEW (use the codec)
 use codec::{parse_message, MessageBuilder};
-use alphapulse_types::{TradeTLV, SignalTLV};
+use torq_types::{TradeTLV, SignalTLV};
 ```
 
 ### Step 5: Update All Usage Points

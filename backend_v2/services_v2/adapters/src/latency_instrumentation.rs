@@ -12,7 +12,7 @@
 //!
 //! - **Input**: WebSocket message arrival timestamps from exchange collectors
 //! - **Output**: Detailed latency statistics with percentiles and SLA validation
-//! - **Configuration**: Environment variable `ALPHAPULSE_LATENCY_INSTRUMENTATION=true/false`
+//! - **Configuration**: Environment variable `TORQ_LATENCY_INSTRUMENTATION=true/false`
 //! - **Dependencies**: Uses global singleton pattern with `once_cell` for zero startup cost
 //! - **Hot Path Impact**: <2ns overhead when disabled, ~50ns when enabled
 //!
@@ -49,7 +49,7 @@
 //! ### Global Instrumentation (Recommended)
 //! ```rust
 //! use crate::latency_instrumentation::global_instrument;
-//! use alphapulse_types::VenueId;
+//! use torq_types::VenueId;
 //!
 //! // Environment controls enablement (zero cost when disabled)
 //! let token = global_instrument().start_message_processing("trade", VenueId::Binance);
@@ -101,7 +101,7 @@
 //! - **Other**: Fallback for unclassified message types
 
 use crate::AdapterMetrics;
-use alphapulse_types::VenueId;
+use torq_types::VenueId;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
@@ -443,7 +443,7 @@ impl LatencyInstrument {
 static GLOBAL_INSTRUMENT: once_cell::sync::Lazy<LatencyInstrument> =
     once_cell::sync::Lazy::new(|| {
         // Check environment variable to enable instrumentation
-        let enabled = std::env::var("ALPHAPULSE_LATENCY_INSTRUMENTATION")
+        let enabled = std::env::var("TORQ_LATENCY_INSTRUMENTATION")
             .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
             .unwrap_or(false);
 

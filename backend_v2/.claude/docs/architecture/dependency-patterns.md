@@ -1,6 +1,6 @@
 # Dependency Import Patterns
 
-**Purpose**: Standardized patterns for importing from `alphapulse_types` and `codec` to maintain clean architecture.
+**Purpose**: Standardized patterns for importing from `torq_types` and `codec` to maintain clean architecture.
 
 ## Import Pattern Guidelines
 
@@ -8,13 +8,13 @@
 
 ```rust
 // Types only (data structures and constants)
-use alphapulse_types::{QuoteTLV, InstrumentId, VenueId, InvalidationReason, TLVType};
+use torq_types::{QuoteTLV, InstrumentId, VenueId, InvalidationReason, TLVType};
 
 // Codec only (message processing)
 use codec::{TLVMessageBuilder, parse_header, parse_tlv_extensions, ParseError};
 
 // Both (full message pipeline)
-use alphapulse_types::{QuoteTLV, StateInvalidationTLV, RelayDomain, SourceType, TLVType};
+use torq_types::{QuoteTLV, StateInvalidationTLV, RelayDomain, SourceType, TLVType};
 use codec::{TLVMessageBuilder, parse_header, parse_tlv_extensions, ParseError, TLVExtensionEnum};
 ```
 
@@ -28,7 +28,7 @@ use codec::{TLVMessageBuilder, parse_header, parse_tlv_extensions, ParseError, T
 use codec::{
     parse_header, parse_tlv_extensions, ParseError, TLVExtensionEnum,
 };
-use alphapulse_types::{
+use torq_types::{
     QuoteTLV, InvalidationReason, StateInvalidationTLV, PoolSwapTLV,
     InstrumentId, VenueId, SystemHealthTLV, TraceEvent
 };
@@ -42,7 +42,7 @@ use alphapulse_types::{
 ```rust
 // services_v2/strategies/flash_arbitrage/src/signal_output.rs
 use codec::TLVMessageBuilder;
-use alphapulse_types::{
+use torq_types::{
     ArbitrageSignalTLV, RelayDomain, SourceType, TLVType,
     InstrumentId, VenueId
 };
@@ -55,7 +55,7 @@ use alphapulse_types::{
 
 ```rust
 // services_v2/adapters/src/input/state_manager.rs
-use alphapulse_types::{
+use torq_types::{
     tlv, StateInvalidationTLV, InstrumentId, InvalidationReason, 
     RelayDomain, SourceType, TLVType, VenueId
 };
@@ -69,7 +69,7 @@ use alphapulse_types::{
 ```rust
 // relays/src/topics.rs
 use codec::{parse_tlv_extensions, TLVExtensionEnum};
-use alphapulse_types::{TLVType, RelayDomain};
+use torq_types::{TLVType, RelayDomain};
 ```
 
 **Rationale**: Needs parsing functions for routing and type definitions for validation.
@@ -79,14 +79,14 @@ use alphapulse_types::{TLVType, RelayDomain};
 ### ❌ Don't Import Everything
 ```rust
 // WRONG: Pulls in unnecessary dependencies
-use alphapulse_types::*;
+use torq_types::*;
 use codec::*;
 ```
 
 ### ❌ Don't Mix Construction Patterns
 ```rust
 // WRONG: Inconsistent message building approaches
-use alphapulse_types::tlv::build_message_direct;  // Built-in approach
+use torq_types::tlv::build_message_direct;  // Built-in approach
 use codec::TLVMessageBuilder;          // Builder approach
 ```
 
@@ -103,7 +103,7 @@ use codec::TLVMessageBuilder;  // DON'T DO THIS!
 
 ### 1. Pure Data Processing (Types Only)
 ```rust
-use alphapulse_types::{QuoteTLV, InstrumentId, VenueId};
+use torq_types::{QuoteTLV, InstrumentId, VenueId};
 
 fn process_quote(quote: &QuoteTLV) -> f64 {
     quote.bid_price as f64 / 100_000_000.0  // Convert to USD
@@ -113,7 +113,7 @@ fn process_quote(quote: &QuoteTLV) -> f64 {
 ### 2. Message Parsing (Codec + Types)
 ```rust
 use codec::{parse_header, parse_tlv_extensions, ParseError};
-use alphapulse_types::{QuoteTLV, StateInvalidationTLV};
+use torq_types::{QuoteTLV, StateInvalidationTLV};
 
 fn parse_message(data: &[u8]) -> Result<(), ParseError> {
     let header = parse_header(data)?;
@@ -137,7 +137,7 @@ fn parse_message(data: &[u8]) -> Result<(), ParseError> {
 ### 3. Message Construction (Codec + Types)
 ```rust
 use codec::TLVMessageBuilder;
-use alphapulse_types::{
+use torq_types::{
     ArbitrageSignalTLV, RelayDomain, SourceType, TLVType,
     InstrumentId, VenueId
 };
@@ -154,7 +154,7 @@ fn create_signal_message(signal: ArbitrageSignalTLV) -> Vec<u8> {
 
 ### 4. State Management (Built-in TLV Functions)
 ```rust
-use alphapulse_types::{
+use torq_types::{
     tlv, StateInvalidationTLV, InvalidationReason,
     RelayDomain, SourceType, TLVType, VenueId
 };
@@ -181,7 +181,7 @@ fn create_invalidation_message(venue: VenueId, instruments: &[InstrumentId]) -> 
 ```rust
 // tests/unit/my_module.rs
 use crate::{QuoteTLV, InstrumentId, VenueId};  // Internal imports
-use alphapulse_transport::time::safe_system_timestamp_ns;
+use torq_transport::time::safe_system_timestamp_ns;
 
 #[test]
 fn test_quote_construction() {
@@ -201,7 +201,7 @@ fn test_quote_construction() {
 ```rust
 // tests/integration/message_flow.rs
 use codec::{TLVMessageBuilder, parse_header};
-use alphapulse_types::{QuoteTLV, RelayDomain, SourceType, TLVType};
+use torq_types::{QuoteTLV, RelayDomain, SourceType, TLVType};
 
 #[test]
 fn test_message_round_trip() {
@@ -225,16 +225,16 @@ fn test_message_round_trip() {
 4. **Document special cases**: If you need both packages, explain why
 
 ### When Adding New TLV Types
-1. **Add to types package**: All TLV struct definitions go in `alphapulse-types`
+1. **Add to types package**: All TLV struct definitions go in `torq-types`
 2. **Add parsing support**: Parsing utilities go in `codec`
-3. **Update service imports**: Services using the new type import from `alphapulse-types`
+3. **Update service imports**: Services using the new type import from `torq-types`
 4. **Update builders**: Message construction helpers stay in `codec`
 
 ### Version Compatibility
 ```toml
 # In service Cargo.toml files:
 [dependencies]
-alphapulse-types = { path = "../../libs/types" }
+torq-types = { path = "../../libs/types" }
 codec = { path = "../../libs/codec" }
 
 # Keep versions in sync - both should be updated together
@@ -246,7 +246,7 @@ codec = { path = "../../libs/codec" }
 ### Common Error: "Cannot find QuoteTLV in scope"
 **Solution**: Add types import
 ```rust
-use alphapulse_types::QuoteTLV;
+use torq_types::QuoteTLV;
 ```
 
 ### Common Error: "Cannot find TLVMessageBuilder in scope"  
@@ -272,7 +272,7 @@ use codec::ParseError;
 Services that only need type definitions should not import codec:
 ```rust
 // Minimal imports = smaller binary
-use alphapulse_types::{QuoteTLV, InstrumentId};
+use torq_types::{QuoteTLV, InstrumentId};
 
 // Instead of:
 // use codec::*;  // Pulls in unnecessary parsing machinery
@@ -282,10 +282,10 @@ use alphapulse_types::{QuoteTLV, InstrumentId};
 Services with minimal imports compile faster:
 ```rust
 // Fast compilation
-use alphapulse_types::QuoteTLV;
+use torq_types::QuoteTLV;
 
 // vs slower compilation with many imports
-use alphapulse_types::{
+use torq_types::{
     QuoteTLV, StateInvalidationTLV, PoolSwapTLV, SystemHealthTLV, 
     TraceEvent, /* ... many more types ... */
 };
@@ -294,5 +294,5 @@ use alphapulse_types::{
 ## References
 
 - **ADR-001**: Architecture decision for codec/types separation
-- **AlphaPulse Practices**: `.claude/docs/core/practices.md`
+- **Torq Practices**: `.claude/docs/core/practices.md`
 - **Development Guide**: `.claude/docs/core/development.md`

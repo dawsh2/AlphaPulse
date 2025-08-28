@@ -3,7 +3,7 @@
 //! Monitors and reports the health of the TraceCollector service.
 
 use crate::{Result, TraceCollectorStats};
-use alphapulse_types::{SourceType, SystemHealthTLV};
+use torq_types::{SourceType, SystemHealthTLV};
 use parking_lot::RwLock;
 use std::sync::Arc;
 use sysinfo::{Pid, System};

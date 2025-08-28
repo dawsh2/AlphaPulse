@@ -1,20 +1,20 @@
 //! # OrderBook TLV Implementation Example
 //!
-//! Demonstrates complete OrderBook TLV implementation following AlphaPulse Protocol V2 patterns:
+//! Demonstrates complete OrderBook TLV implementation following Torq Protocol V2 patterns:
 //! - Production-ready precision handling (8-decimal for traditional exchanges, native for DEX)
 //! - Zero-copy serialization with DynamicPayload pattern
 //! - Comprehensive validation with integrity checks
 //! - TLVMessageBuilder integration for domain routing
 //! - Performance-optimized data structures
 
-use alphapulse_types::protocol::{
+use torq_types::protocol::{
     identifiers::instrument::{AssetType, TokenAddress},
     tlv::{OrderBookTLV, OrderLevel, TLVMessageBuilder, TLVType},
     InstrumentId, RelayDomain, SourceType, VenueId,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚀 AlphaPulse OrderBook TLV Implementation Demo");
+    println!("🚀 Torq OrderBook TLV Implementation Demo");
     println!("================================================");
 
     // 1. Create InstrumentId for BTC/USD on Coinbase (8-decimal precision)

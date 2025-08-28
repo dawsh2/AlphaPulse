@@ -1,7 +1,7 @@
-//! Real-time Progress Tracking for AlphaPulse Development Workflow
+//! Real-time Progress Tracking for Torq Development Workflow
 //!
 //! Provides comprehensive progress tracking with quality gates, task dependencies,
-//! completion validation, and real-time status updates for the enhanced AlphaPulse
+//! completion validation, and real-time status updates for the enhanced Torq
 //! development workflow.
 
 use serde::{Deserialize, Serialize};
@@ -214,7 +214,7 @@ pub struct Override {
     pub timestamp: SystemTime,
 }
 
-/// Real-time progress tracker for AlphaPulse workflow
+/// Real-time progress tracker for Torq workflow
 pub struct ProgressTracker {
     /// All tasks indexed by ID
     tasks: HashMap<String, Task>,
@@ -706,7 +706,7 @@ impl ProgressReport {
         };
         
         format!(
-            "📊 **AlphaPulse Development Progress**\n\
+            "📊 **Torq Development Progress**\n\
              🎯 **Tasks**: {} total ({:.1}% complete)\n\
              📋 Pending: {} | 🔄 In Progress: {} | ✅ Completed: {} | 🚫 Blocked: {}\n\n\
              🔍 **Quality Gates**: {} total\n\

@@ -1,8 +1,10 @@
-//! # AlphaPulse Protocol Codec - Consolidated Validation System
+#![doc = include_str!("../../../.claude/docs/generated/protocol/tlv_types.md")]
+//!
+//! # Torq Protocol Codec - Consolidated Validation System
 //!
 //! ## Purpose
 //!
-//! This crate contains the "Rules" layer of the AlphaPulse system with consolidated
+//! This crate contains the "Rules" layer of the Torq system with consolidated
 //! validation logic from the relay infrastructure:
 //! - Protocol encoding/decoding logic
 //! - **Unified message validation system**
@@ -117,4 +119,16 @@ pub use enhanced_builder::{
 // Migration support (with deprecation warnings)
 pub use migration::{
     compat, migration_utils, test_utils, MigrationConfig,
+};
+
+// Protocol modules moved from libs/types
+pub mod protocol;
+
+// Re-export commonly used protocol types
+pub use protocol::{
+    error::ProtocolError,
+    constants::*,
+    relay_domain::RelayDomain,
+    source_type::SourceType,
+    tlv_type::TLVType,
 };

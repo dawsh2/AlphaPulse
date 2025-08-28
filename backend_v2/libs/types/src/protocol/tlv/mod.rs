@@ -2,10 +2,10 @@
 //!
 //! ## Purpose
 //!
-//! Implements the complete TLV message system for AlphaPulse Protocol V2, providing
+//! Implements the complete TLV message system for Torq Protocol V2, providing
 //! zero-copy serialization, domain-based routing, and comprehensive type safety.
 //! This module serves as the foundation for all inter-service communication within
-//! the AlphaPulse trading system.
+//! the Torq trading system.
 //!
 //! ## Integration Points
 //!
@@ -103,8 +103,8 @@
 //!
 //! ### Basic Message Construction
 //! ```rust
-//! use alphapulse_protocol_v2::tlv::{TLVMessageBuilder, TLVType, TradeTLV};
-//! use alphapulse_protocol_v2::{RelayDomain, SourceType};
+//! use torq_protocol_v2::tlv::{TLVMessageBuilder, TLVType, TradeTLV};
+//! use torq_protocol_v2::{RelayDomain, SourceType};
 //!
 //! // Create trade data
 //! let trade = TradeTLV::new(venue, instrument, price, volume, side, timestamp);
@@ -120,7 +120,7 @@
 //!
 //! ### Message Parsing
 //! ```rust
-//! use alphapulse_protocol_v2::tlv::{parse_header, parse_tlv_extensions};
+//! use torq_protocol_v2::tlv::{parse_header, parse_tlv_extensions};
 //!
 //! // Parse header with validation
 //! let header = parse_header(&received_bytes)?;
@@ -141,7 +141,7 @@
 //!
 //! ### Type Discovery and Metadata
 //! ```rust
-//! use alphapulse_protocol_v2::tlv::{TLVType, TLVSizeConstraint};
+//! use torq_protocol_v2::tlv::{TLVType, TLVSizeConstraint};
 //!
 //! // Get comprehensive type information
 //! let trade_info = TLVType::Trade.type_info();
@@ -162,7 +162,7 @@
 //! The TLV system provides comprehensive error handling with specific error types:
 //!
 //! ```rust
-//! use alphapulse_protocol_v2::tlv::{ParseError, ParseResult};
+//! use torq_protocol_v2::tlv::{ParseError, ParseResult};
 //!
 //! fn process_message(data: &[u8]) -> ParseResult<()> {
 //!     // Size validation
@@ -197,8 +197,8 @@
 //! ### Interactive Type Discovery
 //! ```rust
 //! // Comprehensive help system
-//! alphapulse_protocol_v2::help::show_tlv_type_methods();
-//! alphapulse_protocol_v2::help::explore_tlv_type(TLVType::PoolSwap);
+//! torq_protocol_v2::help::show_tlv_type_methods();
+//! torq_protocol_v2::help::explore_tlv_type(TLVType::PoolSwap);
 //! ```
 //!
 //! ### Auto-Generated Documentation
@@ -328,15 +328,15 @@ pub use extended::*;
 // Timestamp functions temporarily unavailable - need to implement or find correct import
 // pub use torq_network::{current_timestamp_ns as fast_timestamp_ns, current_timestamp_ns as precise_timestamp_ns};
 
-// Use safe timestamp function from time module
+// Use safe timestamp function from network time module
 pub fn fast_timestamp_ns() -> u64 {
     // Use safe conversion that prevents silent truncation on overflow
-    alphapulse_time::fast_timestamp_ns()
+    network::fast_timestamp_ns()
 }
 
 pub fn init_timestamp_system() {
     // Initialize the fast cached clock system for ultra-fast timestamps
-    alphapulse_time::init_timestamp_system()
+    network::init_timestamp_system()
 }
 pub use hot_path_buffers::{
     // build_and_send_message, // Temporarily commented out due to circular dependency

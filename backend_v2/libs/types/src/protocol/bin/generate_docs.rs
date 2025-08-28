@@ -1,7 +1,7 @@
 #!/usr/bin/env cargo
 //! Generate documentation from TLV types
 
-use alphapulse_types::tlv::TLVType;
+use torq_types::tlv::TLVType;
 use std::fs;
 
 fn main() {

@@ -3,8 +3,8 @@
 //! Validates that the TLV type consolidation maintains backward compatibility
 //! by ensuring all previously used type numbers still map to the same semantic types.
 
-use alphapulse_types::protocol::tlv::types::TLVType;
-use alphapulse_types::protocol::RelayDomain;
+use torq_codec::protocol::tlv::types::TLVType;
+use torq_codec::protocol::RelayDomain;
 
 #[cfg(test)]
 mod tests {

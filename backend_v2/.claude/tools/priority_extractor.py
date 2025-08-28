@@ -22,8 +22,8 @@ def parse_org_file(org_file_path: str) -> List[Dict]:
         result = subprocess.run([
             "emacs", "--batch",
             "--load", str(emacs_script),
-            "--eval", f'(setq alphapulse/command-args (list "parse" "{org_file_path}"))',
-            "--eval", "(alphapulse/cli-main)"
+            "--eval", f'(setq torq/command-args (list "parse" "{org_file_path}"))',
+            "--eval", "(torq/cli-main)"
         ], capture_output=True, text=True, timeout=10)
         
         if result.returncode != 0:

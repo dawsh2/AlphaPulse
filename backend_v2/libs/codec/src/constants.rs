@@ -2,7 +2,7 @@
 //!
 //! ## Purpose
 //!
-//! Central registry of protocol-level constants used throughout the AlphaPulse system.
+//! Central registry of protocol-level constants used throughout the Torq system.
 //! These values define the core protocol behavior and must remain stable for backward
 //! compatibility across all services and message formats.
 //!
@@ -23,11 +23,11 @@
 //! ```
 //!
 //! The constants module provides the foundational values that ensure protocol
-//! consistency across all AlphaPulse components.
+//! consistency across all Torq components.
 
 /// Protocol magic number for message headers
 ///
-/// This magic number (0xDEADBEEF) is used to identify AlphaPulse Protocol V2 messages
+/// This magic number (0xDEADBEEF) is used to identify Torq Protocol V2 messages
 /// and must be the first 4 bytes of every message header for protocol validation.
 pub const MESSAGE_MAGIC: u32 = 0xDEADBEEF;
 
@@ -44,16 +44,16 @@ pub const PROTOCOL_VERSION: u8 = 1;
 ///
 /// High-frequency market data messages (TLV types 1-19) are routed through
 /// this relay for performance isolation from other message types.
-pub const MARKET_DATA_RELAY_PATH: &str = "/tmp/alphapulse/market_data.sock";
+pub const MARKET_DATA_RELAY_PATH: &str = "/tmp/torq/market_data.sock";
 
 /// Unix domain socket path for signal relay
 ///
 /// Strategy signals and analytics messages (TLV types 20-39, 60-79) are routed
 /// through this relay for coordination between trading strategies and risk management.
-pub const SIGNAL_RELAY_PATH: &str = "/tmp/alphapulse/signals.sock";
+pub const SIGNAL_RELAY_PATH: &str = "/tmp/torq/signals.sock";
 
 /// Unix domain socket path for execution relay
 ///
 /// Order execution and trade confirmation messages (TLV types 40-59) are routed
 /// through this relay with strict validation for financial safety.
-pub const EXECUTION_RELAY_PATH: &str = "/tmp/alphapulse/execution.sock";
+pub const EXECUTION_RELAY_PATH: &str = "/tmp/torq/execution.sock";

@@ -1,4 +1,4 @@
-# AlphaPulse Backend V2
+# Torq Backend V2
 
 > **High-performance cryptocurrency trading system built on clean three-layer architecture**
 
@@ -70,7 +70,7 @@ graph LR
         EX[Exchanges<br/>DEX & CEX]
     end
     
-    subgraph AlphaPulse
+    subgraph Torq
         A[Adapters<br/>Collect Data] --> R[Relays<br/>Route Messages]
         R --> S[Strategies<br/>Generate Signals]
         S --> E[Execution<br/>Submit Orders]

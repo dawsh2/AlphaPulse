@@ -18,20 +18,20 @@ The dashboard relay consumer was only broadcasting Trade messages (type 1). Fixe
 
 ### 1. Start Relays First
 ```bash
-cd /Users/daws/alphapulse/backend_v2
-nohup target/release/market_data_relay > /tmp/alphapulse/logs/market_data_relay.log 2>&1 &
-nohup target/release/signal_relay > /tmp/alphapulse/logs/signal_relay.log 2>&1 &
-nohup target/release/execution_relay > /tmp/alphapulse/logs/execution_relay.log 2>&1 &
+cd /Users/daws/torq/backend_v2
+nohup target/release/market_data_relay > /tmp/torq/logs/market_data_relay.log 2>&1 &
+nohup target/release/signal_relay > /tmp/torq/logs/signal_relay.log 2>&1 &
+nohup target/release/execution_relay > /tmp/torq/logs/execution_relay.log 2>&1 &
 ```
 
 ### 2. Start Polygon Collector
 ```bash
-target/release/polygon > /tmp/alphapulse/logs/polygon_collector.log 2>&1 &
+target/release/polygon > /tmp/torq/logs/polygon_collector.log 2>&1 &
 ```
 
 ### 3. Start Dashboard WebSocket Server
 ```bash
-target/release/alphapulse-dashboard-websocket > /tmp/alphapulse/logs/dashboard_websocket.log 2>&1 &
+target/release/torq-dashboard-websocket > /tmp/torq/logs/dashboard_websocket.log 2>&1 &
 ```
 
 ### 4. Start Frontend Dashboard
@@ -45,7 +45,7 @@ npm run dev:dashboard
 ### Backend Verification
 ```bash
 # Check polygon is processing events
-tail -f /tmp/alphapulse/logs/polygon_collector.log | grep "Processed"
+tail -f /tmp/torq/logs/polygon_collector.log | grep "Processed"
 # Should see: "📊 Processed XXX DEX events (latency: Xμs)"
 
 # Check relays are connected
@@ -53,7 +53,7 @@ ps aux | grep -E '(market_data_relay|signal_relay|execution_relay)' | grep -v gr
 # All three should be running
 
 # Check dashboard is connected to relays
-tail -f /tmp/alphapulse/logs/dashboard_websocket.log | grep "Connected"
+tail -f /tmp/torq/logs/dashboard_websocket.log | grep "Connected"
 # Should see: "Connected to MarketData relay", "Connected to Signal relay", "Connected to Execution relay"
 ```
 
@@ -99,7 +99,7 @@ Should see:
 1. Always start relays BEFORE collectors
 2. Dashboard relay consumer MUST broadcast pool event types (10, 11, 12, 13, 16)
 3. Frontend checks `message.msg_type` not `message.type`
-4. Use `/tmp/alphapulse/*.sock` for Unix sockets
+4. Use `/tmp/torq/*.sock` for Unix sockets
 
 ## Next Steps
 1. Fix UI display (data received but not rendering in tables)

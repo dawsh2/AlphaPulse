@@ -1,6 +1,6 @@
-//! Protocol V2 Compliance Validator for AlphaPulse
+//! Protocol V2 Compliance Validator for Torq
 //!
-//! Comprehensive validation system ensuring code compliance with AlphaPulse's
+//! Comprehensive validation system ensuring code compliance with Torq's
 //! Protocol V2 TLV architecture, including magic number validation, precision
 //! preservation, type registry compliance, and architectural patterns.
 

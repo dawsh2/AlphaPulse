@@ -4,23 +4,20 @@
 //! Features:
 //! - Real pool discovery via RPC with full address resolution
 //! - Proper InstrumentID construction using bijective system
-//! - Full U256 precision preservation for financial calculations
-//! - Production WebSocket connection with automatic reconnection
+//! - Full U256 precision preservation for financial calculations//! - Production WebSocket connection with automatic reconnection
 //! - Comprehensive circuit breaker and rate limiting
 //! - TLV Protocol V2 compliance with 32-byte headers
 
-use alphapulse_adapter_service::{
+use torq_adapter_service::VenueId;
+use torq_adapter_service::{
     Adapter, AdapterError, AdapterHealth, CircuitBreaker, CircuitBreakerConfig, CircuitState,
     ConnectionStatus, InstrumentType, RateLimiter, Result, SafeAdapter,
 };
-use alphapulse_adapter_service::VenueId;
-use alphapulse_types::{
-    common::identifiers::InstrumentId,
-    tlv::market_data::PoolSwapTLV,
-    RelayDomain, SourceType,
+use torq_types::{
+    common::identifiers::InstrumentId, tlv::market_data::PoolSwapTLV, RelayDomain, SourceType,
 };
-use codec::{TLVMessageBuilder, TLVType};
 use async_trait::async_trait;
+use torq_codec::{TLVMessageBuilder, TLVType};
 use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -30,12 +27,12 @@ use tracing::{debug, error, info, warn};
 use web3::types::{Log, H160, U256};
 
 // Pool discovery and state management
-use alphapulse_state_market::pool_cache::{PoolCache, PoolCacheConfig};
-use alphapulse_dex::abi::events::{SwapEventDecoder, detect_dex_protocol, ValidatedSwap};
+use torq_dex::abi::events::{detect_dex_protocol, SwapEventDecoder, ValidatedSwap};
+use torq_state_market::pool_cache::{PoolCache, PoolCacheConfig};
 
 // WebSocket connection
-use tokio_tungstenite::{connect_async, tungstenite::Message};
 use futures_util::{SinkExt, StreamExt};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use crate::config::PolygonConfig;
 
@@ -102,8 +99,8 @@ impl PolygonAdapter {
 
     /// Parse JSON WebSocket message into DEX log event
     fn parse_websocket_message(&self, message: &str) -> Result<Option<Log>> {
-        let json_value: serde_json::Value = serde_json::from_str(message)
-            .map_err(|e| AdapterError::ParseError {
+        let json_value: serde_json::Value =
+            serde_json::from_str(message).map_err(|e| AdapterError::ParseError {
                 venue: VenueId::Polygon,
                 message: "Invalid JSON in WebSocket message".to_string(),
                 error: e.to_string(),
@@ -134,7 +131,8 @@ impl PolygonAdapter {
                 error: "Invalid log format".to_string(),
             })?;
 
-        let address = address_str.parse::<H160>()
+        let address = address_str
+            .parse::<H160>()
             .map_err(|e| AdapterError::ParseError {
                 venue: VenueId::Polygon,
                 message: format!("Invalid address format: {}", address_str),
@@ -210,7 +208,11 @@ impl PolygonAdapter {
         let pool_info = match self.pool_cache.get_or_discover_pool(pool_address).await {
             Ok(info) => info,
             Err(e) => {
-                warn!("Pool discovery failed for 0x{}: {}", hex::encode(pool_address), e);
+                warn!(
+                    "Pool discovery failed for 0x{}: {}",
+                    hex::encode(pool_address),
+                    e
+                );
                 // Don't fail completely - could be a new pool not yet indexed
                 return Ok(None);
             }
@@ -230,8 +232,8 @@ impl PolygonAdapter {
 
         // CRITICAL FIX 2: Construct proper bijective InstrumentID
         let instrument_id = InstrumentId {
-            venue: alphapulse_types::common::identifiers::VenueId::Polygon as u16,
-            asset_type: alphapulse_types::common::identifiers::AssetType::Pool as u8,
+            venue: torq_types::common::identifiers::VenueId::Polygon as u16,
+            asset_type: torq_types::common::identifiers::AssetType::Pool as u8,
             reserved: 0,
             asset_id: u64::from_be_bytes({
                 let mut bytes = [0u8; 8];
@@ -279,14 +281,16 @@ impl PolygonAdapter {
     /// Establish WebSocket connection with automatic reconnection
     async fn connect_websocket(&self) -> Result<()> {
         let url = &self.websocket_url;
-        
+
         info!("🔗 Connecting to Polygon WebSocket: {}", url);
-        
-        let (ws_stream, _) = connect_async(url).await
-            .map_err(|e| AdapterError::ConnectionFailed {
-                venue: VenueId::Polygon,
-                reason: format!("Failed to connect to {}: {}", url, e),
-            })?;
+
+        let (ws_stream, _) =
+            connect_async(url)
+                .await
+                .map_err(|e| AdapterError::ConnectionFailed {
+                    venue: VenueId::Polygon,
+                    reason: format!("Failed to connect to {}: {}", url, e),
+                })?;
 
         let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
@@ -306,7 +310,9 @@ impl PolygonAdapter {
             ]
         });
 
-        ws_sender.send(Message::Text(subscription.to_string())).await
+        ws_sender
+            .send(Message::Text(subscription.to_string()))
+            .await
             .map_err(|e| AdapterError::ConnectionFailed {
                 venue: VenueId::Polygon,
                 reason: format!("Failed to send subscription to {}: {}", url, e),
@@ -326,7 +332,7 @@ impl PolygonAdapter {
                 Ok(Message::Text(text)) => {
                     if let Err(e) = self.handle_websocket_message(&text).await {
                         error!("Error processing WebSocket message: {}", e);
-                        
+
                         let mut metrics = self.health_metrics.write().await;
                         metrics.error_count += 1;
                         metrics.last_error = Some(e.to_string());
@@ -363,7 +369,7 @@ impl PolygonAdapter {
                 let mut metrics = self.health_metrics.write().await;
                 metrics.messages_processed += 1;
                 metrics.last_message_time = Some(Instant::now());
-                
+
                 // In production, would send TLV message to relay here
                 debug!("Swap event processed successfully");
             }
@@ -384,7 +390,8 @@ impl Adapter for PolygonAdapter {
             if matches!(cb.state().await, CircuitState::Open) {
                 return Err(AdapterError::CircuitBreakerOpen {
                     venue: VenueId::Polygon,
-                }.into());
+                }
+                .into());
             }
         }
 
@@ -410,11 +417,11 @@ impl Adapter for PolygonAdapter {
             }
             Err(e) => {
                 error!("❌ Failed to establish WebSocket connection: {}", e);
-                
+
                 // Record failure in circuit breaker
                 let cb = self.circuit_breaker.write().await;
                 cb.on_failure().await;
-                
+
                 return Err(e);
             }
         }
@@ -477,24 +484,28 @@ impl Adapter for PolygonAdapter {
 
     async fn configure_instruments(&mut self, instruments: Vec<String>) -> Result<()> {
         info!("Configuring {} DEX pools for monitoring", instruments.len());
-        
+
         // Pre-load pool info for specified instruments
         for instrument in instruments {
             if let Ok(address) = hex::decode(&instrument) {
                 if address.len() == 20 {
                     let pool_address: [u8; 20] = address.try_into().unwrap();
-                    
+
                     // Trigger pool discovery in background
                     let pool_cache = self.pool_cache.clone();
                     tokio::spawn(async move {
                         if let Err(e) = pool_cache.get_or_discover_pool(pool_address).await {
-                            debug!("Failed to pre-load pool 0x{}: {}", hex::encode(pool_address), e);
+                            debug!(
+                                "Failed to pre-load pool 0x{}: {}",
+                                hex::encode(pool_address),
+                                e
+                            );
                         }
                     });
                 }
             }
         }
-        
+
         Ok(())
     }
 
@@ -504,24 +515,23 @@ impl Adapter for PolygonAdapter {
         output_buffer: &mut [u8],
     ) -> Result<Option<usize>> {
         let start = Instant::now();
-        
+
         // Parse WebSocket message from raw bytes
-        let message_text = std::str::from_utf8(raw_data)
-            .map_err(|e| AdapterError::ParseError {
-                venue: VenueId::Polygon,
-                message: "Invalid UTF-8 in WebSocket message".to_string(),
-                error: e.to_string(),
-            })?;
+        let message_text = std::str::from_utf8(raw_data).map_err(|e| AdapterError::ParseError {
+            venue: VenueId::Polygon,
+            message: "Invalid UTF-8 in WebSocket message".to_string(),
+            error: e.to_string(),
+        })?;
 
         // Parse JSON and extract DEX log event
         let log_opt = self.parse_websocket_message(message_text)?;
-        
+
         if let Some(log) = log_opt {
             // Process swap event if it's a swap
             if let Some(swap_tlv) = self.process_swap_event(&log).await? {
-                
                 // Build Protocol V2 TLV message with proper 32-byte header
-                let builder = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
+                let builder =
+                    TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
                 let tlv_message = builder
                     .add_tlv(TLVType::PoolSwap, &swap_tlv)
                     .build()
@@ -530,17 +540,21 @@ impl Adapter for PolygonAdapter {
                         message: "Failed to build TLV message".to_string(),
                         error: e.to_string(),
                     })?;
-                
+
                 // Enforce hot path latency requirement
                 let elapsed = start.elapsed();
                 if elapsed > Duration::from_micros(self.config.max_processing_latency_us) {
-                    warn!("🔥 Hot path latency violation: {}μs > {}μs", 
-                          elapsed.as_micros(), self.config.max_processing_latency_us);
-                    
+                    warn!(
+                        "🔥 Hot path latency violation: {}μs > {}μs",
+                        elapsed.as_micros(),
+                        self.config.max_processing_latency_us
+                    );
+
                     // Update error metrics but don't fail - continue processing
                     let mut metrics = self.health_metrics.write().await;
                     metrics.error_count += 1;
-                    metrics.last_error = Some(format!("Latency violation: {}μs", elapsed.as_micros()));
+                    metrics.last_error =
+                        Some(format!("Latency violation: {}μs", elapsed.as_micros()));
                 }
 
                 // Copy TLV message to output buffer
@@ -548,7 +562,11 @@ impl Adapter for PolygonAdapter {
                     return Err(AdapterError::ParseError {
                         venue: VenueId::Polygon,
                         message: "Output buffer too small".to_string(),
-                        error: format!("need {} bytes, have {}", tlv_message.len(), output_buffer.len()),
+                        error: format!(
+                            "need {} bytes, have {}",
+                            tlv_message.len(),
+                            output_buffer.len()
+                        ),
                     });
                 }
 
@@ -582,16 +600,16 @@ impl SafeAdapter for PolygonAdapter {
     async fn trigger_circuit_breaker(&self) -> Result<()> {
         let cb = self.circuit_breaker.write().await;
         cb.on_failure().await;
-        
+
         if matches!(cb.state().await, CircuitState::Open) {
             warn!("🔴 Circuit breaker opened for Polygon adapter");
-            
+
             // Update error metrics
             let mut metrics = self.health_metrics.write().await;
             metrics.error_count += 1;
             metrics.last_error = Some("Circuit breaker opened".to_string());
         }
-        
+
         Ok(())
     }
 
@@ -615,7 +633,7 @@ impl SafeAdapter for PolygonAdapter {
 
     async fn validate_connection(&self, timeout_ms: u64) -> Result<bool> {
         let start = Instant::now();
-        
+
         // Check connection status
         let is_connected = matches!(
             *self.connection_status.read().await,
@@ -624,8 +642,11 @@ impl SafeAdapter for PolygonAdapter {
 
         let elapsed = start.elapsed();
         if elapsed > Duration::from_millis(timeout_ms) {
-            warn!("Connection validation timeout: {}ms > {}ms", 
-                  elapsed.as_millis(), timeout_ms);
+            warn!(
+                "Connection validation timeout: {}ms > {}ms",
+                elapsed.as_millis(),
+                timeout_ms
+            );
             return Ok(false);
         }
 

@@ -25,7 +25,7 @@ impl RelayTestFramework {
         
         // Start market data relay process for testing
         let relay_process = tokio::process::Command::new("cargo")
-            .args(&["run", "--release", "--package", "alphapulse-market-data-relay", "--bin", "market_data_relay"])
+            .args(&["run", "--release", "--package", "torq-market-data-relay", "--bin", "market_data_relay"])
             .env("MARKET_DATA_SOCKET", &test_socket_path)
             .env("RUST_LOG", "debug")
             .spawn()

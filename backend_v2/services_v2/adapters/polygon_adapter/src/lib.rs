@@ -1,6 +1,6 @@
 //! Polygon DEX Adapter Plugin
 //!
-//! This adapter implements the AlphaPulse Adapter trait for Polygon DEX data collection.
+//! This adapter implements the Torq Adapter trait for Polygon DEX data collection.
 //! It connects to Polygon's WebSocket endpoint, processes DEX events (swaps, mints, burns),
 //! and converts them to Protocol V2 TLV messages with proper zero-copy serialization.
 //!

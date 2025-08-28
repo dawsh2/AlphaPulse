@@ -24,10 +24,10 @@
 
 use crate::error::{ProtocolError, ProtocolResult};
 use crate::parser::{parse_tlv_extensions, TLVExtensionEnum};
-use alphapulse_types::protocol::tlv::types::TLVType;
+use torq_codec::protocol::tlv::types::TLVType;
 use crate::tlv_types::TlvTypeRegistry;
-use alphapulse_types::protocol::message::header::MessageHeader;
-use alphapulse_types::{RelayDomain, SourceType};
+use torq_types::protocol::message::header::MessageHeader;
+use torq_types::{RelayDomain, SourceType};
 use std::collections::HashMap;
 use thiserror::Error;
 use tracing::{debug, warn};
@@ -181,9 +181,9 @@ impl TLVValidator {
     /// Validate message header fields
     fn validate_header(&self, header: &MessageHeader) -> Result<(), ValidationError> {
         // Magic number validation (should be done by parser, but double-check)
-        if header.magic != alphapulse_types::MESSAGE_MAGIC {
+        if header.magic != torq_types::MESSAGE_MAGIC {
             return Err(ValidationError::Protocol(ProtocolError::invalid_magic(
-                alphapulse_types::MESSAGE_MAGIC,
+                torq_types::MESSAGE_MAGIC,
                 header.magic,
                 0,
             )));
@@ -557,7 +557,7 @@ pub fn create_domain_validator(domain: RelayDomain) -> Box<dyn DomainValidator> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alphapulse_types::{RelayDomain, SourceType};
+    use torq_types::{RelayDomain, SourceType};
 
     #[test]
     fn test_validator_creation() {

@@ -1,9 +1,9 @@
-# AlphaPulse Testing Environment Configuration
+# Torq Testing Environment Configuration
 
 # Testing paths with unique identifiers
-socket_dir = "/tmp/alphapulse-test"
-log_dir = "/tmp/alphapulse_logs_test"
-pid_file = "/tmp/alphapulse_test.pids"
+socket_dir = "/tmp/torq-test"
+log_dir = "/tmp/torq_logs_test"
+pid_file = "/tmp/torq_test.pids"
 
 # Service-specific configurations for testing
 [services]

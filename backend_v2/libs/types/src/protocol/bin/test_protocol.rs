@@ -8,11 +8,11 @@ mod core {
     pub use std::mem;
 }
 
-use alphapulse_types::recovery::request::{RecoveryRequestTLV, RecoveryRequestType};
-use alphapulse_types::*;
+use torq_types::recovery::request::{RecoveryRequestTLV, RecoveryRequestType};
+use torq_types::*;
 
 // Import codec functionality for message building and parsing
-use codec::{
+use torq_codec::{
     TLVMessageBuilder, VendorTLVBuilder, parse_header, parse_header_without_checksum,
     parse_tlv_extensions, find_tlv_by_type, extract_tlv_payload, validate_tlv_size,
     TLVExtensionEnum, SimpleTLVExtension, ExtendedTLVExtension,
@@ -60,7 +60,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn test_basic_tlv_roundtrip() -> alphapulse_types::Result<()> {
+fn test_basic_tlv_roundtrip() -> torq_types::Result<()> {
     // Create test Trade TLV (37 bytes to match expected size)
     use std::time::SystemTime;
 
@@ -125,7 +125,7 @@ fn test_basic_tlv_roundtrip() -> alphapulse_types::Result<()> {
     Ok(())
 }
 
-fn test_extended_tlv_handling() -> alphapulse_types::Result<()> {
+fn test_extended_tlv_handling() -> torq_types::Result<()> {
     // Create large payload (>255 bytes) to trigger extended TLV format
     let large_payload = vec![0x42u8; 1000];
 
@@ -168,7 +168,7 @@ fn test_extended_tlv_handling() -> alphapulse_types::Result<()> {
     Ok(())
 }
 
-fn test_bijective_id_properties() -> alphapulse_types::Result<()> {
+fn test_bijective_id_properties() -> torq_types::Result<()> {
     println!("  🔍 Testing token IDs...");
 
     // Test Ethereum token creation
@@ -254,7 +254,7 @@ fn test_bijective_id_properties() -> alphapulse_types::Result<()> {
     Ok(())
 }
 
-fn test_recovery_protocol() -> alphapulse_types::Result<()> {
+fn test_recovery_protocol() -> torq_types::Result<()> {
     // Use the actual RecoveryRequestTLV struct
     let recovery_request = RecoveryRequestTLV::new(
         42,                              // consumer_id
@@ -293,7 +293,7 @@ fn test_recovery_protocol() -> alphapulse_types::Result<()> {
     Ok(())
 }
 
-fn test_selective_checksums() -> alphapulse_types::Result<()> {
+fn test_selective_checksums() -> torq_types::Result<()> {
     #[repr(C)]
     #[derive(AsBytes, FromBytes, FromZeroes)]
     struct DummyData {
@@ -358,7 +358,7 @@ fn test_selective_checksums() -> alphapulse_types::Result<()> {
     Ok(())
 }
 
-fn test_performance_characteristics() -> alphapulse_types::Result<()> {
+fn test_performance_characteristics() -> torq_types::Result<()> {
     use std::time::Instant;
 
     #[repr(C)]

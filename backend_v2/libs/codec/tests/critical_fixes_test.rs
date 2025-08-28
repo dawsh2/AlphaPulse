@@ -8,12 +8,12 @@
 //! 5. Error context preservation
 //! 6. Configurable validation parameters
 
-use codec::{
+use torq_codec::{
     EnhancedTLVValidator, EnhancedValidationError, ValidationConfig,
     SequenceTracker, PoolDiscoveryQueue, TLVType,
     ValidatingTLVMessageBuilder, ValidationError,
 };
-use alphapulse_types::{RelayDomain, SourceType};
+use torq_types::{RelayDomain, SourceType};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Test 1: Proper checksum validation per Protocol V2 spec
@@ -169,10 +169,10 @@ fn test_configurable_validation() {
     assert!(!dev_config.timestamp.enforce_validation);
     
     // Test environment override
-    std::env::set_var("ALPHAPULSE_MAX_MESSAGE_SIZE_MARKET", "1024");
+    std::env::set_var("TORQ_MAX_MESSAGE_SIZE_MARKET", "1024");
     let env_config = ValidationConfig::from_env();
     assert_eq!(env_config.max_message_sizes.market_data, 1024);
-    std::env::remove_var("ALPHAPULSE_MAX_MESSAGE_SIZE_MARKET");
+    std::env::remove_var("TORQ_MAX_MESSAGE_SIZE_MARKET");
 }
 
 /// Test 7: Pool discovery queue mechanism
@@ -248,7 +248,7 @@ fn test_performance_no_regression() {
 // Helper functions
 
 fn create_test_message_with_checksum() -> Vec<u8> {
-    use codec::TLVMessageBuilder;
+    use torq_codec::TLVMessageBuilder;
     
     let builder = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::Test);
     builder
@@ -262,7 +262,7 @@ fn create_test_message_market_data() -> Vec<u8> {
 }
 
 fn create_message_with_pool(pool_addr: [u8; 20]) -> Vec<u8> {
-    use codec::TLVMessageBuilder;
+    use torq_codec::TLVMessageBuilder;
     
     // Create a PoolSwap TLV with the pool address
     let mut pool_swap_data = vec![0u8; 60];

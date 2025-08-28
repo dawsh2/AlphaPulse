@@ -43,7 +43,7 @@ impl Default for ContinuousStreamingConfig {
         Self {
             test_duration_secs: 300, // 5 minutes by default
             polygon_websocket_url: "wss://polygon-mainnet.g.alchemy.com/v2/demo".to_string(),
-            relay_socket_path: "/tmp/alphapulse/market_data.sock".to_string(),
+            relay_socket_path: "/tmp/torq/market_data.sock".to_string(),
             min_events_per_minute: 5, // Expect at least 5 DEX events per minute
             max_processing_latency_ms: 100, // 100ms max per event
             verbose_logging: true,
@@ -160,7 +160,7 @@ impl ContinuousPolygonValidator {
     async fn start_market_data_relay(&mut self) -> Result<()> {
         info!("📡 Starting Market Data Relay for continuous streaming");
 
-        std::fs::create_dir_all("/tmp/alphapulse")?;
+        std::fs::create_dir_all("/tmp/torq")?;
         if std::path::Path::new(&self.config.relay_socket_path).exists() {
             std::fs::remove_file(&self.config.relay_socket_path)?;
         }

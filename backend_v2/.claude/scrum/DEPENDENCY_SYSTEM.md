@@ -1,8 +1,8 @@
-# AlphaPulse Self-Organizing Task Dependency System
+# Torq Self-Organizing Task Dependency System
 
 ## Overview
 
-The Self-Organizing Task Dependency System transforms AlphaPulse's project management from rigid sprint-based planning to a flexible, Just-In-Time (JIT) task queue system. This prevents dependency conflicts and ensures optimal task execution order.
+The Self-Organizing Task Dependency System transforms Torq's project management from rigid sprint-based planning to a flexible, Just-In-Time (JIT) task queue system. This prevents dependency conflicts and ensures optimal task execution order.
 
 ## Key Features
 
@@ -395,4 +395,4 @@ Potential improvements to the system:
 
 ---
 
-*The Self-Organizing Task Dependency System ensures that the right work happens at the right time, preventing the dependency conflicts that previously caused friction in the AlphaPulse development process.*
+*The Self-Organizing Task Dependency System ensures that the right work happens at the right time, preventing the dependency conflicts that previously caused friction in the Torq development process.*

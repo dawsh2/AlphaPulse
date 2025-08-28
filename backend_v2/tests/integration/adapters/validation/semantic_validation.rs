@@ -5,7 +5,7 @@
 
 use crate::fixtures::polygon;
 use crate::*;
-use alphapulse_adapter_service::{SemanticValidator, ValidationResult};
+use torq_adapter_service::{SemanticValidator, ValidationResult};
 use protocol_v2::tlv::market_data::PoolSwapTLV;
 
 #[test]
@@ -138,7 +138,7 @@ fn test_semantic_validation_sqrt_price_requirements() {
 #[test]
 fn test_semantic_validation_with_real_polygon_data() {
     // Test semantic validation with actual Polygon transaction data
-    use alphapulse_adapter_service::input::collectors::polygon_dex::{
+    use torq_adapter_service::input::collectors::polygon_dex::{
         abi_events::{DEXProtocol, SwapEventDecoder},
         validated_decoder::PolygonRawSwapEvent,
     };

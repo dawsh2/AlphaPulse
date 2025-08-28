@@ -1,6 +1,6 @@
 //! Performance benchmarks for message processing
 
-use codec::{InstrumentId, TLVHeader, TLVMessage, TLVType, VenueId};
+use torq_codec::{InstrumentId, TLVHeader, TLVMessage, TLVType, VenueId};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use serde_json::json;
 

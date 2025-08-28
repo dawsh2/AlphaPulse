@@ -10,7 +10,7 @@
 
 **Traditional TDD:** Write test → Watch it fail → Write code → Make it pass
 
-**For AI Agents in AlphaPulse:** The answer is nuanced:
+**For AI Agents in Torq:** The answer is nuanced:
 
 #### ✅ YES - Write Tests First When:
 1. **Implementing well-defined specifications** (e.g., TLV protocol messages)
@@ -26,7 +26,7 @@
 2. **Skip tests because "we'll add them later"** (you won't)
 3. **Write meaningless tests** that don't actually validate correctness
 
-### The Right Approach for AlphaPulse
+### The Right Approach for Torq
 
 ```rust
 // 1. FIRST: Define what correct behavior looks like
@@ -112,7 +112,7 @@ pub fn process_market_data(data: &[u8]) -> Result<MarketEvent> {
 
 ## Testing Philosophy
 
-**Reference Documentation**: Before writing tests, consult `.claude/practices.md` for AlphaPulse-specific requirements (zero-copy, precision, TLV compliance), `.claude/principles.md` for engineering patterns that should be validated in tests, and `.claude/style.md` for test code organization and naming conventions.
+**Reference Documentation**: Before writing tests, consult `.claude/practices.md` for Torq-specific requirements (zero-copy, precision, TLV compliance), `.claude/principles.md` for engineering patterns that should be validated in tests, and `.claude/style.md` for test code organization and naming conventions.
 
 ### Real Data Only - NO MOCKS
 - **NEVER** use mock data, mock services, or mocked responses
@@ -186,7 +186,7 @@ websocat -v wss://stream.exchange.com
 ### TLV Message Debugging
 ```rust
 // Inspect TLV messages with Protocol V2
-use alphapulse_protocol_v2::{parse_header, parse_tlv_extensions, TLVType};
+use torq_protocol_v2::{parse_header, parse_tlv_extensions, TLVType};
 
 // Parse message header (32 bytes)
 let header = parse_header(&message_bytes)?;
@@ -231,7 +231,7 @@ rq docs "validation"            # Input validation and integrity checks
 tail -f logs/market_data_relay.log logs/signal_relay.log logs/execution_relay.log | grep "sequence"
 
 # Debug TLV parsing issues
-RUST_LOG=alphapulse_protocol_v2::tlv=debug cargo run
+RUST_LOG=torq_protocol_v2::tlv=debug cargo run
 
 # Monitor relay consumer connections
 tail -f logs/relay_consumer_registry.log
@@ -266,10 +266,10 @@ cargo flamegraph --bin exchange_collector
 ### Service Crash Recovery
 ```bash
 # Check service status
-systemctl status alphapulse-*
+systemctl status torq-*
 
 # Restart individual service
-systemctl restart alphapulse-collector
+systemctl restart torq-collector
 
 # Full system restart
 ./scripts/restart_all_services.sh
@@ -287,7 +287,7 @@ python scripts/compare_with_exchange.py --exchange kraken --duration 60
 ## Zero-Allocation Testing Infrastructure
 
 ### Automated Allocation Detection
-AlphaPulse uses a custom global allocator wrapper to detect allocation regressions in hot paths:
+Torq uses a custom global allocator wrapper to detect allocation regressions in hot paths:
 
 ```bash
 # Run zero-allocation tests to ensure hot path performance

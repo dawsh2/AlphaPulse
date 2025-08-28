@@ -8,7 +8,7 @@
 
 mod common;
 
-use alphapulse_types::protocol::{
+use torq_types::protocol::{
     parse_header,
     tlv::{ParseError, TLVMessageBuilder},
     validation::calculate_crc32_excluding_checksum,
@@ -290,7 +290,7 @@ fn test_message_padding_alignment() {
 #[test]
 fn test_domain_routing_consistency() {
     // Ensure domain in header matches TLV types
-    use alphapulse_types::protocol::TLVType;
+    use torq_codec::protocol::TLVType;
 
     // Market data domain should only contain market data TLVs
     let market_msg = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::Dashboard)

@@ -1,6 +1,6 @@
-//! End-to-End Test Runner for AlphaPulse
+//! End-to-End Test Runner for Torq
 
-use alphapulse_e2e_tests::{
+use torq_e2e_tests::{
     framework::{TestConfig, TestFramework, ValidationLevel},
     scenarios::{KrakenToDashboardTest, PolygonArbitrageTest},
     TestResult,
@@ -58,14 +58,14 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive(format!("alphapulse_e2e_tests={}", log_level).parse()?)
-                .add_directive(format!("alphapulse_adapters={}", log_level).parse()?)
-                .add_directive(format!("alphapulse_protocol={}", log_level).parse()?),
+                .add_directive(format!("torq_e2e_tests={}", log_level).parse()?)
+                .add_directive(format!("torq_adapters={}", log_level).parse()?)
+                .add_directive(format!("torq_protocol={}", log_level).parse()?),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    info!("Starting AlphaPulse E2E Test Suite");
+    info!("Starting Torq E2E Test Suite");
     info!("Version: {}", env!("CARGO_PKG_VERSION"));
 
     // Parse validation level
@@ -85,7 +85,7 @@ async fn main() -> Result<()> {
         cleanup: !args.no_cleanup,
         verbose: args.verbose,
         validation_level,
-        data_dir: PathBuf::from("/tmp/alphapulse_e2e_tests"),
+        data_dir: PathBuf::from("/tmp/torq_e2e_tests"),
     };
 
     // Create test framework

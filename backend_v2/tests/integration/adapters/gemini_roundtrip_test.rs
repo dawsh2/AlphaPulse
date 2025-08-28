@@ -8,7 +8,7 @@
 //! 5. Deep equality between original and recovered TLV
 //! 6. Semantic equality with original Gemini data
 
-use alphapulse_adapter_service::input::collectors::gemini::{
+use torq_adapter_service::input::collectors::gemini::{
     GeminiMarketDataEvent, GeminiTradeEvent,
 };
 use protocol_v2::{InstrumentId, TradeTLV, VenueId};
@@ -237,7 +237,7 @@ fn test_gemini_edge_cases() {
 
 #[test]
 fn test_multiple_symbol_support() {
-    use alphapulse_adapter_service::GeminiCollector;
+    use torq_adapter_service::GeminiCollector;
     use tokio::sync::mpsc;
 
     let (tx, _rx) = mpsc::channel(100);

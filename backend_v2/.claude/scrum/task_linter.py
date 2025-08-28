@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Task Linter for AlphaPulse Self-Organizing Task System
+Task Linter for Torq Self-Organizing Task System
 Validates task metadata to ensure data integrity
 """
 

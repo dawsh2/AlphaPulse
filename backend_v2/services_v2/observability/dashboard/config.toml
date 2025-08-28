@@ -1,0 +1,17 @@
+# Torq Dashboard WebSocket Server Configuration
+
+bind_address = "127.0.0.1"
+port = 8081
+
+# Relay paths
+market_data_relay_path = "/tmp/torq/market_data.sock"
+signal_relay_path = "/tmp/torq/signals.sock"
+execution_relay_path = "/tmp/torq/execution.sock"
+
+# Connection limits
+max_connections = 1000
+client_buffer_size = 1000
+
+# Features
+enable_cors = true
+heartbeat_interval_secs = 30

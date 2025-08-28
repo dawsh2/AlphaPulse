@@ -1,6 +1,6 @@
 //! # TraceCollector Service
 //!
-//! Central aggregation service for AlphaPulse distributed tracing system.
+//! Central aggregation service for Torq distributed tracing system.
 //! Provides real-time message flow observability across all components.
 //!
 //! ## Architecture
@@ -36,7 +36,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let collector = TraceCollector::new("/tmp/alphapulse/traces.sock").await?;
+//!     let collector = TraceCollector::new("/tmp/torq/traces.sock").await?;
 //!     collector.start().await?;
 //!     Ok(())
 //! }
@@ -54,7 +54,7 @@ pub use events::{EventBuffer, TraceEventProcessor};
 pub use health::{CollectorHealth, HealthReporter};
 pub use timeline::{MessageFlow, TraceSpan, TraceTimeline};
 
-// use alphapulse_types::{SourceType, TraceEvent, TraceEventType};
+// use torq_types::{SourceType, TraceEvent, TraceEventType};
 use thiserror::Error;
 
 /// Errors that can occur in the TraceCollector service
@@ -110,7 +110,7 @@ pub struct TraceCollectorConfig {
 impl Default for TraceCollectorConfig {
     fn default() -> Self {
         Self {
-            socket_path: "/tmp/alphapulse/traces.sock".to_string(),
+            socket_path: "/tmp/torq/traces.sock".to_string(),
             api_port: 8080,
             max_active_traces: 10_000,
             max_completed_traces: 1_000,

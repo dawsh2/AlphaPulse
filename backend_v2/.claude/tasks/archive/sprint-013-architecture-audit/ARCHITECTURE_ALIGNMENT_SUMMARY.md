@@ -9,7 +9,7 @@
 ### 1. Network Layer Restructuring ✅
 - **Moved** `network/transport/src/*` → `network/src/`
 - **Created** `network/src/transport.rs` module to export transport functionality
-- **Updated** package name from `alphapulse-transport` to `alphapulse-network` 
+- **Updated** package name from `torq-transport` to `torq-network` 
 - **Result**: Proper network layer structure at `network/` level
 
 ### 2. Strategy Layer Reorganization ✅
@@ -35,7 +35,7 @@
 - **Result**: Comprehensive end-to-end pipeline test
 
 ### 5. Dependency Updates ✅
-- **Updated** all references from `alphapulse-transport` to `alphapulse-network`
+- **Updated** all references from `torq-transport` to `torq-network`
 - **Fixed** workspace Cargo.toml to reflect new structure
 - **Removed** duplicate crate entries
 - **Result**: Clean dependency tree with no conflicts
@@ -50,7 +50,7 @@
 - Dependency updates: ~30 files updated
 
 ### Breaking Changes
-- `alphapulse-transport` renamed to `alphapulse-network`
+- `torq-transport` renamed to `torq-network`
 - Strategy crates consolidated into single crate
 - Network transport now at `network/src/` instead of `network/transport/src/`
 
@@ -78,7 +78,7 @@ While full compilation still has minor issues to resolve (duplicate imports, etc
 2. **Run validation suite**:
    ```bash
    cargo test --workspace
-   cargo bench --package alphapulse-types
+   cargo bench --package torq-types
    ```
 
 3. **Update documentation**:

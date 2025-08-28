@@ -3,7 +3,7 @@
 //! Builds complete message flow timelines from individual trace events.
 
 use crate::{trace_id_to_hex, Result, TraceError, TraceId};
-use alphapulse_types::{SourceType, TraceEvent, TraceEventType};
+use torq_types::{SourceType, TraceEvent, TraceEventType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::time::Instant;
@@ -342,7 +342,7 @@ mod instant_serde {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alphapulse_types::{SourceType, TraceEvent, TraceEventType};
+    use torq_types::{SourceType, TraceEvent, TraceEventType};
     use std::collections::HashMap;
 
     fn create_test_event(

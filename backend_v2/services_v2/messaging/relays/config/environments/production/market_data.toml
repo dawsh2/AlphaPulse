@@ -1,0 +1,36 @@
+# Production market data relay configuration
+# High-performance, minimal validation for maximum throughput
+
+[relay]
+domain = 1
+name = "market_data_relay"
+max_connections = 5000
+
+[transport]
+mode = "unix_socket"
+path = "/var/run/torq/market_data.sock"
+buffer_size = 131072                     # 128KB buffer for high volume
+use_topology = false
+
+[validation]
+checksum = false                         # Disable for performance
+audit = false                          # Disable for performance
+strict = false
+max_message_size = 16777216
+
+[topics]
+default = "market_data.unknown"
+auto_discover = true
+extraction_strategy = "source_type"
+cleanup_interval_ms = 10000            # Less frequent cleanup
+
+[performance]
+target_throughput = 1000000             # 1M messages/second
+buffer_size = 65536                     # 64KB internal buffer
+batch_size = 1000                       # Large batches
+max_latency_ms = 5                      # Ultra-low latency
+
+[logging]
+level = "warn"                          # Minimal logging
+format = "json"
+file = "/var/log/torq/market_data.log"

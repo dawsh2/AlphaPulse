@@ -28,13 +28,29 @@
                 (state (org-get-todo-state))
                 (heading (org-get-heading t t t t))
                 (tags (org-get-tags))
-                (priority (org-entry-get nil "PRIORITY"))
+                (local-priority-val (org-get-priority (thing-at-point 'line)))
+                (local-priority (cond
+                                ((>= local-priority-val 2000) "A")
+                                ((>= local-priority-val 1000) "B")
+                                (t "C")))
+                (priority (or (when (not (= local-priority-val 1000)) local-priority) ; Don't use default B
+                            (save-excursion
+                              (let ((inherited nil))
+                                (while (and (not inherited) (org-up-heading-safe))
+                                  (let ((parent-priority-val (org-get-priority (thing-at-point 'line))))
+                                    (when (not (= parent-priority-val 1000)) ; Don't inherit default B
+                                      (setq inherited (cond
+                                                      ((>= parent-priority-val 2000) "A")
+                                                      ((>= parent-priority-val 1000) "B")
+                                                      (t "C"))))))
+                                inherited))
+                            "B")) ; Default to B if no priority found
                 (level (org-current-level))
                 (props (org-entry-properties))
                 (scheduled (org-entry-get nil "SCHEDULED"))
                 (deadline (org-entry-get nil "DEADLINE"))
                 (body (org-get-entry))
-                (is-goal (and (= level 1) (null state)))
+                (is-goal (and (= level 1) state))  ; Goals are level 1 WITH state
                 (is-actionable nil)
                 (effective-status state))
            
@@ -92,13 +108,13 @@
   (org-mode)
   (goto-char (point-min))
   
-  ;; Find task by ID
+  ;; Find task by ID using org-map-entries for accuracy
   (let ((task-found nil))
-    (while (and (not task-found) (re-search-forward ":ID:\\s-+\\(.*\\)" nil t))
-      (when (string= (match-string 1) task-id)
-        (setq task-found t)
-        (org-back-to-heading)
-        (org-todo new-state)))
+    (org-map-entries
+     (lambda ()
+       (when (string= (org-entry-get nil "ID") task-id)
+         (setq task-found t)
+         (org-todo new-state))))
     
     (if task-found
         (progn
@@ -195,9 +211,11 @@
          (let ((state (cdr (assoc 'state task-data)))
                (depends (cdr (assoc 'depends task-data)))
                (is-actionable (cdr (assoc 'is_actionable task-data))))
-           ;; Task is ready if actionable and effective status is READY
+           ;; Task is ready if actionable, in TODO/NEXT state, and dependencies are met
            (when (and is-actionable
-                      (string= (cdr (assoc 'effective_status task-data)) "READY"))
+                      (member state '("TODO" "NEXT"))
+                      (or (null depends)
+                          (alphapulse/all-dependencies-done depends all-tasks)))
              (push `((id . ,id) ,@task-data) ready-tasks))))
        all-tasks)
       
@@ -227,15 +245,15 @@
      (t (string< (cdr (assoc 'id a)) (cdr (assoc 'id b)))))))
 
 ;; Global variable to store command arguments
-(defvar alphapulse/command-args nil
-  "Command arguments for alphapulse CLI.")
+(defvar torq/command-args nil
+  "Command arguments for torq CLI.")
 
 ;; Command-line interface
-(defun alphapulse/cli-main ()
+(defun torq/cli-main ()
   "Main entry point for batch mode."
-  (when alphapulse/command-args
-    (let ((command (car alphapulse/command-args))
-          (file (cadr alphapulse/command-args)))
+  (when torq/command-args
+    (let ((command (car torq/command-args))
+          (file (cadr torq/command-args)))
       (cond
        ((string= command "parse")
         (alphapulse/parse-tasks-to-json file))
@@ -244,18 +262,18 @@
         (alphapulse/get-ready-tasks file))
        
        ((string= command "update")
-        (let ((task-id (nth 2 alphapulse/command-args))
-              (new-state (nth 3 alphapulse/command-args)))
+        (let ((task-id (nth 2 torq/command-args))
+              (new-state (nth 3 torq/command-args)))
           (alphapulse/update-task-state file task-id new-state)))
        
        ((string= command "add")
-        (let ((heading (nth 2 alphapulse/command-args))
-              (state (or (nth 3 alphapulse/command-args) "TODO"))
-              (priority (nth 4 alphapulse/command-args))
-              (tags (nth 5 alphapulse/command-args))
-              (properties (nth 6 alphapulse/command-args))
-              (body (nth 7 alphapulse/command-args))
-              (parent-id (nth 8 alphapulse/command-args)))
+        (let ((heading (nth 2 torq/command-args))
+              (state (or (nth 3 torq/command-args) "TODO"))
+              (priority (nth 4 torq/command-args))
+              (tags (nth 5 torq/command-args))
+              (properties (nth 6 torq/command-args))
+              (body (nth 7 torq/command-args))
+              (parent-id (nth 8 torq/command-args)))
           (alphapulse/add-task file heading state priority tags properties body parent-id)))
        
        (t

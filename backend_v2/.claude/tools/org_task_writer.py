@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Org-mode Task Writer for AlphaPulse Task Management System
+Org-mode Task Writer for Torq Task Management System
 
 Modifies org-mode files by adding, updating, or deleting tasks while preserving structure.
 Maintains file integrity and validates changes.
@@ -394,7 +394,7 @@ class OrgTaskWriter:
     
     def _get_file_header(self) -> str:
         """Get default file header for new org files"""
-        return """#+TITLE: AlphaPulse Tasks
+        return """#+TITLE: Torq Tasks
 #+TODO: TODO NEXT IN-PROGRESS WAITING | DONE CANCELLED
 #+STARTUP: overview
 #+STARTUP: hidestars

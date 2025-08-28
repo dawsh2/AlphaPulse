@@ -9,7 +9,7 @@ use tokio::net::UnixStream;
 use tracing::{debug, error, info, warn};
 use zerocopy::AsBytes;
 
-use alphapulse_types::tlv::{
+use torq_types::tlv::{
     dynamic_payload::DynamicPayload,
     market_data::{PoolBurnTLV, PoolLiquidityTLV, PoolMintTLV, PoolSwapTLV, PoolTickTLV},
 };
@@ -371,7 +371,7 @@ async fn main() {
     info!("   Connecting to MarketDataRelay to validate live Polygon data");
 
     let stats = Arc::new(ValidationStats::default());
-    let socket_path = "/tmp/alphapulse/market_data.sock";
+    let socket_path = "/tmp/torq/market_data.sock";
 
     // Connect to relay
     let mut stream = match UnixStream::connect(socket_path).await {

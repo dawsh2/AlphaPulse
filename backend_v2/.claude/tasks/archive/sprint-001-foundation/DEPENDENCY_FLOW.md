@@ -235,7 +235,7 @@ After full integration, expect:
 cargo test --package services_v2 pool_cache_integration
 cargo test --package services_v2 event_extraction
 cargo test --package services_v2 discovery_queue
-cargo test --package alphapulse-state-market rpc_discovery
+cargo test --package torq-state-market rpc_discovery
 cargo test --package services_v2 tlv_builder
 
 # Test full integration

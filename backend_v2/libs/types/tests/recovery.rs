@@ -8,7 +8,7 @@
 
 mod common;
 
-use alphapulse_types::protocol::{
+use torq_types::protocol::{
     recovery::{RecoveryRequestBuilder, RecoveryRequestTLV, RecoveryRequestType},
     tlv::TLVMessageBuilder,
     MessageHeader, RelayDomain, SourceType, TLVType,
@@ -275,7 +275,7 @@ fn test_recovery_during_arbitrage_opportunity() {
 #[test]
 fn test_orderbook_snapshot_recovery() {
     // Orderbook state recovery after disconnection
-    use alphapulse_types::protocol::InstrumentId;
+    use torq_types::protocol::InstrumentId;
 
     // Current orderbook state
     struct OrderbookLevel {

@@ -1,7 +1,7 @@
-# Primary Agent Workflow Template - Enhanced AlphaPulse Quality Assurance
+# Primary Agent Workflow Template - Enhanced Torq Quality Assurance
 
 ## Overview
-This template defines the mandatory workflow for all AlphaPulse development tasks, integrating comprehensive quality gates, real-time progress tracking, and systematic validation to ensure every change meets the system's demanding standards.
+This template defines the mandatory workflow for all Torq development tasks, integrating comprehensive quality gates, real-time progress tracking, and systematic validation to ensure every change meets the system's demanding standards.
 
 ## Core Workflow Process
 
@@ -20,7 +20,7 @@ Every development task must begin with structured planning:
     "mandatory_gates": [
       "code_review",
       "compilation_check", 
-      "alphapulse_compliance"
+      "torq_compliance"
     ]
   }
 }
@@ -60,7 +60,7 @@ fn complete_task_implementation() -> Result<()> {
     // MANDATORY: Trigger code review
     let review_agent = Task::launch("code-review-subagent", CodeReviewTask {
         changed_files: get_changed_files()?,
-        alphapulse_patterns: load_alphapulse_patterns(),
+        torq_patterns: load_torq_patterns(),
         protocol_v2_validator: ProtocolV2Validator::new()?,
         mock_detector: MockFallbackDetector::new()?,
     })?;
@@ -77,7 +77,7 @@ fn complete_task_implementation() -> Result<()> {
 
 **Process**:
 1. Launch code-review-subagent automatically
-2. Analyze all changed files with AlphaPulse-specific patterns
+2. Analyze all changed files with Torq-specific patterns
 3. Generate executive summary with deep dive details
 4. Present ALL findings to user (critical, warnings, info)
 5. Await user decision: Fix issues OR Override with documentation
@@ -121,7 +121,7 @@ fn verify_compilation() -> Result<()> {
 
 **Failure Handling**: Compilation failures block task completion. Must fix before proceeding.
 
-### 6. AlphaPulse Compliance Check (MANDATORY - SYSTEM GATE)
+### 6. Torq Compliance Check (MANDATORY - SYSTEM GATE)
 **TRIGGER**: After compilation verification passes.
 
 **Validation Categories**:
@@ -148,7 +148,7 @@ fn verify_compilation() -> Result<()> {
 
 **Process**:
 ```rust
-fn validate_alphapulse_compliance() -> Result<()> {
+fn validate_torq_compliance() -> Result<()> {
     let validator = ProtocolV2Validator::new()?;
     let mock_detector = MockFallbackDetector::new()?;
     
@@ -164,7 +164,7 @@ fn validate_alphapulse_compliance() -> Result<()> {
         return Err(ComplianceError::CriticalViolations(critical_violations));
     }
     
-    mark_quality_gate_passed("alphapulse_compliance")?;
+    mark_quality_gate_passed("torq_compliance")?;
     Ok(())
 }
 ```
@@ -203,7 +203,7 @@ Create tracking task for future optimization? [Y/N]
 - Code implementation complete
 - Code review passed or overridden  
 - Compilation verified
-- AlphaPulse compliance validated
+- Torq compliance validated
 - All quality gates satisfied
 
 **Completion Process**:
@@ -242,7 +242,7 @@ fn complete_task() -> Result<()> {
 - **Pass Criteria**: Clean build + tests pass
 - **Failure Action**: Must fix compilation errors
 
-### AlphaPulse Compliance Gate
+### Torq Compliance Gate
 - **Trigger**: After compilation passes
 - **Process**: Run Protocol V2 + Mock detection
 - **Pass Criteria**: No critical violations
@@ -280,7 +280,7 @@ update_progress(ProgressUpdate {
       "status": "pending",
       "dependencies": ["code_review"]
     },
-    "alphapulse_compliance": {
+    "torq_compliance": {
       "status": "pending", 
       "dependencies": ["compilation"]
     }
@@ -389,7 +389,7 @@ if duration > Duration::from_secs(30) {
 2. **Code Review Gate**: Automatic after code completion
 3. **User Interaction**: Present ALL findings, require explicit decisions
 4. **Compilation Verification**: Must pass before completion
-5. **AlphaPulse Compliance**: Zero tolerance for critical violations
+5. **Torq Compliance**: Zero tolerance for critical violations
 6. **Progress Tracking**: Real-time updates throughout workflow
 
 ### Override Policy
@@ -413,4 +413,4 @@ if duration > Duration::from_secs(30) {
 4. Override documentation options
 5. Completion confidence through systematic validation
 
-This enhanced workflow ensures systematic quality while maintaining user control and providing comprehensive audit trails for AlphaPulse's demanding development standards.
+This enhanced workflow ensures systematic quality while maintaining user control and providing comprehensive audit trails for Torq's demanding development standards.

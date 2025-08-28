@@ -1,10 +1,10 @@
-//! # AlphaPulse Unified Types Library
+//! # Torq Unified Types Library
 //!
-//! Unified type system for AlphaPulse Protocol V2 TLV messages and common types.
+//! Unified type system for Torq Protocol V2 TLV messages and common types.
 //!
 //! ## Design Philosophy
 //!
-//! - **Unified Type System**: Single library for all AlphaPulse type definitions
+//! - **Unified Type System**: Single library for all Torq type definitions
 //! - **No Precision Loss**: All financial values stored as scaled integers
 //! - **Protocol V2 Integration**: Complete TLV message format support with >1M msg/s performance
 //! - **Type Safety**: Distinct types prevent mixing incompatible scales or domains
@@ -15,13 +15,13 @@
 //!
 //! ### Protocol V2 TLV Messages
 //! ```rust
-//! use alphapulse_types::{TradeTLV, RelayDomain, SourceType, TLVType};
+//! use torq_types::{TradeTLV, RelayDomain, SourceType, TLVType};
 //!
 //! // Create a trade message
 //! let trade = TradeTLV::new(/* ... */);
 //!
 //! // For message building, import codec separately in services:
-//! // use codec::TLVMessageBuilder;
+//! // use torq_codec::TLVMessageBuilder;
 //! // let message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
 //! //     .add_tlv(TLVType::Trade, &trade)
 //! //     .build();
@@ -29,7 +29,7 @@
 //!
 //! ### Instrument Identification
 //! ```rust
-//! use alphapulse_types::{InstrumentId, VenueId};
+//! use torq_types::{InstrumentId, VenueId};
 //!
 //! // Cryptocurrency coins
 //! let btc = InstrumentId::coin(VenueId::Ethereum, "BTC");
@@ -41,7 +41,7 @@
 //!
 //! ### Fixed-Point Financial Calculations
 //! ```rust
-//! use alphapulse_types::{UsdFixedPoint8, PercentageFixedPoint4};
+//! use torq_types::{UsdFixedPoint8, PercentageFixedPoint4};
 //!
 //! // Parse from decimal strings (primary method)
 //! let price = UsdFixedPoint8::from_decimal_str("42.12345678").unwrap();
@@ -56,7 +56,7 @@
 //!
 //! ## Integration Points
 //!
-//! This unified library serves the entire AlphaPulse system:
+//! This unified library serves the entire Torq system:
 //! - **Protocol V2**: TLV message construction, parsing, and routing (>1M msg/s)
 //! - **Strategy Services**: Arbitrage detection, profit calculations, signal generation
 //! - **Portfolio Management**: Position tracking, risk calculations, PnL computation
@@ -77,6 +77,12 @@ pub mod common;
 
 #[cfg(feature = "protocol")]
 pub mod protocol;
+
+// Precision module for financial data validation
+pub mod precision;
+
+// Message types for domain-specific communication
+pub mod messages;
 
 // Re-export common types for convenience
 #[cfg(feature = "common")]
@@ -135,4 +141,13 @@ pub use protocol::{ProtocolError, RelayDomain, Result, SourceType, TLVType};
 pub use protocol::{
     EXECUTION_RELAY_PATH, MARKET_DATA_RELAY_PATH, MESSAGE_MAGIC, PROTOCOL_VERSION,
     SIGNAL_RELAY_PATH,
+};
+
+// Re-export common message types
+pub use messages::{
+    MarketMessage, SignalMessage, ExecutionMessage,
+    PoolSwapEvent, QuoteUpdate, OrderBookUpdate, VolumeData,
+    ArbitrageSignal, MomentumSignal, LiquidationSignal, RiskAlert,
+    OrderRequest, CancelRequest, ExecutionResult, PositionUpdate,
+    Message, MessageHandler, TypedReceiver, MessageRegistry, MessageStats,
 };

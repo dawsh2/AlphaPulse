@@ -1,9 +1,9 @@
 [package]
-name = "alphapulse-polygon-adapter"
+name = "torq-polygon-adapter"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description = "Polygon DEX adapter plugin for AlphaPulse Protocol V2"
+description = "Polygon DEX adapter plugin for Torq Protocol V2"
 
 [[bin]]
 name = "polygon_adapter"
@@ -11,16 +11,16 @@ path = "src/bin/polygon_adapter.rs"
 
 [dependencies]
 # Core adapter library with shared traits
-alphapulse-adapter-service = { path = "../" }
+adapter-service = { workspace = true }
 
 # Protocol dependencies  
-alphapulse-types = { workspace = true }
+types = { workspace = true }
 codec = { workspace = true }
-alphapulse-dex = { workspace = true }
+dex = { workspace = true }
 
 # Pool discovery and state management
-alphapulse-state-core = { workspace = true }
-alphapulse-state-market = { workspace = true }
+state-core = { workspace = true }
+state-market = { workspace = true }
 
 # Web3 for Polygon RPC
 web3 = { workspace = true }

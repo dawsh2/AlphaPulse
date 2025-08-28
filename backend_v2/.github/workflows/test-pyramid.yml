@@ -103,8 +103,8 @@ jobs:
     
     - name: Setup test environment
       run: |
-        sudo mkdir -p /tmp/alphapulse
-        sudo chmod 777 /tmp/alphapulse
+        sudo mkdir -p /tmp/torq
+        sudo chmod 777 /tmp/torq
     
     - name: Run integration tests
       run: |
@@ -165,8 +165,8 @@ jobs:
     - name: Setup E2E test environment
       run: |
         # Create test directories
-        sudo mkdir -p /tmp/alphapulse /tmp/test_data
-        sudo chmod -R 777 /tmp/alphapulse /tmp/test_data
+        sudo mkdir -p /tmp/torq /tmp/test_data
+        sudo chmod -R 777 /tmp/torq /tmp/test_data
         
         # Install Python dependencies for dashboard
         pip install -r requirements.txt || echo "No requirements.txt found"
@@ -174,18 +174,18 @@ jobs:
     - name: Run E2E Golden Path Tests
       run: |
         # The critical test that would catch "$150 hardcoded profit" bug
-        cargo test --package alphapulse-e2e-tests golden_path --release
+        cargo test --package torq-e2e-tests golden_path --release
         
         # Test with varying market conditions
-        cargo test --package alphapulse-e2e-tests varying_market_conditions --release
+        cargo test --package torq-e2e-tests varying_market_conditions --release
         
         # Test no-arbitrage scenarios
-        cargo test --package alphapulse-e2e-tests no_arbitrage_scenario --release
+        cargo test --package torq-e2e-tests no_arbitrage_scenario --release
     
     - name: Validate arbitrage calculations
       run: |
         # Run property-based tests that would catch hardcoded values
-        cargo test --package alphapulse-e2e-tests hardcoded_value_detection --release
+        cargo test --package torq-e2e-tests hardcoded_value_detection --release
     
     - name: Archive E2E test results
       if: always()
@@ -194,7 +194,7 @@ jobs:
         name: e2e-test-results
         path: |
           /tmp/test_data/
-          target/debug/deps/alphapulse_e2e_tests-*
+          target/debug/deps/torq_e2e_tests-*
         retention-days: 7
 
   # Specialized: Property-Based Tests (Mathematical validation)
@@ -225,13 +225,13 @@ jobs:
     - name: Run property-based tests
       run: |
         # Arbitrage calculation properties
-        cargo test --package alphapulse-property-tests arbitrage_properties --release
+        cargo test --package torq-property-tests arbitrage_properties --release
         
         # Precision handling properties  
-        cargo test --package alphapulse-property-tests precision_properties --release
+        cargo test --package torq-property-tests precision_properties --release
         
         # AMM math properties
-        cargo test --package alphapulse-property-tests amm_math_properties --release
+        cargo test --package torq-property-tests amm_math_properties --release
 
   # Specialized: Fuzz Tests (Security and robustness)
   fuzz-tests:

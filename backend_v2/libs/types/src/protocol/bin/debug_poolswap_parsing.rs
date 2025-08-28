@@ -3,7 +3,7 @@
 //! This tool helps debug why PoolSwapTLV parsing is failing in the relay consumer,
 //! which causes the system to fall back to fake analysis data.
 
-use alphapulse_types::tlv::market_data::PoolSwapTLV;
+use torq_types::tlv::market_data::PoolSwapTLV;
 use std::mem::size_of;
 use zerocopy::{AsBytes, FromBytes};
 

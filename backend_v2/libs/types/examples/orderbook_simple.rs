@@ -2,13 +2,13 @@
 //!
 //! Demonstrates basic OrderBook TLV implementation and usage
 
-use alphapulse_types::protocol::{
+use torq_types::protocol::{
     tlv::{OrderBookTLV, TLVMessageBuilder, TLVType},
     InstrumentId, RelayDomain, SourceType, VenueId,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚀 AlphaPulse OrderBook TLV Simple Demo");
+    println!("🚀 Torq OrderBook TLV Simple Demo");
     println!("======================================");
 
     // 1. Create BTC instrument using Ethereum token approach (for demo)

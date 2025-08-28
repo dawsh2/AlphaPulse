@@ -1,5 +1,5 @@
 [package]
-name = "alphapulse_relay_scripts"
+name = "torq_relay_scripts"
 version = "0.1.0"
 edition = "2021"
 

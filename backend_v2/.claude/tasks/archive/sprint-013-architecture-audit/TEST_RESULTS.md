@@ -4,7 +4,7 @@
 
 **Sprint**: Sprint 013 (Architecture Audit)  
 **Test Date**: 2025-08-27  
-**Test Environment**: AlphaPulse Backend V2  
+**Test Environment**: Torq Backend V2  
 **Status**: ✅ PASSED
 
 ## 📊 Test Coverage
@@ -39,17 +39,17 @@
 ### AUDIT-001: Relay Codec Dependencies
 ```bash
 # Test: Verify relays use codec library
-✅ market_data_relay/Cargo.toml includes alphapulse-codec dependency
-✅ signal_relay/Cargo.toml includes alphapulse-codec dependency  
-✅ execution_relay/Cargo.toml includes alphapulse-codec dependency
+✅ market_data_relay/Cargo.toml includes torq-codec dependency
+✅ signal_relay/Cargo.toml includes torq-codec dependency  
+✅ execution_relay/Cargo.toml includes torq-codec dependency
 ✅ All relay binaries compile with codec integration
 ```
 
 ### AUDIT-002: Service Codec Dependencies  
 ```bash
 # Test: Verify services use codec library
-✅ services_v2/adapters/Cargo.toml includes alphapulse-codec dependency
-✅ services_v2/strategies/Cargo.toml includes alphapulse-codec dependency
+✅ services_v2/adapters/Cargo.toml includes torq-codec dependency
+✅ services_v2/strategies/Cargo.toml includes torq-codec dependency
 ✅ No circular dependency errors in workspace
 ✅ All services build successfully with codec
 ```
@@ -128,8 +128,8 @@ Memory Usage: <50MB per service ✅ (Target: <100MB)
 ### Automated Tests
 ```bash
 # Core protocol tests
-cargo test --package alphapulse-types --release
-cargo test --package alphapulse-codec --release  
+cargo test --package torq-types --release
+cargo test --package torq-codec --release  
 cargo test --package relays --release
 cargo test --package services_v2 --release
 
@@ -173,7 +173,7 @@ All critical architecture objectives achieved:
 - Performance targets maintained
 - Architecture validation automated
 
-Sprint 013 successfully completed with 7/9 tasks fully implemented and 2 low-priority tasks appropriately moved to backlog. The AlphaPulse V2 architecture foundation is now complete and ready for feature development.
+Sprint 013 successfully completed with 7/9 tasks fully implemented and 2 low-priority tasks appropriately moved to backlog. The Torq V2 architecture foundation is now complete and ready for feature development.
 
 ## 📈 Test Metrics Summary
 

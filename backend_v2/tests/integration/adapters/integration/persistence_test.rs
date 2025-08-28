@@ -3,7 +3,7 @@
 //! Tests cache persistence across collector restarts, journal recovery after crash,
 //! and atomic file operations to prevent corruption.
 
-use alphapulse_state_market::pool_cache::{PoolCache, PoolInfo};
+use torq_state_market::pool_cache::{PoolCache, PoolInfo};
 use protocol_v2::{VenueId, DEXProtocol};
 use std::sync::Arc;
 use std::fs::{File, OpenOptions, remove_file};

@@ -1,6 +1,6 @@
-# Common Pitfalls in AlphaPulse Development
+# Common Pitfalls in Torq Development
 
-This document captures common mistakes and anti-patterns encountered in the AlphaPulse codebase, along with the correct approaches to avoid them.
+This document captures common mistakes and anti-patterns encountered in the Torq codebase, along with the correct approaches to avoid them.
 
 ## 1. Zero-Copy Violations in TLV Message Construction
 

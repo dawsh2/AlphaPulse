@@ -1,0 +1,13 @@
+[package]
+name = "relay-market-data"
+version = "0.1.0"
+edition = "2021"
+description = "Market data relay domain implementation"
+
+[lib]
+name = "relay_market_data"
+path = "src/lib.rs"
+
+[dependencies]
+relay-core = { path = "../../core" }
+codec = { workspace = true }

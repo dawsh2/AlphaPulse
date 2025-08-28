@@ -31,7 +31,7 @@ use protocol_v2::{
     tlv::market_data::{PoolSwapTLV, PoolSyncTLV},
     TLVType, VenueId,
 };
-use alphapulse_adapter_service::output::RelayOutput;
+use torq_adapter_service::output::RelayOutput;
 
 /// Comprehensive test suite configuration
 #[derive(Debug, Clone)]
@@ -47,7 +47,7 @@ impl Default for PolygonTestConfig {
     fn default() -> Self {
         Self {
             websocket_timeout_ms: 30000,
-            relay_socket_path: "/tmp/alphapulse_test/market_data.sock".to_string(),
+            relay_socket_path: "/tmp/torq_test/market_data.sock".to_string(),
             expected_messages_per_minute: 100,
             max_processing_latency_ms: 50,
             performance_validation_duration_s: 60,

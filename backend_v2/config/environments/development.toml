@@ -1,9 +1,9 @@
-# AlphaPulse Development Environment Configuration
+# Torq Development Environment Configuration
 
 # Basic paths for development
-socket_dir = "/tmp/alphapulse"
-log_dir = "/tmp/alphapulse_logs"
-pid_file = "/tmp/alphapulse_system.pids"
+socket_dir = "/tmp/torq"
+log_dir = "/tmp/torq_logs"
+pid_file = "/tmp/torq_system.pids"
 
 # Service-specific configurations
 [services]
@@ -12,19 +12,19 @@ pid_file = "/tmp/alphapulse_system.pids"
 enabled = true
 health_port = 8001
 priority = 10
-# socket_path = "/tmp/alphapulse/market_data.sock"  # Default
+# socket_path = "/tmp/torq/market_data.sock"  # Default
 
 [services.signal_relay]  
 enabled = true
 health_port = 8002
 priority = 20
-# socket_path = "/tmp/alphapulse/signals.sock"  # Default
+# socket_path = "/tmp/torq/signals.sock"  # Default
 
 [services.execution_relay]
 enabled = true
 health_port = 8003
 priority = 30
-# socket_path = "/tmp/alphapulse/execution.sock"  # Default
+# socket_path = "/tmp/torq/execution.sock"  # Default
 
 [services.polygon_publisher]
 enabled = true

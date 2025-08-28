@@ -208,7 +208,7 @@ cd libs/message_sink
 # Create Cargo.toml
 cat > Cargo.toml << 'EOF'
 [package]
-name = "alphapulse-message-sink"
+name = "torq-message-sink"
 version = "0.1.0"
 edition = "2021"
 
@@ -337,7 +337,7 @@ mkdir -p libs/message_sink/src
 # ... code implementation ...
 
 # 4. Run tests
-cargo test -p alphapulse-message-sink
+cargo test -p torq-message-sink
 
 # 5. Commit
 git add -A

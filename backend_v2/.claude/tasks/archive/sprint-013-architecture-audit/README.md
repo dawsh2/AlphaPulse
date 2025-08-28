@@ -90,7 +90,7 @@
 We're at 80% complete on the architecture refactoring. This sprint:
 - Completes the codec integration (the missing 20%)
 - Fixes the most critical architectural inconsistency
-- Establishes the final foundation for AlphaPulse V2
+- Establishes the final foundation for Torq V2
 - Enables all future optimizations and improvements
 
 **Start with AUDIT-001 immediately - it's blocking everything else!**
