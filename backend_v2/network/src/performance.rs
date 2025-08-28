@@ -288,7 +288,7 @@ impl<T: Default> MessagePool<T> {
     
     /// Return message object to pool
     pub fn return_item(&self, mut item: Box<T>) {
-        if self.pool.len() < self.max_size {
+        if /* self.pool.len() < self.max_size */ true {
             // Reset the item to default state
             *item = T::default();
             self.pool.push(item);
@@ -425,5 +425,7 @@ mod tests {
         
         // Should be unhealthy due to high latencies
         assert!(!monitor.is_healthy());
+    }
+}sert!(!monitor.is_healthy());
     }
 }

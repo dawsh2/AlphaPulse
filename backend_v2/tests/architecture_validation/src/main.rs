@@ -3,7 +3,7 @@
 //! This binary runs all architecture validation tests and provides
 //! clear output for CI/CD integration.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use architecture_validation::run_all_validations;
 use clap::Parser;
 
@@ -79,13 +79,22 @@ fn run_critical_validations() -> Result<()> {
     ];
     
     for (name, result) in critical_tests {
-        match result {
-            Ok(_) => println!("{} {}", "✓".green(), name.green()),
-            Err(e) => {
-                println!("{} {}", "✗".red(), name.red());
-                eprintln!("  {}", e);
-                failed = true;
+        if result.passed {
+            println!("{} {}", "✓".green(), name.green());
+        } else {
+            println!("{} {}", "✗".red(), name.red());
+            for violation in &result.violations {
+                eprintln!("  Violation: {}", violation.message);
+                eprintln!("    File: {}", violation.file.display());
+                if let Some(line) = violation.line {
+                    eprintln!("    Line: {}", line);
+                }
+                eprintln!("    Rule: {}", violation.rule);
+                if let Some(suggestion) = &violation.suggestion {
+                    eprintln!("    Suggestion: {}", suggestion);
+                }
             }
+            failed = true;
         }
     }
     

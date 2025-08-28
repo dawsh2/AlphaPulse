@@ -60,6 +60,7 @@ indexmap = "2.0"
 # Message Queues (optional features)
 lapin = { version = "2.3", optional = true }       # RabbitMQ client
 libc = "0.2"
+lockfree = "0.5.1"
 
 # Compression
 lz4 = { version = "1.24", optional = true }  # Fast compression

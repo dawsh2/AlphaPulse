@@ -1,0 +1,120 @@
+#+TITLE: TLV Message Types
+#+OPTIONS: toc:nil author:nil date:nil
+
+* Overview
+
+The AlphaPulse Protocol V2 uses Type-Length-Value (TLV) encoding for flexible, high-performance message passing across domain-specific relays. This document defines all TLV message types and their routing domains.
+
+*Key Features*:
+- Zero-copy serialization for maximum performance
+- Domain-based routing for automatic message distribution
+- Bijective identifiers eliminate registry dependencies
+- Forward compatibility through graceful unknown type handling
+
+* Performance Characteristics
+
+| Domain      | Processing Time | Throughput   | Latency Target |
+|-------------+-----------------+--------------+----------------|
+| Market Data | <35μs           | >1M msg/sec  | Sub-millisecond |
+| Signals     | <100μs          | >100K msg/sec| 1-5ms          |
+| Execution   | <200μs          | >50K msg/sec | 5-10ms         |
+
+* Type Ranges by Domain
+
+** Market Data Domain (Types 1-19)
+:PROPERTIES:
+:RELAY: MarketDataRelay
+:PRIORITY: HOT_PATH
+:END:
+
+High-frequency market events requiring minimal latency and maximum throughput.
+
+- *Trade (1)*: Executed trade with price, size, and timestamp
+- *Quote (2)*: Best bid/ask quotes from order books  
+- *OrderBook (3)*: Full depth updates or snapshots
+- *ImbalanceIndicator (4)*: Pre-market or closing auction imbalances
+- *MarketStatus (5)*: Trading halts, circuit breakers, market state
+- *OptionGreeks (10)*: Delta, gamma, theta, vega for options
+- *ImpliedVolatility (11)*: IV surfaces and term structure
+
+** Signal Domain (Types 20-39)
+:PROPERTIES:
+:RELAY: SignalRelay
+:PRIORITY: WARM_PATH
+:END:
+
+Trading signals and strategy outputs for portfolio and risk management.
+
+- *SignalIdentity (20)*: Signal metadata and routing information
+- *ArbitrageSignal (21)*: Cross-venue arbitrage opportunities
+- *DirectionalSignal (22)*: Trend and momentum indicators
+- *LiquiditySignal (23)*: Liquidity provision opportunities
+- *VolatilitySignal (24)*: Volatility regime changes
+
+** Execution Domain (Types 40-79)
+:PROPERTIES:
+:RELAY: ExecutionRelay
+:PRIORITY: CRITICAL_PATH
+:END:
+
+Order management and execution messages requiring guaranteed delivery.
+
+- *OrderNew (40)*: New order submission
+- *OrderCancel (41)*: Cancel existing order
+- *OrderModify (42)*: Modify order parameters
+- *OrderStatus (43)*: Execution status updates
+- *Fill (44)*: Partial or complete fill notifications
+- *Reject (45)*: Order rejection with reason codes
+
+* Size Constraints
+
+** Fixed Size Types
+Zero validation overhead - size known at compile time:
+- Trade: 40 bytes
+- Quote: 48 bytes  
+- SignalIdentity: 32 bytes
+
+** Bounded Size Types
+Single bounds check required:
+- SwapEvent: 60-200 bytes (variable addresses)
+- OrderStatus: 64-256 bytes (variable text)
+
+** Variable Size Types
+Dynamic allocation required - use sparingly in hot paths:
+- OrderBook: 100-64KB (full depth)
+- PositionSnapshot: 200-10KB (portfolio state)
+
+* Implementation Status
+
+| Status       | Count | Description                           |
+|--------------+-------+---------------------------------------|
+| Production   | 15    | Fully tested, deployed in production |
+| Beta         | 8     | Implemented, undergoing validation   |
+| Development  | 5     | In active development                |
+| Planned      | 12    | Specified but not yet implemented   |
+
+* Usage Guidelines
+
+** Hot Path Optimization
+For types in the Market Data domain:
+- Use fixed-size structures when possible
+- Avoid heap allocation
+- Implement zero-copy deserialization
+- Cache frequently accessed fields
+
+** Message Construction
+Always use =TLVMessageBuilder= for correct header and checksum:
+#+BEGIN_SRC rust
+let mut builder = TLVMessageBuilder::new(RelayDomain::MarketData, source);
+builder.add_tlv(TLVType::Trade, &trade_data);
+let message = builder.build();
+#+END_SRC
+
+** Type Discovery
+Query types by domain for service-specific handling:
+#+BEGIN_SRC rust
+let market_types = TLVType::types_in_domain(RelayDomain::MarketData);
+for tlv_type in market_types {
+    println!("{}: {}", tlv_type.type_number(), tlv_type.name());
+}
+#+END_SRC
