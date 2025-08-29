@@ -3,7 +3,7 @@
 //! These tests validate that the plugin architecture correctly enforces
 //! safety mechanisms, performance requirements, and zero-copy operations.
 
-use torq_adapter_service::{
+use adapter_service::{
     Adapter, AdapterHealth, AdapterOutput, BaseAdapterConfig, ChannelOutput, CircuitState,
     ConnectionStatus, InstrumentType, Result, SafeAdapter,
 };
@@ -31,7 +31,7 @@ impl Adapter for TestAdapter {
             )
             .await
             .map_err(|_| {
-                torq_adapter_service::AdapterError::ConnectionTimeout {
+                adapter_service::AdapterError::ConnectionTimeout {
                     venue: torq_types::VenueId::Binance,
                     timeout_ms: self.config.connection_timeout_ms,
                 }
@@ -97,7 +97,7 @@ impl Adapter for TestAdapter {
 
         // Ensure hot path latency requirement is met
         if elapsed > Duration::from_nanos(35_000) {
-            return Err(torq_adapter_service::AdapterError::Internal(format!(
+            return Err(adapter_service::AdapterError::Internal(format!(
                 "Hot path latency violation: {}μs > 35μs",
                 elapsed.as_nanos() / 1000
             )));
@@ -310,7 +310,7 @@ async fn test_connection_timeout_enforcement() {
     if result.is_err() {
         // Expected timeout error
         match result.unwrap_err() {
-            torq_adapter_service::AdapterError::ConnectionTimeout { timeout_ms, .. } => {
+            adapter_service::AdapterError::ConnectionTimeout { timeout_ms, .. } => {
                 assert_eq!(timeout_ms, 1);
             }
             _ => panic!("Expected ConnectionTimeout error"),

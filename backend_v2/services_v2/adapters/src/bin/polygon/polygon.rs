@@ -25,8 +25,8 @@
 //! - **No retry logic**: Let external supervision handle restarts
 //! - **Complete transparency**: Log everything, hide nothing
 
-use torq_codec::{parse_header, parse_tlv_extensions}; // Added
-use torq_network::time::init_timestamp_system; // Added
+use codec::{parse_header, parse_tlv_extensions}; // Added
+use network::time::init_timestamp_system; // Added
 use torq_types::{
     tlv::build_message_direct,
     tlv::market_data::{PoolBurnTLV, PoolMintTLV, PoolSwapTLV, PoolSyncTLV, PoolTickTLV},
@@ -45,7 +45,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 use web3::types::{Log, H160, H256};
 
-use torq_adapter_service::output::RelayOutput;
+use adapter_service::output::RelayOutput;
 use torq_state_market::pool_cache::PoolCache;
 use torq_state_market::pool_state::PoolStateManager;
 
@@ -932,7 +932,7 @@ impl UnifiedPolygonCollector {
             sqrt_price_x96, // liquidity_after - V3 specific, now extracted properly
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| torq_network::time::safe_duration_to_ns(d))
+                .map(|d| network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
             log.block_number.map(|n| n.as_u64()).unwrap_or(0),
             tick, // tick_after - V3 specific, now extracted properly
@@ -1069,7 +1069,7 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| torq_network::time::safe_duration_to_ns(d))
+                .map(|d| network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
         );
 
@@ -1187,7 +1187,7 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| torq_network::time::safe_duration_to_ns(d))
+                .map(|d| network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
         );
 
@@ -1227,7 +1227,7 @@ impl UnifiedPolygonCollector {
             7922816251426433759, // price_sqrt
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| torq_network::time::safe_duration_to_ns(d))
+                .map(|d| network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
         );
 
@@ -1306,7 +1306,7 @@ impl UnifiedPolygonCollector {
             token1_decimals,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map(|d| torq_network::time::safe_duration_to_ns(d))
+                .map(|d| network::time::safe_duration_to_ns(d))
                 .unwrap_or(0),
             log.block_number.map(|n| n.as_u64()).unwrap_or(0),
         );

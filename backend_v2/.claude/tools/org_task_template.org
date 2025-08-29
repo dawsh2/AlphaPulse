@@ -274,8 +274,9 @@
    :EFFORT:      Xh (typically 20-30% of implementation time)
    :ASSIGNED:    engineer-name
    :BRANCH:      test/feature-name
-   :DEPENDS:     DEPENDENCY-IDS
    :WORKTREE:    no/yes (yes for major refactors >4h, complex features, parallel work)
+   :TRIGGER:     ids(UNIQUE-ID) todo!(NEXT)
+   :BLOCKER:     ids(PREREQUISITE-ID) todo?(DONE)
    :END:
 
    Design comprehensive tests BEFORE implementation.
@@ -299,8 +300,9 @@
    :EFFORT:      Xh
    :ASSIGNED:    engineer-name
    :BRANCH:      type/branch-name
-   :DEPENDS:     UNIQUE-ID-TESTS DEPENDENCY-IDS
    :WORKTREE:    no/yes (yes for major refactors >4h, complex features, parallel work)
+   :BLOCKER:     ids(UNIQUE-ID-TESTS) todo?(DONE)
+   :TRIGGER:     next-sibling todo!(NEXT) parent todo!(DONE)
    :END:
 
    Implement feature to pass all predefined tests.

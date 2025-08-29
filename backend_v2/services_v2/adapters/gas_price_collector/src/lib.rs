@@ -3,10 +3,10 @@
 //! Subscribes to newHeads events to get real-time base fee updates
 //! without RPC rate limiting issues.
 
-use torq_codec::TLVMessageBuilder;
+use codec::TLVMessageBuilder;
 use torq_types::tlv::gas_price::GasPriceTLV;
 use torq_types::{RelayDomain, SourceType};
-use torq_codec::TLVType;
+use codec::TLVType;
 use anyhow::{Context, Result};
 use ethers::prelude::*;
 use std::sync::Arc;
@@ -150,7 +150,7 @@ impl GasPriceCollector {
             if let Some(base_fee) = block.base_fee_per_gas {
                 let base_fee_gwei = (base_fee.as_u64() / 1_000_000_000) as u32;
                 let block_number = block.number.unwrap_or_default().as_u64();
-                let timestamp_ns = torq_network::time::safe_system_timestamp_ns();
+                let timestamp_ns = network::time::safe_system_timestamp_ns();
 
                 // Create GasPriceTLV
                 let gas_price_tlv = GasPriceTLV::new(

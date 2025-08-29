@@ -7,7 +7,7 @@ use torq_types::protocol::tlv::market_data::TradeTLV;
 use torq_types::protocol::tlv::{
     build_message_direct, with_hot_path_buffer, with_signal_buffer, TrueZeroCopyBuilder,
 };
-use torq_codec::protocol::{InstrumentId, RelayDomain, SourceType, TLVType, VenueId};
+use codec::protocol::{InstrumentId, RelayDomain, SourceType, TLVType, VenueId};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 

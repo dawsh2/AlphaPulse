@@ -6,7 +6,7 @@
 //! - End-to-end identifier construction and validation
 //! - Performance characteristics and error handling
 
-use torq_codec::{
+use codec::{
     instrument_id::CodecError, AssetType, InstrumentId, TLVType, VenueId, MESSAGE_MAGIC,
     PROTOCOL_VERSION,
 };
@@ -39,17 +39,20 @@ fn test_cross_module_functionality() {
     // Create instruments for different venues
     let nasdaq_stock = InstrumentId::stock(VenueId::NASDAQ, "AAPL").unwrap();
     let ethereum_token = InstrumentId::new(VenueId::Ethereum, AssetType::Token, "USDC").unwrap();
-    let token_pair = InstrumentId::new(VenueId::Ethereum, AssetType::Token, "WETH").unwrap();
-    let uniswap_pool = InstrumentId::pool(VenueId::UniswapV3, ethereum_token, token_pair).unwrap();
+    let chain_protocol = codec::ChainProtocol::new(1, codec::DEXProtocol::UniswapV3);
+    let pool_address = [0x11; 20];
+    let uniswap_pool = InstrumentId::pool(chain_protocol, pool_address).unwrap();
 
     // Test that different asset types have different properties
     assert!(!nasdaq_stock.is_defi());
     assert!(!ethereum_token.is_defi());
-    assert!(uniswap_pool.is_defi());
+    // Pools no longer tracked via is_defi (returns false)
+    assert!(!uniswap_pool.is_defi());
 
     // Test venue classification consistency
     assert_eq!(ethereum_token.venue().unwrap(), VenueId::Ethereum);
-    assert_eq!(uniswap_pool.venue().unwrap(), VenueId::UniswapV3);
+    // Pool venue is now Ethereum (derived from chain_id)
+    assert_eq!(uniswap_pool.venue().unwrap(), VenueId::Ethereum);
 
     // Both Ethereum and UniswapV3 should map to same chain
     assert_eq!(ethereum_token.chain_id(), Some(1));
@@ -126,18 +129,19 @@ fn test_multi_chain_routing() {
     // Should not be able to pair cross-chain
     assert!(!eth_usdc.can_pair_with(&poly_usdc));
 
-    // Test DeFi protocol routing
-    let uniswap_v3 = VenueId::UniswapV3;
-    let quickswap = VenueId::QuickSwap;
+    // DeFi protocols now use DEXProtocol enum
+    let eth = VenueId::Ethereum;
+    let polygon = VenueId::Polygon;
 
-    assert!(uniswap_v3.is_defi());
-    assert!(quickswap.is_defi());
-    assert!(uniswap_v3.supports_pools());
-    assert!(quickswap.supports_pools());
+    // is_defi and supports_pools return false for all VenueId
+    assert!(!eth.is_defi());
+    assert!(!polygon.is_defi());
+    assert!(!eth.supports_pools());
+    assert!(!polygon.supports_pools());
 
-    // Different chains for DeFi
-    assert_eq!(uniswap_v3.chain_id(), Some(1)); // Ethereum
-    assert_eq!(quickswap.chain_id(), Some(137)); // Polygon
+    // Test chain mapping for blockchains
+    assert_eq!(eth.chain_id(), Some(1)); // Ethereum
+    assert_eq!(polygon.chain_id(), Some(137)); // Polygon
 }
 
 #[test]
@@ -170,14 +174,14 @@ fn test_deterministic_behavior() {
     assert_eq!(id1.to_u64(), id2.to_u64());
     assert_eq!(id1.debug_info(), id2.debug_info());
 
-    // Pool creation should also be deterministic
-    let token_a = InstrumentId::new(VenueId::Ethereum, AssetType::Token, "USDC").unwrap();
-    let token_b = InstrumentId::new(VenueId::Ethereum, AssetType::Token, "WETH").unwrap();
+    // Pool creation with new ChainProtocol system
+    let chain_protocol = codec::ChainProtocol::new(1, codec::DEXProtocol::UniswapV3);
+    let pool_addr = [0x22; 20]; // Same pool address
+    
+    let pool1 = InstrumentId::pool(chain_protocol, pool_addr).unwrap();
+    let pool2 = InstrumentId::pool(chain_protocol, pool_addr).unwrap(); // Same pool
 
-    let pool1 = InstrumentId::pool(VenueId::UniswapV3, token_a, token_b).unwrap();
-    let pool2 = InstrumentId::pool(VenueId::UniswapV3, token_b, token_a).unwrap(); // Different order
-
-    // Should be the same regardless of token order
+    // Same pool should have same ID
     assert_eq!(pool1, pool2);
 }
 

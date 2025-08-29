@@ -479,7 +479,7 @@ impl TraceApiServer {
 
 /// Get current timestamp in nanoseconds
 fn current_timestamp_ns() -> u64 {
-    torq_network::time::safe_system_timestamp_ns()
+    network::time::safe_system_timestamp_ns()
 }
 
 #[cfg(test)]

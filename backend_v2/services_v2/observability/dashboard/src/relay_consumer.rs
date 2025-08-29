@@ -90,7 +90,7 @@ use crate::error::{DashboardError, Result};
 use crate::message_converter::{
     convert_tlv_to_json, create_arbitrage_opportunity, create_combined_signal,
 };
-use torq_codec::{parse_header, parse_tlv_extensions, ParseError, TLVExtensionEnum};
+use codec::{parse_header, parse_tlv_extensions, ParseError, TLVExtensionEnum};
 use torq_types::{message::header::MessageHeader, RelayDomain, MESSAGE_MAGIC};
 use serde_json::Value;
 use std::collections::HashMap;

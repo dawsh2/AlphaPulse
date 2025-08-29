@@ -10,8 +10,7 @@ pub mod dashboard {
     
     /// Default values for incomplete arbitrage opportunities
     pub const DEFAULT_PAIR: &str = "UNKNOWN-PAIR";
-    pub const DEFAULT_BUY_DEX: &str = "QuickSwap";
-    pub const DEFAULT_SELL_DEX: &str = "SushiSwap";
+    // Note: DEX names should come from actual pool discovery or signal data
 }
 
 /// Adapter service defaults
@@ -40,8 +39,8 @@ pub mod strategies {
     /// Signal output queue size
     pub const SIGNAL_OUTPUT_QUEUE_SIZE: usize = 1000;
     
-    /// Default minimum profit threshold (USD, 8-decimal fixed-point)
-    pub const DEFAULT_MIN_PROFIT_USD: i64 = 500_000_000; // $5.00
+    // Note: Profit thresholds should be configurable per strategy instance
+    // not hardcoded as global constants
 }
 
 /// Relay service defaults

@@ -1,8 +1,8 @@
 //! Kraken Signal Strategy Main Entry Point
 
-use torq_strategies::kraken_signals::{KrakenSignalStrategy, StrategyConfig};
-use torq_strategies::common::config::{resolve_config_path, load_config_file};
-use torq_strategies::common::logging::init_strategy_logging;
+use strategies::kraken_signals::{KrakenSignalStrategy, StrategyConfig};
+use strategies::common::config::{resolve_config_path, load_config_file};
+use strategies::common::logging::init_strategy_logging;
 use anyhow::{Context, Result};
 use tokio::signal;
 use tracing::{error, info};

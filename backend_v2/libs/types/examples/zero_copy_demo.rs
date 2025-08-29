@@ -6,10 +6,9 @@
 use torq_types::protocol::tlv::address::{AddressConversion, AddressExtraction};
 use torq_types::protocol::tlv::market_data::{PoolSwapTLV, PoolSyncTLV, QuoteTLV, TradeTLV};
 use torq_types::protocol::tlv::pool_state::PoolStateTLV;
-use torq_types::protocol::tlv::{
-    build_message_direct, with_hot_path_buffer, TLVMessageBuilder, TLVType, TrueZeroCopyBuilder,
-};
-use torq_codec::protocol::{InstrumentId, RelayDomain, SourceType, VenueId};
+use torq_types::protocol::tlv::{with_hot_path_buffer, TLVType};
+use codec::{build_message_direct, TLVMessageBuilder};
+use torq_types::protocol::{InstrumentId, RelayDomain, SourceType, VenueId};
 use std::time::Instant;
 use zerocopy::{AsBytes, FromBytes};
 
@@ -192,22 +191,28 @@ fn main() {
     // Warmup
     for _ in 0..1000 {
         let _ = with_hot_path_buffer(|buffer| {
-            let builder =
-                TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
-            builder
-                .build_into_buffer(buffer, TLVType::Trade, &trade)
-                .map(|size| (size, size))
+            TLVMessageBuilder::build_direct_into_buffer(
+                buffer,
+                RelayDomain::MarketData,
+                SourceType::PolygonCollector,
+                TLVType::Trade,
+                &trade,
+            )
+            .map(|size| (size, size))
         });
     }
 
     let start = Instant::now();
     for _ in 0..iterations {
         let _ = with_hot_path_buffer(|buffer| {
-            let builder =
-                TrueZeroCopyBuilder::new(RelayDomain::MarketData, SourceType::PolygonCollector);
-            let size = builder
-                .build_into_buffer(buffer, TLVType::Trade, &trade)
-                .unwrap();
+            let size = TLVMessageBuilder::build_direct_into_buffer(
+                buffer,
+                RelayDomain::MarketData,
+                SourceType::PolygonCollector,
+                TLVType::Trade,
+                &trade,
+            )
+            .unwrap();
             std::hint::black_box(size);
             Ok((size, size))
         })

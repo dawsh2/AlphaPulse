@@ -18,8 +18,7 @@ pub use validation::*;
 
 // Re-export TLV types selectively to avoid conflicts
 pub use tlv::{
-    build_message_direct,
-    // Buffer management
+    // Buffer management (build_message_direct now in codec)
     build_with_size_hint,
     // Utility functions (avoiding conflicts)
     fast_timestamp_ns,
@@ -62,7 +61,7 @@ pub use tlv::{
     TraceEventType,
     // Core TLV functionality (only include existing types)
     TradeTLV,
-    TrueZeroCopyBuilder,
+    // TrueZeroCopyBuilder moved to codec/src/builder.rs
 
     // TLV size constants (only include existing ones)
     ARBITRAGE_SIGNAL_TLV_SIZE,
@@ -72,12 +71,14 @@ pub use tlv::{
     MAX_POOL_TOKENS,
 };
 
-// Re-export protocol types from codec to maintain compatibility
-pub use torq_codec::{RelayDomain, SourceType, ProtocolError, MESSAGE_MAGIC, PROTOCOL_VERSION};
-pub use torq_codec::{MARKET_DATA_RELAY_PATH, SIGNAL_RELAY_PATH, EXECUTION_RELAY_PATH};
+// TODO: Re-export protocol types from codec to maintain compatibility
+// These need proper codec dependency setup in Cargo.toml
+// pub use codec::{RelayDomain, SourceType, ProtocolError, MESSAGE_MAGIC, PROTOCOL_VERSION};
+// pub use codec::{MARKET_DATA_RELAY_PATH, SIGNAL_RELAY_PATH, EXECUTION_RELAY_PATH};
 
-/// Result type for protocol operations
-pub type Result<T> = std::result::Result<T, ProtocolError>;
+/// Result type for protocol operations  
+// TODO: Enable when codec dependency is properly set up
+// pub type Result<T> = std::result::Result<T, ProtocolError>;
 
 // Re-export commonly needed types at protocol level
 pub use tlv::types::TLVType;

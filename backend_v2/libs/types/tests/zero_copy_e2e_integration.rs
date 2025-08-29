@@ -8,7 +8,7 @@ use torq_types::protocol::tlv::market_data::{PoolSwapTLV, QuoteTLV, TradeTLV};
 use torq_types::protocol::tlv::{
     parse_header, parse_tlv_extensions, TLVMessageBuilder, TLVType,
 };
-use torq_codec::protocol::{InstrumentId, RelayDomain, SourceType, VenueId};
+use codec::protocol::{InstrumentId, RelayDomain, SourceType, VenueId};
 use std::time::Instant;
 use zerocopy::{AsBytes, FromBytes};
 

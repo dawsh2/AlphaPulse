@@ -4,7 +4,7 @@
 //! decimals are correctly parsed by cross-checking against actual blockchain state via RPC.
 //! This prevents phantom arbitrage opportunities from invalid data.
 
-use torq_adapter_service::{
+use adapter_service::{
     error::{AdapterError, Result},
     input::collectors::{
         pool_cache_manager::{PoolCacheManager, PoolInfo},

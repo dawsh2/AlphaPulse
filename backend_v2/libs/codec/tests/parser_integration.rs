@@ -2,12 +2,12 @@
 //!
 //! These tests focus on end-to-end parsing workflows and realistic message validation scenarios.
 
-use torq_codec::{
+use codec::{
     extract_tlv_payload, find_tlv_by_type, parse_header, parse_tlv_extensions, validate_tlv_size,
     ProtocolError, TLVMessageBuilder, TLVType,
 };
-use torq_types::protocol::message::header::MessageHeader;
-use torq_types::{RelayDomain, SourceType, MESSAGE_MAGIC};
+use types::protocol::message::header::MessageHeader;
+use types::{RelayDomain, SourceType, MESSAGE_MAGIC};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 #[repr(C)]
@@ -52,7 +52,7 @@ fn test_complete_message_parse_workflow() {
 
     // Verify TLV content
     match &extensions[0] {
-        torq_codec::TLVExtensionEnum::Standard(tlv) => {
+        codec::TLVExtensionEnum::Standard(tlv) => {
             assert_eq!(tlv.header.tlv_type, TLVType::Trade as u8);
             assert_eq!(tlv.header.tlv_length, 40);
             assert_eq!(tlv.payload.len(), 40);
@@ -87,7 +87,7 @@ fn test_extended_tlv_parsing() {
 
     // Verify extended TLV content
     match &extensions[0] {
-        torq_codec::TLVExtensionEnum::Extended(tlv) => {
+        codec::TLVExtensionEnum::Extended(tlv) => {
             assert_eq!(tlv.header.marker, 255);
             assert_eq!(tlv.header.reserved, 0);
             assert_eq!(tlv.header.tlv_type, TLVType::OrderBook as u8);
@@ -128,7 +128,7 @@ fn test_multiple_tlv_parsing() {
     // Verify each TLV
     for (i, extension) in extensions.iter().enumerate() {
         match extension {
-            torq_codec::TLVExtensionEnum::Standard(tlv) => match i {
+            codec::TLVExtensionEnum::Standard(tlv) => match i {
                 0 => {
                     assert_eq!(tlv.header.tlv_type, TLVType::Trade as u8);
                     assert_eq!(tlv.payload.len(), 40);
@@ -260,7 +260,7 @@ fn test_boundary_parsing() {
 
     assert_eq!(extensions.len(), 1);
     match &extensions[0] {
-        torq_codec::TLVExtensionEnum::Standard(tlv) => {
+        codec::TLVExtensionEnum::Standard(tlv) => {
             assert_eq!(tlv.header.tlv_length, 255);
             assert_eq!(tlv.payload, boundary_payload);
         }
@@ -281,7 +281,7 @@ fn test_boundary_parsing() {
 
     assert_eq!(ext_extensions.len(), 1);
     match &ext_extensions[0] {
-        torq_codec::TLVExtensionEnum::Extended(tlv) => {
+        codec::TLVExtensionEnum::Extended(tlv) => {
             let tlv_length = tlv.header.tlv_length;
             assert_eq!(tlv_length, 256);
             assert_eq!(tlv.payload, extended_payload);
@@ -312,7 +312,7 @@ fn test_mixed_format_parsing() {
 
     // Verify formats
     match &extensions[0] {
-        torq_codec::TLVExtensionEnum::Standard(tlv) => {
+        codec::TLVExtensionEnum::Standard(tlv) => {
             assert_eq!(tlv.header.tlv_type, TLVType::SignalIdentity as u8);
             assert_eq!(tlv.payload, vec![0x01u8; 16]);
         }
@@ -320,7 +320,7 @@ fn test_mixed_format_parsing() {
     }
 
     match &extensions[1] {
-        torq_codec::TLVExtensionEnum::Extended(tlv) => {
+        codec::TLVExtensionEnum::Extended(tlv) => {
             assert_eq!(tlv.header.tlv_type, TLVType::OrderBook as u8);
             assert_eq!(tlv.payload, vec![0x02u8; 500]);
         }
@@ -328,7 +328,7 @@ fn test_mixed_format_parsing() {
     }
 
     match &extensions[2] {
-        torq_codec::TLVExtensionEnum::Standard(tlv) => {
+        codec::TLVExtensionEnum::Standard(tlv) => {
             assert_eq!(tlv.header.tlv_type, TLVType::GasPrice as u8);
             assert_eq!(tlv.payload, vec![0x03u8; 32]);
         }

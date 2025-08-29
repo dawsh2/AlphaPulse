@@ -64,7 +64,7 @@ impl<'a> PatternDetector<'a> {
         for result in relay_usage.iter().take(5) {
             if result.module.as_deref().unwrap_or("").contains("bin/") {
                 println!("    • {} (unified collector)", 
-                    result.module.as_deref().unwrap_or("").replace("torq_adapter_service::", "").green());
+                    result.module.as_deref().unwrap_or("").replace("adapter_service::", "").green());
             }
         }
         

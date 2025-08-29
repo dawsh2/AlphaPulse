@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
 
-use torq_network::{
+use network::{
     Priority, Criticality, Reliability,
     mycelium::{
         ActorSystem, ActorBehavior, ActorRef,
@@ -43,7 +43,7 @@ struct IntegrationTestActor {
 impl ActorBehavior for IntegrationTestActor {
     type Message = TestMessage;
 
-    async fn handle(&mut self, msg: TestMessage) -> torq_network::Result<()> {
+    async fn handle(&mut self, msg: TestMessage) -> network::Result<()> {
         self.total_processed += 1;
         
         match msg {
@@ -61,7 +61,7 @@ impl ActorBehavior for IntegrationTestActor {
         Ok(())
     }
 
-    async fn on_start(&mut self) -> torq_network::Result<()> {
+    async fn on_start(&mut self) -> network::Result<()> {
         tracing::info!("Integration test actor {} started", self.id);
         Ok(())
     }
@@ -76,7 +76,7 @@ enum TestMessage {
 }
 
 impl Message for TestMessage {
-    fn to_tlv(&self) -> torq_network::Result<Vec<u8>> {
+    fn to_tlv(&self) -> network::Result<Vec<u8>> {
         match self {
             TestMessage::Market(msg) => msg.to_tlv(),
             TestMessage::Signal(msg) => msg.to_tlv(),
@@ -84,7 +84,7 @@ impl Message for TestMessage {
         }
     }
 
-    fn from_tlv(data: &[u8]) -> torq_network::Result<Self> {
+    fn from_tlv(data: &[u8]) -> network::Result<Self> {
         // Try to parse as different message types based on TLV type
         if let Ok(market_msg) = MarketMessage::from_tlv(data) {
             Ok(TestMessage::Market(market_msg))
@@ -93,7 +93,7 @@ impl Message for TestMessage {
         } else if let Ok(exec_msg) = ExecutionMessage::from_tlv(data) {
             Ok(TestMessage::Execution(exec_msg))
         } else {
-            Err(torq_network::TransportError::protocol("Unable to parse test message from TLV"))
+            Err(network::TransportError::protocol("Unable to parse test message from TLV"))
         }
     }
 }
@@ -252,8 +252,8 @@ async fn test_actor_bundle_zero_copy_integration() {
     
     // Configure for shared memory deployment (zero-copy)
     let actor_ids = vec![
-        torq_network::mycelium::registry::ActorId::new(),
-        torq_network::mycelium::registry::ActorId::new(),
+        network::mycelium::registry::ActorId::new(),
+        network::mycelium::registry::ActorId::new(),
     ];
     
     bundle_config.deployment = DeploymentMode::SharedMemory { 
@@ -327,7 +327,7 @@ async fn test_unix_socket_transport_integration() {
     tracing::info!("Starting Unix socket transport integration test");
 
     use tempfile::tempdir;
-    use torq_network::network::unix::{UnixSocketTransport, UnixSocketConfig};
+    use network::network::unix::{UnixSocketTransport, UnixSocketConfig};
 
     let temp_dir = tempdir().expect("Failed to create temp directory");
     let socket_path = temp_dir.path().join("integration_test.sock");

@@ -8,8 +8,8 @@
 use torq_adapters::{
     Adapter, AdapterHealth, CircuitState, ConnectionStatus, InstrumentType, Result,
 };
-use torq_codec::{InstrumentId, TLVMessageBuilder, TLVType, VenueId};
-use torq_codec::protocol::{RelayDomain, SourceType, TradeTLV, QuoteTLV};
+use codec::{InstrumentId, TLVMessageBuilder, TLVType, VenueId};
+use codec::protocol::{RelayDomain, SourceType, TradeTLV, QuoteTLV};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

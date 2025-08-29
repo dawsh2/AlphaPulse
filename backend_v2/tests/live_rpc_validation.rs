@@ -5,7 +5,7 @@
 
 #[cfg(test)]
 mod live_validation {
-    use torq_adapter_service::{
+    use adapter_service::{
         input::collectors::{
             pool_cache_manager::{PoolCacheManager, PoolInfo},
             polygon_dex::abi_events::{SwapEventDecoder, DEXProtocol},
@@ -200,7 +200,7 @@ mod live_validation {
         println!("\n=== Validating Swap Event Data Against Chain ===\n");
 
         // Use the real swap event from our fixtures
-        let log = torq_adapter_service::tests::fixtures::polygon::uniswap_v3_swap_real();
+        let log = adapter_service::tests::fixtures::polygon::uniswap_v3_swap_real();
 
         // Decode the swap event
         let decoder = SwapEventDecoder::new();

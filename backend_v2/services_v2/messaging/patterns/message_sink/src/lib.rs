@@ -19,7 +19,7 @@ use async_trait::async_trait;
 use std::fmt::Debug;
 use std::time::SystemTime;
 
-pub use torq_network::current_timestamp_ns as fast_timestamp_ns;
+pub use network::current_timestamp_ns as fast_timestamp_ns;
 pub use batch::BatchResult;
 pub use circuit_breaker::{
     CircuitBreakerConfig, CircuitBreakerSink, CircuitBreakerStats, CircuitState,
@@ -43,7 +43,7 @@ pub use registry::{RegistryMetadata, ServiceRegistry};
 pub use routing::{MessageRouter, RoutingTarget};
 pub use sinks::{CompositeMetrics, CompositeSink, ConnectionType, DirectSink, RelaySink};
 // TLV types are now imported from torq-codec
-pub use torq_codec::protocol::{RelayDomain, TLVType};
+pub use codec::protocol::{RelayDomain, TLVType};
 
 /// A destination for messages that abstracts away connection details
 #[async_trait]
@@ -430,7 +430,7 @@ mod tests {
         assert!(!timeout_err.is_connection_error());
         assert!(timeout_err.is_recoverable());
 
-        let timestamp = torq_network::safe_system_timestamp_ns_checked().unwrap_or(0);
+        let timestamp = network::safe_system_timestamp_ns_checked().unwrap_or(0);
         let context = SendContext::new(100, timestamp);
         let buffer_err = SinkError::buffer_full_with_context(context);
         assert!(buffer_err.is_recoverable());

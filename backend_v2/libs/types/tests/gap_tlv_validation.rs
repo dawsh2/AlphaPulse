@@ -128,7 +128,7 @@ fn test_invalidation_reason_serialization() {
 #[test]
 fn test_quote_tlv_in_message_builder() {
     // Test integration with Protocol V2 message building
-    use torq_types::protocol::tlv::build_message_direct;
+    use codec::build_message_direct;
     use torq_types::SourceType;
 
     let quote = QuoteTLV::new(
@@ -159,7 +159,7 @@ fn test_quote_tlv_in_message_builder() {
 #[test]
 fn test_invalidation_reason_in_message() {
     // Test InvalidationReason serialization
-    use torq_types::protocol::tlv::build_message_direct;
+    use codec::build_message_direct;
     use torq_types::protocol::tlv::StateInvalidationTLV;
     use torq_types::SourceType;
 
@@ -193,7 +193,7 @@ fn test_invalidation_reason_in_message() {
 #[test]
 fn test_mixed_tlv_message() {
     // Test that different TLV types can coexist
-    use torq_types::protocol::tlv::build_message_direct;
+    use codec::build_message_direct;
     use torq_types::SourceType;
 
     // Build messages with different TLV types

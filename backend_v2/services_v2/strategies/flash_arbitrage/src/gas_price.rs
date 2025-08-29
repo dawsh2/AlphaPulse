@@ -58,6 +58,7 @@ use parking_lot::RwLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tracing::{debug, error, info, warn};
 use url::Url;
+use network;
 
 /// Default gas price in wei for Polygon (30 gwei)
 const DEFAULT_GAS_PRICE_WEI: u64 = 30_000_000_000;
@@ -73,13 +74,13 @@ const CACHE_DURATION_SECS: u64 = 300;
 #[derive(Debug, Clone)]
 struct GasPriceCache {
     gas_price_wei: U256,
-    matic_price_usd: f64,
+    matic_price_usd: Option<f64>, // From price feed when available
     timestamp_ns: u64,
 }
 
 impl GasPriceCache {
     fn is_expired(&self, max_age_secs: u64) -> bool {
-        let now_ns = match torq_network::time::safe_system_timestamp_ns_checked() {
+        let now_ns = match network::time::safe_system_timestamp_ns_checked() {
             Ok(timestamp) => timestamp,
             Err(e) => {
                 tracing::error!("Failed to get current timestamp for cache expiry check: {}", e);
@@ -95,7 +96,8 @@ impl GasPriceCache {
 pub struct GasPriceFetcher {
     provider: Provider<Http>,
     cache: RwLock<Option<GasPriceCache>>,
-    matic_price_usd: f64, // Could be fetched from price API in future
+    /// MATIC price from exchange adapter price feeds (when available)
+    matic_price_usd: RwLock<Option<f64>>,
     /// Intelligent cache invalidation: force refresh if network congestion detected
     last_block_number: RwLock<u64>,
 }
@@ -123,7 +125,7 @@ impl GasPriceFetcher {
         Ok(Self {
             provider,
             cache: RwLock::new(None),
-            matic_price_usd_fixed: 33_000_000, // Approximate MATIC price $0.33 (8 decimal fixed-point)
+            matic_price_usd: RwLock::new(None), // Will be set from price feeds
             last_block_number: RwLock::new(0),
         })
     }
@@ -152,10 +154,11 @@ impl GasPriceFetcher {
         match self.fetch_fresh_gas_price().await {
             Ok(gas_price) => {
                 // Update cache
+                let current_price = self.matic_price_usd.read().clone();
                 let cache_entry = GasPriceCache {
                     gas_price_wei: gas_price,
-                    matic_price_usd_fixed: self.matic_price_usd_fixed,
-                    timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+                    matic_price_usd: current_price,
+                    timestamp_ns: network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                         tracing::error!("Failed to generate timestamp for gas price cache: {}", e);
                         0
                     }),
@@ -181,33 +184,35 @@ impl GasPriceFetcher {
     }
 
     /// Get estimated USD cost for flash arbitrage transaction
-    pub async fn get_transaction_cost_usd(&self) -> Result<f64> {
+    /// Returns None if MATIC price is not available from price feeds
+    pub async fn get_transaction_cost_usd(&self) -> Result<Option<f64>> {
         let gas_price_wei = self.get_gas_price_wei().await?;
+
+        // Get current MATIC price from price feed
+        let matic_price = self.matic_price_usd.read().clone();
+        let Some(price_usd) = matic_price else {
+            debug!("MATIC price not available from price feeds");
+            return Ok(None);
+        };
 
         // Calculate total cost in wei
         let total_cost_wei = gas_price_wei * FLASH_ARBITRAGE_GAS_UNITS;
-
-        // Convert to USD using safe fixed-point arithmetic with overflow protection
-        // total_cost_wei is in wei (10^18), matic_price_usd_fixed is 8-decimal fixed-point (10^8)
-        let total_cost_wei_u128 = total_cost_wei.as_u128();
+        let total_cost_wei_f64 = total_cost_wei.as_u128() as f64;
         
-        // Check for potential overflow before multiplication
-        if total_cost_wei_u128 > u128::MAX / (self.matic_price_usd_fixed as u128) {
-            return Err(anyhow::anyhow!("Gas cost calculation would overflow"));
-        }
-        
-        // Perform safe multiplication and division
-        let total_cost_usd_fixed = (total_cost_wei_u128 * self.matic_price_usd_fixed as u128) / 1_000_000_000_000_000_000u128; // Divide by 10^18
-        let cost_usd = total_cost_usd_fixed as f64 / 100_000_000.0; // Convert back to float for return
+        // Convert wei to MATIC and then to USD
+        // total_cost_wei is in wei (10^18 wei = 1 MATIC)
+        let total_cost_matic = total_cost_wei_f64 / 1e18;
+        let cost_usd = total_cost_matic * price_usd;
 
         debug!(
-            "Gas cost calculation: {} gwei * {} gas = ${:.4} USD",
+            "Gas cost calculation: {} gwei * {} gas = ${:.4} USD (MATIC=${:.4})",
             gas_price_wei / 1_000_000_000,
             FLASH_ARBITRAGE_GAS_UNITS,
-            cost_usd
+            cost_usd,
+            price_usd
         );
 
-        Ok(cost_usd)
+        Ok(Some(cost_usd))
     }
 
     /// Update gas price from WebSocket stream (Phase 1 implementation)
@@ -218,13 +223,13 @@ impl GasPriceFetcher {
         let total_gwei = base_fee_gwei.saturating_add(priority_fee_gwei);
         let total_wei = U256::from(total_gwei) * U256::from(1_000_000_000);
 
-        // Read current MATIC price (atomic read from f64)
-        let current_matic_price = self.matic_price_usd;
+        // Read current MATIC price from price feed
+        let current_matic_price = self.matic_price_usd.read().clone();
 
         let cache_entry = GasPriceCache {
             gas_price_wei: total_wei,
             matic_price_usd: current_matic_price,
-            timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+            timestamp_ns: network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                 tracing::error!("Failed to generate timestamp for WebSocket gas price update: {}", e);
                 0
             }),
@@ -236,9 +241,13 @@ impl GasPriceFetcher {
             *cache = Some(cache_entry);
         }
 
+        let price_str = current_matic_price
+            .map(|p| format!("${:.4}", p))
+            .unwrap_or_else(|| "unavailable".to_string());
+        
         debug!(
-            "⛽ Updated gas price from WebSocket: base={}gwei, priority={}gwei, total={}gwei (MATIC=${:.4})",
-            base_fee_gwei, priority_fee_gwei, total_gwei, current_matic_price
+            "⛽ Updated gas price from WebSocket: base={}gwei, priority={}gwei, total={}gwei (MATIC={})",
+            base_fee_gwei, priority_fee_gwei, total_gwei, price_str
         );
     }
 
@@ -283,14 +292,16 @@ impl GasPriceFetcher {
             .context("Failed to fetch gas price from RPC")
     }
 
-    /// Update MATIC price (could be called from external price feed)
-    pub fn update_matic_price(&mut self, price_usd: f64) {
-        self.matic_price_usd = price_usd;
-        debug!("Updated MATIC price to ${:.4}", price_usd);
+    /// Update MATIC price from exchange adapter price feeds
+    /// This should be called when receiving price updates from Kraken/Coinbase adapters
+    pub fn update_matic_price(&self, price_usd: f64) {
+        let mut price = self.matic_price_usd.write();
+        *price = Some(price_usd);
+        info!("Updated MATIC price from price feed: ${:.4}", price_usd);
     }
 
     /// Get current cached gas price info for debugging
-    pub fn get_cached_info(&self) -> Option<(U256, f64, u64)> {
+    pub fn get_cached_info(&self) -> Option<(U256, Option<f64>, u64)> {
         let cache = self.cache.read();
         cache
             .as_ref()
@@ -306,8 +317,8 @@ mod tests {
     fn test_cache_expiry() {
         let cache = GasPriceCache {
             gas_price_wei: U256::from(30_000_000_000u64),
-            matic_price_usd: 0.33,
-            timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or(0),
+            matic_price_usd: Some(0.33), // Test with a price available
+            timestamp_ns: network::time::safe_system_timestamp_ns_checked().unwrap_or(0),
         };
 
         // Should not be expired immediately
@@ -317,7 +328,7 @@ mod tests {
         let expired_cache = GasPriceCache {
             gas_price_wei: U256::from(30_000_000_000u64),
             matic_price_usd: 0.33,
-            timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or(0)
+            timestamp_ns: network::time::safe_system_timestamp_ns_checked().unwrap_or(0)
                 - 60_000_000_000, // 60 seconds ago
         };
 

@@ -3,7 +3,7 @@
 //! Supports both TOML-based configuration and environment variable fallbacks
 //! for maximum flexibility in development and production deployments.
 
-use torq_adapter_service::BaseAdapterConfig;
+use adapter_service::BaseAdapterConfig;
 use torq_types::RelayDomain;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

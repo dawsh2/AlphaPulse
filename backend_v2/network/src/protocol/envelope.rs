@@ -4,7 +4,8 @@
 //! Provides efficient binary serialization with fixed headers and
 //! variable-length payload support.
 
-use crate::network::{CompressionType, EncryptionType};
+use super::CompressionType;
+use super::security::EncryptionType;
 use crate::time::fast_timestamp_ns;
 use crate::{generate_message_id, Result, TransportError};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};

@@ -21,7 +21,7 @@
 //! let trade = TradeTLV::new(/* ... */);
 //!
 //! // For message building, import codec separately in services:
-//! // use torq_codec::TLVMessageBuilder;
+//! // use codec::TLVMessageBuilder;
 //! // let message = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::BinanceCollector)
 //! //     .add_tlv(TLVType::Trade, &trade)
 //! //     .build();

@@ -40,7 +40,7 @@
 //! - **Compliance Ready**: Designed for regulatory requirements
 
 use torq_relay_core::common::RelayLogic;
-use torq_codec::protocol::{MessageHeader, RelayDomain};
+use codec::protocol::{MessageHeader, RelayDomain};
 
 /// Execution relay logic implementation
 ///

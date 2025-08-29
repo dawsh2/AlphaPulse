@@ -18,7 +18,7 @@ use rust_decimal_macros::dec;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use torq_network::time::safe_system_timestamp_ns;
+use network::time::safe_system_timestamp_ns;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tracing::{debug, error, info, warn};

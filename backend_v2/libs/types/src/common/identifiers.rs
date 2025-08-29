@@ -120,7 +120,7 @@
 //! };
 //!
 //! // For message building, services import codec separately:
-//! // use torq_codec::TLVMessageBuilder;
+//! // use codec::TLVMessageBuilder;
 //! // let message = TLVMessageBuilder::new(RelayDomain::Signal, SourceType::Strategy)
 //! //     .add_tlv(TLVType::ArbitrageSignal, &signal_data)
 //! //     .build();

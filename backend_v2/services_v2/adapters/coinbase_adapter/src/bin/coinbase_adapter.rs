@@ -1,6 +1,6 @@
 //! Coinbase adapter service binary
 
-use torq_adapter_service::{Adapter, SafeAdapter};
+use adapter_service::{Adapter, SafeAdapter};
 use torq_coinbase_adapter::CoinbasePluginAdapter;
 use anyhow::Result;
 use tokio::signal;

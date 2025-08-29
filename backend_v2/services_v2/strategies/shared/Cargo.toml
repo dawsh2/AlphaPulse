@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-torq-codec = { path = "../../../libs/codec" }
-torq-types = { path = "../../../libs/types" }
+codec = { path = "../../../libs/codec" }
+types = { path = "../../../libs/types" }
 
 # Core dependencies
 tokio = { version = "1.42", features = ["full"] }

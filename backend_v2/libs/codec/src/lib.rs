@@ -73,47 +73,46 @@
 //! - **Execution**: Audit mode, >50K msg/s (full validation + logging)
 
 // Core modules
+pub mod builder;
 pub mod constants;
 pub mod error;
 pub mod instrument_id;
-pub mod message_builder;
+pub mod message_builder; // TODO: Remove after migration complete
+pub mod protocol_constants;
 pub mod parser;
 pub mod tlv_types;
 
 // MYC-004 Consolidated validation modules - IMPLEMENTED
 pub mod validation;
-pub mod validation_config; 
-pub mod validation_enhanced;
-pub mod enhanced_builder;
 pub mod migration;
 
 // Re-export key types for convenience
 pub use constants::*;
 pub use error::{ParseError, ParseResult, ProtocolError, ProtocolResult};
 pub use instrument_id::{AssetType, InstrumentId, VenueId};
-pub use message_builder::{TLVMessageBuilder, VendorTLVBuilder};
+// Re-export from new builder module
+pub use builder::{TLVMessageBuilder, VendorTLVBuilder, build_message_direct, BuildError};
 pub use parser::{
     extract_tlv_payload, find_tlv_by_type, parse_header, parse_header_without_checksum,
     parse_tlv_extensions, validate_tlv_size, ExtendedTLVExtension, ExtendedTLVHeader,
     SimpleTLVExtension, SimpleTLVHeader, TLVExtensionEnum,
 };
+pub use protocol_constants::{ChainProtocol, DEXProtocol, AMMVariant};
 pub use tlv_types::{TLVSizeConstraint, TLVType, TlvTypeRegistry};
 
 // Re-export consolidated validation system
 pub use validation::{
+    // Core validator
     TLVValidator, ValidationError, ValidationPolicy, ValidatedMessage,
-    DomainValidator, MarketDataValidator, SignalValidator, ExecutionValidator,
-    create_domain_validator, DomainValidationRules, ValidationLevel,
-};
-pub use validation_config::{
-    ValidationConfig, DomainMessageLimits, TimestampConfig, SequenceConfig, PoolDiscoveryConfig,
-};
-pub use validation_enhanced::{
-    EnhancedTLVValidator, EnhancedValidationError, SequenceTracker, PoolDiscoveryQueue,
+    ValidationLevel, DomainValidationRules, SequenceTracker, PoolDiscoveryQueue,
     TLVExtensionZeroCopy,
-};
-pub use enhanced_builder::{
+    // Configuration
+    ValidationConfig, DomainMessageLimits, TimestampConfig, SequenceConfig, PoolDiscoveryConfig,
+    // Builder
     ValidatingTLVMessageBuilder, BuilderFactory, patterns,
+    // Domain validators
+    DomainValidator, MarketDataValidator, SignalValidator, ExecutionValidator,
+    create_domain_validator,
 };
 
 // Migration support (with deprecation warnings)

@@ -8,7 +8,7 @@
 //!
 //! Uses Protocol V2 with full 20-byte addresses for execution compatibility.
 
-use torq_state_core::{StateError, Stateful};
+use state_core::{StateError, Stateful};
 use torq_types::{
     tlv::pool_cache::{CachePoolType, PoolCacheFileHeader, PoolCacheJournalEntry, PoolInfoTLV},
     tlv::DEXProtocol,

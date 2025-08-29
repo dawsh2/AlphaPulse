@@ -5,7 +5,7 @@
 //!
 //! IMPORTANT: Uses REAL exchange connections per CLAUDE.md requirements - NO MOCKS
 
-use torq_adapter_service::output::RelayOutput;
+use adapter_service::output::RelayOutput;
 use torq_types::protocol::{
     tlv::{market_data::TradeTLV, TLVMessageBuilder},
     MessageHeader, RelayDomain, SourceType, TLVType, InstrumentId, VenueId,
@@ -330,7 +330,7 @@ async fn test_full_pipeline_flow_real_kraken() -> Result<()> {
         .context("Should receive real trade from Kraken")?;
 
     // Parse and validate Protocol V2 header
-    let header = torq_codec::parse_header(&received)?;
+    let header = codec::parse_header(&received)?;
     
     // Verify proper Protocol V2 compliance
     assert_eq!(header.magic, 0xDEADBEEF, "Magic number must be 0xDEADBEEF");
@@ -368,7 +368,7 @@ async fn test_pipeline_protocol_compliance() -> Result<()> {
         price: 4500000000000,
         amount: 100000000,
         direction: 0,
-        timestamp_ns: torq_network::time::safe_system_timestamp_ns(),
+        timestamp_ns: network::time::safe_system_timestamp_ns(),
         trade_id: 12345,
     };
     
@@ -376,7 +376,7 @@ async fn test_pipeline_protocol_compliance() -> Result<()> {
     let message = builder.build();
     
     // Verify header has correct magic number (0xDEADBEEF)
-    let header = torq_codec::parse_header(&message)?;
+    let header = codec::parse_header(&message)?;
     assert_eq!(header.magic, MESSAGE_MAGIC, "Magic number must match Protocol V2");
     assert_eq!(header.magic, 0xDEADBEEF, "Magic must be 0xDEADBEEF");
     

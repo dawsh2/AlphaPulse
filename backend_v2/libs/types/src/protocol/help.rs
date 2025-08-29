@@ -36,7 +36,7 @@
 //! ## Examples
 //!
 //! ```rust
-//! use torq_protocol_v2::help::*;
+//! use protocol_v2::help::*;
 //!
 //! // Quick API discovery
 //! show_instrument_id_methods();
@@ -203,7 +203,7 @@ pub fn display_method(method: &MethodInfo) {
 /// Call during development or in REPL to discover available functionality:
 ///
 /// ```rust
-/// # use torq_protocol_v2::help::show_instrument_id_methods;
+/// # use protocol_v2::help::show_instrument_id_methods;
 /// show_instrument_id_methods();
 /// ```
 ///
@@ -307,7 +307,7 @@ pub fn show_instrument_id_methods() {
 /// # Examples
 ///
 /// ```rust
-/// # use torq_protocol_v2::help::show_tlv_type_methods;
+/// # use protocol_v2::help::show_tlv_type_methods;
 /// show_tlv_type_methods();
 /// ```
 pub fn show_tlv_type_methods() {
@@ -557,8 +557,8 @@ pub fn show_common_mistakes() {
 /// # Examples
 ///
 /// ```rust
-/// # use torq_protocol_v2::help::explore_tlv_type;
-/// # use torq_protocol_v2::TLVType;
+/// # use protocol_v2::help::explore_tlv_type;
+/// # use protocol_v2::TLVType;
 /// explore_tlv_type(TLVType::Trade);
 /// explore_tlv_type(TLVType::PoolSwap);
 /// ```
@@ -729,7 +729,7 @@ pub fn show_performance_tips() {
 /// # Usage
 ///
 /// ```rust
-/// # use torq_protocol_v2::help::show_all_help;
+/// # use protocol_v2::help::show_all_help;
 /// show_all_help();
 /// ```
 ///

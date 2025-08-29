@@ -1,6 +1,6 @@
 //! Configuration management for Coinbase adapter
 
-use torq_adapter_service::BaseAdapterConfig;
+use adapter_service::BaseAdapterConfig;
 use serde::{Deserialize, Serialize};
 
 /// Configuration specific to Coinbase adapter

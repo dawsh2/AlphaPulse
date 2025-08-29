@@ -58,7 +58,7 @@ hex = "0.4"  # Always required for instrument IDs and trace formatting
 num_enum = "0.7"
 paste = { version = "1.0", optional = true }
 
-# Common dependencies (from original torq-types)
+# Common dependencies (from original types)
 rust_decimal = { version = "1.32", features = ["serde"], optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }

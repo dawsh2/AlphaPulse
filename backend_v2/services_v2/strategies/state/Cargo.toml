@@ -6,7 +6,7 @@ authors.workspace = true
 
 [dependencies]
 # Internal
-state-core = { workspace = true }
+# state-core = { workspace = true } # TODO: Fix missing state-core
 types = { workspace = true }
 
 # External

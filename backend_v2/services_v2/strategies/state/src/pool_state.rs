@@ -3,7 +3,7 @@
 //! Core state management for all pool types with dynamic discovery.
 //! Implements the Stateful trait for integration with the state management framework.
 
-use torq_state_core::{SequenceTracker, SequencedStateful, StateError, Stateful};
+use state_core::{SequenceTracker, SequencedStateful, StateError, Stateful};
 use torq_types::{
     tlv::{
         DEXProtocol as PoolProtocol, PoolBurnTLV, PoolMintTLV, PoolStateTLV, PoolSwapTLV,

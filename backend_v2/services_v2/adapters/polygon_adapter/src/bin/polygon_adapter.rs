@@ -3,7 +3,7 @@
 //! Standalone binary for the Polygon DEX adapter plugin.
 
 use torq_polygon_adapter::{PolygonAdapter, PolygonConfig};
-use torq_adapter_service::{Adapter, SafeAdapter};
+use adapter_service::{Adapter, SafeAdapter};
 use clap::Parser;
 use std::path::PathBuf;
 use tracing::{error, info};

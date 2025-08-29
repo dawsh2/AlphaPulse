@@ -7,11 +7,11 @@
 //! - Zero-allocation parsing
 //! - Configurable validation parameters
 
-use torq_codec::{
+use codec::{
     ValidationConfig, EnhancedTLVValidator, SequenceTracker,
     TLVMessageBuilder, ValidatingTLVMessageBuilder,
 };
-use torq_types::{RelayDomain, SourceType, protocol::tlv::types::TLVType};
+use types::{RelayDomain, SourceType, protocol::tlv::types::TLVType};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn main() {

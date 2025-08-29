@@ -57,8 +57,8 @@
 //!
 //! ### Basic Signal Strategy Setup
 //! ```rust
-//! use torq_kraken_signals::{KrakenSignalStrategy, StrategyConfig};
-//! use torq_protocol_v2::{TLVMessageBuilder, TLVType, RelayDomain, SourceType};
+//! use kraken_signals::{KrakenSignalStrategy, StrategyConfig};
+//! use protocol_v2::{TLVMessageBuilder, TLVType, RelayDomain, SourceType};
 //! use tokio::sync::mpsc;
 //!
 //! #[tokio::main]  
@@ -96,7 +96,7 @@
 //!
 //! ### Custom Indicator Configuration
 //! ```rust
-//! use torq_kraken_signals::{TradingSignal, SignalType};
+//! use kraken_signals::{TradingSignal, SignalType};
 //!
 //! // Process incoming signals with custom logic
 //! let signal = TradingSignal {
@@ -117,7 +117,7 @@
 //!
 //! ### Real-Time Signal Monitoring
 //! ```rust
-//! use torq_kraken_signals::indicators::{RSI, MACD, MovingAverage};
+//! use kraken_signals::indicators::{RSI, MACD, MovingAverage};
 //!
 //! // Create custom indicator pipeline
 //! let mut rsi = RSI::new(14);              // 14-period RSI

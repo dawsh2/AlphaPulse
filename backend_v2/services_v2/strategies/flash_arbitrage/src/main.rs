@@ -1,5 +1,5 @@
-use torq_strategies::flash_arbitrage::{OpportunityDetector, RelayConsumer, SignalOutput};
-use torq_strategies::common::logging::init_strategy_logging;
+use strategies::flash_arbitrage::{OpportunityDetector, RelayConsumer, SignalOutput};
+use strategies::common::logging::init_strategy_logging;
 use torq_state_market::PoolStateManager;
 use anyhow::{Context, Result};
 use std::sync::Arc;

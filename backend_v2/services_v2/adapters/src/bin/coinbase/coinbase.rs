@@ -25,8 +25,8 @@
 //! - **Throughput**: Designed for >15,000 msg/s sustained load
 //! - **Memory**: <50MB steady state with multiple product subscriptions
 
-use torq_codec::{parse_header, parse_tlv_extensions}; // Added
-use torq_network::time::init_timestamp_system; // Added
+use codec::{parse_header, parse_tlv_extensions}; // Added
+use network::time::init_timestamp_system; // Added
 use torq_types::{
     tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
@@ -41,7 +41,7 @@ use tokio::sync::RwLock;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 
-use torq_adapter_service::output::RelayOutput;
+use adapter_service::output::RelayOutput;
 
 // =============================================================================
 // CONFIGURATION
@@ -521,7 +521,7 @@ impl UnifiedCoinbaseCollector {
 
         // Parse timestamp with DoS protection - prevents malicious Coinbase timestamps from crashing system
         let timestamp =
-            torq_network::time::parse_external_timestamp_safe(&match_event.time, "Coinbase");
+            network::time::parse_external_timestamp_safe(&match_event.time, "Coinbase");
 
         // Build TradeTLV using the constructor
         let trade_tlv = TradeTLV::new(

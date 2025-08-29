@@ -3,7 +3,7 @@
 //! Validates that the consolidation of topology and transport into the network
 //! crate works correctly and preserves all original functionality.
 
-use torq_network::{
+use network::{
     // Transport types
     TransportConfig, TransportMode, ProtocolType, CompressionType,
     // Topology types  
@@ -22,10 +22,10 @@ async fn test_basic_imports_work() {
         mode: TransportMode::Direct,
         protocol: Some(ProtocolType::Tcp),
         compression: CompressionType::None,
-        encryption: torq_network::EncryptionType::None,
-        priority: torq_network::Priority::Normal,
-        criticality: torq_network::Criticality::Standard,
-        reliability: torq_network::Reliability::BestEffort,
+        encryption: network::EncryptionType::None,
+        priority: network::Priority::Normal,
+        criticality: network::Criticality::Standard,
+        reliability: network::Reliability::BestEffort,
         max_message_size: 1024 * 1024,
         connection_timeout_secs: 10,
     };
@@ -117,7 +117,7 @@ async fn test_topology_resolver_integration() {
 #[test]
 fn test_channel_config_disambiguation() {
     // Test that the ChannelConfig name collision has been resolved
-    use torq_network::{TransportChannelConfig, TopologyChannelConfig, ChannelConfig};
+    use network::{TransportChannelConfig, TopologyChannelConfig, ChannelConfig};
     
     // Default ChannelConfig should be the transport version for backward compatibility
     let _transport_channel: ChannelConfig = Default::default();
@@ -130,7 +130,7 @@ fn test_channel_config_disambiguation() {
         actor_outputs: vec!["test_output".to_string()],
         is_bidirectional: false,
         max_queue_depth: Some(1000),
-        criticality_level: Some(torq_network::topology::nodes::CriticalityLevel::Standard),
+        criticality_level: Some(network::topology::nodes::CriticalityLevel::Standard),
         security_requirements: None,
     };
     
@@ -148,7 +148,7 @@ fn test_feature_flag_integration() {
     
     // Test that all standard features are available
     let _compression = CompressionType::Lz4;
-    let _encryption = torq_network::EncryptionType::Tls;
+    let _encryption = network::EncryptionType::Tls;
     let _transport_mode = TransportMode::Direct;
 }
 
@@ -176,7 +176,7 @@ fn test_timestamp_precision_validation() {
 #[test]
 fn test_consolidated_exports() {
     // Test that all major types are available from the root module
-    use torq_network::*;
+    use network::*;
     
     // Transport types should be available
     let _transport_config = TransportConfig {
@@ -200,16 +200,16 @@ fn test_consolidated_exports() {
         source_id: 1,
         state: ActorState::Inactive,
         persistence: ActorPersistence::None,
-        resources: torq_network::topology::actors::ResourceRequirements {
+        resources: network::topology::actors::ResourceRequirements {
             min_memory_mb: 100,
             max_memory_mb: 500,
             min_cpu_cores: 1,
             max_cpu_cores: 2,
             cpu_affinity: None,
             numa_node: None,
-            priority: torq_network::topology::actors::ProcessPriority::Normal,
+            priority: network::topology::actors::ProcessPriority::Normal,
         },
-        health_check: torq_network::topology::actors::HealthCheckConfig {
+        health_check: network::topology::actors::HealthCheckConfig {
             enabled: true,
             interval_seconds: 30,
             timeout_seconds: 5,
@@ -254,23 +254,23 @@ async fn test_backward_compatibility() {
 #[test]
 fn test_performance_constants() {
     // Test that performance constants are maintained
-    assert_eq!(torq_network::MAX_MESSAGE_SIZE, 16 * 1024 * 1024);
-    assert_eq!(torq_network::DEFAULT_CONNECTION_POOL_SIZE, 4);
-    assert_eq!(torq_network::DEFAULT_TCP_BUFFER_SIZE, 64 * 1024);
-    assert_eq!(torq_network::DEFAULT_UDP_BUFFER_SIZE, 8 * 1024);
+    assert_eq!(network::MAX_MESSAGE_SIZE, 16 * 1024 * 1024);
+    assert_eq!(network::DEFAULT_CONNECTION_POOL_SIZE, 4);
+    assert_eq!(network::DEFAULT_TCP_BUFFER_SIZE, 64 * 1024);
+    assert_eq!(network::DEFAULT_UDP_BUFFER_SIZE, 8 * 1024);
     
     // Test topology constants
-    assert_eq!(torq_network::TOPOLOGY_VERSION, "1.0.0");
-    assert_eq!(torq_network::MAX_ACTORS_PER_NODE, 64);
-    assert_eq!(torq_network::MAX_CPU_CORES_PER_ACTOR, 16);
+    assert_eq!(network::TOPOLOGY_VERSION, "1.0.0");
+    assert_eq!(network::MAX_ACTORS_PER_NODE, 64);
+    assert_eq!(network::MAX_CPU_CORES_PER_ACTOR, 16);
     
     // Test transport version
-    assert_eq!(torq_network::TRANSPORT_VERSION, "0.1.0");
+    assert_eq!(network::TRANSPORT_VERSION, "0.1.0");
 }
 
 #[test]
 fn test_no_floating_point_validation() {
-    use torq_network::validate_no_float_in_price;
+    use network::validate_no_float_in_price;
     
     // Valid code (no floating point)
     assert!(validate_no_float_in_price("let price = 100i64;"));
@@ -305,13 +305,13 @@ fn test_consolidation_file_structure() {
     };
     
     // Previously from torq-network (now the unified crate)
-    let _network_transport = torq_network::NetworkConfig {
+    let _network_transport = network::NetworkConfig {
         node_id: "test".to_string(),
-        protocol: torq_network::NetworkProtocol {
+        protocol: network::NetworkProtocol {
             protocol_type: ProtocolType::Tcp,
             listen_addr: "127.0.0.1:8080".parse().unwrap(),
-            options: torq_network::ProtocolOptions {
-                tcp: Some(torq_network::TcpOptions {
+            options: network::ProtocolOptions {
+                tcp: Some(network::TcpOptions {
                     nodelay: true,
                     keepalive: true,
                     recv_buffer_size: Some(64 * 1024),
@@ -324,20 +324,20 @@ fn test_consolidation_file_structure() {
             },
         },
         compression: CompressionType::None,
-        encryption: torq_network::EncryptionType::None,
-        connection: torq_network::ConnectionConfig {
+        encryption: network::EncryptionType::None,
+        connection: network::ConnectionConfig {
             max_connections_per_node: 4,
             connect_timeout: std::time::Duration::from_secs(10),
             idle_timeout: std::time::Duration::from_secs(300),
             heartbeat_interval: std::time::Duration::from_secs(30),
             max_reconnect_attempts: 5,
-            backoff_strategy: torq_network::BackoffStrategy::Exponential {
+            backoff_strategy: network::BackoffStrategy::Exponential {
                 initial_delay: std::time::Duration::from_millis(100),
                 multiplier: 2.0,
                 max_delay: std::time::Duration::from_secs(60),
             },
         },
-        performance: torq_network::PerformanceConfig {
+        performance: network::PerformanceConfig {
             batching: None,
             send_queue_size: 1000,
             recv_queue_size: 1000,

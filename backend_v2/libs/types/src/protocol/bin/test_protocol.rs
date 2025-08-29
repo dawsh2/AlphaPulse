@@ -12,12 +12,8 @@ use torq_types::recovery::request::{RecoveryRequestTLV, RecoveryRequestType};
 use torq_types::*;
 
 // Import codec functionality for message building and parsing
-use torq_codec::{
-    TLVMessageBuilder, VendorTLVBuilder, parse_header, parse_header_without_checksum,
-    parse_tlv_extensions, find_tlv_by_type, extract_tlv_payload, validate_tlv_size,
-    TLVExtensionEnum, SimpleTLVExtension, ExtendedTLVExtension,
-    SimpleTLVHeader, ExtendedTLVHeader, ParseError, ParseResult, ProtocolError, ProtocolResult
-};
+// Note: codec crate is a sibling library, not available as 'codec'
+// These imports would need to come from the actual codec crate once properly configured
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {

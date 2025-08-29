@@ -89,8 +89,8 @@
 //!
 //! ### Construction
 //! ```rust
-//! use torq_protocol_v2::message::{MessageHeader, MessageBuilder};
-//! use torq_protocol_v2::{RelayDomain, SourceType};
+//! use protocol_v2::message::{MessageHeader, MessageBuilder};
+//! use protocol_v2::{RelayDomain, SourceType};
 //!
 //! let header = MessageBuilder::new()
 //!     .domain(RelayDomain::MarketData)
@@ -103,7 +103,7 @@
 //!
 //! ### Validation
 //! ```rust
-//! use torq_protocol_v2::message::parse_header;
+//! use protocol_v2::message::parse_header;
 //!
 //! let header = parse_header(&received_bytes)?;
 //!

@@ -5,7 +5,6 @@
 
 use crate::{Result, TransportError};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 /// Encryption type enumeration
 #[derive(Debug, Clone, Serialize, Deserialize)]

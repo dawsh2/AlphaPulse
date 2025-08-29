@@ -19,7 +19,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
-use torq_adapter_service::output::RelayOutput;
+use adapter_service::output::RelayOutput;
 
 /// Number of messages to send in each benchmark iteration
 const BENCHMARK_MESSAGE_COUNT: usize = 10_000;

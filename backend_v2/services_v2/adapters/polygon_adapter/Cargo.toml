@@ -19,7 +19,7 @@ codec = { workspace = true }
 dex = { workspace = true }
 
 # Pool discovery and state management
-state-core = { workspace = true }
+# state-core = { workspace = true } # TODO: Fix missing state-core
 state-market = { workspace = true }
 
 # Web3 for Polygon RPC

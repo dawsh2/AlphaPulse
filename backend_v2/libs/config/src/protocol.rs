@@ -4,8 +4,8 @@
 //! TLV messaging system, including magic numbers, domain ranges, and
 //! performance targets.
 
-/// Protocol V2 standard magic number for message identification
-pub const MAGIC_NUMBER: u32 = 0xDEADBEEF;
+// Protocol magic number moved to libs/codec/src/protocol_constants.rs
+// to avoid duplication - use codec::protocol_constants::MESSAGE_MAGIC
 
 /// Message header size (32 bytes)
 pub const MESSAGE_HEADER_SIZE: usize = 32;

@@ -98,7 +98,7 @@ pub struct NetworkEnvelope {
 }
 
 /// Network-level priority (affects transport, not business logic)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum NetworkPriority {
     /// Background traffic (bulk data transfers)
     Background,
@@ -109,6 +109,9 @@ pub enum NetworkPriority {
     /// Critical system messages (heartbeats, connection management)
     Critical,
 }
+
+/// Priority alias for routing compatibility
+pub type Priority = NetworkPriority;
 
 impl Default for NetworkPriority {
     fn default() -> Self {
@@ -141,7 +144,8 @@ impl NetworkEnvelope {
         
         if source_bytes.len() > u16::MAX as usize || dest_bytes.len() > u16::MAX as usize {
             return Err(NetworkError::transport(
-                "Source or destination name too long".to_string()
+                "Source or destination name too long".to_string(),
+                Some("envelope_serialization")
             ));
         }
         

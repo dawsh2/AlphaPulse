@@ -13,7 +13,6 @@ members = [
     "libs/codec",
     "libs/config",
     "libs/amm",
-    "libs/state/core",
     
     # Services
     "services_v2/adapters",
@@ -22,7 +21,9 @@ members = [
     "services_v2/adapters/gas_price_collector",
     "services_v2/adapters/dex_utils",
     "services_v2/messaging/patterns/message_sink",
+    "services_v2/messaging/actors",
     "services_v2/strategies",
+    "services_v2/strategies/flash_arbitrage",
     "services_v2/observability/dashboard",
     "services_v2/observability/trace_collector",
     "services_v2/observability/health_check",
@@ -87,6 +88,9 @@ bytemuck = { version = "1.17", features = ["derive"] }
 zerocopy = { version = "0.7", features = ["derive"] }
 num_enum = "0.7"
 byteorder = "1.5"
+rand = "0.8"
+regex = "1.11"
+lockfree = "0.5"
 crc32fast = "1.4"
 paste = "1.0"
 web3 = "0.19"
@@ -126,7 +130,7 @@ types = { path = "libs/types" }
 codec = { path = "libs/codec" }
 network = { path = "network" }
 config = { path = "libs/config" }
-state-core = { path = "libs/state/core" }
+# state-core = { path = "libs/state/core" } # TODO: Fix missing state-core
 state-market = { path = "services_v2/strategies/state" }
 amm = { path = "libs/amm" }
 dex = { path = "services_v2/adapters/dex_utils" }
@@ -138,6 +142,7 @@ relay-execution = { path = "services_v2/messaging/relays/domains/execution" }
 relay-market-data = { path = "services_v2/messaging/relays/domains/market_data" }
 relay-signal = { path = "services_v2/messaging/relays/domains/signal" }
 message-sink = { path = "services_v2/messaging/patterns/message_sink" }
+messaging-actors = { path = "services_v2/messaging/actors" }
 adapter-service = { path = "services_v2/adapters" }
 strategies = { path = "services_v2/strategies" }
 

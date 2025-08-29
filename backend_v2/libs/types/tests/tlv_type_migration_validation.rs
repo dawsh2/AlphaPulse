@@ -3,8 +3,8 @@
 //! Validates that the TLV type consolidation maintains backward compatibility
 //! by ensuring all previously used type numbers still map to the same semantic types.
 
-use torq_codec::protocol::tlv::types::TLVType;
-use torq_codec::protocol::RelayDomain;
+use codec::protocol::tlv::types::TLVType;
+use codec::protocol::RelayDomain;
 
 #[cfg(test)]
 mod tests {

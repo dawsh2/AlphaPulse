@@ -31,7 +31,7 @@ use protocol_v2::{
     tlv::market_data::{PoolSwapTLV, PoolSyncTLV},
     TLVType, VenueId,
 };
-use torq_adapter_service::output::RelayOutput;
+use adapter_service::output::RelayOutput;
 
 /// Comprehensive test suite configuration
 #[derive(Debug, Clone)]

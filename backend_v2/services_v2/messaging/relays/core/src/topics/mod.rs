@@ -123,8 +123,8 @@
 //! - Consider exact topic subscriptions for high-frequency signals
 
 use crate::{ConsumerId, RelayError, RelayResult, TopicConfig, TopicExtractionStrategy};
-use torq_codec::{parse_tlv_extensions, TLVType, InstrumentId};
-use torq_codec::protocol::{MessageHeader, SourceType};
+use codec::{parse_tlv_extensions, TLVType, InstrumentId};
+use codec::protocol::{MessageHeader, SourceType};
 use torq_types::VenueId;
 use dashmap::DashMap;
 use std::collections::{HashMap, HashSet};

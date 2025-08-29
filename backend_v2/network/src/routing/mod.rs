@@ -7,13 +7,15 @@ use crate::{Result, TransportError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub mod config;
 pub mod hybrid;
 pub mod latency;
 pub mod strategy;
 pub mod topology_aware;
 
 // Re-export commonly used types
-pub use hybrid::HybridRouter;
+pub use config::{ChannelConfig, TransportConfig, TransportMode, RetryConfig};
+pub use hybrid::TransportRouter as HybridRouter;
 pub use latency::LatencyBasedRouter;
 pub use strategy::{RoutingStrategy, RoutingDecision};
 pub use topology_aware::TopologyAwareRouter;
@@ -83,6 +85,8 @@ pub struct RouterConfig {
     pub latency_thresholds: LatencyThresholds,
     /// Enable adaptive routing based on performance feedback
     pub adaptive_routing: bool,
+    /// Transport configuration
+    pub transport_config: Option<TransportConfig>,
 }
 
 /// Latency thresholds for routing decisions
@@ -148,6 +152,7 @@ impl RouterFactory {
             node_overrides: HashMap::new(),
             latency_thresholds: LatencyThresholds::default(),
             adaptive_routing: true,
+            transport_config: None,
         };
         Self::create_router(config)
     }

@@ -10,11 +10,11 @@
 //! - **Performance Monitoring**: Enforces <35μs hot path requirements
 //! - **Configuration Management**: Standardized configuration structure
 
-use torq_adapter_service::{
+use adapter_service::{
     Adapter, AdapterError, AdapterHealth, BaseAdapterConfig, CircuitBreaker, CircuitBreakerConfig,
     CircuitState, ConnectionStatus, InstrumentType, RateLimiter, Result, SafeAdapter,
 };
-use torq_codec::{TLVMessageBuilder, TLVType};
+use codec::{TLVMessageBuilder, TLVType};
 use torq_types::{InstrumentId, RelayDomain, SourceType, TradeTLV, VenueId};
 use async_trait::async_trait;
 use chrono;

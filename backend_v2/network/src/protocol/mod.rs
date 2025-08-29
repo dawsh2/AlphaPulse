@@ -41,9 +41,38 @@ impl Default for ProtocolConfig {
     }
 }
 
+impl ProtocolConfig {
+    /// Validate the protocol configuration
+    pub fn validate(&self) -> Result<()> {
+        if self.max_message_size == 0 {
+            return Err(crate::TransportError::configuration(
+                "max_message_size cannot be zero",
+                Some("max_message_size"),
+            ));
+        }
+
+        if self.max_message_size > 1024 * 1024 * 1024 {  // 1GB limit
+            return Err(crate::TransportError::configuration(
+                "max_message_size exceeds 1GB limit",
+                Some("max_message_size"),
+            ));
+        }
+
+        if self.enable_encryption && self.security_config.is_none() {
+            return Err(crate::TransportError::configuration(
+                "encryption enabled but no security config provided",
+                Some("security_config"),
+            ));
+        }
+
+        Ok(())
+    }
+}
+
 /// Security configuration
 #[derive(Debug, Clone)]
 pub struct SecurityConfig {
+    pub encryption_type: security::EncryptionType,
     pub key_file: String,
     pub cert_file: String,
     pub ca_file: Option<String>,
@@ -59,16 +88,16 @@ pub struct ProtocolProcessor {
 
 impl ProtocolProcessor {
     /// Create new protocol processor
-    pub fn new(config: ProtocolConfig) -> Result<Self> {
+    pub async fn new(config: ProtocolConfig) -> Result<Self> {
         let compression_engine = if config.compression_threshold > 0 {
-            Some(CompressionEngine::new(config.compression_type)?)
+            Some(CompressionEngine::new(config.compression_type))
         } else {
             None
         };
         
         let security_layer = if config.enable_encryption {
             if let Some(ref security_config) = config.security_config {
-                Some(SecurityLayer::new(security_config.clone())?)
+                Some(SecurityLayer::new(security_config.encryption_type.clone()).await?)
             } else {
                 return Err(crate::TransportError::configuration(
                     "Encryption enabled but no security config provided",
@@ -87,7 +116,7 @@ impl ProtocolProcessor {
     }
     
     /// Process outbound message (compress, encrypt, envelope)
-    pub fn process_outbound(&self, message: &[u8]) -> Result<Vec<u8>> {
+    pub async fn process_outbound(&self, message: &[u8]) -> Result<Vec<u8>> {
         if message.len() > self.config.max_message_size {
             return Err(crate::TransportError::protocol(format!(
                 "Message size {} exceeds maximum {}",
@@ -106,23 +135,30 @@ impl ProtocolProcessor {
         
         // Apply encryption if configured
         if let Some(ref layer) = self.security_layer {
-            data = layer.encrypt(&data)?;
+            data = layer.encrypt(&data).await?;
         }
         
-        // Wrap in envelope
-        let envelope = NetworkEnvelope::new(data, MessageFlags::default())?;
-        envelope.serialize()
+        // Create envelope with proper parameters
+        let envelope = envelope::NetworkEnvelope::new(
+            "local".to_string(),
+            "remote".to_string(), 
+            "target".to_string(),
+            data,
+            self.config.compression_type,
+            security::EncryptionType::None,
+        );
+        envelope.to_bytes()
     }
     
     /// Process inbound message (de-envelope, decrypt, decompress)
-    pub fn process_inbound(&self, message: &[u8]) -> Result<Vec<u8>> {
+    pub async fn process_inbound(&self, message: &[u8]) -> Result<Vec<u8>> {
         // Parse envelope
-        let envelope = NetworkEnvelope::deserialize(message)?;
+        let envelope = envelope::NetworkEnvelope::from_bytes(message)?;
         let mut data = envelope.payload;
         
         // Apply decryption if configured
         if let Some(ref layer) = self.security_layer {
-            data = layer.decrypt(&data)?;
+            data = layer.decrypt(&data).await?;
         }
         
         // Apply decompression if needed

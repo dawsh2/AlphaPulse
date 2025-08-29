@@ -9,9 +9,9 @@ path = "src/main.rs"
 
 [dependencies]
 torq-strategy-shared = { path = "../shared" }
-torq-mev = { path = "../mev" }
-torq-codec = { path = "../../../libs/codec" }
-torq-types = { path = "../../../libs/types" }
+mev = { path = "../mev" }
+codec = { path = "../../../libs/codec" }
+types = { path = "../../../libs/types" }
 
 # Strategy-specific dependencies
 tokio = { version = "1.42", features = ["full"] }

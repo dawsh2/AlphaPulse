@@ -3,9 +3,9 @@
 //! These tests exercise the public API from an external user's perspective,
 //! focusing on realistic usage patterns and complete workflows.
 
-use torq_codec::{TLVMessageBuilder, TLVType, VendorTLVBuilder};
-use torq_types::protocol::message::header::MessageHeader;
-use torq_types::{RelayDomain, SourceType};
+use codec::{TLVMessageBuilder, TLVType, VendorTLVBuilder};
+use types::protocol::message::header::MessageHeader;
+use types::{RelayDomain, SourceType};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 // Test data structures for integration testing

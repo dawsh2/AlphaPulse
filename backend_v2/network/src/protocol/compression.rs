@@ -12,13 +12,10 @@ pub enum CompressionType {
     /// No compression - lowest latency
     None,
     /// LZ4 - fast compression/decompression
-    #[cfg(feature = "compression")]
     Lz4,
     /// Zstd - better compression ratio
-    #[cfg(feature = "compression")]
     Zstd,
     /// Snappy - Google's fast compression
-    #[cfg(feature = "compression")]
     Snappy,
 }
 
@@ -270,7 +267,7 @@ impl AdaptiveCompression {
 
         // Sample data to test compression effectiveness
         let sample_size = std::cmp::min(self.sample_size, data.len());
-        let sample = &data[..sample_size];
+        let _sample = &data[..sample_size];
 
         #[cfg(feature = "compression")]
         {

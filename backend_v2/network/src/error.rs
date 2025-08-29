@@ -6,6 +6,9 @@
 use std::net::SocketAddr;
 use thiserror::Error;
 
+/// Network error alias for compatibility
+pub type NetworkError = TransportError;
+
 /// Main transport error type
 #[derive(Error, Debug)]
 pub enum TransportError {
@@ -298,6 +301,11 @@ impl TransportError {
         }
     }
 
+    /// Create a parsing error (alias for protocol)
+    pub fn parsing(message: impl Into<String>) -> Self {
+        Self::protocol(message)
+    }
+
     /// Create a protocol error with detailed context preservation
     pub fn protocol_with_field(message: impl Into<String>, field: Option<&str>) -> Self {
         let context_message = if let Some(f) = field {
@@ -484,23 +492,23 @@ impl From<std::io::Error> for TransportError {
 }
 
 /// Convert topology errors to transport errors
-impl From<crate::topology::error::TopologyError> for TransportError {
-    fn from(error: crate::topology::error::TopologyError) -> Self {
+impl From<crate::discovery::TopologyError> for TransportError {
+    fn from(error: crate::discovery::TopologyError) -> Self {
         // Preserve context from topology error for better debugging
         let context_message = match &error {
-            crate::topology::error::TopologyError::ActorNotFound { actor } => {
+            crate::discovery::TopologyError::ActorNotFound { actor } => {
                 format!("Topology integration failed: Actor '{}' not found", actor)
             },
-            crate::topology::error::TopologyError::NodeNotFound { node } => {
+            crate::discovery::TopologyError::NodeNotFound { node } => {
                 format!("Topology integration failed: Node '{}' not found", node)
             },
-            crate::topology::error::TopologyError::Config { message } => {
+            crate::discovery::TopologyError::Config { message } => {
                 format!("Topology integration failed: Configuration error: {}", message)
             },
-            crate::topology::error::TopologyError::TransportResolution { reason } => {
+            crate::discovery::TopologyError::TransportResolution { reason } => {
                 format!("Topology integration failed: Transport resolution: {}", reason)
             },
-            crate::topology::error::TopologyError::NotImplemented { feature, planned_phase } => {
+            crate::discovery::TopologyError::NotImplemented { feature, planned_phase } => {
                 format!("Topology integration failed: {} not implemented (planned for {})", feature, planned_phase)
             },
             _ => format!("Topology integration failed: {}", error),

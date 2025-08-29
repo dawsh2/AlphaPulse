@@ -3,11 +3,11 @@
 //! Tests the complete pipeline from Polygon DEX collector to relay message format
 //! Validates TLV message structure, relay compatibility, and semantic preservation
 
-use torq_adapter_service::input::collectors::polygon_dex::{
+use adapter_service::input::collectors::polygon_dex::{
     validated_decoder::ValidatedPolygonDecoder,
     abi_events::DEXProtocol,
 };
-use torq_adapter_service::{complete_validation_pipeline, ValidationError};
+use adapter_service::{complete_validation_pipeline, ValidationError};
 use protocol_v2::{
     TLVMessage, MessageHeader, RelayDomain, VenueId,
     tlv::market_data::PoolSwapTLV,
@@ -82,7 +82,7 @@ async fn test_relay_message_header_generation() {
         flags: 0,
         payload_size: tlv_message.payload.len() as u32,
         sequence,
-        timestamp: torq_network::time::safe_system_timestamp_ns(),
+        timestamp: network::time::safe_system_timestamp_ns(),
         checksum: 0, // Performance mode
     };
 
@@ -217,7 +217,7 @@ fn create_test_pool_swap_tlv() -> PoolSwapTLV {
         sqrt_price_x96_after: PoolSwapTLV::sqrt_price_from_u128(1792282187229267636352u128), // Realistic V3 price
         tick_after: 3393,
         liquidity_after: 1000000000000000000u128,
-        timestamp_ns: torq_network::time::safe_system_timestamp_ns(),
+        timestamp_ns: network::time::safe_system_timestamp_ns(),
         block_number: 48_600_000,
     }
 }

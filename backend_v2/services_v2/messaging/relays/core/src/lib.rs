@@ -21,7 +21,7 @@ pub use transport::*;
 pub use types::*;
 pub use validation::*;
 
-use torq_codec::protocol::ProtocolError;
+use codec::protocol::ProtocolError;
 
 /// Relay-specific errors
 #[derive(Debug, thiserror::Error)]
@@ -42,7 +42,7 @@ pub enum RelayError {
     Protocol(#[from] ProtocolError),
 
     #[error("Codec error: {0}")]
-    Codec(#[from] torq_codec::ProtocolError),
+    Codec(#[from] codec::ProtocolError),
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),

@@ -24,8 +24,8 @@
 //! - **Throughput**: Designed for >1M msg/s TLV construction
 //! - **Memory**: <50MB steady state with multiple pair subscriptions
 
-use torq_codec::{parse_header, parse_tlv_extensions}; // Added
-use torq_network::time::init_timestamp_system; // Added
+use codec::{parse_header, parse_tlv_extensions}; // Added
+use network::time::init_timestamp_system; // Added
 use torq_types::{
     tlv::build_message_direct, InstrumentId, QuoteTLV, RelayDomain, SourceType, TLVType, TradeTLV,
     VenueId,
@@ -39,7 +39,7 @@ use tokio::sync::RwLock;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 
-use torq_adapter_service::output::RelayOutput;
+use adapter_service::output::RelayOutput;
 
 mod config;
 use config::KrakenConfig;
@@ -426,7 +426,7 @@ impl UnifiedKrakenCollector {
                 price_fixed,
                 volume_fixed,
                 if side_str == "b" { 0 } else { 1 }, // 0 = buy, 1 = sell
-                torq_network::time::parse_external_unix_timestamp_safe(timestamp, "Kraken"), // DoS-safe timestamp conversion
+                network::time::parse_external_unix_timestamp_safe(timestamp, "Kraken"), // DoS-safe timestamp conversion
             );
 
             // Build complete Protocol V2 message (true zero-copy)
@@ -494,7 +494,7 @@ impl UnifiedKrakenCollector {
         };
 
         // Build QuoteTLV using constructor for top of book
-        let timestamp_ns = torq_network::time::safe_system_timestamp_ns();
+        let timestamp_ns = network::time::safe_system_timestamp_ns();
 
         let quote_tlv = QuoteTLV::new(
             VenueId::Kraken,

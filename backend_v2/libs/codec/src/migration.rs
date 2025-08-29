@@ -23,9 +23,8 @@
 
 use crate::error::{ProtocolError, ProtocolResult};
 use crate::parser::{parse_header, parse_tlv_extensions, TLVExtensionEnum};
-use crate::validation::{TLVValidator, ValidationPolicy, ValidatedMessage};
-use crate::enhanced_builder::{ValidatingTLVMessageBuilder, BuilderFactory};
-use torq_codec::protocol::tlv::types::TLVType;
+use crate::validation::{TLVValidator, ValidationPolicy, ValidatedMessage, ValidatingTLVMessageBuilder, BuilderFactory};
+use crate::tlv_types::TLVType;
 use torq_types::{RelayDomain, SourceType};
 use torq_types::protocol::message::header::MessageHeader;
 

@@ -51,13 +51,13 @@ use tracing::{debug, info};
 use zerocopy::AsBytes;
 
 use crate::flash_arbitrage::relay_consumer::ArbitrageOpportunity;
-use torq_adapter_service::output::RelayOutput;
+use adapter_service::output::RelayOutput;
 use torq_types::common::fixed_point::UsdFixedPoint8;
 use torq_types::{
-    tlv::{zero_copy_builder_v2::build_message_direct, ArbitrageSignalTLV},
+    tlv::ArbitrageSignalTLV,
     RelayDomain, SourceType, TLVType, VenueId,
 };
-use torq_codec::TLVMessageBuilder;
+use codec::{TLVMessageBuilder, build_message_direct};
 
 const FLASH_ARBITRAGE_STRATEGY_ID: u16 = 21;
 

@@ -8,12 +8,12 @@
 //! 5. Error context preservation
 //! 6. Configurable validation parameters
 
-use torq_codec::{
+use codec::{
     EnhancedTLVValidator, EnhancedValidationError, ValidationConfig,
     SequenceTracker, PoolDiscoveryQueue, TLVType,
     ValidatingTLVMessageBuilder, ValidationError,
 };
-use torq_types::{RelayDomain, SourceType};
+use types::{RelayDomain, SourceType};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Test 1: Proper checksum validation per Protocol V2 spec
@@ -248,7 +248,7 @@ fn test_performance_no_regression() {
 // Helper functions
 
 fn create_test_message_with_checksum() -> Vec<u8> {
-    use torq_codec::TLVMessageBuilder;
+    use codec::TLVMessageBuilder;
     
     let builder = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::Test);
     builder
@@ -262,7 +262,7 @@ fn create_test_message_market_data() -> Vec<u8> {
 }
 
 fn create_message_with_pool(pool_addr: [u8; 20]) -> Vec<u8> {
-    use torq_codec::TLVMessageBuilder;
+    use codec::TLVMessageBuilder;
     
     // Create a PoolSwap TLV with the pool address
     let mut pool_swap_data = vec![0u8; 60];

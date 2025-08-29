@@ -60,7 +60,7 @@
 //!
 //! ### Basic Identifier Operations
 //! ```rust
-//! use torq_protocol_v2::identifiers::{InstrumentId, VenueId};
+//! use protocol_v2::identifiers::{InstrumentId, VenueId};
 //!
 //! // Construct identifier from exchange data
 //! let btc_eth = InstrumentId::coin(VenueId::Ethereum, "BTC")?;

@@ -1,0 +1,76 @@
+{
+  "polygon": {
+    "chain_id": 137,
+    "rpc_endpoints": {
+      "primary": "https://polygon-rpc.com",
+      "fallback": [
+        "https://rpc-mainnet.matic.network",
+        "https://rpc.ankr.com/polygon"
+      ]
+    },
+    "tokens": {
+      "USDC": {
+        "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+        "decimals": 6,
+        "symbol": "USDC"
+      },
+      "WMATIC": {
+        "address": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+        "decimals": 18,
+        "symbol": "WMATIC"
+      },
+      "WETH": {
+        "address": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+        "decimals": 18,
+        "symbol": "WETH"
+      },
+      "DAI": {
+        "address": "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+        "decimals": 18,
+        "symbol": "DAI"
+      },
+      "WBTC": {
+        "address": "0x1bfd67037b42cf73acF2047067bd4F2C47D9BfD6",
+        "decimals": 8,
+        "symbol": "WBTC"
+      },
+      "USDT": {
+        "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+        "decimals": 6,
+        "symbol": "USDT"
+      },
+      "AAVE": {
+        "address": "0xD6DF932A45C0f255f85145f286eA0b292B21C90B",
+        "decimals": 18,
+        "symbol": "AAVE"
+      },
+      "LINK": {
+        "address": "0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39",
+        "decimals": 18,
+        "symbol": "LINK"
+      },
+      "UNI": {
+        "address": "0xb33EaAd8d922B1083446DC23f610c2567fB5180f",
+        "decimals": 18,
+        "symbol": "UNI"
+      },
+      "SUSHI": {
+        "address": "0x0b3F868E0BE5597D5DB7fEB59E1CADBb0fdDa50a",
+        "decimals": 18,
+        "symbol": "SUSHI"
+      }
+    },
+    "dex_routers": {
+      "quickswap_v2": "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
+      "sushiswap": "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+      "uniswap_v3": "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+    },
+    "event_signatures": {
+      "uniswap_v2_swap": "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+      "uniswap_v3_swap": "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67",
+      "uniswap_v3_mint": "0x7a53080ba414158be7ec69b987b5fb7d07dee101fe85488f0853ae16239d0bde",
+      "uniswap_v3_burn": "0x0c396cd989a39f4459b5fa1aed6a9a8dcdbc45908acfd67e028cd568da98982c",
+      "sync": "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1"
+    }
+  }
+}

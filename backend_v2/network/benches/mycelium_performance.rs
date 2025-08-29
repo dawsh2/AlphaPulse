@@ -6,7 +6,7 @@
 //! - Zero allocations in steady state
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use torq_network::mycelium::{
+use network::mycelium::{
     ProofOfConceptMigration, MarketMessage, PoolSwapEvent, QuoteUpdate,
     ActorSystem, ActorBehavior, SupervisorDirective, BundleConfiguration, DeploymentMode,
 };
@@ -34,7 +34,7 @@ impl BenchmarkActor {
 impl ActorBehavior for BenchmarkActor {
     type Message = MarketMessage;
     
-    async fn handle(&mut self, _msg: MarketMessage) -> Result<(), torq_network::TransportError> {
+    async fn handle(&mut self, _msg: MarketMessage) -> Result<(), network::TransportError> {
         self.counter.fetch_add(1, Ordering::Relaxed);
         Ok(())
     }
@@ -247,7 +247,7 @@ fn bench_serialization_comparison(c: &mut Criterion) {
     
     // Benchmark TLV serialization (for comparison)
     group.bench_function("tlv_serialization", |b| {
-        use torq_network::mycelium::Message;
+        use network::mycelium::Message;
         b.iter(|| {
             let tlv_bytes = quote.to_tlv().unwrap();
             black_box(tlv_bytes);

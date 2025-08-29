@@ -9,7 +9,7 @@ pub mod message;
 // New unified modules
 pub mod transports;
 pub mod routing;
-pub mod actors;
+// actors moved to services_v2/messaging/actors
 pub mod discovery; 
 pub mod protocol;
 
@@ -24,7 +24,7 @@ pub use message::{NetworkMessage, ByteMessage, NetworkEnvelope, NetworkPriority,
 // Re-export from new unified modules
 pub use transports::{Transport, TransportFactory, TransportConfig, TransportType, TransportInfo};
 pub use routing::{Router, RouterFactory, RoutingStrategy, RoutingDecision};
-pub use actors::{ActorSystem, ActorSystemBuilder, ActorTransport};
+// Actor exports removed - actors moved to services_v2/messaging/actors
 pub use discovery::{ServiceDiscovery, ServiceDiscoveryFactory, ServiceLocation};
 pub use protocol::{ProtocolProcessor, ProtocolConfig};
 
@@ -36,6 +36,18 @@ pub use time::{
     safe_system_timestamp_ns_checked, timestamp_accuracy_info, timestamp_system_stats,
     TimestampError
 };
+
+// Utility functions
+use std::sync::atomic::{AtomicU64, Ordering};
+static MESSAGE_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+/// Generate a unique message ID
+pub fn generate_message_id() -> u64 {
+    MESSAGE_ID_COUNTER.fetch_add(1, Ordering::SeqCst)
+}
+
+/// Topology version constant - re-exported from discovery
+pub use discovery::TOPOLOGY_VERSION;
 
 // Constants for configuration
 pub const DEFAULT_TCP_BUFFER_SIZE: usize = 64 * 1024; // 64KB

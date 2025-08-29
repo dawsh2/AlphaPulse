@@ -3,7 +3,7 @@
 //! Tests our TokenAddressValidator against real Polygon blockchain
 //! using public RPC endpoints to verify our parsing and validation logic.
 
-use torq_adapter_service::{
+use adapter_service::{
     input::collectors::{
         pool_cache_manager::{PoolCacheManager, PoolInfo},
         polygon_dex::abi_events::{SwapEventDecoder, DEXProtocol},

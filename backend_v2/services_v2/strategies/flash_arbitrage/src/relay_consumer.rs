@@ -63,7 +63,7 @@ use torq_types::{
     TraceEvent,
     TraceEventType,
 };
-use torq_codec::parse_header_without_checksum;
+use codec::parse_header_without_checksum;
 
 // Import from shared types library for financial calculations
 use torq_types::common::errors::FixedPointError;
@@ -184,7 +184,7 @@ impl RelayConsumer {
     /// Generate trace ID for strategy-initiated events
     fn generate_strategy_trace_id() -> TraceId {
         // Use safe timestamp conversion from transport module
-        let now = match torq_network::time::safe_system_timestamp_ns_checked() {
+        let now = match network::time::safe_system_timestamp_ns_checked() {
             Ok(timestamp) => timestamp,
             Err(e) => {
                 // Fallback to Unix epoch on timestamp failure
@@ -203,7 +203,7 @@ impl RelayConsumer {
             trace_id,
             service: SourceType::ArbitrageStrategy,
             event_type: TraceEventType::MessageReceived,
-            timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+            timestamp_ns: network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                 tracing::error!("Failed to generate timestamp for MessageReceived event: {}", e);
                 0
             }),
@@ -226,7 +226,7 @@ impl RelayConsumer {
             trace_id,
             service: SourceType::ArbitrageStrategy,
             event_type: TraceEventType::MessageProcessed,
-            timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+            timestamp_ns: network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                 tracing::error!("Failed to generate timestamp for MessageProcessed event: {}", e);
                 0
             }),
@@ -252,7 +252,7 @@ impl RelayConsumer {
             trace_id,
             service: SourceType::ArbitrageStrategy,
             event_type: TraceEventType::ExecutionTriggered,
-            timestamp_ns: torq_network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
+            timestamp_ns: network::time::safe_system_timestamp_ns_checked().unwrap_or_else(|e| {
                 tracing::error!("Failed to generate timestamp for ExecutionTriggered event: {}", e);
                 0
             }),
@@ -423,7 +423,7 @@ impl RelayConsumer {
             .await?;
 
         // Use safe duration conversion from transport module
-        let processing_duration = match torq_network::time::safe_duration_to_ns_checked(processing_start.elapsed()) {
+        let processing_duration = match network::time::safe_duration_to_ns_checked(processing_start.elapsed()) {
             Ok(duration) => duration,
             Err(e) => {
                 tracing::error!("Failed to convert processing duration: {}", e);

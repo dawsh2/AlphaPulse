@@ -8,7 +8,7 @@
 //! 5. Deep equality between original and recovered TLV
 //! 6. Semantic equality with original Coinbase data
 
-use torq_adapter_service::input::collectors::coinbase::CoinbaseMatchEvent;
+use adapter_service::input::collectors::coinbase::CoinbaseMatchEvent;
 use protocol_v2::{InstrumentId, TradeTLV, VenueId};
 use serde_json::Value;
 use std::convert::TryFrom;

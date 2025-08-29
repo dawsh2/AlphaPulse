@@ -254,7 +254,7 @@ pub use torq_types::{
 };
 
 // Re-export codec functionality
-pub use torq_codec::TLVMessageBuilder;
+pub use codec::TLVMessageBuilder;
 
 /// Architecture diagram showing adapter service data flow and component relationships
 #[cfg_attr(doc, aquamarine::aquamarine)]

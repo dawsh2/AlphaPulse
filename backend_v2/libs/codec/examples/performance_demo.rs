@@ -1,7 +1,7 @@
 //! Performance demonstration showing >10K validations/second
 
-use torq_codec::{ValidationConfig, EnhancedTLVValidator, TLVMessageBuilder};
-use torq_types::{RelayDomain, SourceType, protocol::tlv::types::TLVType};
+use codec::{ValidationConfig, EnhancedTLVValidator, TLVMessageBuilder};
+use types::{RelayDomain, SourceType, protocol::tlv::types::TLVType};
 
 fn main() {
     println!("🚀 Performance Demonstration");

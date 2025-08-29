@@ -4,8 +4,8 @@
 //! The enhanced error types should only add overhead when errors occur,
 //! not during successful parsing operations.
 
-use torq_codec::{error::ProtocolError, parser::parse_header};
-use torq_types::{
+use codec::{error::ProtocolError, parser::parse_header};
+use types::{
     protocol::message::header::MessageHeader, RelayDomain, SourceType, MESSAGE_MAGIC,
 };
 use criterion::{black_box, criterion_group, criterion_main, Criterion};

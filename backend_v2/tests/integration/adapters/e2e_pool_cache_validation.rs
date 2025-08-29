@@ -114,7 +114,7 @@ async fn test_e2e_rpc_to_tlv_pipeline() {
             sqrt_price_x96_after: [0u8; 20],
             tick_after: 0,
             liquidity_after: 0,
-            timestamp_ns: torq_network::time::safe_system_timestamp_ns(),
+            timestamp_ns: network::time::safe_system_timestamp_ns(),
             block_number: 12345678,
         };
 

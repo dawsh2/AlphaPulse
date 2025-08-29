@@ -77,4 +77,4 @@ pub use pool_cache::{
 pub use pool_validator::{PoolValidator, ValidatedSwap};
 
 // Re-export core traits for convenience
-pub use torq_state_core::{SequencedStateful, StateError, Stateful};
+pub use state_core::{SequencedStateful, StateError, Stateful};

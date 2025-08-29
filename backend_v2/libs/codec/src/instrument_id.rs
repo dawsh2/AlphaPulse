@@ -45,63 +45,38 @@ pub enum VenueId {
     BinanceSmartChain = 202,
     Arbitrum = 203,
 
-    // DeFi Protocols (300-699)
-    UniswapV2 = 300,
-    UniswapV3 = 301,
-    SushiSwap = 302,
-    Curve = 303,
-
-    // Polygon DeFi (400-499)
-    QuickSwap = 400,
-
-    // BSC DeFi (500-599)
-    PancakeSwap = 500,
+    // DeFi Protocols removed - use DEXProtocol + chain_id instead
+    // Legacy values 300-699 are deprecated
 }
 
 impl VenueId {
     /// Check if venue is a DeFi protocol
+    /// DEPRECATED: DeFi protocols now use DEXProtocol enum
     pub fn is_defi(&self) -> bool {
-        *self as u16 >= 300 && *self as u16 <= 699
+        false // No longer tracking DeFi as VenueId
     }
 
     /// Check if venue supports liquidity pools
+    /// DEPRECATED: Use DEXProtocol for pool support
     pub fn supports_pools(&self) -> bool {
-        match self {
-            VenueId::UniswapV2
-            | VenueId::UniswapV3
-            | VenueId::SushiSwap
-            | VenueId::Curve
-            | VenueId::QuickSwap
-            | VenueId::PancakeSwap => true,
-            _ => false,
-        }
+        false // Pools now identified by DEXProtocol
     }
 
     /// Get blockchain chain ID if applicable
     pub fn chain_id(&self) -> Option<u32> {
         match self {
-            VenueId::Ethereum
-            | VenueId::UniswapV2
-            | VenueId::UniswapV3
-            | VenueId::SushiSwap
-            | VenueId::Curve => Some(1), // Ethereum mainnet
-            VenueId::Polygon | VenueId::QuickSwap => Some(137), // Polygon
-            VenueId::BinanceSmartChain | VenueId::PancakeSwap => Some(56), // BSC
-            VenueId::Arbitrum => Some(42161),                   // Arbitrum
+            VenueId::Ethereum => Some(1),        // Ethereum mainnet
+            VenueId::Polygon => Some(137),       // Polygon
+            VenueId::BinanceSmartChain => Some(56), // BSC
+            VenueId::Arbitrum => Some(42161),    // Arbitrum
             _ => None,
         }
     }
 
     /// Get underlying blockchain for DeFi protocols
+    /// DEPRECATED: DeFi protocols now use DEXProtocol, not VenueId
     pub fn blockchain(&self) -> Option<VenueId> {
-        match self {
-            VenueId::UniswapV2 | VenueId::UniswapV3 | VenueId::SushiSwap | VenueId::Curve => {
-                Some(VenueId::Ethereum)
-            }
-            VenueId::QuickSwap => Some(VenueId::Polygon),
-            VenueId::PancakeSwap => Some(VenueId::BinanceSmartChain),
-            _ => None,
-        }
+        None // No longer tracking DeFi protocols as VenueId
     }
 }
 
@@ -211,23 +186,23 @@ impl InstrumentId {
         Self::new(venue, AssetType::Coin, symbol)
     }
 
-    /// Create pool instrument ID from two tokens
+    /// Create pool instrument ID using ChainProtocol
     pub fn pool(
-        venue: VenueId,
-        token_a: InstrumentId,
-        token_b: InstrumentId,
+        chain_protocol: crate::ChainProtocol,
+        pool_address: [u8; 20],
     ) -> Result<Self, CodecError> {
-        // Create deterministic pool symbol from sorted token symbols
-        let symbol_a = token_a.symbol_str();
-        let symbol_b = token_b.symbol_str();
-
-        let pool_symbol = if symbol_a <= symbol_b {
-            format!("{}/{}", symbol_a, symbol_b)
-        } else {
-            format!("{}/{}", symbol_b, symbol_a)
-        };
-
-        Self::new(venue, AssetType::Pool, &pool_symbol)
+        // Use pool address as primary identifier
+        // Store chain_id in venue field
+        // Store protocol in reserved byte
+        let mut symbol_bytes = [0u8; 16];
+        symbol_bytes.copy_from_slice(&pool_address[0..16]);
+        
+        Ok(Self {
+            symbol: symbol_bytes,
+            venue: chain_protocol.chain_id as u16,
+            asset_type: AssetType::Pool as u8,
+            reserved: chain_protocol.protocol as u8,
+        })
     }
 
     /// Generic EVM token ID from contract address
@@ -280,13 +255,23 @@ impl InstrumentId {
             201 => Ok(VenueId::Polygon),
             202 => Ok(VenueId::BinanceSmartChain),
             203 => Ok(VenueId::Arbitrum),
-            300 => Ok(VenueId::UniswapV2),
-            301 => Ok(VenueId::UniswapV3),
-            302 => Ok(VenueId::SushiSwap),
-            303 => Ok(VenueId::Curve),
-            400 => Ok(VenueId::QuickSwap),
-            500 => Ok(VenueId::PancakeSwap),
-            _ => Err(CodecError::InvalidVenue(self.venue)),
+            // 300-699 were DeFi protocols, now use DEXProtocol
+            _ => {
+                // For pools using new format, venue field is chain_id
+                if self.asset_type_enum().ok() == Some(AssetType::Pool) && self.reserved != 0 {
+                    // This is a new-format pool, venue field contains chain_id
+                    // Return the blockchain venue for the chain
+                    match self.venue {
+                        1 => Ok(VenueId::Ethereum),
+                        137 => Ok(VenueId::Polygon),
+                        56 => Ok(VenueId::BinanceSmartChain),
+                        42161 => Ok(VenueId::Arbitrum),
+                        _ => Err(CodecError::InvalidVenue(self.venue)),
+                    }
+                } else {
+                    Err(CodecError::InvalidVenue(self.venue))
+                }
+            }
         }
     }
 
@@ -321,7 +306,42 @@ impl InstrumentId {
 
     /// Get chain ID if applicable
     pub fn chain_id(&self) -> Option<u32> {
-        self.venue().ok().and_then(|v| v.chain_id())
+        // For pools using new format, venue field contains chain_id directly
+        if self.asset_type_enum().ok() == Some(AssetType::Pool) && self.reserved != 0 {
+            Some(self.venue as u32)
+        } else {
+            // Legacy path through VenueId
+            self.venue().ok().and_then(|v| v.chain_id())
+        }
+    }
+    
+    /// Get DEX protocol for pools
+    pub fn dex_protocol(&self) -> Option<crate::DEXProtocol> {
+        if self.asset_type_enum().ok() == Some(AssetType::Pool) && self.reserved != 0 {
+            // Protocol stored in reserved byte for pool format
+            match self.reserved {
+                0 => Some(crate::DEXProtocol::UniswapV2),
+                1 => Some(crate::DEXProtocol::UniswapV3),
+                2 => Some(crate::DEXProtocol::SushiswapV2),
+                3 => Some(crate::DEXProtocol::QuickswapV2),
+                4 => Some(crate::DEXProtocol::QuickswapV3),
+                5 => Some(crate::DEXProtocol::CurveStableSwap),
+                6 => Some(crate::DEXProtocol::BalancerV2),
+                7 => Some(crate::DEXProtocol::PancakeSwapV2),
+                _ => None,
+            }
+        } else {
+            None // No legacy path - pools must use new format
+        }
+    }
+    
+    /// Get ChainProtocol for pools
+    pub fn chain_protocol(&self) -> Option<crate::ChainProtocol> {
+        if let (Some(chain_id), Some(protocol)) = (self.chain_id(), self.dex_protocol()) {
+            Some(crate::ChainProtocol::new(chain_id, protocol))
+        } else {
+            None
+        }
     }
 
     /// Get debug information string
@@ -429,20 +449,21 @@ mod tests {
 
     #[test]
     fn test_pool_construction() {
-        // Use shorter symbols for pool testing
-        let usdc = InstrumentId::new(VenueId::Ethereum, AssetType::Token, "USDC").unwrap();
-        let weth = InstrumentId::new(VenueId::Ethereum, AssetType::Token, "WETH").unwrap();
-
-        let pool = InstrumentId::pool(VenueId::UniswapV3, usdc, weth).unwrap();
-        assert_eq!(pool.venue().unwrap(), VenueId::UniswapV3);
+        // Test new pool construction using ChainProtocol
+        let chain_protocol = crate::ChainProtocol::new(1, crate::DEXProtocol::UniswapV3);
+        let pool_address = [0x12; 20]; // Example pool address
+        
+        let pool = InstrumentId::pool(chain_protocol, pool_address).unwrap();
         assert_eq!(pool.asset_type_enum().unwrap(), AssetType::Pool);
-        assert!(pool.is_defi());
         assert_eq!(pool.chain_id(), Some(1));
-
-        // Pool symbol should be deterministic and sorted
-        let pool_symbol = pool.symbol_str();
-        assert!(pool_symbol.contains("USDC"));
-        assert!(pool_symbol.contains("WETH"));
+        assert_eq!(pool.dex_protocol(), Some(crate::DEXProtocol::UniswapV3));
+        
+        // Should be able to reconstruct ChainProtocol
+        let reconstructed = pool.chain_protocol();
+        assert!(reconstructed.is_some());
+        let cp = reconstructed.unwrap();
+        assert_eq!(cp.chain_id, 1);
+        assert_eq!(cp.protocol, crate::DEXProtocol::UniswapV3);
     }
 
     #[test]
@@ -511,14 +532,18 @@ mod tests {
 
     #[test]
     fn test_venue_properties() {
-        assert!(VenueId::UniswapV3.is_defi());
-        assert!(VenueId::UniswapV3.supports_pools());
-        assert_eq!(VenueId::UniswapV3.chain_id(), Some(1));
-        assert_eq!(VenueId::UniswapV3.blockchain(), Some(VenueId::Ethereum));
-
+        // Test blockchain venues
+        assert_eq!(VenueId::Ethereum.chain_id(), Some(1));
+        assert_eq!(VenueId::Polygon.chain_id(), Some(137));
+        
+        // DeFi protocols no longer tracked as VenueId
         assert!(!VenueId::NYSE.is_defi());
         assert!(!VenueId::NYSE.supports_pools());
         assert_eq!(VenueId::NYSE.chain_id(), None);
+        
+        // Test that is_defi and supports_pools return false for all venues
+        assert!(!VenueId::Ethereum.is_defi());
+        assert!(!VenueId::Ethereum.supports_pools());
     }
 
     #[test]

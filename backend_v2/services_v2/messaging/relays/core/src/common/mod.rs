@@ -51,7 +51,7 @@ pub mod error;
 
 use crate::common::client::ClientManager;
 use crate::common::error::RelayEngineError;
-use torq_codec::protocol::{MessageHeader, RelayDomain};
+use codec::protocol::{MessageHeader, RelayDomain};
 use std::sync::Arc;
 use tokio::net::UnixListener;
 use tracing::{error, info, warn};

@@ -39,7 +39,7 @@
 //! - **Zero Overhead**: Minimal logic overhead for maximum throughput
 
 use torq_relay_core::common::RelayLogic;
-use torq_codec::protocol::RelayDomain;
+use codec::protocol::RelayDomain;
 
 /// Market Data relay logic implementation
 ///

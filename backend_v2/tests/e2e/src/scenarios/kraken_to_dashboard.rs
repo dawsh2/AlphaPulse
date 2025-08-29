@@ -10,7 +10,7 @@ use crate::framework::{
 use crate::validation::DataFlowValidator;
 
 use torq_dashboard_websocket::{DashboardConfig, DashboardServer};
-use torq_kraken_signals::KrakenSignalsStrategy;
+use kraken_signals::KrakenSignalsStrategy;
 use torq_relays::{MarketDataRelay, RelayConfig, SignalRelay};
 use anyhow::{Context, Result};
 use futures_util::StreamExt; // Added

@@ -776,7 +776,7 @@ impl OpportunityDetector {
             expected_profit_usd: optimal_position.expected_profit_usd,
             slippage_bps: optimal_position.total_slippage_bps,
             gas_cost_usd: optimal_position.gas_cost_usd,
-            timestamp_ns: torq_network::time::safe_system_timestamp_ns(),
+            timestamp_ns: network::time::safe_system_timestamp_ns(),
             strategy_type,
         };
 

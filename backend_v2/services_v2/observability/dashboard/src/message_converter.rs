@@ -8,7 +8,7 @@ use torq_types::{
 };
 use base64::prelude::*;
 use serde_json::{json, Value};
-use torq_network::time::safe_system_timestamp_ns_checked;
+use network::time::safe_system_timestamp_ns_checked;
 
 /// Convert TLV message to JSON for dashboard consumption
 pub fn convert_tlv_to_json(tlv_type: u8, payload: &[u8], timestamp_ns: u64) -> Result<Value> {
@@ -276,9 +276,10 @@ pub fn create_arbitrage_opportunity(
         opportunity["dex_sell_router"] = json!(defaults::DEFAULT_ROUTER_ADDRESS);
         opportunity["price_buy"] = json!(0.0);
         opportunity["price_sell"] = json!(0.0);
-        opportunity["gas_fee_usd"] = json!(defaults::DEFAULT_GAS_FEE_USD);
-        opportunity["dex_fees_usd"] = json!(defaults::DEFAULT_DEX_FEES_USD);
-        opportunity["slippage_cost_usd"] = json!(defaults::DEFAULT_SLIPPAGE_COST_USD);
+        // Use null for missing cost data - should come from actual signals
+        opportunity["gas_fee_usd"] = json!(null);
+        opportunity["dex_fees_usd"] = json!(null);
+        opportunity["slippage_cost_usd"] = json!(null);
     }
 
     opportunity
@@ -585,7 +586,7 @@ mod tests {
     #[test]
     fn test_timestamp_conversion() {
         let now_ns =
-            torq_network::time::safe_system_timestamp_ns_checked().unwrap_or(1000000000); // Use a fixed timestamp for test
+            network::time::safe_system_timestamp_ns_checked().unwrap_or(1000000000); // Use a fixed timestamp for test
 
         let iso = timestamp_to_iso(now_ns);
         assert!(!iso.is_empty());

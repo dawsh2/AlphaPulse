@@ -8,8 +8,8 @@
 //! - Comprehensive circuit breaker and rate limiting
 //! - TLV Protocol V2 compliance with 32-byte headers
 
-use torq_adapter_service::VenueId;
-use torq_adapter_service::{
+use adapter_service::VenueId;
+use adapter_service::{
     Adapter, AdapterError, AdapterHealth, CircuitBreaker, CircuitBreakerConfig, CircuitState,
     ConnectionStatus, InstrumentType, RateLimiter, Result, SafeAdapter,
 };
@@ -17,7 +17,7 @@ use torq_types::{
     common::identifiers::InstrumentId, tlv::market_data::PoolSwapTLV, RelayDomain, SourceType,
 };
 use async_trait::async_trait;
-use torq_codec::{TLVMessageBuilder, TLVType};
+use codec::{TLVMessageBuilder, TLVType};
 use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},

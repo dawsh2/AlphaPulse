@@ -135,7 +135,7 @@
 //! - Verify TLV construction follows proper header + payload structure
 
 use crate::{RelayError, RelayResult, ValidationPolicy};
-use torq_codec::{parse_tlv_extensions, TLVType};
+use codec::{parse_tlv_extensions, TLVType};
 use torq_types::protocol::MessageHeader;
 use tracing::{debug, warn};
 

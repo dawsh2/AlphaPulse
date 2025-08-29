@@ -1,0 +1,166 @@
+#+TITLE: Org-Edna Stress Test
+#+STARTUP: overview
+#+PROPERTY: ORDERED true  
+#+PROPERTY: TRIGGER_ALL true
+#+PROPERTY: BLOCKER_ALL true
+
+* Test Suite for Org-Edna Functionality
+This file tests various org-edna features to ensure they work correctly.
+
+* Simple Dependency Tests
+** TODO Task A1
+   :PROPERTIES:
+   :ID: TEST-A1
+   :TRIGGER: ids(TEST-A2) todo!(NEXT)
+   :END:
+   When marked DONE, should trigger A2 to NEXT.
+
+** TODO Task A2
+   :PROPERTIES:
+   :ID: TEST-A2
+   :BLOCKER: ids(TEST-A1)
+   :END:
+   Blocked until A1 is DONE.
+
+* Multiple ID Tests
+** TODO Task B1
+   :PROPERTIES:
+   :ID: TEST-B1
+   :TRIGGER: ids("TEST-B2 TEST-B3") todo!(NEXT)
+   :END:
+   Should trigger both B2 and B3.
+
+** TODO Task B2
+   :PROPERTIES:
+   :ID: TEST-B2
+   :BLOCKER: ids(TEST-B1)
+   :END:
+   Blocked by B1.
+
+** TODO Task B3
+   :PROPERTIES:
+   :ID: TEST-B3
+   :BLOCKER: ids(TEST-B1)
+   :END:
+   Also blocked by B1.
+
+* Children Tests
+** TODO Parent Task C
+   :PROPERTIES:
+   :ID: TEST-C-PARENT
+   :BLOCKER: children
+   :TRIGGER: children todo!(NEXT)
+   :END:
+   Can't be DONE until all children are DONE.
+
+*** TODO Child C1
+    :PROPERTIES:
+    :ID: TEST-C1
+    :END:
+    First child.
+
+*** TODO Child C2
+    :PROPERTIES:
+    :ID: TEST-C2
+    :END:
+    Second child.
+
+* Cross-Tree Dependencies
+** TODO Project D
+*** TODO Task D1
+    :PROPERTIES:
+    :ID: TEST-D1
+    :BLOCKER: ids(TEST-E2)
+    :END:
+    Depends on task from Project E.
+
+** TODO Project E
+*** TODO Task E1
+    :PROPERTIES:
+    :ID: TEST-E1
+    :TRIGGER: ids(TEST-E2) todo!(NEXT)
+    :END:
+    Triggers E2.
+
+*** TODO Task E2
+    :PROPERTIES:
+    :ID: TEST-E2
+    :BLOCKER: ids(TEST-E1)
+    :TRIGGER: ids(TEST-D1) todo!(NEXT)
+    :END:
+    Bridge between projects.
+
+* Complex Chain Test
+** TODO Start Chain
+   :PROPERTIES:
+   :ID: CHAIN-START
+   :TRIGGER: ids(CHAIN-2) todo!(NEXT) scheduled!(".")
+   :END:
+   Start of a complex chain.
+
+** TODO Chain 2
+   :PROPERTIES:
+   :ID: CHAIN-2
+   :BLOCKER: ids(CHAIN-START)
+   :TRIGGER: ids(CHAIN-3) todo!(IN-PROGRESS)
+   :END:
+   Middle of chain.
+
+** TODO Chain 3
+   :PROPERTIES:
+   :ID: CHAIN-3
+   :BLOCKER: ids(CHAIN-2)
+   :TRIGGER: ids(CHAIN-END) todo!(NEXT)
+   :END:
+   Near end of chain.
+
+** TODO Chain End
+   :PROPERTIES:
+   :ID: CHAIN-END
+   :BLOCKER: ids(CHAIN-3)
+   :END:
+   End of chain.
+
+* Self-Reference Test (for recurring tasks)
+** TODO Daily Task
+   :PROPERTIES:
+   :ID: DAILY-TASK
+   :TRIGGER: self todo!(TODO) scheduled!("+1d")
+   :END:
+   Should reschedule itself when marked DONE.
+
+* Multiple Blockers Test
+** TODO Task F1
+   :PROPERTIES:
+   :ID: TEST-F1
+   :END:
+   First prerequisite.
+
+** TODO Task F2
+   :PROPERTIES:
+   :ID: TEST-F2
+   :END:
+   Second prerequisite.
+
+** TODO Task F3
+   :PROPERTIES:
+   :ID: TEST-F3
+   :BLOCKER: ids("TEST-F1 TEST-F2")
+   :END:
+   Needs both F1 and F2 to be DONE.
+
+* Edge Cases
+** TODO Task with Property Setting
+   :PROPERTIES:
+   :ID: PROP-TEST
+   :COUNTER: 0
+   :TRIGGER: self set-property!("COUNTER" "1")
+   :END:
+   Should set property when done.
+
+** TODO Task with Multiple Actions
+   :PROPERTIES:
+   :ID: MULTI-ACTION
+   :TRIGGER: ids(TEST-A1) todo!(TODO) ids(TEST-B1) todo!(NEXT) self set-property!("TESTED" "yes")
+   :END:
+   Multiple trigger actions.

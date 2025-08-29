@@ -25,10 +25,8 @@ pub mod defaults {
     /// Default router addresses
     pub const DEFAULT_ROUTER_ADDRESS: &str = ZERO_ADDRESS;
     
-    /// Default cost estimates in USD
-    pub const DEFAULT_GAS_FEE_USD: f64 = 2.5;
-    pub const DEFAULT_DEX_FEES_USD: f64 = 3.0;
-    pub const DEFAULT_SLIPPAGE_COST_USD: f64 = 1.0;
+    // Note: USD costs should come from actual signal data or price feeds
+    // These defaults are removed to enforce using real values
 }
 
 /// Token symbol lookup for common Polygon tokens

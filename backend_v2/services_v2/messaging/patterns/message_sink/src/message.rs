@@ -1,5 +1,5 @@
 use crate::SinkError;
-use torq_network::current_timestamp_ns;
+use network::current_timestamp_ns;
 
 /// Maximum message size in bytes (16MB default)
 pub const DEFAULT_MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;

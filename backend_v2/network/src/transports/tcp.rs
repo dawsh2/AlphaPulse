@@ -4,9 +4,9 @@
 //! Implements TLV message framing with proper connection pooling and health monitoring.
 
 use crate::{Result, TransportError};
-use crate::mycelium::transport::NetworkTransport;
+use super::NetworkTransport;
 use async_trait::async_trait;
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// TCP network transport configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -33,11 +33,11 @@
 use num_enum::TryFromPrimitive;
 
 // Import TLVType and related types from the canonical location in libs/types
-use torq_codec::protocol::tlv::types::{TLVSizeConstraint as TypeSizeConstraint, TLVTypeInfo, TLVImplementationStatus};
-use torq_codec::protocol::RelayDomain;
+use torq_types::protocol::tlv::types::{TLVSizeConstraint as TypeSizeConstraint, TLVTypeInfo, TLVImplementationStatus};
+use torq_types::RelayDomain;
 
 // Re-export for backward compatibility  
-pub use torq_codec::protocol::tlv::types::TLVType;
+pub use torq_types::protocol::tlv::types::TLVType;
 
 // TLVSizeConstraint is now imported from libs/types
 // Re-export for backward compatibility

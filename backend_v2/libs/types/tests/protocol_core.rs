@@ -290,7 +290,7 @@ fn test_message_padding_alignment() {
 #[test]
 fn test_domain_routing_consistency() {
     // Ensure domain in header matches TLV types
-    use torq_codec::protocol::TLVType;
+    use codec::protocol::TLVType;
 
     // Market data domain should only contain market data TLVs
     let market_msg = TLVMessageBuilder::new(RelayDomain::MarketData, SourceType::Dashboard)

@@ -62,8 +62,8 @@
 //!
 //! ### Basic Type Discovery
 //! ```rust
-//! use torq_protocol_v2::tlv::TLVType;
-//! use torq_protocol_v2::RelayDomain;
+//! use protocol_v2::tlv::TLVType;
+//! use protocol_v2::RelayDomain;
 //!
 //! // Get comprehensive type information
 //! let info = TLVType::Trade.type_info();
@@ -88,7 +88,7 @@
 //!
 //! ### Runtime Message Handling
 //! ```rust
-//! use torq_protocol_v2::tlv::{TLVType, TLVSizeConstraint};
+//! use protocol_v2::tlv::{TLVType, TLVSizeConstraint};
 //!
 //! // Size validation during parsing
 //! let tlv_type = TLVType::try_from(message_type)?;
@@ -502,7 +502,7 @@ impl TLVType {
     /// # Examples
     ///
     /// ```rust
-    /// use torq_protocol_v2::tlv::TLVType;
+    /// use protocol_v2::tlv::TLVType;
     ///
     /// let info = TLVType::Trade.type_info();
     /// println!("Type {}: {}", info.type_number, info.name);
@@ -657,8 +657,8 @@ impl TLVType {
     /// # Examples
     ///
     /// ```rust
-    /// use torq_protocol_v2::tlv::TLVType;
-    /// use torq_protocol_v2::RelayDomain;
+    /// use protocol_v2::tlv::TLVType;
+    /// use protocol_v2::RelayDomain;
     ///
     /// let market_types = TLVType::types_in_domain(RelayDomain::MarketData);
     /// println!("Market data domain has {} types", market_types.len());
@@ -743,7 +743,7 @@ impl TLVType {
     /// # Examples
     ///
     /// ```rust
-    /// use torq_protocol_v2::tlv::TLVType;
+    /// use protocol_v2::tlv::TLVType;
     ///
     /// let markdown = TLVType::generate_markdown_table();
     /// std::fs::write("docs/message-types.md", markdown).expect("Write failed");
@@ -820,8 +820,8 @@ impl TLVType {
         output.push_str("## Usage Examples\n\n");
         output.push_str("### Querying Types by Domain\n");
         output.push_str("```rust\n");
-        output.push_str("use torq_protocol_v2::tlv::TLVType;\n");
-        output.push_str("use torq_protocol_v2::RelayDomain;\n\n");
+        output.push_str("use protocol_v2::tlv::TLVType;\n");
+        output.push_str("use protocol_v2::RelayDomain;\n\n");
         output.push_str("// Get all market data types\n");
         output.push_str("let market_types = TLVType::types_in_domain(RelayDomain::MarketData);\n");
         output.push_str("for tlv_type in market_types {\n");

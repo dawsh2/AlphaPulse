@@ -226,7 +226,7 @@ impl DashboardServer {
 
                 let heartbeat_msg = serde_json::json!({
                     "msg_type": "heartbeat",
-                    "timestamp": match torq_network::time::safe_system_timestamp_ns_checked() {
+                    "timestamp": match network::time::safe_system_timestamp_ns_checked() {
                         Ok(timestamp_ns) => timestamp_ns / 1_000_000, // Convert to milliseconds
                         Err(e) => {
                             tracing::error!("Failed to generate timestamp for heartbeat: {}", e);

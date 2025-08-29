@@ -6,8 +6,8 @@
 //! by relays follow correct format with proper headers, checksums, and TLV encoding.
 
 use crate::{RelayError, RelayResult};
-use torq_codec::{InstrumentId, TLVMessageBuilder, TLVType};
-use torq_codec::protocol::{MessageHeader, RelayDomain, SourceType};
+use codec::{InstrumentId, TLVMessageBuilder, TLVType};
+use codec::protocol::{MessageHeader, RelayDomain, SourceType};
 use bytes::Bytes;
 use tracing::debug;
 use zerocopy::{AsBytes, FromBytes};
@@ -185,7 +185,7 @@ pub mod factory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use torq_codec::parse_header;
+    use codec::parse_header;
 
     #[test]
     fn test_relay_message_builder() {

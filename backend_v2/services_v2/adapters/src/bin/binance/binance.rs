@@ -19,8 +19,8 @@
 //! - **Throughput**: Designed for >1M msg/s TLV construction
 //! - **Memory**: <50MB steady state with multiple symbol subscriptions
 
-use torq_codec::{parse_header, parse_tlv_extensions};
-use torq_network::time::init_timestamp_system;
+use codec::{parse_header, parse_tlv_extensions};
+use network::time::init_timestamp_system;
 use torq_types::{
     tlv::build_message_direct, InstrumentId, RelayDomain, SourceType, TLVType, TradeTLV, VenueId,
 };
@@ -34,7 +34,7 @@ use tokio::sync::RwLock;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 
-use torq_adapter_service::output::RelayOutput;
+use adapter_service::output::RelayOutput;
 
 mod config;
 use config::BinanceConfig;

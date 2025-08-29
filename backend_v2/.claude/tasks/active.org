@@ -3,19 +3,33 @@
 #+STARTUP: overview
 #+STARTUP: hidestars
 #+STARTUP: logdone
-
-* TODO [#A] Fix Cargo Build Errors                :build:critical:blocking:
+#+PROPERTY: ORDERED true
+#+PROPERTY: TRIGGER_ALL true
+#+PROPERTY: BLOCKER_ALL true
+# Org-edna configuration: Automatic task state transitions based on dependencies
+# See .claude/docs/tools/org-edna.md for documentation
+* IN-PROGRESS [#A] Fix Cargo Build Errors                :build:critical:blocking:
   :PROPERTIES:
   :ID:          BUILD-FIX-GOAL
   :EFFORT:      8h
   :ASSIGNED:    dev-team
   :DEADLINE:    <2025-08-28 Wed>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Critical: Fix all cargo build errors blocking development.
   
+  **PROGRESS UPDATE [2025-08-29]**: Network module build errors COMPLETED (38 fixes)
+  - ✅ Fixed all 38 compile errors in network module
+  - ✅ Added missing dependencies (byteorder, rand, serde_yaml, parking_lot, regex, lockfree)
+  - ✅ Fixed module structure and import paths  
+  - ✅ Corrected API signatures and async/await issues
+  - ✅ Added missing enum variants and trait derives
+  - ✅ Implemented validation methods
+  
+  **REMAINING**: Workspace dependency resolution (state-core deletion conflicts)
+  
   **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
-
 ** DONE Test Design for Workspace Dependencies     :testing:tdd:dependencies:
 CLOSED: [2025-08-27 Wed 20:12]
    :PROPERTIES:
@@ -23,10 +37,10 @@ CLOSED: [2025-08-27 Wed 20:12]
    :EFFORT:      1h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/workspace-deps
+   :TRIGGER:     ids(BUILD-001) todo!(NEXT)
+   :TRIGGER:     ids(BUILD-001) todo!(NEXT)
    :END:
-
    Design tests to verify all workspace dependencies resolve correctly.
-
 ** DONE Fix Missing rust_decimal_macros Dependency :dependencies:workspace:
 CLOSED: [2025-08-28 Wed 13:15]
    :PROPERTIES:
@@ -34,20 +48,59 @@ CLOSED: [2025-08-28 Wed 13:15]
    :EFFORT:      1h
    :ASSIGNED:    backend-engineer
    :BRANCH:      fix/rust-decimal-macros
-   :DEPENDS:     BUILD-001-TESTS
+   :BLOCKER:     ids(BUILD-001-TESTS)
+   :BLOCKER:     ids(BUILD-001-TESTS)
    :END:
-
    Add missing rust_decimal_macros to workspace dependencies.
-
 ** TODO Test Design for Package References      :testing:tdd:imports:
    :PROPERTIES:
    :ID:          BUILD-002-TESTS
    :EFFORT:      1h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/package-refs
+   :TRIGGER:     ids(BUILD-002) todo!(NEXT)
+   :BLOCKER:     ids(BUILD-001)
+   :TRIGGER:     ids(BUILD-002) todo!(NEXT)
    :END:
-
    Design tests for package naming consistency.
+** DONE Network Module Compile Errors Fix       :network:build:completed:
+CLOSED: [2025-08-29 Thu 14:30]
+   :PROPERTIES:
+   :ID:          BUILD-NETWORK-001
+   :EFFORT:      4h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      fix/rust-decimal-macros
+   :END:
+   Fix all 38 compile errors in network module - COMPLETED.
+   *** Acceptance Criteria - ALL COMPLETED ✅
+   - [X] Successfully builds: network module compiles
+   - [X] All 38 compile errors resolved
+   - [X] Missing dependencies added (byteorder, rand, serde_yaml, parking_lot, regex, lockfree)
+   - [X] Module structure and import paths corrected
+   - [X] API signatures and async/await issues fixed
+   - [X] Missing enum variants and trait derives added
+   - [X] Validation methods implemented
+
+** TODO Fix Workspace State Dependencies        :workspace:dependencies:
+   :PROPERTIES:
+   :ID:          BUILD-WORKSPACE-001
+   :EFFORT:      2h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      fix/workspace-state-deps
+   :BLOCKER:     ids(BUILD-NETWORK-001)
+   :END:
+   Fix workspace dependency issues caused by state-core deletion.
+   *** Current Error
+   ```
+   failed to load manifest for dependency `state-core`
+   failed to read `/Users/daws/alphapulse/backend_v2/libs/state/core/Cargo.toml`
+   ```
+   *** Acceptance Criteria
+   - [ ] Successfully builds: `cargo build --release --all`
+   - [ ] Workspace member dependencies resolved
+   - [ ] No missing Cargo.toml files
+   - [ ] All services compile independently
+   - [ ] Clean dependency graph
 
 ** TODO Fix Inconsistent Package References     :refactor:naming:
    :PROPERTIES:
@@ -55,33 +108,31 @@ CLOSED: [2025-08-28 Wed 13:15]
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      fix/package-references
-   :DEPENDS:     BUILD-002-TESTS BUILD-001
+   :BLOCKER:     ids("BUILD-002-TESTS BUILD-WORKSPACE-001")
+   :BLOCKER:     ids(BUILD-002-TESTS)
    :END:
-
    Update all alphapulse references to torq consistently.
-
 * TODO [#A] Documentation System Integration     :docs:infrastructure:automation:
   :PROPERTIES:
   :ID:          DOC-SYSTEM-GOAL
   :EFFORT:      12h
   :ASSIGNED:    dev-team
   :DEADLINE:    <2025-08-29 Thu>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Implement Org-mode → Rust docs system with include_str!() for single-source documentation.
   
   **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
-
 ** TODO Test Design for Org Conversion Pipeline :testing:tdd:conversion:
    :PROPERTIES:
    :ID:          DOC-001-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/org-conversion
+   :TRIGGER:     ids(DOC-001) todo!(NEXT)
    :END:
-
    Design tests for Org→MD conversion pipeline.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for org-to-md.sh conversion accuracy
@@ -89,18 +140,16 @@ CLOSED: [2025-08-28 Wed 13:15]
    - [ ] Tests for include_str!() macro compilation
    - [ ] Verify generated files have DO NOT EDIT header
    - [ ] All tests initially fail (red phase)
-
 ** TODO Implement Org→MD Conversion Infrastructure :infrastructure:tooling:
    :PROPERTIES:
    :ID:          DOC-001
    :EFFORT:      3h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/org-conversion
-   :DEPENDS:     DOC-001-TESTS
+   :BLOCKER:     ids(DOC-001-TESTS)
+   :BLOCKER:     ids(DOC-001-TESTS)
    :END:
-
    Set up the org-to-md conversion pipeline.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] org-to-md.sh script functional
    - [ ] Git pre-commit hook configured
@@ -108,35 +157,32 @@ CLOSED: [2025-08-28 Wed 13:15]
    - [ ] Conversion preserves tables, code blocks, properties
    - [ ] Generated files marked with DO NOT EDIT header
    - [ ] All tests pass
-
 ** TODO Test Design for Rust Integration       :testing:tdd:rustdoc:
    :PROPERTIES:
    :ID:          DOC-002-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/rustdoc-integration
+   :TRIGGER:     ids(DOC-002) todo!(NEXT)
+   :BLOCKER:     ids(DOC-001)
    :END:
-
    Design tests for include_str!() documentation integration.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Tests for cargo doc generation with include_str!()
    - [ ] Tests for IDE tooltip integration
    - [ ] Tests for documentation completeness
    - [ ] Verify no broken links in generated docs
    - [ ] All tests initially fail
-
 ** TODO Integrate Documentation with Rust Modules :rustdoc:integration:
    :PROPERTIES:
    :ID:          DOC-002
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/rustdoc-integration
-   :DEPENDS:     DOC-002-TESTS DOC-001
+   :BLOCKER:     ids("DOC-002-TESTS DOC-001")
+   :BLOCKER:     ids(DOC-002-TESTS)
    :END:
-
    Add include_str!() to key Rust modules.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] libs/codec includes TLV documentation
    - [ ] Protocol modules include architecture docs
@@ -144,34 +190,31 @@ CLOSED: [2025-08-28 Wed 13:15]
    - [ ] IDE tooltips display org-sourced docs
    - [ ] No compilation warnings from include_str!()
    - [ ] All tests pass
-
 ** TODO Test Design for Migration Validation   :testing:tdd:migration:
    :PROPERTIES:
    :ID:          DOC-003-TESTS
    :EFFORT:      1h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/doc-migration
+   :TRIGGER:     ids(DOC-003) todo!(NEXT)
+   :BLOCKER:     ids(DOC-002)
    :END:
-
    Design tests for existing documentation migration.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Tests identify duplicate documentation
    - [ ] Tests verify content parity after migration
    - [ ] Tests for broken references
    - [ ] All tests initially fail
-
 ** TODO Migrate Existing Documentation         :migration:content:
    :PROPERTIES:
    :ID:          DOC-003
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/doc-migration
-   :DEPENDS:     DOC-003-TESTS DOC-002
+   :BLOCKER:     ids("DOC-003-TESTS DOC-002")
+   :BLOCKER:     ids(DOC-003-TESTS)
    :END:
-
    Convert existing docs to org-mode format.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Protocol documentation migrated
    - [ ] Architecture docs converted
@@ -179,19 +222,18 @@ CLOSED: [2025-08-28 Wed 13:15]
    - [ ] Old duplicate files removed
    - [ ] All references updated
    - [ ] All tests pass
-
 * TODO [#A] Task Migration from Previous Scrum System   :migration:critical:emergency:
   :PROPERTIES:
   :ID:          TASK-MIGRATION-GOAL
   :EFFORT:      8h
   :ASSIGNED:    scrum-leader
   :DEADLINE:    <2025-08-29 Thu>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Migrate outstanding critical tasks from previous scrum system to org-mode.
   
   **CRITICAL**: Emergency production issues must be migrated immediately.
-
 ** DONE Create Critical Financial Safety Task       :financial-safety:critical:
 CLOSED: [2025-08-27 Wed 20:39]
    :PROPERTIES:
@@ -200,16 +242,13 @@ CLOSED: [2025-08-27 Wed 20:39]
    :ASSIGNED:    scrum-leader
    :BRANCH:      create/financial-safety
    :END:
-
    Create SAFETY-001 task - profitability guards are STILL DISABLED despite archive claiming completion.
-
    *** Acceptance Criteria
    - [ ] SAFETY-001 created with Priority A
    - [ ] Test task created for guard validation (TDD)
    - [ ] Implementation task to re-enable 4 disabled guards
    - [ ] Clear financial risk documentation
    - [ ] detector.rs lines 420-441 identified as target
-
 ** DONE Create Build System Fix Task               :build-system:blocking:
 CLOSED: [2025-08-27 Wed 20:39]
    :PROPERTIES:
@@ -217,17 +256,15 @@ CLOSED: [2025-08-27 Wed 20:39]
    :EFFORT:      30min
    :ASSIGNED:    scrum-leader
    :BRANCH:      create/build-system-fix
-   :DEPENDS:     CREATE-SAFETY-001
+   :BLOCKER:     ids(CREATE-SAFETY-001)
+   :BLOCKER:     ids(CREATE-SAFETY-001)
    :END:
-
    Create GAP-005 task - Cargo.toml dependency issues block production validation.
-
    *** Acceptance Criteria
    - [ ] GAP-005 created with Priority A
    - [ ] Dependency path fixes identified
    - [ ] Test validation approach defined
    - [ ] Production readiness criteria clear
-
 ** DONE Create Timestamp Performance Task          :performance:optimization:
 CLOSED: [2025-08-27 Wed 20:39]
    :PROPERTIES:
@@ -235,27 +272,26 @@ CLOSED: [2025-08-27 Wed 20:39]
    :EFFORT:      30min
    :ASSIGNED:    scrum-leader
    :BRANCH:      create/timestamp-optimization
-   :DEPENDS:     CREATE-GAP-005
+   :BLOCKER:     ids(CREATE-GAP-005)
+   :BLOCKER:     ids(CREATE-GAP-005)
    :END:
-
    Create GAP-004 task - optimize 93 SystemTime::now() calls in hot paths.
-
    *** Acceptance Criteria
    - [ ] GAP-004 created with Priority B
    - [ ] Hot path identification complete
    - [ ] Performance benchmarking approach defined
    - [ ] Target: maintain >1M msg/s construction
-
 ** TODO Test Design for Profitability Guards    :testing:tdd:financial-safety:
    :PROPERTIES:
    :ID:          SAFETY-001-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/profitability-guards
+   :TRIGGER:     ids(SAFETY-001) todo!(NEXT)
+   :BLOCKER:     ids(CREATE-GAP-004)
+   :TRIGGER:     ids(SAFETY-001) todo!(NEXT)
    :END:
-
    Design comprehensive tests for profitability guard validation in flash arbitrage detector.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for min_profit_usd guard enforcement
@@ -265,22 +301,19 @@ CLOSED: [2025-08-27 Wed 20:39]
    - [ ] Edge case tests for extreme market conditions
    - [ ] All tests initially fail (red phase)
    - [ ] Test coverage for detector.rs lines 420-441
-
 ** TODO [#A] Re-enable Profitability Guards           :financial-safety:critical:
    :PROPERTIES:
    :ID:          SAFETY-001
    :EFFORT:      3h
    :ASSIGNED:    backend-engineer
    :BRANCH:      fix/profitability-guards
-   :DEPENDS:     SAFETY-001-TESTS
    :DEADLINE:    <2025-08-28 Wed>
+   :BLOCKER:     ids(SAFETY-001-TESTS)
+   :BLOCKER:     ids(SAFETY-001-TESTS)
    :END:
-
    CRITICAL: Re-enable the 4 disabled profitability guards in flash arbitrage detector that were disabled for debugging.
-
    **FINANCIAL RISK**: Current code generates signals for ALL arbitrage pairs without validation checks.
    Location: services_v2/strategies/src/flash_arbitrage/detector.rs lines 420-441
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package strategies`
@@ -290,17 +323,17 @@ CLOSED: [2025-08-27 Wed 20:39]
    - [ ] Guard 4: profit_margin bounds re-enabled
    - [ ] No performance regression in hot path
    - [ ] Financial safety validated with real market data
-
 ** TODO Test Design for Build System Validation   :testing:tdd:build-system:
    :PROPERTIES:
    :ID:          GAP-005-TESTS
    :EFFORT:      1h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/cargo-dependencies
+   :TRIGGER:     ids(GAP-005) todo!(NEXT)
+   :BLOCKER:     ids(SAFETY-001)
+   :TRIGGER:     ids(GAP-005) todo!(NEXT)
    :END:
-
    Design tests to validate Cargo.toml dependency resolution for production readiness.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for workspace dependency resolution
@@ -308,19 +341,17 @@ CLOSED: [2025-08-27 Wed 20:39]
    - [ ] Tests for circular dependency detection
    - [ ] Tests for production build validation
    - [ ] All tests initially fail (red phase)
-
 ** TODO [#A] Fix Cargo.toml Dependencies for Production :build-system:blocking:
    :PROPERTIES:
    :ID:          GAP-005
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      fix/cargo-dependencies
-   :DEPENDS:     GAP-005-TESTS SAFETY-001
    :DEADLINE:    <2025-08-28 Wed>
+   :BLOCKER:     ids("GAP-005-TESTS SAFETY-001")
+   :BLOCKER:     ids(GAP-005-TESTS)
    :END:
-
    Fix Cargo.toml dependency path issues that prevent production readiness testing.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release --all`
    - [ ] All tests pass: `cargo test --all`
@@ -329,17 +360,17 @@ CLOSED: [2025-08-27 Wed 20:39]
    - [ ] No circular dependencies detected
    - [ ] Production validation can run successfully
    - [ ] Performance benchmarks maintainable
-
 ** TODO Test Design for Timestamp Performance     :testing:tdd:performance:
    :PROPERTIES:
    :ID:          GAP-004-TESTS
    :EFFORT:      1h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/timestamp-optimization
+   :TRIGGER:     ids(GAP-004) todo!(NEXT)
+   :BLOCKER:     ids(GAP-005)
+   :TRIGGER:     ids(GAP-004) todo!(NEXT)
    :END:
-
    Design performance tests for timestamp operations in hot paths.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Benchmarks for SystemTime::now() in hot paths
@@ -347,18 +378,16 @@ CLOSED: [2025-08-27 Wed 20:39]
    - [ ] Performance regression detection tests
    - [ ] Hot path identification validation
    - [ ] All tests initially fail (red phase)
-
 ** TODO [#B] Optimize Hot Path Timestamp Operations   :performance:optimization:
    :PROPERTIES:
    :ID:          GAP-004
    :EFFORT:      5h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/timestamp-optimization
-   :DEPENDS:     GAP-004-TESTS GAP-005
+   :BLOCKER:     ids("GAP-004-TESTS GAP-005")
+   :BLOCKER:     ids(GAP-004-TESTS)
    :END:
-
    Optimize 93 SystemTime::now() calls in hot paths to maintain >1M msg/s performance target.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --all`
@@ -367,44 +396,40 @@ CLOSED: [2025-08-27 Wed 20:39]
    - [ ] Nanosecond precision preserved where required
    - [ ] Memory allocation reduced in critical paths
    - [ ] No functional regression in time-sensitive operations
-
 ** TODO Archive Previous Scrum System             :migration:cleanup:
    :PROPERTIES:
    :ID:          ARCHIVE-SCRUM
    :EFFORT:      1h
    :ASSIGNED:    scrum-leader
    :BRANCH:      migrate/archive-cleanup
-   :DEPENDS:     GAP-004
+   :BLOCKER:     ids(GAP-004)
+   :BLOCKER:     ids(GAP-004)
    :END:
-
    Clean up old scrum files and create migration report
-
    *** Acceptance Criteria
    - [ ] Migration completion report created
    - [ ] Old scrum files properly archived
    - [ ] No task duplication between systems
    - [ ] Clear handoff documentation
-
 * TODO [#A] Post-Refactor Quality Validation            :validation:critical:
   :PROPERTIES:
   :ID:          VALIDATE-GOAL
   :EFFORT:      30h
   :ASSIGNED:    dev-team
   :DEADLINE:    <2025-09-01 Mon>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Complete validation of the Torq refactor (backend_v2 → torq, libs restructuring).
-
 ** TODO Test Design for Codec Module           :testing:tdd:codec:
    :PROPERTIES:
    :ID:          VALIDATE-001-TESTS
    :EFFORT:      3h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/codec-validation
+   :TRIGGER:     ids(VALIDATE-001) todo!(NEXT)
    :END:
-
    Design comprehensive tests for codec module separation.
-
    *** Acceptance Criteria
    - [ ] Successfully builds: `cargo build --test`
    - [ ] All tests pass: Framework runs
@@ -413,18 +438,16 @@ CLOSED: [2025-08-27 Wed 20:39]
    - [ ] Tests for TLV message construction
    - [ ] Performance regression tests defined
    - [ ] All tests initially fail (red phase)
-
 ** TODO Validate Codec Module Separation       :codec:validation:
    :PROPERTIES:
    :ID:          VALIDATE-001
    :EFFORT:      8h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/codec-validation
-   :DEPENDS:     VALIDATE-001-TESTS
+   :BLOCKER:     ids(VALIDATE-001-TESTS)
+   :BLOCKER:     ids(VALIDATE-001-TESTS)
    :END:
-
    Ensure codec module is properly separated with no circular dependencies.
-
    *** Acceptance Criteria
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package torq-codec`
@@ -432,17 +455,16 @@ CLOSED: [2025-08-27 Wed 20:39]
    - [ ] No dependencies on service modules
    - [ ] Clean API boundaries verified
    - [ ] Performance benchmarks: >1M msg/s maintained
-
 ** TODO Test Design for Service Boundaries     :testing:tdd:services:
    :PROPERTIES:
    :ID:          VALIDATE-002-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/service-boundaries
+   :TRIGGER:     ids(VALIDATE-002) todo!(NEXT)
+   :BLOCKER:     ids(VALIDATE-001)
    :END:
-
    Design tests for service module independence.
-
    *** Acceptance Criteria
    - [ ] Successfully builds: `cargo build --test`
    - [ ] All tests pass: Framework runs
@@ -450,18 +472,16 @@ CLOSED: [2025-08-27 Wed 20:39]
    - [ ] Dependency isolation tests
    - [ ] API contract tests
    - [ ] Integration boundary tests
-
 ** TODO Validate Service Module Boundaries     :services:validation:
    :PROPERTIES:
    :ID:          VALIDATE-002
    :EFFORT:      6h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/service-boundaries
-   :DEPENDS:     VALIDATE-002-TESTS VALIDATE-001
+   :BLOCKER:     ids("VALIDATE-002-TESTS VALIDATE-001")
+   :BLOCKER:     ids(VALIDATE-002-TESTS)
    :END:
-
    Ensure service modules are properly isolated.
-
    *** Acceptance Criteria
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --all`
@@ -469,16 +489,16 @@ CLOSED: [2025-08-27 Wed 20:39]
    - [ ] Each service compiles independently
    - [ ] No cross-service imports
    - [ ] Clean dependency graph
-
+     
 * TODO [#B] Performance Benchmarking Suite     :performance:testing:
   :PROPERTIES:
   :ID:          PERF-GOAL
   :EFFORT:      20h
   :ASSIGNED:    performance-team
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Establish comprehensive performance benchmarking.
-
 ** DONE Latency Profiling Framework                   :performance:profiling:
 CLOSED: [2025-08-27 Wed 17:30]
    :PROPERTIES:
@@ -487,9 +507,7 @@ CLOSED: [2025-08-27 Wed 17:30]
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/latency-profiling
    :END:
-
    Implement latency profiling for critical paths.
-
    *** Acceptance Criteria
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package profiling`
@@ -497,18 +515,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] P50/P95/P99 metrics captured
    - [ ] Flamegraph generation working
    - [ ] Integration with existing metrics
-
 ** TODO Memory Usage Analysis                  :performance:memory:
    :PROPERTIES:
    :ID:          PERF-002
    :EFFORT:      6h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/memory-analysis
-   :DEPENDS:     PERF-001
+   :BLOCKER:     ids(PERF-001)
+   :BLOCKER:     ids(PERF-001)
    :END:
-
    Analyze and optimize memory usage patterns.
-
    *** Acceptance Criteria
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package memory`
@@ -516,19 +532,18 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Heap allocation tracking
    - [ ] Memory leak detection
    - [ ] Usage reports generated
-
 * TODO [#A] Mycelium MVP Implementation                 :mycelium:critical:mvp:
   :PROPERTIES:
   :ID:          MYCELIUM-MVP-GOAL
   :EFFORT:      24h
   :ASSIGNED:    dev-team
   :DEADLINE:    <2025-09-05 Fri>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Implement Mycelium MVP shared types and broker foundation.
   
   **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
-
 ** TODO Test Design for Shared Types Foundation :testing:tdd:mycelium:
    :PROPERTIES:
    :ID:          MVP-001-TESTS
@@ -536,10 +551,10 @@ CLOSED: [2025-08-27 Wed 17:30]
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/shared-types-foundation
    :WORKTREE:    yes
+   :TRIGGER:     ids(MVP-001) todo!(NEXT)
+   :TRIGGER:     ids(MVP-001) todo!(NEXT)
    :END:
-
    Design comprehensive tests for shared message types migration.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for Arc<T> message passing between actors
@@ -548,20 +563,18 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for market/signal/execution domain separation
    - [ ] Memory layout tests for fixed-point precision
    - [ ] All tests initially fail (red phase)
-
 ** TODO [#A] Shared Types Foundation                   :mycelium:types:shared:
    :PROPERTIES:
    :ID:          MVP-001
    :EFFORT:      6h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/shared-types-foundation
-   :DEPENDS:     MVP-001-TESTS
    :DEADLINE:    <2025-09-02 Tue>
    :WORKTREE:    yes
+   :BLOCKER:     ids(MVP-001-TESTS)
+   :BLOCKER:     ids(MVP-001-TESTS)
    :END:
-
    Move protocol message definitions to libs/types for sharing across actors with Arc<T> wrapper support.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package torq-types`
@@ -571,17 +584,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Protocol V2 conversion traits implemented
    - [ ] No precision loss in financial calculations
    - [ ] All services updated to use shared types
-
 ** TODO Test Design for Transport Layer           :testing:tdd:transport:
    :PROPERTIES:
    :ID:          MVP-002-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/transport-layer
+   :TRIGGER:     ids(MVP-002) todo!(NEXT)
+   :BLOCKER:     ids(MVP-001)
+   :TRIGGER:     ids(MVP-002) todo!(NEXT)
    :END:
-
    Design tests for Mycelium transport layer implementation.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for actor message routing
@@ -589,18 +602,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for connection management
    - [ ] Performance tests for >1M msg/s throughput
    - [ ] All tests initially fail (red phase)
-
 ** TODO Transport Layer Implementation            :mycelium:transport:
    :PROPERTIES:
    :ID:          MVP-002
    :EFFORT:      8h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/transport-layer
-   :DEPENDS:     MVP-002-TESTS MVP-001
+   :BLOCKER:     ids("MVP-002-TESTS MVP-001")
+   :BLOCKER:     ids(MVP-002-TESTS)
    :END:
-
    Implement Mycelium transport layer for actor communication.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package mycelium-transport`
@@ -609,17 +620,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Reliable message delivery guaranteed
    - [ ] Performance: >1M msg/s maintained
    - [ ] Connection management with failure recovery
-
 ** TODO Test Design for Broker Layer Core       :testing:tdd:broker:
    :PROPERTIES:
    :ID:          MVP-004-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/broker-layer-core
+   :TRIGGER:     ids(MVP-004) todo!(NEXT)
+   :BLOCKER:     ids(MVP-002)
+   :TRIGGER:     ids(MVP-004) todo!(NEXT)
    :END:
-
    Design tests for Mycelium broker layer core functionality.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for message routing logic
@@ -627,18 +638,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for fault tolerance and recovery
    - [ ] Integration tests with transport layer
    - [ ] All tests initially fail (red phase)
-
 ** TODO Broker Layer Core                        :mycelium:broker:
    :PROPERTIES:
    :ID:          MVP-004
    :EFFORT:      6h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/broker-layer-core
-   :DEPENDS:     MVP-004-TESTS MVP-002
+   :BLOCKER:     ids("MVP-004-TESTS MVP-002")
+   :BLOCKER:     ids(MVP-004-TESTS)
    :END:
-
    Implement core Mycelium broker layer for message routing and actor management.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package mycelium-broker`
@@ -647,29 +656,28 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Actor lifecycle management (spawn/terminate)
    - [ ] Fault tolerance with supervisor strategies
    - [ ] Integration with transport layer verified
-
 * TODO [#A] Mycelium Broker Platform                    :mycelium:broker:platform:
   :PROPERTIES:
   :ID:          MYCELIUM-BROKER-GOAL
   :EFFORT:      32h
   :ASSIGNED:    dev-team
   :DEADLINE:    <2025-09-10 Wed>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Complete Mycelium broker platform with full relay removal.
   
   **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
-
 ** TODO Test Design for Platform Foundation    :testing:tdd:platform:
    :PROPERTIES:
    :ID:          MYC-001-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/platform-foundation
+   :TRIGGER:     ids(MYC-001) todo!(NEXT)
+   :TRIGGER:     ids(MYC-001) todo!(NEXT)
    :END:
-
    Design tests for Mycelium platform foundation.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for actor system initialization
@@ -677,18 +685,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for service discovery integration
    - [ ] Tests for health monitoring
    - [ ] All tests initially fail (red phase)
-
 ** TODO Mycelium Platform Foundation             :mycelium:platform:foundation:
    :PROPERTIES:
    :ID:          MYC-001
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/platform-foundation
-   :DEPENDS:     MYC-001-TESTS
+   :BLOCKER:     ids(MYC-001-TESTS)
+   :BLOCKER:     ids(MYC-001-TESTS)
    :END:
-
    Establish Mycelium platform foundation with actor system and configuration.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package mycelium-platform`
@@ -697,17 +703,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Platform configuration management
    - [ ] Service discovery integration
    - [ ] Health monitoring and metrics
-
 ** TODO Test Design for Enhanced Transport     :testing:tdd:transport-enhanced:
    :PROPERTIES:
    :ID:          MYC-002-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/enhanced-transport
+   :TRIGGER:     ids(MYC-002) todo!(NEXT)
+   :BLOCKER:     ids(MYC-001)
+   :TRIGGER:     ids(MYC-002) todo!(NEXT)
    :END:
-
    Design tests for enhanced Mycelium transport layer.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for enhanced routing capabilities
@@ -715,18 +721,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for load balancing and failover
    - [ ] Performance regression tests
    - [ ] All tests initially fail (red phase)
-
 ** TODO Enhanced Transport Layer                 :mycelium:transport:enhanced:
    :PROPERTIES:
    :ID:          MYC-002
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/enhanced-transport
-   :DEPENDS:     MYC-002-TESTS MYC-001
+   :BLOCKER:     ids("MYC-002-TESTS MYC-001")
+   :BLOCKER:     ids(MYC-002-TESTS)
    :END:
-
    Enhance Mycelium transport layer with advanced routing and security.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package mycelium-transport`
@@ -735,17 +739,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Transport security features added
    - [ ] Load balancing and failover support
    - [ ] No performance regression
-
 ** TODO Test Design for Enhanced Broker        :testing:tdd:broker-enhanced:
    :PROPERTIES:
    :ID:          MYC-003-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/enhanced-broker
+   :TRIGGER:     ids(MYC-003) todo!(NEXT)
+   :BLOCKER:     ids(MYC-002)
+   :TRIGGER:     ids(MYC-003) todo!(NEXT)
    :END:
-
    Design tests for enhanced Mycelium broker layer.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for broker clustering capabilities
@@ -753,18 +757,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for broker fault tolerance
    - [ ] Integration tests with enhanced transport
    - [ ] All tests initially fail (red phase)
-
 ** TODO Enhanced Broker Layer                    :mycelium:broker:enhanced:
    :PROPERTIES:
    :ID:          MYC-003
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/enhanced-broker
-   :DEPENDS:     MYC-003-TESTS MYC-002
+   :BLOCKER:     ids("MYC-003-TESTS MYC-002")
+   :BLOCKER:     ids(MYC-003-TESTS)
    :END:
-
    Enhance Mycelium broker layer with clustering and persistence.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package mycelium-broker`
@@ -773,17 +775,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Message persistence for reliability
    - [ ] Enhanced fault tolerance mechanisms
    - [ ] Integration with enhanced transport verified
-
 ** TODO Test Design for Actor System Integration :testing:tdd:actor-system:
    :PROPERTIES:
    :ID:          MYC-004-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/actor-system-integration
+   :TRIGGER:     ids(MYC-004) todo!(NEXT)
+   :BLOCKER:     ids(MYC-003)
+   :TRIGGER:     ids(MYC-004) todo!(NEXT)
    :END:
-
    Design tests for Mycelium actor system integration.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for actor spawning and management
@@ -791,18 +793,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for actor communication patterns
    - [ ] Load tests for actor system scalability
    - [ ] All tests initially fail (red phase)
-
 ** TODO Actor System Integration                 :mycelium:actor-system:
    :PROPERTIES:
    :ID:          MYC-004
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/actor-system-integration
-   :DEPENDS:     MYC-004-TESTS MYC-003
+   :BLOCKER:     ids("MYC-004-TESTS MYC-003")
+   :BLOCKER:     ids(MYC-004-TESTS)
    :END:
-
    Integrate actor system with Mycelium broker platform.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package mycelium-actors`
@@ -811,17 +811,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Supervision strategies implemented
    - [ ] Actor communication patterns established
    - [ ] Scalable actor system architecture
-
 ** TODO Test Design for Message Routing        :testing:tdd:message-routing:
    :PROPERTIES:
    :ID:          MYC-005-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/message-routing
+   :TRIGGER:     ids(MYC-005) todo!(NEXT)
+   :BLOCKER:     ids(MYC-004)
+   :TRIGGER:     ids(MYC-005) todo!(NEXT)
    :END:
-
    Design tests for Mycelium message routing system.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for message routing algorithms
@@ -829,18 +829,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for dynamic route discovery
    - [ ] Performance tests for routing efficiency
    - [ ] All tests initially fail (red phase)
-
 ** TODO Message Routing Implementation           :mycelium:routing:
    :PROPERTIES:
    :ID:          MYC-005
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/message-routing
-   :DEPENDS:     MYC-005-TESTS MYC-004
+   :BLOCKER:     ids("MYC-005-TESTS MYC-004")
+   :BLOCKER:     ids(MYC-005-TESTS)
    :END:
-
    Implement advanced message routing for Mycelium platform.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package mycelium-routing`
@@ -849,17 +847,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Dynamic routing table management
    - [ ] Route discovery and optimization
    - [ ] High-performance routing: >1M msg/s maintained
-
 ** TODO Test Design for Connection Management  :testing:tdd:connections:
    :PROPERTIES:
    :ID:          MYC-006-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/connection-management
+   :TRIGGER:     ids(MYC-006) todo!(NEXT)
+   :BLOCKER:     ids(MYC-005)
+   :TRIGGER:     ids(MYC-006) todo!(NEXT)
    :END:
-
    Design tests for Mycelium connection management.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for connection pooling
@@ -867,18 +865,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for automatic reconnection logic
    - [ ] Tests for connection load balancing
    - [ ] All tests initially fail (red phase)
-
 ** TODO Connection Management                    :mycelium:connections:
    :PROPERTIES:
    :ID:          MYC-006
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/connection-management
-   :DEPENDS:     MYC-006-TESTS MYC-005
+   :BLOCKER:     ids("MYC-006-TESTS MYC-005")
+   :BLOCKER:     ids(MYC-006-TESTS)
    :END:
-
    Implement robust connection management for Mycelium platform.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --package mycelium-connections`
@@ -887,17 +883,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Health monitoring with automatic recovery
    - [ ] Intelligent reconnection strategies
    - [ ] Load balancing across connections
-
 ** TODO Test Design for Performance Optimization :testing:tdd:performance:
    :PROPERTIES:
    :ID:          MYC-007-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/performance-optimization
+   :TRIGGER:     ids(MYC-007) todo!(NEXT)
+   :BLOCKER:     ids(MYC-006)
+   :TRIGGER:     ids(MYC-007) todo!(NEXT)
    :END:
-
    Design tests for Mycelium performance optimization.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Performance benchmarking tests
@@ -905,18 +901,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for CPU utilization efficiency
    - [ ] Latency measurement tests
    - [ ] All tests initially fail (red phase)
-
 ** TODO Performance Optimization                 :mycelium:performance:
    :PROPERTIES:
    :ID:          MYC-007
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/performance-optimization
-   :DEPENDS:     MYC-007-TESTS MYC-006
+   :BLOCKER:     ids("MYC-007-TESTS MYC-006")
+   :BLOCKER:     ids(MYC-007-TESTS)
    :END:
-
    Optimize Mycelium platform for high-performance trading requirements.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --workspace`
@@ -925,17 +919,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Memory usage optimized
    - [ ] CPU utilization efficient
    - [ ] Latency: <35μs message processing
-
 ** TODO Test Design for Relay Removal          :testing:tdd:relay-removal:
    :PROPERTIES:
    :ID:          MYC-008-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/relay-removal
+   :TRIGGER:     ids(MYC-008) todo!(NEXT)
+   :BLOCKER:     ids(MYC-007)
+   :TRIGGER:     ids(MYC-008) todo!(NEXT)
    :END:
-
    Design tests for legacy relay system removal.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for Mycelium replacement functionality
@@ -943,19 +937,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Integration tests without relay dependency
    - [ ] Performance regression tests
    - [ ] All tests initially fail (red phase)
-
 ** TODO [#A] Legacy Relay Removal                      :mycelium:relay-removal:critical:
    :PROPERTIES:
    :ID:          MYC-008
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/relay-removal
-   :DEPENDS:     MYC-008-TESTS MYC-007
    :DEADLINE:    <2025-09-10 Wed>
+   :BLOCKER:     ids("MYC-008-TESTS MYC-007")
+   :BLOCKER:     ids(MYC-008-TESTS)
    :END:
-
    Remove legacy relay system and complete migration to Mycelium platform.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release --all`
    - [ ] All tests pass: `cargo test --workspace`
@@ -965,29 +957,28 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] No functionality regression
    - [ ] Performance maintained: >1M msg/s throughput
    - [ ] Clean migration path documented
-
 * TODO [#A] Post-Refactor Quality Validation            :validation:critical:
   :PROPERTIES:
   :ID:          VALIDATE-GOAL
   :EFFORT:      40h
   :ASSIGNED:    dev-team
   :DEADLINE:    <2025-09-15 Mon>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Complete comprehensive validation of the Torq refactor (backend_v2 → torq, libs restructuring).
   
   **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
-
 ** TODO Test Design for Protocol V2 Integration :testing:tdd:protocol:
    :PROPERTIES:
    :ID:          VALIDATE-001-TESTS
    :EFFORT:      3h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/protocol-integration
+   :TRIGGER:     ids(VALIDATE-001) todo!(NEXT)
+   :TRIGGER:     ids(VALIDATE-001) todo!(NEXT)
    :END:
-
    Design comprehensive tests for Protocol V2 integration validation.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for TLV message construction and parsing
@@ -996,18 +987,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Performance benchmarking tests (>1M msg/s)
    - [ ] Cross-domain message routing tests
    - [ ] All tests initially fail (red phase)
-
 ** TODO Protocol V2 Integration Testing          :protocol:integration:validation:
    :PROPERTIES:
    :ID:          VALIDATE-001
    :EFFORT:      5h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/protocol-integration-validation
-   :DEPENDS:     VALIDATE-001-TESTS
+   :BLOCKER:     ids(VALIDATE-001-TESTS)
+   :BLOCKER:     ids(VALIDATE-001-TESTS)
    :END:
-
    Validate Protocol V2 TLV message system integration across all services.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release --all`
    - [ ] All tests pass: `cargo test --package torq-codec`
@@ -1017,17 +1006,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Bijective instrument IDs working across services
    - [ ] Precision preservation validated for all asset types
    - [ ] Cross-domain routing validated
-
 ** TODO Test Design for Performance Regression :testing:tdd:performance-regression:
    :PROPERTIES:
    :ID:          VALIDATE-002-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/performance-regression
+   :TRIGGER:     ids(VALIDATE-002) todo!(NEXT)
+   :BLOCKER:     ids(VALIDATE-001)
+   :TRIGGER:     ids(VALIDATE-002) todo!(NEXT)
    :END:
-
    Design tests for performance regression detection.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Baseline performance benchmarking tests
@@ -1035,18 +1024,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Latency regression tests
    - [ ] Throughput degradation tests
    - [ ] All tests initially fail (red phase)
-
 ** TODO Performance Regression Testing          :performance:regression:validation:
    :PROPERTIES:
    :ID:          VALIDATE-002
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/performance-regression-testing
-   :DEPENDS:     VALIDATE-002-TESTS VALIDATE-001
+   :BLOCKER:     ids("VALIDATE-002-TESTS VALIDATE-001")
+   :BLOCKER:     ids(VALIDATE-002-TESTS)
    :END:
-
    Validate no performance regression in refactored system.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: Performance benchmarks
@@ -1055,17 +1042,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Parsing: >1.6M msg/s maintained
    - [ ] Memory usage within baseline bounds
    - [ ] Latency: <35μs hot path maintained
-
 ** TODO Test Design for Memory Safety          :testing:tdd:memory-safety:
    :PROPERTIES:
    :ID:          VALIDATE-003-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/memory-safety
+   :TRIGGER:     ids(VALIDATE-003) todo!(NEXT)
+   :BLOCKER:     ids(VALIDATE-002)
+   :TRIGGER:     ids(VALIDATE-003) todo!(NEXT)
    :END:
-
    Design tests for memory safety validation.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for buffer overflow protection
@@ -1073,18 +1060,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for memory leak detection
    - [ ] Tests for unsafe code boundary validation
    - [ ] All tests initially fail (red phase)
-
 ** TODO Memory Safety Validation                :memory:safety:validation:
    :PROPERTIES:
    :ID:          VALIDATE-003
    :EFFORT:      3h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/memory-safety-validation
-   :DEPENDS:     VALIDATE-003-TESTS VALIDATE-002
+   :BLOCKER:     ids("VALIDATE-003-TESTS VALIDATE-002")
+   :BLOCKER:     ids(VALIDATE-003-TESTS)
    :END:
-
    Validate memory safety throughout refactored codebase.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: Memory safety tests
@@ -1093,17 +1078,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] No use-after-free issues
    - [ ] No memory leaks in long-running processes
    - [ ] Unsafe code properly bounded and documented
-
 ** TODO Test Design for Concurrency Testing    :testing:tdd:concurrency:
    :PROPERTIES:
    :ID:          VALIDATE-004-TESTS
    :EFFORT:      3h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/concurrency-testing
+   :TRIGGER:     ids(VALIDATE-004) todo!(NEXT)
+   :BLOCKER:     ids(VALIDATE-003)
+   :TRIGGER:     ids(VALIDATE-004) todo!(NEXT)
    :END:
-
    Design tests for concurrency validation.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for race condition detection
@@ -1111,18 +1096,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for thread safety validation
    - [ ] Load tests for concurrent access patterns
    - [ ] All tests initially fail (red phase)
-
 ** TODO Concurrency Testing                     :concurrency:testing:validation:
    :PROPERTIES:
    :ID:          VALIDATE-004
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/concurrency-testing
-   :DEPENDS:     VALIDATE-004-TESTS VALIDATE-003
+   :BLOCKER:     ids("VALIDATE-004-TESTS VALIDATE-003")
+   :BLOCKER:     ids(VALIDATE-004-TESTS)
    :END:
-
    Validate concurrency safety in multi-threaded components.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: Concurrency tests
@@ -1131,17 +1114,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] No deadlocks in concurrent operations
    - [ ] Thread-safe data structures validated
    - [ ] Concurrent access patterns verified
-
 ** TODO Test Design for Error Handling         :testing:tdd:error-handling:
    :PROPERTIES:
    :ID:          VALIDATE-005-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/error-handling-validation
+   :TRIGGER:     ids(VALIDATE-005) todo!(NEXT)
+   :BLOCKER:     ids(VALIDATE-004)
+   :TRIGGER:     ids(VALIDATE-005) todo!(NEXT)
    :END:
-
    Design tests for error handling validation.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for error propagation correctness
@@ -1149,18 +1132,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for error recovery mechanisms
    - [ ] Tests for error logging completeness
    - [ ] All tests initially fail (red phase)
-
 ** TODO Error Handling Validation              :error-handling:validation:
    :PROPERTIES:
    :ID:          VALIDATE-005
    :EFFORT:      3h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/error-handling-validation
-   :DEPENDS:     VALIDATE-005-TESTS VALIDATE-004
+   :BLOCKER:     ids("VALIDATE-005-TESTS VALIDATE-004")
+   :BLOCKER:     ids(VALIDATE-005-TESTS)
    :END:
-
    Validate robust error handling throughout system.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: Error handling tests
@@ -1169,17 +1150,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Graceful failure handling implemented
    - [ ] Recovery mechanisms functional
    - [ ] Complete error logging and monitoring
-
 ** TODO Test Design for Configuration         :testing:tdd:configuration:
    :PROPERTIES:
    :ID:          VALIDATE-006-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/configuration-validation
+   :TRIGGER:     ids(VALIDATE-006) todo!(NEXT)
+   :BLOCKER:     ids(VALIDATE-005)
+   :TRIGGER:     ids(VALIDATE-006) todo!(NEXT)
    :END:
-
    Design tests for configuration validation.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for configuration parsing accuracy
@@ -1187,18 +1168,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for environment-specific configs
    - [ ] Tests for dynamic configuration updates
    - [ ] All tests initially fail (red phase)
-
 ** TODO Configuration Validation               :configuration:validation:
    :PROPERTIES:
    :ID:          VALIDATE-006
    :EFFORT:      3h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/configuration-validation
-   :DEPENDS:     VALIDATE-006-TESTS VALIDATE-005
+   :BLOCKER:     ids("VALIDATE-006-TESTS VALIDATE-005")
+   :BLOCKER:     ids(VALIDATE-006-TESTS)
    :END:
-
    Validate configuration management across all environments.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: Configuration tests
@@ -1207,17 +1186,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Validation rules prevent invalid configs
    - [ ] Environment-specific configurations working
    - [ ] Dynamic configuration updates supported
-
 ** TODO Test Design for Documentation         :testing:tdd:documentation:
    :PROPERTIES:
    :ID:          VALIDATE-007-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/documentation-validation
+   :TRIGGER:     ids(VALIDATE-007) todo!(NEXT)
+   :BLOCKER:     ids(VALIDATE-006)
+   :TRIGGER:     ids(VALIDATE-007) todo!(NEXT)
    :END:
-
    Design tests for documentation validation.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for documentation completeness
@@ -1225,18 +1204,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for example code validation
    - [ ] Tests for API documentation accuracy
    - [ ] All tests initially fail (red phase)
-
 ** TODO Documentation Validation               :documentation:validation:
    :PROPERTIES:
    :ID:          VALIDATE-007
    :EFFORT:      3h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/documentation-validation
-   :DEPENDS:     VALIDATE-007-TESTS VALIDATE-006
+   :BLOCKER:     ids("VALIDATE-007-TESTS VALIDATE-006")
+   :BLOCKER:     ids(VALIDATE-007-TESTS)
    :END:
-
    Validate documentation completeness and accuracy.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo doc --workspace`
    - [ ] All tests pass: Documentation tests
@@ -1245,17 +1222,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Code examples compile and run correctly
    - [ ] Architecture documentation up-to-date
    - [ ] Migration guides accurate
-
 ** TODO Test Design for API Documentation     :testing:tdd:api-docs:
    :PROPERTIES:
    :ID:          DOCS-001-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/api-documentation
+   :TRIGGER:     ids(DOCS-001) todo!(NEXT)
+   :BLOCKER:     ids(VALIDATE-007)
+   :TRIGGER:     ids(DOCS-001) todo!(NEXT)
    :END:
-
    Design tests for API documentation generation and validation.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for rustdoc compilation
@@ -1263,18 +1240,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for documentation link validation
    - [ ] Tests for doctest execution
    - [ ] All tests initially fail (red phase)
-
 ** TODO API Documentation Generation            :api:documentation:generation:
    :PROPERTIES:
    :ID:          DOCS-001
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/api-documentation-generation
-   :DEPENDS:     DOCS-001-TESTS VALIDATE-007
+   :BLOCKER:     ids("DOCS-001-TESTS VALIDATE-007")
+   :BLOCKER:     ids(DOCS-001-TESTS)
    :END:
-
    Generate comprehensive API documentation for all public interfaces.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo doc --workspace --no-deps`
    - [ ] All tests pass: Documentation tests
@@ -1283,29 +1258,28 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] All doc examples compile and pass tests
    - [ ] API documentation includes usage patterns
    - [ ] Cross-references between modules working
-
 * TODO [#B] Unit Test Framework Enhancement             :testing:framework:
   :PROPERTIES:
   :ID:          TEST-FRAMEWORK-GOAL
   :EFFORT:      8h
   :ASSIGNED:    dev-team
   :DEADLINE:    <2025-09-08 Mon>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Enhance unit test framework with better tooling and validation.
   
   **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
-
 ** TODO Test Design for Test Framework        :testing:tdd:framework:
    :PROPERTIES:
    :ID:          TEST-001-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/test-framework
+   :TRIGGER:     ids(TEST-001) todo!(NEXT)
+   :TRIGGER:     ids(TEST-001) todo!(NEXT)
    :END:
-
    Design tests for enhanced unit test framework.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for test discovery mechanisms
@@ -1313,18 +1287,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for coverage measurement
    - [ ] Tests for test isolation verification
    - [ ] All tests initially fail (red phase)
-
 ** TODO Unit Test Framework Enhancement        :testing:framework:enhancement:
    :PROPERTIES:
    :ID:          TEST-001
    :EFFORT:      6h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/test-framework-enhancement
-   :DEPENDS:     TEST-001-TESTS
+   :BLOCKER:     ids(TEST-001-TESTS)
+   :BLOCKER:     ids(TEST-001-TESTS)
    :END:
-
    Enhance unit test framework with improved tooling and validation capabilities.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
    - [ ] All tests pass: `cargo test --workspace`
@@ -1334,29 +1306,28 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Test isolation and parallelization improved
    - [ ] Better test failure diagnostics
    - [ ] Integration with CI/CD pipeline
-
 * TODO [#C] Documentation System Integration     :docs:infrastructure:automation:
   :PROPERTIES:
   :ID:          DOC-SYSTEM-GOAL
   :EFFORT:      12h
   :ASSIGNED:    dev-team
   :DEADLINE:    <2025-08-29 Thu>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Implement Org-mode → Rust docs system with include_str!() for single-source documentation.
   
   **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
-
 ** TODO Test Design for Org Conversion Pipeline :testing:tdd:conversion:
    :PROPERTIES:
    :ID:          DOC-001-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/org-conversion
+   :TRIGGER:     ids(DOC-001) todo!(NEXT)
+   :TRIGGER:     ids(DOC-001) todo!(NEXT)
    :END:
-
    Design tests for Org→MD conversion pipeline.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
    - [ ] Tests for org-to-md.sh conversion accuracy
@@ -1364,18 +1335,16 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Tests for include_str!() macro compilation
    - [ ] Verify generated files have DO NOT EDIT header
    - [ ] All tests initially fail (red phase)
-
 ** TODO Implement Org→MD Conversion Infrastructure :infrastructure:tooling:
    :PROPERTIES:
    :ID:          DOC-001
    :EFFORT:      3h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/org-conversion
-   :DEPENDS:     DOC-001-TESTS
+   :BLOCKER:     ids(DOC-001-TESTS)
+   :BLOCKER:     ids(DOC-001-TESTS)
    :END:
-
    Set up the org-to-md conversion pipeline.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] org-to-md.sh script functional
    - [ ] Git pre-commit hook configured
@@ -1383,35 +1352,33 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Conversion preserves tables, code blocks, properties
    - [ ] Generated files marked with DO NOT EDIT header
    - [ ] All tests pass
-
 ** TODO Test Design for Rust Integration       :testing:tdd:rustdoc:
    :PROPERTIES:
    :ID:          DOC-002-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/rustdoc-integration
+   :TRIGGER:     ids(DOC-002) todo!(NEXT)
+   :BLOCKER:     ids(DOC-001)
+   :TRIGGER:     ids(DOC-002) todo!(NEXT)
    :END:
-
    Design tests for include_str!() documentation integration.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Tests for cargo doc generation with include_str!()
    - [ ] Tests for IDE tooltip integration
    - [ ] Tests for documentation completeness
    - [ ] Verify no broken links in generated docs
    - [ ] All tests initially fail
-
 ** TODO Integrate Documentation with Rust Modules :rustdoc:integration:
    :PROPERTIES:
    :ID:          DOC-002
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/rustdoc-integration
-   :DEPENDS:     DOC-002-TESTS DOC-001
+   :BLOCKER:     ids("DOC-002-TESTS DOC-001")
+   :BLOCKER:     ids(DOC-002-TESTS)
    :END:
-
    Add include_str!() to key Rust modules.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] libs/codec includes TLV documentation
    - [ ] Protocol modules include architecture docs
@@ -1419,34 +1386,32 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] IDE tooltips display org-sourced docs
    - [ ] No compilation warnings from include_str!()
    - [ ] All tests pass
-
 ** TODO Test Design for Migration Validation   :testing:tdd:migration:
    :PROPERTIES:
    :ID:          DOC-003-TESTS
    :EFFORT:      1h
    :ASSIGNED:    backend-engineer
    :BRANCH:      test/doc-migration
+   :TRIGGER:     ids(DOC-003) todo!(NEXT)
+   :BLOCKER:     ids(DOC-002)
+   :TRIGGER:     ids(DOC-003) todo!(NEXT)
    :END:
-
    Design tests for existing documentation migration.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Tests identify duplicate documentation
    - [ ] Tests verify content parity after migration
    - [ ] Tests for broken references
    - [ ] All tests initially fail
-
 ** TODO Migrate Existing Documentation         :migration:content:
    :PROPERTIES:
    :ID:          DOC-003
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
    :BRANCH:      feat/doc-migration
-   :DEPENDS:     DOC-003-TESTS DOC-002
+   :BLOCKER:     ids("DOC-003-TESTS DOC-002")
+   :BLOCKER:     ids(DOC-003-TESTS)
    :END:
-
    Convert existing docs to org-mode format.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Protocol documentation migrated
    - [ ] Architecture docs converted
@@ -1454,20 +1419,18 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Old duplicate files removed
    - [ ] All references updated
    - [ ] All tests pass
-
-
 * TODO [#B] Directory Structure Linter            :tooling:architecture:quality:
   :PROPERTIES:
   :ID:          STRUCTURE-LINTER-GOAL
   :EFFORT:      16h
   :ASSIGNED:    dev-tools-engineer
   :DEADLINE:    <2025-09-10 Wed>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
   :END:
-
   Create automated directory/project structure linter to enforce architectural boundaries and prevent scattered files.
   
   **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
-
 ** TODO Structure Linter Design Tests           :testing:tdd:architecture:
    :PROPERTIES:
    :ID:          STRUCT-001-TESTS
@@ -1475,10 +1438,10 @@ CLOSED: [2025-08-27 Wed 17:30]
    :ASSIGNED:    dev-tools-engineer
    :BRANCH:      test/structure-linter-design
    :WORKTREE:    yes
+   :TRIGGER:     ids(STRUCT-001) todo!(NEXT)
+   :TRIGGER:     ids(STRUCT-001) todo!(NEXT)
    :END:
-
    Design comprehensive test suite for directory structure validation rules.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Test architectural boundary violations (services importing from services)
    - [ ] Test file organization rules (no loose root files, README requirements)
@@ -1486,19 +1449,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Test dependency cycle detection
    - [ ] Test proper service placement validation
    - [ ] All tests initially fail (red phase)
-
 ** TODO Structure Linter Design and Architecture :architecture:linter:design:
    :PROPERTIES:
    :ID:          STRUCT-001
    :EFFORT:      3h
    :ASSIGNED:    dev-tools-engineer
    :BRANCH:      feat/structure-linter-design
-   :DEPENDS:     STRUCT-001-TESTS
    :WORKTREE:    yes
+   :BLOCKER:     ids(STRUCT-001-TESTS)
+   :BLOCKER:     ids(STRUCT-001-TESTS)
    :END:
-
    Design the directory structure linter architecture and rule system.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Rule definition format designed (YAML/TOML config)
    - [ ] Plugin architecture for extensible rules
@@ -1506,19 +1467,19 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Performance requirements defined (<100ms for full scan)
    - [ ] Error reporting format specified
    - [ ] All tests pass
-
 ** TODO Core Linter Implementation Tests        :testing:tdd:implementation:
    :PROPERTIES:
    :ID:          STRUCT-002-TESTS
    :EFFORT:      3h
    :ASSIGNED:    dev-tools-engineer
    :BRANCH:      test/structure-linter-core
-   :DEPENDS:     STRUCT-001
    :WORKTREE:    yes
+   :BLOCKER:     ids(STRUCT-001)
+   :TRIGGER:     ids(STRUCT-002) todo!(NEXT)
+   :BLOCKER:     ids(STRUCT-001)
+   :TRIGGER:     ids(STRUCT-002) todo!(NEXT)
    :END:
-
    Create tests for core linter implementation.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Test workspace member path validation
    - [ ] Test service import boundary enforcement
@@ -1526,19 +1487,17 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Test naming convention validation
    - [ ] Test dependency cycle detection algorithms
    - [ ] All tests initially fail (red phase)
-
 ** TODO Core Linter Implementation              :implementation:rust:linter:
    :PROPERTIES:
    :ID:          STRUCT-002
    :EFFORT:      4h
    :ASSIGNED:    dev-tools-engineer
    :BRANCH:      feat/structure-linter-core
-   :DEPENDS:     STRUCT-002-TESTS
    :WORKTREE:    yes
+   :BLOCKER:     ids(STRUCT-002-TESTS)
+   :BLOCKER:     ids(STRUCT-002-TESTS)
    :END:
-
    Implement core directory structure linter functionality.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Cargo workspace member validation
    - [ ] Service boundary enforcement (no service-to-service imports)
@@ -1547,43 +1506,178 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Dependency cycle detection
    - [ ] Configuration file support (.structure-lint.toml)
    - [ ] All tests pass
-
 ** TODO Hook Integration Tests                  :testing:tdd:integration:
    :PROPERTIES:
    :ID:          STRUCT-003-TESTS
    :EFFORT:      2h
    :ASSIGNED:    dev-tools-engineer
    :BRANCH:      test/structure-linter-hooks
-   :DEPENDS:     STRUCT-002
+   :BLOCKER:     ids(STRUCT-002)
+   :TRIGGER:     ids(STRUCT-003) todo!(NEXT)
+   :BLOCKER:     ids(STRUCT-002)
+   :TRIGGER:     ids(STRUCT-003) todo!(NEXT)
    :END:
-
    Test integration with Claude Code hooks and git hooks.
-
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Test pre-commit hook integration
    - [ ] Test Claude Code settings.json integration
    - [ ] Test performance impact measurement
    - [ ] Test CI/CD pipeline integration
    - [ ] All tests initially fail (red phase)
-
 ** TODO Hook Integration Implementation         :integration:hooks:automation:
    :PROPERTIES:
    :ID:          STRUCT-003
    :EFFORT:      2h
    :ASSIGNED:    dev-tools-engineer
    :BRANCH:      feat/structure-linter-hooks
-   :DEPENDS:     STRUCT-003-TESTS
+   :BLOCKER:     ids(STRUCT-003-TESTS)
+   :BLOCKER:     ids(STRUCT-003-TESTS)
    :END:
-
    Integrate structure linter with existing hook system.
-
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Pre-commit hook integration (prevent bad commits)
    - [ ] Claude Code hook integration (real-time feedback)
    - [ ] CI/CD integration ready
    - [ ] Performance impact validated (<100ms overhead)
    - [ ] All tests pass
-
+* TODO [#C] Mycelium Architecture Extraction     :architecture:refactor:library:
+  :PROPERTIES:
+  :ID:          MYCELIUM-EXTRACT-GOAL
+  :EFFORT:      40h
+  :ASSIGNED:    architecture-team
+  :DEADLINE:    <2025-10-01 Wed>
+   :BLOCKER:     children
+   :TRIGGER:     children todo!(NEXT)
+  :END:
+  Extract network module into standalone Mycelium library with three-layer architecture and monomorphic transport abstraction.
+  
+  **CRITICAL**: All agents working on this MUST read @.claude/docs/architecture/mycelium_separation.md
+** TODO Mycelium Architecture Design Tests      :testing:tdd:architecture:
+   :PROPERTIES:
+   :ID:          MYCEL-EXTRACT-001-TESTS
+   :EFFORT:      4h
+   :ASSIGNED:    architecture-engineer
+   :BRANCH:      test/mycelium-extraction
+   :WORKTREE:    yes
+   :TRIGGER:     ids(MYCEL-EXTRACT-001) todo!(NEXT)
+   :TRIGGER:     ids(MYCEL-EXTRACT-001) todo!(NEXT)
+   :END:
+   Design tests for three-layer architecture separation.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Test transport trait abstraction with multiple implementations
+   - [ ] Test actor system with different transport backends
+   - [ ] Test monomorphization (no vtable overhead)
+   - [ ] Test local fast path (<100ns) vs remote path
+   - [ ] Verify zero-cost abstractions via benchmarks
+   - [ ] All tests initially fail (red phase)
+** TODO Extract Mycelium Transport Layer        :transport:library:extraction:
+   :PROPERTIES:
+   :ID:          MYCEL-EXTRACT-001
+   :EFFORT:      8h
+   :ASSIGNED:    architecture-engineer
+   :BRANCH:      feat/mycelium-transport
+   :WORKTREE:    yes
+   :BLOCKER:     ids(MYCEL-EXTRACT-001-TESTS)
+   :BLOCKER:     ids(MYCEL-EXTRACT-001-TESTS)
+   :END:
+   Create mycelium-transport crate with pluggable backends.
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Transport trait with associated types (zero-cost)
+   - [ ] TCP transport implementation
+   - [ ] Unix socket transport implementation  
+   - [ ] SharedMemory transport with local_deliver fast path
+   - [ ] ZeroMQ transport implementation (optional)
+   - [ ] All tests pass with <100ns local, <35μs IPC
+** TODO Extract Mycelium Actor Runtime Tests    :testing:tdd:actors:
+   :PROPERTIES:
+   :ID:          MYCEL-EXTRACT-002-TESTS
+   :EFFORT:      4h
+   :ASSIGNED:    architecture-engineer
+   :BRANCH:      test/mycelium-actors
+   :WORKTREE:    yes
+   :BLOCKER:     ids(MYCEL-EXTRACT-001)
+   :TRIGGER:     ids(MYCEL-EXTRACT-002) todo!(NEXT)
+   :BLOCKER:     ids(MYCEL-EXTRACT-001)
+   :TRIGGER:     ids(MYCEL-EXTRACT-002) todo!(NEXT)
+   :END:
+   Design tests for actor runtime layer.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Test actor lifecycle management
+   - [ ] Test supervision trees and restart strategies
+   - [ ] Test message routing with local vs remote actors
+   - [ ] Test bundle optimization for cache locality
+   - [ ] Benchmark actor message throughput >1M msg/s
+   - [ ] All tests initially fail
+** TODO Extract Mycelium Actor Runtime          :actors:runtime:library:
+   :PROPERTIES:
+   :ID:          MYCEL-EXTRACT-002
+   :EFFORT:      12h
+   :ASSIGNED:    architecture-engineer
+   :BRANCH:      feat/mycelium-actors
+   :WORKTREE:    yes
+   :BLOCKER:     ids(MYCEL-EXTRACT-002-TESTS)
+   :BLOCKER:     ids(MYCEL-EXTRACT-002-TESTS)
+   :END:
+   Create mycelium-actors crate with generic transport parameter.
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] ActorSystem<T: Transport> with monomorphization
+   - [ ] Actor trait with async message handlers
+   - [ ] Bundle system for co-located actors
+   - [ ] Supervision with exponential backoff
+   - [ ] Mailbox implementation with backpressure
+   - [ ] All tests pass, >1M msg/s achieved
+** TODO Create Mycelium Repository Structure    :repository:infrastructure:
+   :PROPERTIES:
+   :ID:          MYCEL-EXTRACT-003
+   :EFFORT:      3h
+   :ASSIGNED:    devops-engineer
+   :BRANCH:      feat/mycelium-repo
+   :WORKTREE:    yes
+   :BLOCKER:     ids(MYCEL-EXTRACT-002)
+   :BLOCKER:     ids(MYCEL-EXTRACT-002)
+   :END:
+   Set up Mycelium as separate GitHub repository.
+   *** Acceptance Criteria
+   - [ ] GitHub repo github.com/torq/mycelium created
+   - [ ] Workspace structure with transport/actors/derive crates
+   - [ ] CI/CD pipeline for tests and benchmarks
+   - [ ] Documentation and examples
+   - [ ] Published to crates.io (optional)
+** TODO Migrate Torq to Use Mycelium Tests      :testing:tdd:migration:
+   :PROPERTIES:
+   :ID:          MYCEL-EXTRACT-004-TESTS
+   :EFFORT:      3h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/torq-mycelium-migration
+   :BLOCKER:     ids(MYCEL-EXTRACT-003)
+   :TRIGGER:     ids(MYCEL-EXTRACT-004) todo!(NEXT)
+   :BLOCKER:     ids(MYCEL-EXTRACT-003)
+   :TRIGGER:     ids(MYCEL-EXTRACT-004) todo!(NEXT)
+   :END:
+   Test Torq integration with external Mycelium.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Test Torq services using Mycelium actors
+   - [ ] Test transport selection based on deployment
+   - [ ] Test performance maintains >1M msg/s
+   - [ ] Test backward compatibility
+   - [ ] All tests initially fail
+** TODO Migrate Torq to Use Mycelium           :migration:integration:
+   :PROPERTIES:
+   :ID:          MYCEL-EXTRACT-004
+   :EFFORT:      6h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      feat/torq-mycelium-integration
+   :WORKTREE:    yes
+   :BLOCKER:     ids(MYCEL-EXTRACT-004-TESTS)
+   :BLOCKER:     ids(MYCEL-EXTRACT-004-TESTS)
+   :END:
+   Replace internal network module with Mycelium dependency.
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Remove network/ from Torq codebase
+   - [ ] Add mycelium dependency to Cargo.toml
+   - [ ] Update all imports to use mycelium crates
+   - [ ] Performance benchmarks show no regression
+   - [ ] All existing tests still pass
 * WORKFLOW [#C] Task Management Improvements      :workflow:meta:recycle-bin:
   :PROPERTIES:
   :ID:          WORKFLOW-IMPROVEMENTS
@@ -1591,9 +1685,7 @@ CLOSED: [2025-08-27 Wed 17:30]
   :ASSIGNED:    scrum-leader
   :DEADLINE:    <2025-09-15 Mon>
   :END:
-
   Improve org-mode task management workflow to handle stuck projects and task overflow.
-
 ** TODO Implement NEXT Keyword System           :workflow:keywords:actionable:
    :PROPERTIES:
    :ID:          WORKFLOW-001
@@ -1601,62 +1693,54 @@ CLOSED: [2025-08-27 Wed 17:30]
    :ASSIGNED:    scrum-leader
    :BRANCH:      feat/next-keywords
    :END:
-
    Implement NEXT keyword system to identify immediately actionable tasks.
-
    *** Design Benefits
    - Top-level projects should not have TODO status (only NEXT actionable tasks)
    - NEXT identifies tasks ready to work on (no blockers)
    - Helps identify "stuck projects" with no actionable tasks
    - Enables better workflow filtering and prioritization
    - Makes task queries more efficient: grep "NEXT" vs complex dependency parsing
-
 ** TODO Create Stuck Tasks Detection View       :workflow:analysis:stuck-projects:
    :PROPERTIES:
    :ID:          WORKFLOW-002
    :EFFORT:      1h
    :ASSIGNED:    scrum-leader
    :BRANCH:      feat/stuck-tasks-view
-   :DEPENDS:     WORKFLOW-001
+   :BLOCKER:     ids(WORKFLOW-001)
+   :BLOCKER:     ids(WORKFLOW-001)
    :END:
-
    Create view/query system to identify stuck projects with no actionable NEXT tasks.
-
    *** Acceptance Criteria
    - [ ] Org-mode query to find projects with no NEXT tasks
    - [ ] Shell script: stuck-projects.sh
    - [ ] Integration with .claude/tools/org_tasks.sh
    - [ ] Visual indicators for blocked work
-
 ** TODO Create Task Recycle Bin System          :workflow:backlog:overflow:
    :PROPERTIES:
    :ID:          WORKFLOW-003
    :EFFORT:      2h
    :ASSIGNED:    scrum-leader
    :BRANCH:      feat/task-recycle-bin
-   :DEPENDS:     WORKFLOW-002
+   :BLOCKER:     ids(WORKFLOW-002)
+   :BLOCKER:     ids(WORKFLOW-002)
    :END:
-
    Create backlog/overflow/recycle bin system for deprioritized tasks.
-
    *** Acceptance Criteria
    - [ ] .claude/tasks/backlog.org for deprioritized tasks
    - [ ] Easy migration between active.org and backlog.org
    - [ ] Proper archival of rushed/skipped work
    - [ ] Clear criteria for recycle bin usage
    - [ ] Integration with stuck tasks detection
-
 ** TODO Document Enhanced Workflow              :documentation:workflow:
    :PROPERTIES:
    :ID:          WORKFLOW-004
    :EFFORT:      1h
    :ASSIGNED:    scrum-leader
    :BRANCH:      docs/workflow-improvements
-   :DEPENDS:     WORKFLOW-003
+   :BLOCKER:     ids(WORKFLOW-003)
+   :BLOCKER:     ids(WORKFLOW-003)
    :END:
-
    Document the improved workflow patterns.
-
    *** Acceptance Criteria
    - [ ] Update TASK_EXECUTION_STANDARDS.md
    - [ ] Document NEXT vs TODO usage patterns

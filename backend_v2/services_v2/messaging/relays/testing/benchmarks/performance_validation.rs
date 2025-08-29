@@ -11,7 +11,7 @@
 use torq_relays::{
     create_validator, TopicConfig, TopicExtractionStrategy, TopicRegistry, ValidationPolicy,
 };
-use torq_codec::protocol::{MessageHeader, RelayDomain, MESSAGE_MAGIC};
+use codec::protocol::{MessageHeader, RelayDomain, MESSAGE_MAGIC};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::time::{Duration, Instant};
 

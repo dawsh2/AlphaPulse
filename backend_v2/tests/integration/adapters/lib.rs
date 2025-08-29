@@ -8,7 +8,7 @@ pub mod integration;
 pub mod validation;
 
 // Re-export validation framework for tests
-pub use torq_adapter_service::validation::{
+pub use adapter_service::validation::{
     complete_validation_pipeline, validate_equality, RawDataValidator, SemanticValidator,
     ValidationError, ValidationResult,
 };

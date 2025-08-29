@@ -306,7 +306,7 @@ impl StateManager {
 
 /// Get current time in nanoseconds since epoch
 fn current_nanos() -> u64 {
-    torq_network::time::safe_system_timestamp_ns()
+    network::time::safe_system_timestamp_ns()
 }
 
 #[cfg(test)]

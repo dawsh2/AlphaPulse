@@ -6,7 +6,7 @@
 //! consolidated into the unified `torq-network` crate. All original APIs are
 //! preserved for backward compatibility.
 //!
-//! **Migration**: Replace `use torq_topology::*` with `use torq_network::topology::*`
+//! **Migration**: Replace `use torq_topology::*` with `use network::topology::*`
 //!
 //! ## Purpose
 //! Separates logical service contracts (actors) from physical deployment (nodes)
@@ -178,28 +178,37 @@ pub use actors::{Actor, ActorPersistence, ActorState, ActorType};
 pub use config::TopologyConfig;
 pub use deployment::DeploymentEngine;
 pub use error::{Result, TopologyError};
-pub use nodes::{ActorPlacement, ChannelConfig, Node};
+pub use nodes::{ActorPlacement, ChannelConfig, Node, ServiceDiscoveryConfig};
 pub use resolution::TopologyResolver;
 pub use transport::{CompressionType, NetworkProtocol, Transport};
 
-/// Service location information for routing decisions
+// Service discovery compatibility types
+pub type ServiceDiscovery = TopologyResolver;
+pub struct ServiceDiscoveryFactory;
+
+impl ServiceDiscoveryFactory {
+    /// Create a new service discovery instance
+    pub fn create() -> ServiceDiscovery {
+        let config = config::TopologyConfig {
+            version: TOPOLOGY_VERSION.to_string(),
+            actors: std::collections::HashMap::new(),
+            nodes: std::collections::HashMap::new(),
+            inter_node: None,
+            metadata: config::ConfigMetadata::default(),
+        };
+        TopologyResolver::new(config)
+    }
+}
+
+/// Service location information
 #[derive(Debug, Clone)]
-pub enum ServiceLocation {
-    /// Service is in the same process
-    Local {
-        channel_name: String,
-    },
-    /// Service is on the same machine via Unix socket
-    UnixSocket {
-        socket_path: std::path::PathBuf,
-    },
-    /// Service is on a remote machine via network
-    Network {
-        address: std::net::SocketAddr,
-        use_tls: bool,
-    },
-    /// Service location is unknown or unavailable
-    Unknown,
+pub struct ServiceLocation {
+    /// Node name
+    pub node: String,
+    /// Actor name
+    pub actor: String,
+    /// Service endpoint address
+    pub endpoint: String,
 }
 
 /// Current version of the topology configuration format

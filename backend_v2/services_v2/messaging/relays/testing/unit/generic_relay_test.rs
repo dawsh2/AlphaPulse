@@ -1,8 +1,8 @@
 //! Test to validate generic relay infrastructure compiles and works
 
-use torq_codec::{TLVMessageBuilder, TLVType};
+use codec::{TLVMessageBuilder, TLVType};
 use torq_relays::common::{Relay, RelayEngineError, RelayLogic};
-use torq_codec::protocol::{MessageHeader, RelayDomain, SourceType};
+use codec::protocol::{MessageHeader, RelayDomain, SourceType};
 use torq_types::{InstrumentId, TradeTLV, VenueId};
 
 /// Test implementation of MarketDataRelay logic

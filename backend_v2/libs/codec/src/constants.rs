@@ -25,35 +25,8 @@
 //! The constants module provides the foundational values that ensure protocol
 //! consistency across all Torq components.
 
-/// Protocol magic number for message headers
-///
-/// This magic number (0xDEADBEEF) is used to identify Torq Protocol V2 messages
-/// and must be the first 4 bytes of every message header for protocol validation.
-pub const MESSAGE_MAGIC: u32 = 0xDEADBEEF;
+// Protocol constants have been moved to protocol_constants.rs
+// Socket paths and deployment configuration should be in environment variables
+// or configuration files, not hardcoded in a codec library.
 
-/// Current protocol version
-///
-/// Version 1 is the stable Protocol V2 implementation supporting:
-/// - 32-byte MessageHeader with TLV payload
-/// - Bijective InstrumentId system
-/// - Domain-based relay routing (MarketData, Signals, Execution)
-/// - Zero-copy message parsing with zerocopy traits
-pub const PROTOCOL_VERSION: u8 = 1;
-
-/// Unix domain socket path for market data relay
-///
-/// High-frequency market data messages (TLV types 1-19) are routed through
-/// this relay for performance isolation from other message types.
-pub const MARKET_DATA_RELAY_PATH: &str = "/tmp/torq/market_data.sock";
-
-/// Unix domain socket path for signal relay
-///
-/// Strategy signals and analytics messages (TLV types 20-39, 60-79) are routed
-/// through this relay for coordination between trading strategies and risk management.
-pub const SIGNAL_RELAY_PATH: &str = "/tmp/torq/signals.sock";
-
-/// Unix domain socket path for execution relay
-///
-/// Order execution and trade confirmation messages (TLV types 40-59) are routed
-/// through this relay with strict validation for financial safety.
-pub const EXECUTION_RELAY_PATH: &str = "/tmp/torq/execution.sock";
+pub use crate::protocol_constants::*;

@@ -103,8 +103,8 @@
 //!
 //! ### Basic Message Construction
 //! ```rust
-//! use torq_protocol_v2::tlv::{TLVMessageBuilder, TLVType, TradeTLV};
-//! use torq_protocol_v2::{RelayDomain, SourceType};
+//! use protocol_v2::tlv::{TLVMessageBuilder, TLVType, TradeTLV};
+//! use protocol_v2::{RelayDomain, SourceType};
 //!
 //! // Create trade data
 //! let trade = TradeTLV::new(venue, instrument, price, volume, side, timestamp);
@@ -120,7 +120,7 @@
 //!
 //! ### Message Parsing
 //! ```rust
-//! use torq_protocol_v2::tlv::{parse_header, parse_tlv_extensions};
+//! use protocol_v2::tlv::{parse_header, parse_tlv_extensions};
 //!
 //! // Parse header with validation
 //! let header = parse_header(&received_bytes)?;
@@ -141,7 +141,7 @@
 //!
 //! ### Type Discovery and Metadata
 //! ```rust
-//! use torq_protocol_v2::tlv::{TLVType, TLVSizeConstraint};
+//! use protocol_v2::tlv::{TLVType, TLVSizeConstraint};
 //!
 //! // Get comprehensive type information
 //! let trade_info = TLVType::Trade.type_info();
@@ -162,7 +162,7 @@
 //! The TLV system provides comprehensive error handling with specific error types:
 //!
 //! ```rust
-//! use torq_protocol_v2::tlv::{ParseError, ParseResult};
+//! use protocol_v2::tlv::{ParseError, ParseResult};
 //!
 //! fn process_message(data: &[u8]) -> ParseResult<()> {
 //!     // Size validation
@@ -197,8 +197,8 @@
 //! ### Interactive Type Discovery
 //! ```rust
 //! // Comprehensive help system
-//! torq_protocol_v2::help::show_tlv_type_methods();
-//! torq_protocol_v2::help::explore_tlv_type(TLVType::PoolSwap);
+//! protocol_v2::help::show_tlv_type_methods();
+//! protocol_v2::help::explore_tlv_type(TLVType::PoolSwap);
 //! ```
 //!
 //! ### Auto-Generated Documentation
@@ -313,7 +313,7 @@ pub mod unit_tests;
 #[cfg(feature = "typed-tlv-bridge")]
 // pub use typed_bridge::*;  // Commented out to avoid unused imports
 // pub mod zero_copy_builder; // DELETED - flawed implementation with Vec<TLVRef> allocation
-pub mod zero_copy_builder_v2;
+// zero_copy_builder_v2 moved to codec/src/builder.rs
 pub mod zero_copy_tests;
 
 pub use address::{AddressConversion, AddressExtraction, PaddedAddress};
@@ -326,7 +326,7 @@ pub use dynamic_payload::{
 };
 pub use extended::*;
 // Timestamp functions temporarily unavailable - need to implement or find correct import
-// pub use torq_network::{current_timestamp_ns as fast_timestamp_ns, current_timestamp_ns as precise_timestamp_ns};
+// pub use network::{current_timestamp_ns as fast_timestamp_ns, current_timestamp_ns as precise_timestamp_ns};
 
 // Use safe timestamp function from network time module
 pub fn fast_timestamp_ns() -> u64 {

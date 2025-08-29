@@ -4,6 +4,7 @@
 //! actor requirements, and current network conditions.
 
 use super::config::{ChannelConfig, TransportConfig, TransportMode};
+use super::{RouterConfig, RoutingDecision, Router, RouteRequest, RouterStats, LatencyRequirement, ReliabilityRequirement};
 use crate::{Priority, Result};
 use std::collections::HashMap;
 use tracing::debug;
@@ -16,26 +17,18 @@ pub struct TransportRouter {
 }
 
 /// Routing decision for a message
-#[derive(Debug, Clone)]
-pub enum RouteDecision {
-    /// Send via direct network transport
-    Direct,
-    /// Send via message queue
-    #[cfg(feature = "message-queues")]
-    MessageQueue { queue_name: String },
-    /// Send via transport bridge
-    Bridge { target_node: String },
-}
+// Remove RoutingDecision enum - use RoutingDecision instead
 
 impl TransportRouter {
     /// Create new transport router
-    pub fn new(config: TransportConfig) -> Self {
-        let channel_cache = config.channels.clone();
+    pub fn new(router_config: RouterConfig) -> Result<Self> {
+        let transport_config = router_config.transport_config.unwrap_or_default();
+        let channel_cache = transport_config.channels.clone();
 
-        Self {
-            config,
+        Ok(Self {
+            config: transport_config,
             channel_cache,
-        }
+        })
     }
 
     /// Make routing decision for a message
@@ -44,7 +37,7 @@ impl TransportRouter {
         target_node: &str,
         target_actor: &str,
         priority: Priority,
-    ) -> Result<RouteDecision> {
+    ) -> Result<RoutingDecision> {
         // Check for specific channel configuration
         let channel_key = format!("{}:{}", target_node, target_actor);
 
@@ -66,72 +59,51 @@ impl TransportRouter {
         &self,
         channel_config: &ChannelConfig,
         priority: Priority,
-    ) -> Result<RouteDecision> {
+    ) -> Result<RoutingDecision> {
         match &channel_config.mode {
-            TransportMode::Direct => Ok(RouteDecision::Direct),
+            TransportMode::Direct => Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true }),
 
             TransportMode::MessageQueue => {
                 #[cfg(feature = "message-queues")]
                 {
-                    let queue_name = channel_config
-                        .queue_name
-                        .clone()
-                        .unwrap_or_else(|| "default".to_string());
-                    Ok(RouteDecision::MessageQueue { queue_name })
+                    let queue_name = format!("queue_{}", channel_config.name);
+                    Ok(RoutingDecision::MessageQueue { queue_name, exchange: None, routing_key: None })
                 }
                 #[cfg(not(feature = "message-queues"))]
-                Ok(RouteDecision::Direct)
+                Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true })
             }
 
             TransportMode::DirectWithMqFallback => {
                 // Try direct first, MQ is fallback
-                Ok(RouteDecision::Direct)
+                Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true })
             }
 
             TransportMode::MqWithDirectFallback => {
                 #[cfg(feature = "message-queues")]
                 {
-                    let queue_name = channel_config
-                        .queue_name
-                        .clone()
-                        .unwrap_or_else(|| "default".to_string());
-                    Ok(RouteDecision::MessageQueue { queue_name })
+                    let queue_name = format!("queue_{}", channel_config.name);
+                    Ok(RoutingDecision::MessageQueue { queue_name, exchange: None, routing_key: None })
                 }
                 #[cfg(not(feature = "message-queues"))]
-                Ok(RouteDecision::Direct)
+                Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true })
             }
 
             TransportMode::Auto => {
                 // Auto mode: choose based on priority and reliability requirements
                 match priority {
-                    Priority::Critical => Ok(RouteDecision::Direct),
+                    Priority::Critical => Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true }),
                     Priority::High => {
-                        if channel_config.reliability.requires_guaranteed_delivery() {
-                            #[cfg(feature = "message-queues")]
-                            {
-                                let queue_name = channel_config
-                                    .queue_name
-                                    .clone()
-                                    .unwrap_or_else(|| "high_priority".to_string());
-                                Ok(RouteDecision::MessageQueue { queue_name })
-                            }
-                            #[cfg(not(feature = "message-queues"))]
-                            Ok(RouteDecision::Direct)
-                        } else {
-                            Ok(RouteDecision::Direct)
-                        }
+                        // High priority: prefer direct transport for speed
+                        Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true })
                     }
                     Priority::Normal | Priority::Background => {
                         #[cfg(feature = "message-queues")]
                         {
-                            let queue_name = channel_config
-                                .queue_name
-                                .clone()
-                                .unwrap_or_else(|| "normal".to_string());
-                            Ok(RouteDecision::MessageQueue { queue_name })
+                            let queue_name = format!("queue_{}", channel_config.name);
+                            Ok(RoutingDecision::MessageQueue { queue_name, exchange: None, routing_key: None })
                         }
                         #[cfg(not(feature = "message-queues"))]
-                        Ok(RouteDecision::Direct)
+                        Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true })
                     }
                 }
             }
@@ -143,47 +115,47 @@ impl TransportRouter {
         &self,
         _target_node: &str,
         priority: Priority,
-    ) -> Result<RouteDecision> {
+    ) -> Result<RoutingDecision> {
         match self.config.default_mode {
-            TransportMode::Direct => Ok(RouteDecision::Direct),
+            TransportMode::Direct => Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true }),
 
             TransportMode::MessageQueue => {
                 #[cfg(feature = "message-queues")]
                 {
                     let queue_name = format!("node_{}", _target_node);
-                    Ok(RouteDecision::MessageQueue { queue_name })
+                    Ok(RoutingDecision::MessageQueue { queue_name, exchange: None, routing_key: None })
                 }
                 #[cfg(not(feature = "message-queues"))]
-                Ok(RouteDecision::Direct)
+                Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true })
             }
 
             TransportMode::DirectWithMqFallback => {
                 // Default to direct, MQ is fallback
-                Ok(RouteDecision::Direct)
+                Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true })
             }
 
             TransportMode::MqWithDirectFallback => {
                 #[cfg(feature = "message-queues")]
                 {
                     let queue_name = format!("node_{}", _target_node);
-                    Ok(RouteDecision::MessageQueue { queue_name })
+                    Ok(RoutingDecision::MessageQueue { queue_name, exchange: None, routing_key: None })
                 }
                 #[cfg(not(feature = "message-queues"))]
-                Ok(RouteDecision::Direct)
+                Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true })
             }
 
             TransportMode::Auto => {
                 // Auto mode with default rules
                 match priority {
-                    Priority::Critical => Ok(RouteDecision::Direct),
+                    Priority::Critical => Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true }),
                     _ => {
                         #[cfg(feature = "message-queues")]
                         {
                             let queue_name = format!("node_{}", _target_node);
-                            Ok(RouteDecision::MessageQueue { queue_name })
+                            Ok(RoutingDecision::MessageQueue { queue_name, exchange: None, routing_key: None })
                         }
                         #[cfg(not(feature = "message-queues"))]
-                        Ok(RouteDecision::Direct)
+                        Ok(RoutingDecision::UnixSocket { socket_path: "/tmp/transport".to_string(), connection_pool: true })
                     }
                 }
             }
@@ -238,14 +210,42 @@ impl TransportRouter {
     }
 }
 
+impl Router for TransportRouter {
+    fn route(&self, request: &RouteRequest) -> Result<RoutingDecision> {
+        self.route_decision(&request.target_node, &request.target_actor, request.priority)
+    }
+
+    fn update_config(&mut self, config: RouterConfig) -> Result<()> {
+        if let Some(transport_config) = config.transport_config {
+            self.config = transport_config.clone();
+            self.channel_cache = transport_config.channels;
+        }
+        Ok(())
+    }
+
+    fn is_healthy(&self) -> bool {
+        // Basic health check - can be extended
+        true
+    }
+
+    fn stats(&self) -> RouterStats {
+        RouterStats {
+            total_routes: 0,
+            local_routes: 0,
+            unix_socket_routes: 0,
+            tcp_routes: 0,
+            udp_routes: 0,
+            failed_routes: 0,
+            average_decision_time_ns: 0.0,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hybrid::config::RetryConfig;
-    use crate::hybrid::config::{BridgeConfig, ChannelConfig, TransportConfig, TransportMode};
-    use crate::{Criticality, Reliability};
+    use super::config::{ChannelConfig, TransportConfig, TransportMode};
     use std::collections::HashMap;
-    use std::time::Duration;
 
     fn create_test_config() -> TransportConfig {
         let mut channels = HashMap::new();
@@ -256,15 +256,9 @@ mod tests {
             ChannelConfig {
                 name: "critical_actor".to_string(),
                 mode: TransportMode::Direct,
-                criticality: Criticality::UltraLowLatency,
-                reliability: Reliability::BestEffort,
-                default_priority: Priority::High,
-                max_message_size: 1024 * 1024,
-                timeout: Duration::from_millis(100),
-                retry: RetryConfig::default(),
-                circuit_breaker: None,
-                #[cfg(feature = "message-queues")]
-                mq_config: None,
+                max_message_size: Some(1024 * 1024),
+                priority: Some(Priority::High),
+                buffer_size: Some(1024),
             },
         );
 
@@ -275,24 +269,19 @@ mod tests {
             ChannelConfig {
                 name: "normal_actor".to_string(),
                 mode: TransportMode::MessageQueue,
-                criticality: Criticality::Normal,
-                reliability: Reliability::Guaranteed,
-                queue_name: Some("normal_queue".to_string()),
-                default_priority: Priority::Normal,
-                max_message_size: 1024 * 1024,
-                timeout: Duration::from_millis(100),
-                retry: RetryConfig::default(),
-                circuit_breaker: None,
-                mq_config: None,
+                max_message_size: Some(1024 * 1024),
+                priority: Some(Priority::Normal),
+                buffer_size: Some(2048),
             },
         );
 
         TransportConfig {
             default_mode: TransportMode::Auto,
             channels,
-            routes: Vec::new(),
-            enable_bridge: false,
-            bridge: crate::hybrid::config::BridgeConfig::default(),
+            global_max_message_size: 16 * 1024 * 1024,
+            global_buffer_size: 64 * 1024,
+            connection_timeout_secs: 30,
+            retry_config: super::config::RetryConfig::default(),
         }
     }
 
@@ -313,7 +302,7 @@ mod tests {
             .unwrap();
 
         match decision {
-            RouteDecision::Direct => {} // Expected
+            RoutingDecision::UnixSocket { socket_path, connection_pool: true } if socket_path == "/tmp/transport" => {} // Expected
             _ => panic!("Expected direct routing for critical actor"),
         }
     }
@@ -329,8 +318,8 @@ mod tests {
             .unwrap();
 
         match decision {
-            RouteDecision::MessageQueue { queue_name } => {
-                assert_eq!(queue_name, "normal_queue");
+            RoutingDecision::MessageQueue { queue_name, exchange: None, routing_key: None } => {
+                assert_eq!(queue_name, "queue_normal_actor");
             }
             _ => panic!("Expected message queue routing for normal actor"),
         }
@@ -346,7 +335,7 @@ mod tests {
             .unwrap();
 
         match decision {
-            RouteDecision::Direct => {} // Expected for critical priority
+            RoutingDecision::UnixSocket { socket_path, connection_pool: true } if socket_path == "/tmp/transport" => {} // Expected for critical priority
             _ => panic!("Expected direct routing for critical priority in auto mode"),
         }
     }

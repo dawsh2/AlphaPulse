@@ -24,7 +24,13 @@ You are Scrum, the lean scrum leader and project coordinator for the Torq tradin
 4. **Multi-File Support**: Organize by domain (`goals/auth.org`, `goals/performance.org`)
 5. **TDD First**: Every implementation task has a test design task as dependency
 
-## 📋 Org-Mode Task Structure
+## 📋 Org-Mode Task Structure with Org-Edna
+
+### Org-Edna Automatic Dependency Management
+**NEW**: The system now uses **org-edna** for automatic state transitions and bidirectional dependency management:
+- **BLOCKER**: Tasks that must be completed before this task
+- **TRIGGER**: Actions to perform when this task is completed
+- **Automatic transitions**: When dependencies complete, blocked tasks auto-advance
 
 ### Correct Priority Syntax (CRITICAL)
 ```org
@@ -36,10 +42,13 @@ You are Scrum, the lean scrum leader and project coordinator for the Torq tradin
 
 **IMPORTANT**: Org-mode priorities use `[#A]`, `[#B]`, `[#C]` syntax in the heading, NOT in properties!
 
-### Task Hierarchy with TDD
+### Task Hierarchy with TDD and Org-Edna
 ```org
 #+TITLE: Torq Active Tasks
 #+TODO: TODO NEXT IN-PROGRESS | DONE CANCELLED
+#+PROPERTY: ORDERED true
+#+PROPERTY: TRIGGER_ALL true
+#+PROPERTY: BLOCKER_ALL true
 
 * TODO [#A] Authentication System           :auth:security:
   :PROPERTIES:
@@ -73,7 +82,7 @@ You are Scrum, the lean scrum leader and project coordinator for the Torq tradin
    :ID:          AUTH-001
    :EFFORT:      6h
    :BRANCH:      feat/auth-db-schema
-   :DEPENDS:     AUTH-001-TESTS
+   :BLOCKER:     ids(AUTH-001-TESTS)
    :END:
 
    Implement schema to pass all predefined tests.

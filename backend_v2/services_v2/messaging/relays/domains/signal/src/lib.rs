@@ -49,7 +49,7 @@ pub use relay::*;
 //! - **Balanced Performance**: Good throughput with signal validation
 
 use torq_relay_core::common::RelayLogic;
-use torq_codec::protocol::{MessageHeader, RelayDomain};
+use codec::protocol::{MessageHeader, RelayDomain};
 
 /// Signal relay logic implementation
 ///

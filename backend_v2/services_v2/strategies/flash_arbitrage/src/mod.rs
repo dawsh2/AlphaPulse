@@ -94,7 +94,7 @@
 //! ### Basic Strategy Deployment
 //! ```rust
 //! use torq_flash_arbitrage::{StrategyEngine, FlashArbitrageConfig, DetectorConfig};
-//! use torq_protocol_v2::{RelayDomain, SourceType, TLVMessageBuilder};
+//! use protocol_v2::{RelayDomain, SourceType, TLVMessageBuilder};
 //! use tokio::sync::mpsc;
 //!
 //! #[tokio::main]

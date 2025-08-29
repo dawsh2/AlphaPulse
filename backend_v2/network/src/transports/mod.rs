@@ -31,6 +31,17 @@ pub trait Transport: Send + Sync {
     fn transport_info(&self) -> TransportInfo;
 }
 
+/// Network transport trait for compatibility with legacy code
+/// This is an alias for the Transport trait
+#[async_trait]
+pub trait NetworkTransport: Send + Sync {
+    /// Send message over the network transport
+    async fn send(&self, message: &[u8]) -> Result<()>;
+    
+    /// Check if network transport is healthy
+    fn is_healthy(&self) -> bool;
+}
+
 /// Transport type enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TransportType {
@@ -111,12 +122,10 @@ impl TransportFactory {
 #[async_trait]
 impl Transport for TcpNetworkTransport {
     async fn send(&self, message: &[u8]) -> Result<()> {
-        use crate::mycelium::transport::NetworkTransport;
         NetworkTransport::send(self, message).await
     }
     
     fn is_healthy(&self) -> bool {
-        use crate::mycelium::transport::NetworkTransport;
         NetworkTransport::is_healthy(self)
     }
     
