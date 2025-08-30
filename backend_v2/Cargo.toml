@@ -2,17 +2,19 @@
 members = [
     # Core infrastructure
     "network",
-    "services_v2/messaging/relays",
-    "services_v2/messaging/relays/core",
-    "services_v2/messaging/relays/domains/market_data",
-    "services_v2/messaging/relays/domains/execution", 
-    "services_v2/messaging/relays/domains/signal",
     
     # Libraries
     "libs/types",
     "libs/codec",
     "libs/config",
     "libs/amm",
+    "libs/actors",
+    "libs/messaging/relays",
+    "libs/messaging/relays/core",
+    "libs/messaging/relays/domains/market_data",
+    "libs/messaging/relays/domains/execution", 
+    "libs/messaging/relays/domains/signal",
+    "libs/messaging/patterns/message_sink",
     
     # Services
     "services_v2/adapters",
@@ -20,8 +22,6 @@ members = [
     "services_v2/adapters/coinbase_adapter",
     "services_v2/adapters/gas_price_collector",
     "services_v2/adapters/dex_utils",
-    "services_v2/messaging/patterns/message_sink",
-    "services_v2/messaging/actors",
     "services_v2/strategies",
     "services_v2/strategies/flash_arbitrage",
     "services_v2/observability/dashboard",
@@ -136,13 +136,13 @@ amm = { path = "libs/amm" }
 dex = { path = "services_v2/adapters/dex_utils" }
 mev = { path = "services_v2/strategies/mev" }
 health-check = { path = "services_v2/observability/health_check" }
-relays = { path = "services_v2/messaging/relays" }
-relay-core = { path = "services_v2/messaging/relays/core" }
-relay-execution = { path = "services_v2/messaging/relays/domains/execution" }
-relay-market-data = { path = "services_v2/messaging/relays/domains/market_data" }
-relay-signal = { path = "services_v2/messaging/relays/domains/signal" }
-message-sink = { path = "services_v2/messaging/patterns/message_sink" }
-messaging-actors = { path = "services_v2/messaging/actors" }
+relays = { path = "libs/messaging/relays" }
+relay-core = { path = "libs/messaging/relays/core" }
+relay-execution = { path = "libs/messaging/relays/domains/execution" }
+relay-market-data = { path = "libs/messaging/relays/domains/market_data" }
+relay-signal = { path = "libs/messaging/relays/domains/signal" }
+message-sink = { path = "libs/messaging/patterns/message_sink" }
+messaging-actors = { path = "libs/actors" }
 adapter-service = { path = "services_v2/adapters" }
 strategies = { path = "services_v2/strategies" }
 

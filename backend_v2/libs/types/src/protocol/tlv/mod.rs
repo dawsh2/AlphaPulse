@@ -294,7 +294,7 @@ pub mod dynamic_payload;
 pub mod extended;
 // pub mod fast_timestamp;  // Module not found - commented out
 pub mod gas_price;
-pub mod hot_path_buffers;
+// hot_path_buffers moved to network/src/buffers.rs
 #[macro_use]
 pub mod macros;
 pub mod market_data;
@@ -328,30 +328,15 @@ pub use extended::*;
 // Timestamp functions temporarily unavailable - need to implement or find correct import
 // pub use network::{current_timestamp_ns as fast_timestamp_ns, current_timestamp_ns as precise_timestamp_ns};
 
-// Use safe timestamp function from network time module
-pub fn fast_timestamp_ns() -> u64 {
-    // Use safe conversion that prevents silent truncation on overflow
-    network::fast_timestamp_ns()
-}
-
-pub fn init_timestamp_system() {
-    // Initialize the fast cached clock system for ultra-fast timestamps
-    network::init_timestamp_system()
-}
-pub use hot_path_buffers::{
-    // build_and_send_message, // Temporarily commented out due to circular dependency
-    build_with_size_hint,
-    with_hot_path_buffer,
-    with_signal_buffer,
-    with_validation_buffer,
-    BufferError,
-};
+// Timestamp functions moved to network/src/time.rs
+// Users should import these directly from network crate
+// Buffer functions moved to network/src/buffers.rs
+// Users should import these directly from network crate to avoid circular dependencies
 pub use market_data::*;
 //  // File missing - commented out for now
 pub use relay_parser::*;
 pub use types::*;
-// zero_copy_builder exports DELETED - use build_message_direct instead
-pub use zero_copy_builder_v2::{build_message_direct, TrueZeroCopyBuilder};
+// zero_copy_builder exports DELETED - use codec::build_message_direct instead
 // Export pool_state PoolType explicitly (it's a type alias for DEXProtocol)
 pub use pool_state::{DEXProtocol, PoolStateTLV, PoolStateTracker, PoolType};
 // Export pool_cache with renamed type to avoid conflicts

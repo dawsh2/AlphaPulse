@@ -10,7 +10,7 @@
 use super::ParseError;
 // Legacy TLV types removed - using Protocol V2 MessageHeader + TLV extensions
 use super::super::SourceType; // TLVType removed with legacy TLV system
-use super::fast_timestamp_ns;
+use crate::protocol::message::header::precise_timestamp_ns as fast_timestamp_ns;
 use crate::define_tlv;
 use std::collections::HashMap;
 use zerocopy::AsBytes;

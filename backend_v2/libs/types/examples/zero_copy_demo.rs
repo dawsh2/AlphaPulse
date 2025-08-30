@@ -6,8 +6,8 @@
 use torq_types::protocol::tlv::address::{AddressConversion, AddressExtraction};
 use torq_types::protocol::tlv::market_data::{PoolSwapTLV, PoolSyncTLV, QuoteTLV, TradeTLV};
 use torq_types::protocol::tlv::pool_state::PoolStateTLV;
-use torq_types::protocol::tlv::{with_hot_path_buffer, TLVType};
-use codec::{build_message_direct, TLVMessageBuilder};
+use torq_types::protocol::tlv::TLVType;
+use codec::{build_message_direct, TLVMessageBuilder, with_hot_path_buffer};
 use torq_types::protocol::{InstrumentId, RelayDomain, SourceType, VenueId};
 use std::time::Instant;
 use zerocopy::{AsBytes, FromBytes};

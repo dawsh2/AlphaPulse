@@ -82,6 +82,7 @@ pub mod protocol;
 pub mod precision;
 
 // Message types for domain-specific communication
+#[cfg(feature = "messages")]
 pub mod messages;
 
 // Re-export common types for convenience
@@ -134,7 +135,10 @@ pub use protocol::identifiers::{AssetType, InstrumentId, VenueId};
 #[cfg(feature = "protocol")]
 pub use protocol::message::header::MessageHeader;
 #[cfg(feature = "protocol")]
-pub use protocol::{ProtocolError, RelayDomain, Result, SourceType, TLVType};
+pub use protocol::{ProtocolError, RelayDomain, SourceType, TLVType};
+
+// Define Result type alias
+pub type Result<T> = std::result::Result<T, anyhow::Error>;
 
 // Re-export protocol constants
 #[cfg(feature = "protocol")]

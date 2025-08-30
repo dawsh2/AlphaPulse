@@ -21,10 +21,12 @@
 //! - **Audit** (Execution): Full validation + logging, >50K msg/s throughput
 
 // Submodules
-pub mod config;
-pub mod validator;
+pub mod bounds;
 pub mod builder;
+pub mod checksum;
+pub mod config;
 pub mod domain;
+pub mod validator;
 
 // Re-export main types for convenience
 pub use config::{
@@ -60,3 +62,7 @@ pub use domain::{
     ExecutionValidator,
     create_domain_validator,
 };
+
+// Re-export bounds and checksum validation
+pub use bounds::*;
+pub use checksum::*;

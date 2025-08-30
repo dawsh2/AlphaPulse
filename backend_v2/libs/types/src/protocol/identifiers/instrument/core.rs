@@ -139,7 +139,7 @@
 //! ```
 
 use super::{AssetType, PoolMetadata, VenueId};
-use crate::ProtocolError;
+use crate::protocol::ProtocolError;
 use std::hash::{Hash, Hasher};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
@@ -192,15 +192,14 @@ impl InstrumentId {
         if hex_clean.len() != 40 {
             return Err(ProtocolError::InvalidInstrument(
                 "Hex string too short".to_string(),
-            ));
+            ).into());
         }
 
         // Use first 8 bytes (16 hex chars) of address as asset_id
         let bytes = hex::decode(&hex_clean[..16])
-            .map_err(|_| ProtocolError::InvalidInstrument("Invalid hex encoding".to_string()))?;
-        let asset_id = u64::from_be_bytes(bytes.try_into().map_err(|_| {
-            ProtocolError::InvalidInstrument("Failed to parse instrument from bytes".to_string())
-        })?);
+            .map_err(|e| anyhow::anyhow!("Invalid hex encoding: {}", e))?;
+        let asset_id = u64::from_be_bytes(bytes.try_into()
+            .map_err(|_| anyhow::anyhow!("Failed to parse instrument from bytes"))?);
 
         Ok(Self {
             venue: venue as u16,
@@ -326,13 +325,13 @@ impl InstrumentId {
     /// Get the venue for this instrument
     pub fn venue(&self) -> crate::Result<VenueId> {
         VenueId::try_from(self.venue)
-            .map_err(|_| ProtocolError::InvalidInstrument("Invalid venue ID".to_string()))
+            .map_err(|_| anyhow::anyhow!("Invalid venue ID"))
     }
 
     /// Get the asset type for this instrument
     pub fn asset_type(&self) -> crate::Result<AssetType> {
         AssetType::try_from(self.asset_type)
-            .map_err(|_| ProtocolError::InvalidInstrument("Invalid asset type".to_string()))
+            .map_err(|_| anyhow::anyhow!("Invalid asset type"))
     }
 
     /// Convert to u64 for cache keys (with potential precision loss)

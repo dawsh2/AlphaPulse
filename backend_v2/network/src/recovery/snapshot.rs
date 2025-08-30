@@ -2,9 +2,9 @@
 //!
 //! Handles Snapshot TLV (Type 101) for large gap recovery
 
-use super::super::{ProtocolError, RelayDomain, SourceType};
-// use crate::tlv::{TLVMessageBuilder, TLVType}; // TLVMessageBuilder moved to codec
-use crate::tlv::TLVType;
+use codec::ProtocolError;
+use types::protocol::{RelayDomain, SourceType};
+use types::protocol::tlv::TLVType;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};

@@ -12,6 +12,7 @@ pub mod routing;
 // actors moved to services_v2/messaging/actors
 pub mod discovery; 
 pub mod protocol;
+pub mod recovery;
 
 // Performance and monitoring modules
 pub mod performance;
@@ -36,6 +37,7 @@ pub use time::{
     safe_system_timestamp_ns_checked, timestamp_accuracy_info, timestamp_system_stats,
     TimestampError
 };
+
 
 // Utility functions
 use std::sync::atomic::{AtomicU64, Ordering};

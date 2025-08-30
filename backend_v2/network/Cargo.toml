@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# Internal dependencies
+types = { workspace = true }
+codec = { workspace = true }
+zerocopy = { workspace = true }
+
 # Use workspace dependencies
 chrono = { workspace = true }
 

@@ -2,8 +2,8 @@
 //!
 //! Handles RecoveryRequest TLV (Type 110) for sequence gap recovery
 
-use super::super::{RelayDomain, SourceType};
-use crate::tlv::{self, TLVType};
+use types::protocol::{RelayDomain, SourceType};
+use types::protocol::tlv::TLVType;
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 /// Recovery Request TLV (Type 110, 24 bytes payload)

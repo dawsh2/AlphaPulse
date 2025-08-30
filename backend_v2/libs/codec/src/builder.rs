@@ -26,17 +26,26 @@ use crate::error::{ProtocolError, ProtocolResult};
 use crate::tlv_types::TLVType;
 use std::io;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use zerocopy::{AsBytes, Ref};
 
 // Import types from types crate
 use types::protocol::message::header::MessageHeader;
-use types::protocol::tlv::fast_timestamp_ns;
 use types::{RelayDomain, SourceType};
 
 /// Global sequence counter for message tracking
 ///
 /// Ensures unique, monotonically increasing sequence numbers across all threads
 static GLOBAL_SEQUENCE_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+/// Fast timestamp function for hot paths
+#[inline]
+fn fast_timestamp_ns() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("System time before Unix epoch")
+        .as_nanos() as u64
+}
 
 /// Build errors for zero-copy message construction
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -357,8 +366,8 @@ pub fn build_message_direct<T: AsBytes>(
     source: SourceType,
     tlv_type: TLVType,
     tlv_data: &T,
-) -> Result<Vec<u8>, types::protocol::tlv::BufferError> {
-    use types::protocol::tlv::with_hot_path_buffer;
+) -> Result<Vec<u8>, crate::BufferError> {
+    use crate::with_hot_path_buffer;
 
     with_hot_path_buffer(|buffer| {
         let size = TLVMessageBuilder::build_direct_into_buffer(

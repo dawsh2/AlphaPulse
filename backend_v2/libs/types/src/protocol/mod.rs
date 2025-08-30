@@ -3,38 +3,35 @@
 //! This module contains protocol-specific implementations including
 //! TLV structures, message handling, and identifier systems.
 
-pub mod help;
+// help module moved to codec/src/help.rs
+// validation modules moved to codec/src/validation/
+// recovery module moved to network/src/recovery/
+pub mod constants;
 pub mod identifiers;
 pub mod message;
-pub mod recovery;
 pub mod tlv;
-pub mod validation;
 
 // Re-export key types for convenience with explicit naming to avoid conflicts
+pub use constants::{
+    MESSAGE_MAGIC, PROTOCOL_VERSION, RelayDomain, SourceType, ProtocolError,
+    MARKET_DATA_RELAY_PATH, SIGNAL_RELAY_PATH, EXECUTION_RELAY_PATH
+};
 pub use identifiers::*;
 pub use message::*;
-pub use recovery::*;
-pub use validation::*;
 
 // Re-export TLV types selectively to avoid conflicts
 pub use tlv::{
-    // Buffer management (build_message_direct now in codec)
-    build_with_size_hint,
-    // Utility functions (avoiding conflicts)
-    fast_timestamp_ns,
-    init_timestamp_system,
+    // Buffer management moved to network/src/buffers.rs
+    // Timestamp functions moved to network/src/time.rs
     pool_cache::{CachePoolType, PoolCacheJournalEntry},
 
     // Pool types with explicit naming
     pool_state::{DEXProtocol, PoolStateTracker, PoolType as TLVPoolType},
-    with_hot_path_buffer,
-    with_signal_buffer,
-    with_validation_buffer,
+    // Buffer functions moved to network - import directly from network crate
     // Address handling
     AddressConversion,
     AddressExtraction,
     ArbitrageSignalTLV,
-    BufferError,
 
     // Dynamic payload support
     DynamicPayload,
@@ -71,14 +68,8 @@ pub use tlv::{
     MAX_POOL_TOKENS,
 };
 
-// TODO: Re-export protocol types from codec to maintain compatibility
-// These need proper codec dependency setup in Cargo.toml
-// pub use codec::{RelayDomain, SourceType, ProtocolError, MESSAGE_MAGIC, PROTOCOL_VERSION};
-// pub use codec::{MARKET_DATA_RELAY_PATH, SIGNAL_RELAY_PATH, EXECUTION_RELAY_PATH};
-
-/// Result type for protocol operations  
-// TODO: Enable when codec dependency is properly set up
-// pub type Result<T> = std::result::Result<T, ProtocolError>;
+// Protocol types moved to codec - consumers should import directly from codec
+// to avoid circular dependencies
 
 // Re-export commonly needed types at protocol level
 pub use tlv::types::TLVType;

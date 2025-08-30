@@ -532,130 +532,131 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Heap allocation tracking
    - [ ] Memory leak detection
    - [ ] Usage reports generated
-* TODO [#A] Mycelium MVP Implementation                 :mycelium:critical:mvp:
+* TODO [#A] Mycelium Messaging Library Foundation       :mycelium:critical:messaging:
   :PROPERTIES:
   :ID:          MYCELIUM-MVP-GOAL
-  :EFFORT:      24h
+  :EFFORT:      20h
   :ASSIGNED:    dev-team
   :DEADLINE:    <2025-09-05 Fri>
    :BLOCKER:     children
    :TRIGGER:     children todo!(NEXT)
   :END:
-  Implement Mycelium MVP shared types and broker foundation.
-  
+  Implement Mycelium messaging library foundation with Transport trait and patterns.
+  **ARCHITECTURAL DECISION**: Pure messaging library, NOT actor runtime
   **CRITICAL**: All agents working on this MUST read @.claude/docs/TASK_EXECUTION_STANDARDS.md
-** TODO Test Design for Shared Types Foundation :testing:tdd:mycelium:
+** TODO Test Design for Transport Foundation    :testing:tdd:transport:
    :PROPERTIES:
    :ID:          MVP-001-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
-   :BRANCH:      test/shared-types-foundation
+   :BRANCH:      test/transport-foundation
    :WORKTREE:    yes
    :TRIGGER:     ids(MVP-001) todo!(NEXT)
    :TRIGGER:     ids(MVP-001) todo!(NEXT)
    :END:
-   Design comprehensive tests for shared message types migration.
+   Design tests for Mycelium transport foundation (messaging only, no actors).
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
-   - [ ] Tests for Arc<T> message passing between actors
-   - [ ] Tests for zero-copy serialization compatibility
-   - [ ] Tests for Protocol V2 TLV conversion traits
-   - [ ] Tests for market/signal/execution domain separation
-   - [ ] Memory layout tests for fixed-point precision
+   - [ ] Tests for bytes::Bytes based transport trait
+   - [ ] Tests for message serialization without Arc (Internal/Wire separation)
+   - [ ] Tests for transport abstraction over Unix sockets/TCP/channels
+   - [ ] Tests for messaging patterns (no actor lifecycle management)
+   - [ ] Performance tests for 2-3μs IPC latency target
    - [ ] All tests initially fail (red phase)
-** TODO [#A] Shared Types Foundation                   :mycelium:types:shared:
+** TODO [#A] Transport Foundation Implementation        :mycelium:transport:foundation:
    :PROPERTIES:
    :ID:          MVP-001
-   :EFFORT:      6h
+   :EFFORT:      5h
    :ASSIGNED:    backend-engineer
-   :BRANCH:      feat/shared-types-foundation
+   :BRANCH:      feat/transport-foundation
    :DEADLINE:    <2025-09-02 Tue>
    :WORKTREE:    yes
    :BLOCKER:     ids(MVP-001-TESTS)
    :BLOCKER:     ids(MVP-001-TESTS)
    :END:
-   Move protocol message definitions to libs/types for sharing across actors with Arc<T> wrapper support.
+   Create Mycelium transport foundation as pure messaging library (no actor runtime).
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
-   - [ ] All tests pass: `cargo test --package torq-types`
+   - [ ] All tests pass: `cargo test --package mycelium`
    - [ ] Passes code review
-   - [ ] libs/types created with market/signals/execution domains
-   - [ ] Arc<T> wrapper support for zero-cost actor communication
-   - [ ] Protocol V2 conversion traits implemented
-   - [ ] No precision loss in financial calculations
-   - [ ] All services updated to use shared types
-** TODO Test Design for Transport Layer           :testing:tdd:transport:
+   - [ ] libs/mycelium created with transport trait using bytes::Bytes
+   - [ ] Message patterns (Pub/Sub, Req/Rep, Pipeline) without actor features
+   - [ ] Services handle their own async runtime concerns separately
+   - [ ] Clean API focused on messaging, not task/lifecycle management
+   - [ ] Performance target: 2-3μs IPC latency acceptable for production
+** TODO Test Design for Messaging Patterns      :testing:tdd:patterns:
    :PROPERTIES:
    :ID:          MVP-002-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
-   :BRANCH:      test/transport-layer
+   :BRANCH:      test/messaging-patterns-mvp
    :TRIGGER:     ids(MVP-002) todo!(NEXT)
    :BLOCKER:     ids(MVP-001)
    :TRIGGER:     ids(MVP-002) todo!(NEXT)
    :END:
-   Design tests for Mycelium transport layer implementation.
+   Design tests for messaging patterns on transport foundation.
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
-   - [ ] Tests for actor message routing
-   - [ ] Tests for transport reliability and ordering
-   - [ ] Tests for connection management
+   - [ ] Tests for Pub/Sub pattern over transport trait
+   - [ ] Tests for Req/Rep pattern over transport trait
+   - [ ] Tests for reliability and ordering (no actor scheduling)
+   - [ ] Tests for connection management in transport layer
    - [ ] Performance tests for >1M msg/s throughput
    - [ ] All tests initially fail (red phase)
-** TODO Transport Layer Implementation            :mycelium:transport:
+** TODO Messaging Patterns Implementation        :mycelium:patterns:
    :PROPERTIES:
    :ID:          MVP-002
-   :EFFORT:      8h
+   :EFFORT:      6h
    :ASSIGNED:    backend-engineer
-   :BRANCH:      feat/transport-layer
+   :BRANCH:      feat/messaging-patterns-mvp
    :BLOCKER:     ids("MVP-002-TESTS MVP-001")
    :BLOCKER:     ids(MVP-002-TESTS)
    :END:
-   Implement Mycelium transport layer for actor communication.
+   Implement messaging patterns on transport foundation (no actor runtime).
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
-   - [ ] All tests pass: `cargo test --package mycelium-transport`
+   - [ ] All tests pass: `cargo test --package mycelium-patterns`
    - [ ] Passes code review
-   - [ ] Actor message routing implemented
-   - [ ] Reliable message delivery guaranteed
+   - [ ] Pub/Sub and Req/Rep patterns implemented over transport
+   - [ ] Reliable message delivery (transport responsibility)
    - [ ] Performance: >1M msg/s maintained
-   - [ ] Connection management with failure recovery
-** TODO Test Design for Broker Layer Core       :testing:tdd:broker:
+   - [ ] Connection management in transport layer only
+** TODO Test Design for Service Integration     :testing:tdd:integration:
    :PROPERTIES:
    :ID:          MVP-004-TESTS
    :EFFORT:      2h
    :ASSIGNED:    backend-engineer
-   :BRANCH:      test/broker-layer-core
+   :BRANCH:      test/service-integration-mvp
    :TRIGGER:     ids(MVP-004) todo!(NEXT)
    :BLOCKER:     ids(MVP-002)
    :TRIGGER:     ids(MVP-004) todo!(NEXT)
    :END:
-   Design tests for Mycelium broker layer core functionality.
+   Design tests for service integration with Mycelium messaging library.
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
-   - [ ] Tests for message routing logic
-   - [ ] Tests for actor lifecycle management
-   - [ ] Tests for fault tolerance and recovery
+   - [ ] Tests for services using Mycelium messaging patterns
+   - [ ] Tests for services handling their own async runtime
+   - [ ] Tests for multi-process communication via Unix sockets
    - [ ] Integration tests with transport layer
    - [ ] All tests initially fail (red phase)
-** TODO Broker Layer Core                        :mycelium:broker:
+** TODO Service Integration Implementation       :mycelium:integration:
    :PROPERTIES:
    :ID:          MVP-004
-   :EFFORT:      6h
+   :EFFORT:      5h
    :ASSIGNED:    backend-engineer
-   :BRANCH:      feat/broker-layer-core
+   :BRANCH:      feat/service-integration-mvp
    :BLOCKER:     ids("MVP-004-TESTS MVP-002")
    :BLOCKER:     ids(MVP-004-TESTS)
    :END:
-   Implement core Mycelium broker layer for message routing and actor management.
+   Integrate services with Mycelium messaging library (services manage own lifecycle).
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
-   - [ ] All tests pass: `cargo test --package mycelium-broker`
+   - [ ] All tests pass: `cargo test --package mycelium-integration`
    - [ ] Passes code review
-   - [ ] Message routing between actors implemented
-   - [ ] Actor lifecycle management (spawn/terminate)
-   - [ ] Fault tolerance with supervisor strategies
-   - [ ] Integration with transport layer verified
+   - [ ] Services use Mycelium for messaging, handle own async runtime
+   - [ ] No actor lifecycle management in Mycelium (pure messaging)
+   - [ ] Multi-process communication working via transport layer
+   - [ ] Clean separation: messaging library vs service runtime concerns
 * TODO [#A] Mycelium Broker Platform                    :mycelium:broker:platform:
   :PROPERTIES:
   :ID:          MYCELIUM-BROKER-GOAL
@@ -680,29 +681,29 @@ CLOSED: [2025-08-27 Wed 17:30]
    Design tests for Mycelium platform foundation.
    *** Acceptance Criteria (TDD Red Phase)
    - [ ] Successfully builds: `cargo build --test`
-   - [ ] Tests for actor system initialization
-   - [ ] Tests for platform configuration management
-   - [ ] Tests for service discovery integration
-   - [ ] Tests for health monitoring
+   - [ ] Tests for multi-process deployment with Unix sockets
+   - [ ] Tests for service configuration management (not actor system)
+   - [ ] Tests for messaging endpoint configuration
+   - [ ] Tests for 2-3μs IPC latency targets
    - [ ] All tests initially fail (red phase)
-** TODO Mycelium Platform Foundation             :mycelium:platform:foundation:
+** TODO Mycelium Production Deployment          :mycelium:production:deployment:
    :PROPERTIES:
    :ID:          MYC-001
    :EFFORT:      4h
    :ASSIGNED:    backend-engineer
-   :BRANCH:      feat/platform-foundation
+   :BRANCH:      feat/production-deployment
    :BLOCKER:     ids(MYC-001-TESTS)
    :BLOCKER:     ids(MYC-001-TESTS)
    :END:
-   Establish Mycelium platform foundation with actor system and configuration.
+   Establish Mycelium production deployment (messaging library, not platform).
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release`
-   - [ ] All tests pass: `cargo test --package mycelium-platform`
+   - [ ] All tests pass: `cargo test --package mycelium-deployment`
    - [ ] Passes code review
-   - [ ] Actor system initialization working
-   - [ ] Platform configuration management
-   - [ ] Service discovery integration
-   - [ ] Health monitoring and metrics
+   - [ ] Multi-process deployment with fault isolation
+   - [ ] Service configuration for messaging endpoints
+   - [ ] Services handle their own discovery and health monitoring
+   - [ ] 2-3μs IPC latency acceptable for production trading
 ** TODO Test Design for Enhanced Transport     :testing:tdd:transport-enhanced:
    :PROPERTIES:
    :ID:          MYC-002-TESTS
@@ -947,13 +948,13 @@ CLOSED: [2025-08-27 Wed 17:30]
    :BLOCKER:     ids("MYC-008-TESTS MYC-007")
    :BLOCKER:     ids(MYC-008-TESTS)
    :END:
-   Remove legacy relay system and complete migration to Mycelium platform.
+   Remove legacy relay system and complete migration to Mycelium messaging.
    *** Acceptance Criteria (TDD Green Phase)
    - [ ] Successfully builds: `cargo build --release --all`
    - [ ] All tests pass: `cargo test --workspace`
    - [ ] Passes code review
    - [ ] Legacy relay components removed
-   - [ ] Full Mycelium platform integration
+   - [ ] Services use Mycelium messaging patterns (no actor runtime)
    - [ ] No functionality regression
    - [ ] Performance maintained: >1M msg/s throughput
    - [ ] Clean migration path documented
@@ -1540,96 +1541,96 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] CI/CD integration ready
    - [ ] Performance impact validated (<100ms overhead)
    - [ ] All tests pass
-* TODO [#C] Mycelium Architecture Extraction     :architecture:refactor:library:
+* TODO [#C] Mycelium Library Extraction          :architecture:messaging:library:
   :PROPERTIES:
   :ID:          MYCELIUM-EXTRACT-GOAL
-  :EFFORT:      40h
+  :EFFORT:      30h
   :ASSIGNED:    architecture-team
   :DEADLINE:    <2025-10-01 Wed>
    :BLOCKER:     children
    :TRIGGER:     children todo!(NEXT)
   :END:
-  Extract network module into standalone Mycelium library with three-layer architecture and monomorphic transport abstraction.
-  
+  Extract messaging patterns into standalone Mycelium library (pure messaging, no actor runtime).
+  **ARCHITECTURAL DECISION**: Pure messaging library with transport abstraction only
   **CRITICAL**: All agents working on this MUST read @.claude/docs/architecture/mycelium_separation.md
-** TODO Mycelium Architecture Design Tests      :testing:tdd:architecture:
+** TODO Mycelium Messaging Library Design Tests :testing:tdd:messaging:
    :PROPERTIES:
    :ID:          MYCEL-EXTRACT-001-TESTS
-   :EFFORT:      4h
+   :EFFORT:      3h
    :ASSIGNED:    architecture-engineer
-   :BRANCH:      test/mycelium-extraction
+   :BRANCH:      test/mycelium-messaging-extraction
    :WORKTREE:    yes
    :TRIGGER:     ids(MYCEL-EXTRACT-001) todo!(NEXT)
    :TRIGGER:     ids(MYCEL-EXTRACT-001) todo!(NEXT)
    :END:
-   Design tests for three-layer architecture separation.
+   Design tests for messaging library extraction (no actor runtime).
    *** Acceptance Criteria (TDD Red Phase)
-   - [ ] Test transport trait abstraction with multiple implementations
-   - [ ] Test actor system with different transport backends
-   - [ ] Test monomorphization (no vtable overhead)
-   - [ ] Test local fast path (<100ns) vs remote path
-   - [ ] Verify zero-cost abstractions via benchmarks
+   - [ ] Test bytes::Bytes transport trait with multiple implementations
+   - [ ] Test messaging patterns (Pub/Sub, Req/Rep) over transport
+   - [ ] Test multi-process deployment (2-3μs IPC acceptable)
+   - [ ] Test monolith mode for development
+   - [ ] Verify performance targets via benchmarks
    - [ ] All tests initially fail (red phase)
 ** TODO Extract Mycelium Transport Layer        :transport:library:extraction:
    :PROPERTIES:
    :ID:          MYCEL-EXTRACT-001
-   :EFFORT:      8h
+   :EFFORT:      6h
    :ASSIGNED:    architecture-engineer
-   :BRANCH:      feat/mycelium-transport
+   :BRANCH:      feat/mycelium-transport-extraction
    :WORKTREE:    yes
    :BLOCKER:     ids(MYCEL-EXTRACT-001-TESTS)
    :BLOCKER:     ids(MYCEL-EXTRACT-001-TESTS)
    :END:
-   Create mycelium-transport crate with pluggable backends.
+   Create mycelium-transport crate with bytes::Bytes based trait.
    *** Acceptance Criteria (TDD Green Phase)
-   - [ ] Transport trait with associated types (zero-cost)
+   - [ ] Transport trait using bytes::Bytes for zero-copy
    - [ ] TCP transport implementation
-   - [ ] Unix socket transport implementation  
-   - [ ] SharedMemory transport with local_deliver fast path
-   - [ ] ZeroMQ transport implementation (optional)
-   - [ ] All tests pass with <100ns local, <35μs IPC
-** TODO Extract Mycelium Actor Runtime Tests    :testing:tdd:actors:
+   - [ ] Unix socket transport implementation (production default)
+   - [ ] In-process channels (development/specialized cases)
+   - [ ] Multi-process deployment as production default
+   - [ ] All tests pass with 2-3μs IPC (acceptable for production)
+** TODO Extract Mycelium Patterns Tests         :testing:tdd:patterns:
    :PROPERTIES:
    :ID:          MYCEL-EXTRACT-002-TESTS
-   :EFFORT:      4h
+   :EFFORT:      3h
    :ASSIGNED:    architecture-engineer
-   :BRANCH:      test/mycelium-actors
+   :BRANCH:      test/mycelium-patterns-extraction
    :WORKTREE:    yes
    :BLOCKER:     ids(MYCEL-EXTRACT-001)
    :TRIGGER:     ids(MYCEL-EXTRACT-002) todo!(NEXT)
    :BLOCKER:     ids(MYCEL-EXTRACT-001)
    :TRIGGER:     ids(MYCEL-EXTRACT-002) todo!(NEXT)
    :END:
-   Design tests for actor runtime layer.
+   Design tests for messaging patterns layer (no actor runtime).
    *** Acceptance Criteria (TDD Red Phase)
-   - [ ] Test actor lifecycle management
-   - [ ] Test supervision trees and restart strategies
-   - [ ] Test message routing with local vs remote actors
-   - [ ] Test bundle optimization for cache locality
-   - [ ] Benchmark actor message throughput >1M msg/s
+   - [ ] Test Pub/Sub patterns over transport trait
+   - [ ] Test Req/Rep patterns over transport trait
+   - [ ] Test Pipeline patterns over transport trait
+   - [ ] Test pattern composition and routing
+   - [ ] Benchmark messaging pattern throughput >1M msg/s
    - [ ] All tests initially fail
-** TODO Extract Mycelium Actor Runtime          :actors:runtime:library:
+** TODO Extract Mycelium Patterns Layer         :patterns:messaging:library:
    :PROPERTIES:
    :ID:          MYCEL-EXTRACT-002
-   :EFFORT:      12h
+   :EFFORT:      8h
    :ASSIGNED:    architecture-engineer
-   :BRANCH:      feat/mycelium-actors
+   :BRANCH:      feat/mycelium-patterns-extraction
    :WORKTREE:    yes
    :BLOCKER:     ids(MYCEL-EXTRACT-002-TESTS)
    :BLOCKER:     ids(MYCEL-EXTRACT-002-TESTS)
    :END:
-   Create mycelium-actors crate with generic transport parameter.
+   Create mycelium-patterns crate (no actor runtime, pure messaging).
    *** Acceptance Criteria (TDD Green Phase)
-   - [ ] ActorSystem<T: Transport> with monomorphization
-   - [ ] Actor trait with async message handlers
-   - [ ] Bundle system for co-located actors
-   - [ ] Supervision with exponential backoff
-   - [ ] Mailbox implementation with backpressure
+   - [ ] Pub/Sub pattern implementation over Transport trait
+   - [ ] Req/Rep pattern implementation over Transport trait
+   - [ ] Pipeline pattern implementation over Transport trait
+   - [ ] Pattern composition and flexible routing
+   - [ ] No actor lifecycle, supervision, or scheduling features
    - [ ] All tests pass, >1M msg/s achieved
 ** TODO Create Mycelium Repository Structure    :repository:infrastructure:
    :PROPERTIES:
    :ID:          MYCEL-EXTRACT-003
-   :EFFORT:      3h
+   :EFFORT:      2h
    :ASSIGNED:    devops-engineer
    :BRANCH:      feat/mycelium-repo
    :WORKTREE:    yes
@@ -1678,6 +1679,515 @@ CLOSED: [2025-08-27 Wed 17:30]
    - [ ] Update all imports to use mycelium crates
    - [ ] Performance benchmarks show no regression
    - [ ] All existing tests still pass
+* TODO [#C] Lightweight Actor Runtime               :actors:tokio:intraprocess:
+  :PROPERTIES:
+  :ID:          ACTOR-RUNTIME-GOAL
+  :EFFORT:      12h
+  :ASSIGNED:    backend-team
+  :DEADLINE:    <2025-09-15 Mon>
+  :BLOCKER:     children
+  :TRIGGER:     children todo!(NEXT)
+  :END:
+  Simple, focused actor implementation using Tokio for intra-process state management.
+  **PHILOSOPHY**: Simple wrapper around Tokio primitives, not trying to be Akka or Erlang/OTP.
+  **LOCATION**: libs/actors/ (already exists)
+  **INTEGRATION**: Actors use Mycelium for inter-process communication, handle state within process.
+  
+  **Core Features**:
+  - Simple Actor trait with just handle_message()
+  - Tokio-based using tokio::spawn and channels
+  - Bounded mpsc mailbox per actor
+  - No supervision trees or clustering (keep it simple)
+  - Type-safe messages (each actor defines its message type)
+  
+  **Design Goals**:
+  - Lightweight wrapper around Tokio primitives
+  - <500 lines of core code
+  - Easy to understand and debug
+  - Clear separation: Actors for intra-process, Mycelium for inter-process
+  
+  **Example Usage**:
+  ```rust
+  struct PriceActor {
+      prices: HashMap<InstrumentId, Decimal>,
+  }
+  
+  impl Actor for PriceActor {
+      type Message = PriceUpdate;
+      
+      async fn handle_message(&mut self, msg: PriceUpdate) {
+          self.prices.insert(msg.instrument, msg.price);
+      }
+  }
+  
+  // Usage
+  let actor = ActorHandle::spawn(PriceActor::new());
+  actor.send(PriceUpdate { ... }).await?;
+  ```
+
+** TODO Test Design for Actor Trait Interface      :testing:tdd:actors:
+   :PROPERTIES:
+   :ID:          ACTOR-001-TESTS
+   :EFFORT:      2h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/actor-trait-interface
+   :WORKTREE:    yes
+   :TRIGGER:     ids(ACTOR-001) todo!(NEXT)
+   :END:
+   Design tests for core Actor trait and ActorHandle interface.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Test Actor trait with simple message handling
+   - [ ] Test ActorHandle spawn and message sending
+   - [ ] Test bounded mailbox behavior (backpressure)
+   - [ ] Test actor shutdown and cleanup
+   - [ ] Test type-safe message passing
+   - [ ] All tests initially fail (red phase)
+
+** TODO Implement Core Actor Trait                 :actors:tokio:core:
+   :PROPERTIES:
+   :ID:          ACTOR-001
+   :EFFORT:      4h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      feat/actor-trait-core
+   :WORKTREE:    yes
+   :BLOCKER:     ids(ACTOR-001-TESTS)
+   :END:
+   Implement core Actor trait and ActorHandle using Tokio primitives.
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Actor trait with async handle_message(&mut self, msg)
+   - [ ] ActorHandle with spawn() and send() methods
+   - [ ] Bounded mpsc channel mailbox per actor
+   - [ ] tokio::spawn based actor loop
+   - [ ] Graceful shutdown on ActorHandle drop
+   - [ ] All tests pass
+
+** TODO Test Design for Actor System               :testing:tdd:actors:system:
+   :PROPERTIES:
+   :ID:          ACTOR-002-TESTS
+   :EFFORT:      2h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/actor-system
+   :WORKTREE:    yes
+   :BLOCKER:     ids(ACTOR-001)
+   :TRIGGER:     ids(ACTOR-002) todo!(NEXT)
+   :END:
+   Design tests for actor system utilities and patterns.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Test multiple actors communication
+   - [ ] Test actor discovery/registry patterns
+   - [ ] Test error handling and actor restart
+   - [ ] Test performance with high message throughput
+   - [ ] Test integration with existing Tokio code
+   - [ ] All tests initially fail
+
+** TODO Implement Actor System Utilities          :actors:system:utilities:
+   :PROPERTIES:
+   :ID:          ACTOR-002
+   :EFFORT:      3h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      feat/actor-system-utils
+   :WORKTREE:    yes
+   :BLOCKER:     ids(ACTOR-002-TESTS)
+   :END:
+   Implement actor system utilities and common patterns.
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] ActorRegistry for actor discovery
+   - [ ] Helper macros for common actor patterns
+   - [ ] Error handling utilities
+   - [ ] Performance monitoring hooks
+   - [ ] Documentation and usage examples
+   - [ ] All tests pass, <500 lines total code
+
+** TODO Test Design for Mycelium Integration       :testing:tdd:actors:mycelium:
+   :PROPERTIES:
+   :ID:          ACTOR-003-TESTS
+   :EFFORT:      1h
+   :ASSIGNED:    integration-engineer
+   :BRANCH:      test/actor-mycelium-integration
+   :WORKTREE:    yes
+   :BLOCKER:     ids(ACTOR-002)
+   :BLOCKER:     ids(MYCEL-EXTRACT-002)
+   :TRIGGER:     ids(ACTOR-003) todo!(NEXT)
+   :END:
+   Design tests for actors using Mycelium for external communication.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Test actor subscribing to Mycelium messages
+   - [ ] Test actor publishing to Mycelium topics
+   - [ ] Test clean separation of concerns
+   - [ ] Test actor state persistence across restarts
+   - [ ] All tests initially fail
+
+** TODO Implement Mycelium Integration             :actors:mycelium:integration:
+   :PROPERTIES:
+   :ID:          ACTOR-003
+   :EFFORT:      1h
+   :ASSIGNED:    integration-engineer
+   :BRANCH:      feat/actor-mycelium-integration
+   :WORKTREE:    yes
+   :BLOCKER:     ids(ACTOR-003-TESTS)
+   :END:
+   Integrate actors with Mycelium for inter-process communication.
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Actors can subscribe to Mycelium publishers
+   - [ ] Actors can send messages via Mycelium publishers
+   - [ ] Clear separation: Actors for state, Mycelium for transport
+   - [ ] Example PriceActor using both patterns
+   - [ ] All tests pass, integration documented
+* TODO [#A] Internal/Wire Message Architecture      :build:critical:types:architecture:
+  :PROPERTIES:
+  :ID:          ARC-SERIALIZATION-GOAL
+  :EFFORT:      20h
+  :ASSIGNED:    backend-team
+  :DEADLINE:    <2025-08-30 Sat>
+  :BLOCKER:     children
+  :TRIGGER:     children todo!(NEXT)
+  :END:
+  Implement Internal/Wire message separation pattern to eliminate Arc serialization issues.
+  **ARCHITECTURAL DECISION**: Separate internal (Arc<T> for thread-safety) from wire (plain T for IPC) representations.
+  **CURRENT STATE**: 24 types need Internal/Wire separation pattern. Arc serialization completely eliminated at IPC boundaries.
+
+** TODO Test Design for Internal/Wire Pattern     :testing:tdd:architecture:
+   :PROPERTIES:
+   :ID:          ARC-001-TESTS
+   :EFFORT:      3h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/internal-wire-pattern
+   :TRIGGER:     ids(ARC-001) todo!(NEXT)
+   :END:
+   Design tests for Internal/Wire message separation pattern.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] Tests for Internal message types with Arc<T> for thread-safety
+   - [ ] Tests for Wire message types without Arc for IPC serialization
+   - [ ] Tests for conversion traits: From<&Internal> for Wire
+   - [ ] Tests for zerocopy compatibility on wire types only
+   - [ ] Tests for process boundary message conversion
+   - [ ] Performance benchmarks: conversion overhead <2μs
+   - [ ] All tests initially fail (red phase)
+
+** TODO [#A] Internal/Wire Pattern Implementation   :architecture:implementation:critical:
+   :PROPERTIES:
+   :ID:          ARC-001
+   :EFFORT:      6h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      feat/internal-wire-pattern
+   :DEADLINE:    <2025-08-30 Sat>
+   :BLOCKER:     ids(ARC-001-TESTS)
+   :END:
+   Implement Internal/Wire message separation for all message types.
+   **ARCHITECTURAL PATTERN**: Internal (Arc<T> for threads) + Wire (T for IPC) + conversion traits
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] All tests pass: `cargo test --package types`
+   - [ ] Passes code review
+   - [ ] Internal types use Arc<T> for thread-safe sharing within processes
+   - [ ] Wire types use plain T for IPC serialization (no Arc)
+   - [ ] Conversion traits implemented: From<&Internal> for Wire
+   - [ ] Zerocopy compatibility maintained for wire types
+   - [ ] Arc never crosses process boundaries (IPC)
+   - [ ] Performance validated: <2μs conversion overhead
+   - [ ] All 24 message types follow Internal/Wire pattern
+
+** TODO Test Design for Code Generation Macro    :testing:tdd:codegen:
+   :PROPERTIES:
+   :ID:          ARC-002-TESTS
+   :EFFORT:      3h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/internal-wire-codegen
+   :BLOCKER:     ids(ARC-001)
+   :TRIGGER:     ids(ARC-002) todo!(NEXT)
+   :END:
+   Design tests for code generation macro for Internal/Wire message pairs.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] Tests for macro-generated Internal types with Arc<T>
+   - [ ] Tests for macro-generated Wire types without Arc
+   - [ ] Tests for auto-generated From<&Internal> for Wire traits
+   - [ ] Tests for all domain types: Market, Signal, Execution
+   - [ ] Tests for nested struct handling in macro
+   - [ ] Tests for macro error cases and edge conditions
+   - [ ] All tests initially fail (red phase)
+
+** TODO [#A] Code Generation Macro for Internal/Wire :codegen:implementation:critical:
+   :PROPERTIES:
+   :ID:          ARC-002
+   :EFFORT:      8h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      feat/internal-wire-codegen
+   :DEADLINE:    <2025-08-30 Sat>
+   :BLOCKER:     ids(ARC-002-TESTS)
+   :END:
+   Create code generation macro to automate Internal/Wire message pair creation.
+   **TARGET**: Macro generates Internal (Arc<T>) + Wire (T) + conversions for all 24 message types
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Successfully builds: `cargo build --release --all`
+   - [ ] All tests pass: `cargo test --package types`
+   - [ ] Passes code review
+   - [ ] Macro generates Internal types with Arc<T> fields
+   - [ ] Macro generates Wire types with plain T fields
+   - [ ] Macro generates From<&Internal> for Wire conversion traits
+   - [ ] All 24 message types use macro: PoolSwapEvent, QuoteUpdate, etc.
+   - [ ] Performance maintained: <2μs conversion overhead
+   - [ ] Clean generated code with proper documentation
+
+** TODO Test Design for Build System Integration :testing:tdd:integration:
+   :PROPERTIES:
+   :ID:          ARC-003-TESTS
+   :EFFORT:      2h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/build-system-integration
+   :BLOCKER:     ids(ARC-002)
+   :TRIGGER:     ids(ARC-003) todo!(NEXT)
+   :END:
+   Design tests for full build system integration with Internal/Wire pattern.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] Tests for all services using Internal types for threading
+   - [ ] Tests for IPC boundaries using Wire types only
+   - [ ] Tests for zerocopy working with Wire types
+   - [ ] Tests for no Arc serialization anywhere in codebase
+   - [ ] Integration tests across all modules
+   - [ ] All tests initially fail (red phase)
+
+** TODO Full Build System Integration           :integration:architecture:
+   :PROPERTIES:
+   :ID:          ARC-003
+   :EFFORT:      4h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      feat/build-system-integration
+   :BLOCKER:     ids(ARC-003-TESTS)
+   :END:
+   Complete build system integration with Internal/Wire pattern across all services.
+   **GOAL**: All services build successfully with new Internal/Wire architecture
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Successfully builds: `cargo build --release --all`
+   - [ ] All tests pass: `cargo test --workspace`
+   - [ ] Passes code review
+   - [ ] All services use Internal types for in-process threading
+   - [ ] All IPC boundaries use Wire types (no Arc serialization)
+   - [ ] Zerocopy compatibility maintained on hot paths
+   - [ ] Performance maintained: <2μs conversion overhead
+   - [ ] Documentation updated with new architecture
+   - [ ] Ready for production deployment
+
+* TODO [#B] Project Mycelium - Pure Messaging Library    :mycelium:messaging:transport:
+  :PROPERTIES:
+  :ID:          MYCELIUM-UNIFIED-GOAL
+  :EFFORT:      40h
+  :ASSIGNED:    architecture-team
+  :DEADLINE:    <2025-09-15 Mon>
+  :BLOCKER:     children
+  :TRIGGER:     children todo!(NEXT)
+  :END:
+  Create libs/mycelium as focused messaging library for transport abstraction and patterns.
+  **ARCHITECTURAL DECISION**: Pure messaging library, NOT an actor runtime
+  **SCOPE**: Transport abstraction + messaging patterns only, no task scheduling or supervision
+  **GOAL**: Simple, composable messaging with bytes::Bytes transport trait
+
+** TODO Test Design for bytes::Bytes Transport   :testing:tdd:transport:
+   :PROPERTIES:
+   :ID:          MYC-UNIFIED-001-TESTS
+   :EFFORT:      3h
+   :ASSIGNED:    architecture-engineer
+   :BRANCH:      test/bytes-transport-trait
+   :TRIGGER:     ids(MYC-UNIFIED-001) todo!(NEXT)
+   :END:
+   Design tests for bytes::Bytes based Transport trait with zero-copy awareness.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] Tests for TCP transport using bytes::Bytes
+   - [ ] Tests for Unix socket transport with bytes::Bytes
+   - [ ] Tests for in-process transport (channels) with bytes::Bytes
+   - [ ] Tests for zero-copy message passing
+   - [ ] Performance tests: >1M msg/s throughput maintained
+   - [ ] Tests for 2-3μs IPC latency target
+   - [ ] All tests initially fail (red phase)
+
+** TODO bytes::Bytes Transport Trait Implementation :transport:implementation:
+   :PROPERTIES:
+   :ID:          MYC-UNIFIED-001
+   :EFFORT:      6h
+   :ASSIGNED:    architecture-engineer
+   :BRANCH:      feat/bytes-transport-trait
+   :BLOCKER:     ids(MYC-UNIFIED-001-TESTS)
+   :END:
+   Implement Transport trait using bytes::Bytes for zero-copy aware messaging.
+   **DESIGN**: pub trait Transport { async fn send(&self, msg: Bytes) -> Result<()>; async fn recv(&self) -> Result<Bytes>; }
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] All tests pass: `cargo test --package mycelium-transport`
+   - [ ] Passes code review
+   - [ ] Transport trait using bytes::Bytes for zero-copy
+   - [ ] TCP transport: efficient networking with bytes::Bytes
+   - [ ] Unix socket transport: 2-3μs IPC latency (acceptable for production)
+   - [ ] In-process transport: channel-based for development/specialized cases
+   - [ ] Performance maintained: >1M msg/s throughput
+   - [ ] Multi-process as default, monolith mode for <1μs requirements
+
+** TODO Test Design for Messaging Patterns       :testing:tdd:patterns:
+   :PROPERTIES:
+   :ID:          MYC-UNIFIED-002-TESTS
+   :EFFORT:      2h
+   :ASSIGNED:    architecture-engineer
+   :BRANCH:      test/messaging-patterns
+   :BLOCKER:     ids(MYC-UNIFIED-001)
+   :TRIGGER:     ids(MYC-UNIFIED-002) todo!(NEXT)
+   :END:
+   Design tests for messaging patterns on top of Transport trait.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] Tests for Pub/Sub pattern using Transport trait
+   - [ ] Tests for Req/Rep pattern using Transport trait
+   - [ ] Tests for Pipeline pattern (Push/Pull) using Transport trait
+   - [ ] Tests for pattern composition and routing
+   - [ ] Performance tests for pattern overhead
+   - [ ] Tests for pattern-specific error handling
+   - [ ] All tests initially fail (red phase)
+
+** TODO Messaging Patterns Implementation        :patterns:messaging:
+   :PROPERTIES:
+   :ID:          MYC-UNIFIED-002
+   :EFFORT:      8h
+   :ASSIGNED:    architecture-engineer
+   :BRANCH:      feat/messaging-patterns
+   :BLOCKER:     ids(MYC-UNIFIED-002-TESTS)
+   :END:
+   Implement messaging patterns on Transport abstraction (no actor runtime features).
+   **SCOPE**: Pure messaging patterns only - no task scheduling, supervision, or lifecycle management
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Successfully builds: `cargo build --release`
+   - [ ] All tests pass: `cargo test --package mycelium-patterns`
+   - [ ] Passes code review
+   - [ ] Pub/Sub: topic-based message distribution
+   - [ ] Req/Rep: request-response with timeouts
+   - [ ] Pipeline: work distribution patterns
+   - [ ] Pattern composition: combine patterns flexibly
+   - [ ] No actor runtime features (scheduling, supervision, etc.)
+   - [ ] Performance: minimal overhead over raw transport
+
+** TODO Test Design for Transport Code Migration :testing:tdd:migration:
+   :PROPERTIES:
+   :ID:          MYC-UNIFIED-003-TESTS
+   :EFFORT:      3h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/transport-migration
+   :BLOCKER:     ids(MYC-UNIFIED-002)
+   :TRIGGER:     ids(MYC-UNIFIED-003) todo!(NEXT)
+   :END:
+   Design tests for migrating transport code to Mycelium (messaging patterns only).
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] Tests for network/ transport code absorption
+   - [ ] Tests for libs/messaging/patterns/ integration
+   - [ ] Tests for services using async runtime separately
+   - [ ] Tests for backward compatibility during transition
+   - [ ] Integration tests with existing services
+   - [ ] Performance regression tests
+   - [ ] All tests initially fail (red phase)
+
+** TODO Absorb Transport and Messaging Patterns :migration:integration:
+   :PROPERTIES:
+   :ID:          MYC-UNIFIED-003
+   :EFFORT:      10h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      feat/transport-messaging-migration
+   :BLOCKER:     ids(MYC-UNIFIED-003-TESTS)
+   :END:
+   Absorb transport code and messaging patterns into focused Mycelium library.
+   **FOCUS**: Transport abstraction + messaging patterns only (no actor runtime)
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Successfully builds: `cargo build --release --all`
+   - [ ] All tests pass: existing + new Mycelium tests
+   - [ ] Passes code review
+   - [ ] libs/messaging/patterns/ absorbed into mycelium/patterns/
+   - [ ] network/ transport code absorbed into mycelium/transport/
+   - [ ] Actor runtime concerns remain separate (services handle their own)
+   - [ ] Clean API: focused on messaging, not task/actor management
+   - [ ] Performance maintained: >1M msg/s, 2-3μs IPC acceptable
+   - [ ] Backward compatibility shims for gradual migration
+
+** TODO Test Design for Production Architecture  :testing:tdd:deployment:
+   :PROPERTIES:
+   :ID:          MYC-UNIFIED-004-TESTS
+   :EFFORT:      2h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      test/production-architecture
+   :BLOCKER:     ids(MYC-UNIFIED-003)
+   :TRIGGER:     ids(MYC-UNIFIED-004) todo!(NEXT)
+   :END:
+   Design tests for production multi-process architecture with development monolith mode.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test`
+   - [ ] Tests for multi-process deployment as default (fault isolation)
+   - [ ] Tests for monolith mode for development or <1μs specialized cases
+   - [ ] Tests for 2-3μs IPC latency being acceptable for production
+   - [ ] Tests for configuration-driven transport selection
+   - [ ] Performance tests confirming multi-process viability
+   - [ ] Tests for fault isolation benefits
+   - [ ] All tests initially fail (red phase)
+
+** TODO Production Multi-Process Architecture    :deployment:production:
+   :PROPERTIES:
+   :ID:          MYC-UNIFIED-004
+   :EFFORT:      6h
+   :ASSIGNED:    backend-engineer
+   :BRANCH:      feat/production-multi-process
+   :BLOCKER:     ids(MYC-UNIFIED-004-TESTS)
+   :END:
+   Implement multi-process as default with monolith mode for development.
+   **PRODUCTION DECISION**: Multi-process default for fault isolation, 2-3μs IPC acceptable
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Successfully builds: `cargo build --release --all`
+   - [ ] All tests pass: deployment model tests
+   - [ ] Passes code review
+   - [ ] Multi-process default: Unix sockets, fault isolation priority
+   - [ ] 2-3μs IPC latency acceptable for production trading
+   - [ ] Monolith mode: for development or specialized <1μs requirements
+   - [ ] Configuration-driven: choose transport at startup
+   - [ ] Performance optimized for multi-process production use
+   - [ ] Clear deployment documentation and trade-offs
+
+** TODO Test Design for Zero-Copy Performance   :testing:tdd:performance:
+   :PROPERTIES:
+   :ID:          MYC-UNIFIED-005-TESTS
+   :EFFORT:      3h
+   :ASSIGNED:    performance-engineer
+   :BRANCH:      test/zero-copy-performance
+   :BLOCKER:     ids(MYC-UNIFIED-004)
+   :TRIGGER:     ids(MYC-UNIFIED-005) todo!(NEXT)
+   :END:
+   Design tests to maintain zero-copy performance characteristics.
+   *** Acceptance Criteria (TDD Red Phase)
+   - [ ] Successfully builds: `cargo build --test --release`
+   - [ ] Benchmark tests for message construction >1M msg/s
+   - [ ] Benchmark tests for message parsing >1.6M msg/s
+   - [ ] Tests for zero-copy serialization with zerocopy crate
+   - [ ] Memory allocation tests (minimal heap usage)
+   - [ ] Latency tests: <35μs hot path maintained
+   - [ ] Throughput regression detection tests
+   - [ ] All tests initially fail (red phase)
+
+** TODO Maintain Zero-Copy Performance          :performance:optimization:
+   :PROPERTIES:
+   :ID:          MYC-UNIFIED-005
+   :EFFORT:      6h
+   :ASSIGNED:    performance-engineer
+   :BRANCH:      feat/zero-copy-performance
+   :BLOCKER:     ids(MYC-UNIFIED-005-TESTS)
+   :END:
+   Ensure Mycelium maintains existing zero-copy performance.
+   **REQUIREMENT**: >1M msg/s construction, >1.6M msg/s parsing, <35μs hot path
+   *** Acceptance Criteria (TDD Green Phase)
+   - [ ] Successfully builds: `cargo build --release --all`
+   - [ ] All benchmarks pass: performance targets met
+   - [ ] Passes code review
+   - [ ] Message construction: >1M msg/s maintained
+   - [ ] Message parsing: >1.6M msg/s maintained
+   - [ ] Hot path latency: <35μs maintained
+   - [ ] Zero-copy serialization working with zerocopy
+   - [ ] Minimal heap allocations in critical paths
+   - [ ] Performance monitoring and regression detection
+
 * WORKFLOW [#C] Task Management Improvements      :workflow:meta:recycle-bin:
   :PROPERTIES:
   :ID:          WORKFLOW-IMPROVEMENTS

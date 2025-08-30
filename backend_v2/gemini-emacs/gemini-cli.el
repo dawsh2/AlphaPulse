@@ -5,8 +5,24 @@
 
 ;;; Code:
 
+(require 'project)
+
 (defvar gemini-buffer nil "The Gemini terminal buffer.")
 (defvar gemini-program "/opt/homebrew/bin/gemini" "Path to Gemini CLI.")
+
+(defun gemini--directory ()
+  "Get the root Gemini directory for the current buffer.
+If not in a project and no buffer file return `default-directory'.
+This is based on claude-code--directory function."
+  (let* ((project (project-current))
+         (current-file (buffer-file-name)))
+    (cond
+     ;; Case 1: In a project
+     (project (project-root project))
+     ;; Case 2: Has buffer file (when not in VC repo)
+     (current-file (file-name-directory current-file))
+     ;; Case 3: No project and no buffer file
+     (t default-directory))))
 
 (defun gemini--ensure-vterm ()
   "Ensure vterm package is loaded."
@@ -55,16 +71,19 @@ SWITCHES are optional command-line arguments for PROGRAM."
         (kill-buffer gemini-buffer)
       (user-error "Gemini already running")))
   
-  (setq gemini-buffer (gemini--term-make "*gemini*" gemini-program))
-  
-  ;; Brief delay to let terminal initialize
-  (sit-for 0.1)
-  
-  ;; Show the buffer
-  (display-buffer gemini-buffer '((display-buffer-in-side-window)
-                                  (side . right)
-                                  (window-width . 80)))
-  (message "Gemini started"))
+  ;; Get the project root directory and start Gemini there
+  (let* ((dir (gemini--directory))
+         (default-directory dir))
+    (setq gemini-buffer (gemini--term-make "*gemini*" gemini-program))
+    
+    ;; Brief delay to let terminal initialize
+    (sit-for 0.1)
+    
+    ;; Show the buffer
+    (display-buffer gemini-buffer '((display-buffer-in-side-window)
+                                    (side . right)
+                                    (window-width . 80)))
+    (message "Gemini started in %s" (abbreviate-file-name dir))))
 
 (defun gemini-command (prompt)
   "Send PROMPT to Gemini using claude-code.el approach."

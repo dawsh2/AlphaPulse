@@ -2,8 +2,7 @@
 //!
 //! The header is identical for all messages and contains routing and validation information.
 
-use super::super::{ProtocolError, RelayDomain, SourceType, MESSAGE_MAGIC};
-use crate::tlv::fast_timestamp_ns;
+use crate::protocol::constants::{ProtocolError, RelayDomain, SourceType, MESSAGE_MAGIC};
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 /// Message Header (32 bytes)
@@ -54,7 +53,7 @@ impl MessageHeader {
         Self {
             // u64 fields first
             sequence: 0,
-            timestamp: fast_timestamp_ns(), // ✅ ULTRA-FAST: ~5ns vs ~200ns
+            timestamp: precise_timestamp_ns(), // Use local timestamp function
             // u32 fields
             magic: MESSAGE_MAGIC,
             payload_size: 0,
@@ -70,18 +69,15 @@ impl MessageHeader {
     /// Validate the header format
     pub fn validate(&self) -> crate::Result<()> {
         if self.magic != MESSAGE_MAGIC {
-            return Err(ProtocolError::Parse(crate::tlv::ParseError::InvalidMagic {
-                expected: MESSAGE_MAGIC,
-                actual: self.magic,
-            }));
+            return Err(anyhow::anyhow!("Invalid magic: expected {:#x}, got {:#x}", 
+                MESSAGE_MAGIC, self.magic));
         }
 
         RelayDomain::try_from(self.relay_domain)
-            .map_err(|_| ProtocolError::InvalidRelayDomain(self.relay_domain))?;
+            .map_err(|e| anyhow::anyhow!("Invalid relay domain {}: {}", self.relay_domain, e))?;
 
-        SourceType::try_from(self.source).map_err(|_| {
-            ProtocolError::Parse(crate::tlv::ParseError::UnknownSource(self.source))
-        })?;
+        SourceType::try_from(self.source)
+            .map_err(|e| anyhow::anyhow!("Invalid source type {}: {}", self.source, e))?;
 
         Ok(())
     }
@@ -89,13 +85,13 @@ impl MessageHeader {
     /// Get the relay domain for this message
     pub fn get_relay_domain(&self) -> crate::Result<RelayDomain> {
         RelayDomain::try_from(self.relay_domain)
-            .map_err(|_| ProtocolError::InvalidRelayDomain(self.relay_domain))
+            .map_err(|e| anyhow::anyhow!("Invalid relay domain {}: {}", self.relay_domain, e))
     }
 
     /// Get the source type for this message
     pub fn get_source_type(&self) -> crate::Result<SourceType> {
         SourceType::try_from(self.source)
-            .map_err(|_| ProtocolError::Parse(crate::tlv::ParseError::UnknownSource(self.source)))
+            .map_err(|e| anyhow::anyhow!("Invalid source type {}: {}", self.source, e))
     }
 
     /// Set the sequence number (typically done by the relay)
@@ -156,7 +152,7 @@ impl MessageHeader {
 /// Uses the global coarse clock system for ~5ns performance instead of
 /// SystemTime::now() which costs ~200ns. Maintains ±10μs accuracy.
 pub fn current_timestamp_ns() -> u64 {
-    fast_timestamp_ns()
+    precise_timestamp_ns()
 }
 
 /// Get precise system timestamp (fallback for critical operations)
@@ -164,9 +160,11 @@ pub fn current_timestamp_ns() -> u64 {
 /// Uses SystemTime::now() for perfect accuracy at the cost of ~200ns latency.
 /// Use this sparingly for critical operations requiring perfect timestamp accuracy.
 pub fn precise_timestamp_ns() -> u64 {
-    // Use safe conversion from network time module
-    // Prevents silent truncation on overflow - will panic if timestamp overflows u64
-    network::safe_system_timestamp_ns()
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("System time before Unix epoch")
+        .as_nanos() as u64
 }
 
 #[cfg(test)]

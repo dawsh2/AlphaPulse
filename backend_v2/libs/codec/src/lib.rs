@@ -74,8 +74,10 @@
 
 // Core modules
 pub mod builder;
+pub mod buffers;
 pub mod constants;
 pub mod error;
+pub mod help;
 pub mod instrument_id;
 pub mod message_builder; // TODO: Remove after migration complete
 pub mod protocol_constants;
@@ -92,6 +94,14 @@ pub use error::{ParseError, ParseResult, ProtocolError, ProtocolResult};
 pub use instrument_id::{AssetType, InstrumentId, VenueId};
 // Re-export from new builder module
 pub use builder::{TLVMessageBuilder, VendorTLVBuilder, build_message_direct, BuildError};
+// Re-export buffer functions
+pub use buffers::{
+    build_with_size_hint,
+    with_hot_path_buffer,
+    with_signal_buffer,
+    with_validation_buffer,
+    BufferError,
+};
 pub use parser::{
     extract_tlv_payload, find_tlv_by_type, parse_header, parse_header_without_checksum,
     parse_tlv_extensions, validate_tlv_size, ExtendedTLVExtension, ExtendedTLVHeader,
